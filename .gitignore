@@ -1,0 +1,80 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.js
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# local env files
+.env*.local
+.env
+.env.contract
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# logs
+*.log
+dev.log
+production.log
+server.log
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Temporary files
+.tmp/
+tmp/
+
+# Rust build artifacts
+target/
+Cargo.lock
+
+# WASM build artifacts and development files
+lib/wasm-sdk/target/
+lib/wasm-sdk/node_modules/
+lib/wasm-sdk/pkg/
+lib/wasm-sdk/*.log
+lib/wasm-sdk/wasm_sdk.js
+lib/wasm-sdk/wasm_sdk_bg.wasm
+lib/wasm-sdk/index.html.backup
+lib/wasm-sdk/packages/
+
+# Keep only the necessary WASM files in dash-wasm
+# (the actual SDK files we need are in lib/dash-wasm/)
