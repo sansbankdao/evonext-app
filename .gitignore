@@ -67,14 +67,7 @@ target/
 Cargo.lock
 
 # WASM build artifacts and development files
-lib/wasm-sdk/target/
-lib/wasm-sdk/node_modules/
-lib/wasm-sdk/pkg/
-lib/wasm-sdk/*.log
-lib/wasm-sdk/wasm_sdk.js
-lib/wasm-sdk/wasm_sdk_bg.wasm
-lib/wasm-sdk/index.html.backup
-lib/wasm-sdk/packages/
+lib/wasm-sdk/
 
 # Keep only the necessary WASM files in dash-wasm
 # (the actual SDK files we need are in lib/dash-wasm/)
