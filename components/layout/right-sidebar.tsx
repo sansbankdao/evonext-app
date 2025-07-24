@@ -1,8 +1,9 @@
 'use client'
 
-import { MagnifyingGlassIcon } from '@heroicons/react/24/outline'
-import { formatNumber } from '@/lib/utils'
+import { MagnifyingGlassIcon, ChartBarIcon, ClockIcon, FireIcon, UserGroupIcon } from '@heroicons/react/24/outline'
+import { formatNumber, formatTime } from '@/lib/utils'
 import { useAuth } from '@/contexts/auth-context'
+import { YAPPR_CONTRACT_ID } from '@/lib/constants'
 
 export function RightSidebar() {
   const { user } = useAuth()
@@ -23,7 +24,7 @@ export function RightSidebar() {
         <div className="px-4 py-3 space-y-2">
           <div>
             <p className="text-sm text-gray-500">Contract ID</p>
-            <p className="text-xs font-mono break-all">{process.env.NEXT_PUBLIC_CONTRACT_ID}</p>
+            <p className="text-xs font-mono break-all">{YAPPR_CONTRACT_ID}</p>
           </div>
           <div>
             <p className="text-sm text-gray-500">Network</p>
@@ -53,17 +54,49 @@ export function RightSidebar() {
 
       {user && (
         <div className="bg-gray-50 dark:bg-gray-950 rounded-2xl overflow-hidden">
-          <h2 className="text-xl font-bold px-4 py-3">Your Keys</h2>
-          <div className="px-4 py-3 space-y-2 text-sm">
-            {user.publicKeys.map((key) => (
-              <div key={key.id} className="py-1">
-                <p className="text-xs text-gray-500">Key #{key.id}</p>
-                <p className="font-mono text-xs">{key.type}</p>
-                <p className="text-xs text-gray-600 dark:text-gray-400">
-                  {key.purpose} • {key.securityLevel}
-                </p>
+          <h2 className="text-xl font-bold px-4 py-3 flex items-center gap-2">
+            <ChartBarIcon className="h-5 w-5" />
+            Stats
+          </h2>
+          <div className="px-4 py-3 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <ClockIcon className="h-4 w-4 text-gray-500" />
+                <p className="text-sm text-gray-600 dark:text-gray-400">Last Post</p>
               </div>
-            ))}
+              <p className="text-sm font-medium">2 hours ago</p>
+            </div>
+            
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <FireIcon className="h-4 w-4 text-gray-500" />
+                <p className="text-sm text-gray-600 dark:text-gray-400">Posting Streak</p>
+              </div>
+              <p className="text-sm font-medium">7 days</p>
+            </div>
+            
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <UserGroupIcon className="h-4 w-4 text-gray-500" />
+                <p className="text-sm text-gray-600 dark:text-gray-400">Total Followers</p>
+              </div>
+              <p className="text-sm font-medium">{formatNumber(342)}</p>
+            </div>
+            
+            <div className="border-t border-gray-200 dark:border-gray-800 pt-3 space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600 dark:text-gray-400">Total Posts</span>
+                <span className="font-medium">{formatNumber(128)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600 dark:text-gray-400">Total Likes</span>
+                <span className="font-medium">{formatNumber(1234)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600 dark:text-gray-400">Engagement Rate</span>
+                <span className="font-medium">12.3%</span>
+              </div>
+            </div>
           </div>
         </div>
       )}

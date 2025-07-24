@@ -75,7 +75,9 @@ export function ComposeModal() {
       
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
       
-      if (errorMessage.includes('Network') || errorMessage.includes('connection') || errorMessage.includes('timeout')) {
+      if (errorMessage.includes('no available addresses') || errorMessage.includes('Missing response message')) {
+        toast.error('Dash Platform is temporarily unavailable. Please try again in a few moments.')
+      } else if (errorMessage.includes('Network') || errorMessage.includes('connection') || errorMessage.includes('timeout')) {
         toast.error('Network error. Please check your connection and try again.')
       } else if (errorMessage.includes('Private key not found')) {
         toast.error('Your session has expired. Please log in again.')

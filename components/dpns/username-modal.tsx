@@ -261,7 +261,7 @@ export function UsernameModal({ isOpen, onClose, customIdentityId: initialIdenti
         
         // Redirect to home or profile creation
         const { profileService } = await import('@/lib/services/profile-service')
-        const profile = await profileService.getProfile(currentIdentityId)
+        const profile = await profileService.getProfile(currentIdentityId, existingUsername)
         
         if (profile) {
           router.push('/')

@@ -14,6 +14,9 @@ import {
   PencilSquareIcon,
   Cog6ToothIcon,
   ArrowRightOnRectangleIcon,
+  UserGroupIcon,
+  UsersIcon,
+  HashtagIcon,
 } from '@heroicons/react/24/outline'
 import {
   HomeIcon as HomeIconSolid,
@@ -22,6 +25,9 @@ import {
   EnvelopeIcon as EnvelopeIconSolid,
   BookmarkIcon as BookmarkIconSolid,
   UserIcon as UserIconSolid,
+  UserGroupIcon as UserGroupIconSolid,
+  UsersIcon as UsersIconSolid,
+  HashtagIcon as HashtagIconSolid,
 } from '@heroicons/react/24/solid'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -37,14 +43,15 @@ const getNavigation = (isLoggedIn: boolean) => {
   if (!isLoggedIn) {
     return [
       { name: 'Home', href: '/', icon: HomeIcon, activeIcon: HomeIconSolid },
-      { name: 'Explore', href: '/explore', icon: MagnifyingGlassIcon, activeIcon: SearchIconSolid },
+      { name: 'Following', href: '/following', icon: UserGroupIcon, activeIcon: UserGroupIconSolid },
     ]
   }
   
   return [
     { name: 'Home', href: '/feed', icon: HomeIcon, activeIcon: HomeIconSolid },
-    { name: 'Explore', href: '/explore', icon: MagnifyingGlassIcon, activeIcon: SearchIconSolid },
-    { name: 'Notifications', href: '/notifications', icon: BellIcon, activeIcon: BellIconSolid },
+    { name: 'Following', href: '/following', icon: UserGroupIcon, activeIcon: UserGroupIconSolid },
+    { name: 'Followers', href: '/followers', icon: UsersIcon, activeIcon: UsersIconSolid },
+    { name: 'Explore', href: '/explore', icon: HashtagIcon, activeIcon: HashtagIconSolid },
     { name: 'Messages', href: '/messages', icon: EnvelopeIcon, activeIcon: EnvelopeIconSolid },
     { name: 'Bookmarks', href: '/bookmarks', icon: BookmarkIcon, activeIcon: BookmarkIconSolid },
     { name: 'Profile', href: '/profile', icon: UserIcon, activeIcon: UserIconSolid },
@@ -75,8 +82,8 @@ export function Sidebar() {
   }
 
   return (
-    <div className="fixed h-screen w-[275px] flex flex-col px-2">
-      <div className="flex-1 space-y-1 py-4">
+    <div className="h-screen w-[275px] flex flex-col px-2 sticky top-0">
+      <div className="flex-1 space-y-1 py-4 overflow-y-auto scrollbar-hide">
         <Link href="/" className="flex items-center px-3 py-4 mb-2 group">
           <div className="text-2xl font-bold text-gradient">Yappr</div>
         </Link>
@@ -145,7 +152,7 @@ export function Sidebar() {
         )}
       </div>
 
-      <div className="space-y-2">
+      <div className="space-y-2 flex-shrink-0 pb-4">
         <Link
           href="/contract"
           className="flex items-center gap-2 px-3 py-2 text-sm text-gray-500 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"

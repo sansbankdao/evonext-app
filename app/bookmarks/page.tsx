@@ -150,7 +150,7 @@ function BookmarksPage() {
     <div className="min-h-screen flex">
       <Sidebar />
       
-      <main className="flex-1 ml-[275px] mr-[350px] max-w-[600px] border-x border-gray-200 dark:border-gray-800">
+      <main className="flex-1 mr-[350px] max-w-[600px] border-x border-gray-200 dark:border-gray-800">
         <header className="sticky top-0 z-40 bg-white/80 dark:bg-black/80 backdrop-blur-xl border-b border-gray-200 dark:border-gray-800">
           <div className="flex items-center justify-between px-4 py-3">
             <div>

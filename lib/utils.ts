@@ -14,13 +14,16 @@ export function formatTime(date: Date | string): string {
   const diffInSeconds = Math.floor((now.getTime() - dateObj.getTime()) / 1000)
   
   if (diffInSeconds < 60) {
-    return `${diffInSeconds}s`
+    return `${diffInSeconds} ${diffInSeconds === 1 ? 'second' : 'seconds'} ago`
   } else if (diffInSeconds < 3600) {
-    return `${Math.floor(diffInSeconds / 60)}m`
+    const minutes = Math.floor(diffInSeconds / 60)
+    return `${minutes} ${minutes === 1 ? 'minute' : 'minutes'} ago`
   } else if (diffInSeconds < 86400) {
-    return `${Math.floor(diffInSeconds / 3600)}h`
+    const hours = Math.floor(diffInSeconds / 3600)
+    return `${hours} ${hours === 1 ? 'hour' : 'hours'} ago`
   } else if (diffInSeconds < 604800) {
-    return `${Math.floor(diffInSeconds / 86400)}d`
+    const days = Math.floor(diffInSeconds / 86400)
+    return `${days} ${days === 1 ? 'day' : 'days'} ago`
   } else {
     return dateObj.toLocaleDateString('en-US', { 
       month: 'short', 

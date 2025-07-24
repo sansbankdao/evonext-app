@@ -209,11 +209,159 @@ function takeFromExternrefTable0(idx) {
     return value;
 }
 
+function passArray8ToWasm0(arg, malloc) {
+    const ptr = malloc(arg.length * 1, 1) >>> 0;
+    getUint8ArrayMemory0().set(arg, ptr / 1);
+    WASM_VECTOR_LEN = arg.length;
+    return ptr;
+}
+
 function _assertClass(instance, klass) {
     if (!(instance instanceof klass)) {
         throw new Error(`expected instance of ${klass.name}`);
     }
 }
+/**
+ * @param {WasmSdk} sdk
+ * @param {number | null} [start_epoch]
+ * @param {number | null} [count]
+ * @param {boolean | null} [ascending]
+ * @returns {Promise<any>}
+ */
+export function get_epochs_info(sdk, start_epoch, count, ascending) {
+    _assertClass(sdk, WasmSdk);
+    const ret = wasm.get_epochs_info(sdk.__wbg_ptr, isLikeNone(start_epoch) ? 0xFFFFFF : start_epoch, isLikeNone(count) ? 0x100000001 : (count) >>> 0, isLikeNone(ascending) ? 0xFFFFFF : ascending ? 1 : 0);
+    return ret;
+}
+
+/**
+ * @param {WasmSdk} sdk
+ * @param {number | null} [start_epoch]
+ * @param {number | null} [count]
+ * @param {boolean | null} [ascending]
+ * @returns {Promise<any>}
+ */
+export function get_finalized_epoch_infos(sdk, start_epoch, count, ascending) {
+    _assertClass(sdk, WasmSdk);
+    const ret = wasm.get_finalized_epoch_infos(sdk.__wbg_ptr, isLikeNone(start_epoch) ? 0xFFFFFF : start_epoch, isLikeNone(count) ? 0x100000001 : (count) >>> 0, isLikeNone(ascending) ? 0xFFFFFF : ascending ? 1 : 0);
+    return ret;
+}
+
+function passArrayJsValueToWasm0(array, malloc) {
+    const ptr = malloc(array.length * 4, 4) >>> 0;
+    for (let i = 0; i < array.length; i++) {
+        const add = addToExternrefTable0(array[i]);
+        getDataViewMemory0().setUint32(ptr + 4 * i, add, true);
+    }
+    WASM_VECTOR_LEN = array.length;
+    return ptr;
+}
+/**
+ * @param {WasmSdk} sdk
+ * @param {number} epoch
+ * @param {string[]} ids
+ * @returns {Promise<any>}
+ */
+export function get_evonodes_proposed_epoch_blocks_by_ids(sdk, epoch, ids) {
+    _assertClass(sdk, WasmSdk);
+    const ptr0 = passArrayJsValueToWasm0(ids, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.get_evonodes_proposed_epoch_blocks_by_ids(sdk.__wbg_ptr, epoch, ptr0, len0);
+    return ret;
+}
+
+/**
+ * @param {WasmSdk} sdk
+ * @param {number} epoch
+ * @param {number | null} [limit]
+ * @param {string | null} [start_after]
+ * @param {boolean | null} [order_ascending]
+ * @returns {Promise<any>}
+ */
+export function get_evonodes_proposed_epoch_blocks_by_range(sdk, epoch, limit, start_after, order_ascending) {
+    _assertClass(sdk, WasmSdk);
+    var ptr0 = isLikeNone(start_after) ? 0 : passStringToWasm0(start_after, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    var len0 = WASM_VECTOR_LEN;
+    const ret = wasm.get_evonodes_proposed_epoch_blocks_by_range(sdk.__wbg_ptr, epoch, isLikeNone(limit) ? 0x100000001 : (limit) >>> 0, ptr0, len0, isLikeNone(order_ascending) ? 0xFFFFFF : order_ascending ? 1 : 0);
+    return ret;
+}
+
+/**
+ * @param {WasmSdk} sdk
+ * @returns {Promise<any>}
+ */
+export function get_current_epoch(sdk) {
+    _assertClass(sdk, WasmSdk);
+    const ret = wasm.get_current_epoch(sdk.__wbg_ptr);
+    return ret;
+}
+
+/**
+ * @param {WasmSdk} sdk
+ * @param {number | null} [start_epoch]
+ * @param {number | null} [count]
+ * @param {boolean | null} [ascending]
+ * @returns {Promise<any>}
+ */
+export function get_epochs_info_with_proof_info(sdk, start_epoch, count, ascending) {
+    _assertClass(sdk, WasmSdk);
+    const ret = wasm.get_epochs_info_with_proof_info(sdk.__wbg_ptr, isLikeNone(start_epoch) ? 0xFFFFFF : start_epoch, isLikeNone(count) ? 0x100000001 : (count) >>> 0, isLikeNone(ascending) ? 0xFFFFFF : ascending ? 1 : 0);
+    return ret;
+}
+
+/**
+ * @param {WasmSdk} sdk
+ * @returns {Promise<any>}
+ */
+export function get_current_epoch_with_proof_info(sdk) {
+    _assertClass(sdk, WasmSdk);
+    const ret = wasm.get_current_epoch_with_proof_info(sdk.__wbg_ptr);
+    return ret;
+}
+
+/**
+ * @param {WasmSdk} sdk
+ * @param {number | null} [start_epoch]
+ * @param {number | null} [count]
+ * @param {boolean | null} [ascending]
+ * @returns {Promise<any>}
+ */
+export function get_finalized_epoch_infos_with_proof_info(sdk, start_epoch, count, ascending) {
+    _assertClass(sdk, WasmSdk);
+    const ret = wasm.get_finalized_epoch_infos_with_proof_info(sdk.__wbg_ptr, isLikeNone(start_epoch) ? 0xFFFFFF : start_epoch, isLikeNone(count) ? 0x100000001 : (count) >>> 0, isLikeNone(ascending) ? 0xFFFFFF : ascending ? 1 : 0);
+    return ret;
+}
+
+/**
+ * @param {WasmSdk} sdk
+ * @param {number} epoch
+ * @param {string[]} pro_tx_hashes
+ * @returns {Promise<any>}
+ */
+export function get_evonodes_proposed_epoch_blocks_by_ids_with_proof_info(sdk, epoch, pro_tx_hashes) {
+    _assertClass(sdk, WasmSdk);
+    const ptr0 = passArrayJsValueToWasm0(pro_tx_hashes, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.get_evonodes_proposed_epoch_blocks_by_ids_with_proof_info(sdk.__wbg_ptr, epoch, ptr0, len0);
+    return ret;
+}
+
+/**
+ * @param {WasmSdk} sdk
+ * @param {number} epoch
+ * @param {number | null} [limit]
+ * @param {string | null} [start_after]
+ * @param {boolean | null} [order_ascending]
+ * @returns {Promise<any>}
+ */
+export function get_evonodes_proposed_epoch_blocks_by_range_with_proof_info(sdk, epoch, limit, start_after, order_ascending) {
+    _assertClass(sdk, WasmSdk);
+    var ptr0 = isLikeNone(start_after) ? 0 : passStringToWasm0(start_after, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    var len0 = WASM_VECTOR_LEN;
+    const ret = wasm.get_evonodes_proposed_epoch_blocks_by_range_with_proof_info(sdk.__wbg_ptr, epoch, isLikeNone(limit) ? 0x100000001 : (limit) >>> 0, ptr0, len0, isLikeNone(order_ascending) ? 0xFFFFFF : order_ascending ? 1 : 0);
+    return ret;
+}
+
 /**
  * @returns {Promise<void>}
  */
@@ -271,6 +419,32 @@ export function identity_fetch(sdk, base58_id) {
     return ret;
 }
 
+/**
+ * @param {WasmSdk} sdk
+ * @param {string} base58_id
+ * @returns {Promise<any>}
+ */
+export function identity_fetch_with_proof_info(sdk, base58_id) {
+    _assertClass(sdk, WasmSdk);
+    const ptr0 = passStringToWasm0(base58_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.identity_fetch_with_proof_info(sdk.__wbg_ptr, ptr0, len0);
+    return ret;
+}
+
+/**
+ * @param {WasmSdk} sdk
+ * @param {string} base58_id
+ * @returns {Promise<IdentityWasm>}
+ */
+export function identity_fetch_unproved(sdk, base58_id) {
+    _assertClass(sdk, WasmSdk);
+    const ptr0 = passStringToWasm0(base58_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.identity_fetch_unproved(sdk.__wbg_ptr, ptr0, len0);
+    return ret;
+}
+
 let cachedUint32ArrayMemory0 = null;
 
 function getUint32ArrayMemory0() {
@@ -291,11 +465,12 @@ function passArray32ToWasm0(arg, malloc) {
  * @param {string} identity_id
  * @param {string} key_request_type
  * @param {Uint32Array | null} [specific_key_ids]
+ * @param {string | null} [search_purpose_map]
  * @param {number | null} [limit]
  * @param {number | null} [offset]
  * @returns {Promise<any>}
  */
-export function get_identity_keys(sdk, identity_id, key_request_type, specific_key_ids, limit, offset) {
+export function get_identity_keys(sdk, identity_id, key_request_type, specific_key_ids, search_purpose_map, limit, offset) {
     _assertClass(sdk, WasmSdk);
     const ptr0 = passStringToWasm0(identity_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
     const len0 = WASM_VECTOR_LEN;
@@ -303,7 +478,9 @@ export function get_identity_keys(sdk, identity_id, key_request_type, specific_k
     const len1 = WASM_VECTOR_LEN;
     var ptr2 = isLikeNone(specific_key_ids) ? 0 : passArray32ToWasm0(specific_key_ids, wasm.__wbindgen_malloc);
     var len2 = WASM_VECTOR_LEN;
-    const ret = wasm.get_identity_keys(sdk.__wbg_ptr, ptr0, len0, ptr1, len1, ptr2, len2, isLikeNone(limit) ? 0x100000001 : (limit) >>> 0, isLikeNone(offset) ? 0x100000001 : (offset) >>> 0);
+    var ptr3 = isLikeNone(search_purpose_map) ? 0 : passStringToWasm0(search_purpose_map, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    var len3 = WASM_VECTOR_LEN;
+    const ret = wasm.get_identity_keys(sdk.__wbg_ptr, ptr0, len0, ptr1, len1, ptr2, len2, ptr3, len3, isLikeNone(limit) ? 0x100000001 : (limit) >>> 0, isLikeNone(offset) ? 0x100000001 : (offset) >>> 0);
     return ret;
 }
 
@@ -317,6 +494,19 @@ export function get_identity_nonce(sdk, identity_id) {
     const ptr0 = passStringToWasm0(identity_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
     const len0 = WASM_VECTOR_LEN;
     const ret = wasm.get_identity_nonce(sdk.__wbg_ptr, ptr0, len0);
+    return ret;
+}
+
+/**
+ * @param {WasmSdk} sdk
+ * @param {string} identity_id
+ * @returns {Promise<any>}
+ */
+export function get_identity_nonce_with_proof_info(sdk, identity_id) {
+    _assertClass(sdk, WasmSdk);
+    const ptr0 = passStringToWasm0(identity_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.get_identity_nonce_with_proof_info(sdk.__wbg_ptr, ptr0, len0);
     return ret;
 }
 
@@ -338,6 +528,22 @@ export function get_identity_contract_nonce(sdk, identity_id, contract_id) {
 
 /**
  * @param {WasmSdk} sdk
+ * @param {string} identity_id
+ * @param {string} contract_id
+ * @returns {Promise<any>}
+ */
+export function get_identity_contract_nonce_with_proof_info(sdk, identity_id, contract_id) {
+    _assertClass(sdk, WasmSdk);
+    const ptr0 = passStringToWasm0(identity_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passStringToWasm0(contract_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len1 = WASM_VECTOR_LEN;
+    const ret = wasm.get_identity_contract_nonce_with_proof_info(sdk.__wbg_ptr, ptr0, len0, ptr1, len1);
+    return ret;
+}
+
+/**
+ * @param {WasmSdk} sdk
  * @param {string} id
  * @returns {Promise<any>}
  */
@@ -349,15 +555,6 @@ export function get_identity_balance(sdk, id) {
     return ret;
 }
 
-function passArrayJsValueToWasm0(array, malloc) {
-    const ptr = malloc(array.length * 4, 4) >>> 0;
-    for (let i = 0; i < array.length; i++) {
-        const add = addToExternrefTable0(array[i]);
-        getDataViewMemory0().setUint32(ptr + 4 * i, add, true);
-    }
-    WASM_VECTOR_LEN = array.length;
-    return ptr;
-}
 /**
  * @param {WasmSdk} sdk
  * @param {string[]} identity_ids
@@ -453,121 +650,48 @@ export function get_identity_token_balances(sdk, identity_id, token_ids) {
 
 /**
  * @param {WasmSdk} sdk
- * @returns {Promise<any>}
- */
-export function get_protocol_version_upgrade_state(sdk) {
-    _assertClass(sdk, WasmSdk);
-    const ret = wasm.get_protocol_version_upgrade_state(sdk.__wbg_ptr);
-    return ret;
-}
-
-/**
- * @param {WasmSdk} sdk
- * @param {string} start_pro_tx_hash
- * @param {number} count
- * @returns {Promise<any>}
- */
-export function get_protocol_version_upgrade_vote_status(sdk, start_pro_tx_hash, count) {
-    _assertClass(sdk, WasmSdk);
-    const ptr0 = passStringToWasm0(start_pro_tx_hash, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-    const len0 = WASM_VECTOR_LEN;
-    const ret = wasm.get_protocol_version_upgrade_vote_status(sdk.__wbg_ptr, ptr0, len0, count);
-    return ret;
-}
-
-/**
- * @param {WasmSdk} sdk
- * @param {number | null} [start_epoch]
- * @param {number | null} [count]
- * @param {boolean | null} [ascending]
- * @returns {Promise<any>}
- */
-export function get_epochs_info(sdk, start_epoch, count, ascending) {
-    _assertClass(sdk, WasmSdk);
-    const ret = wasm.get_epochs_info(sdk.__wbg_ptr, isLikeNone(start_epoch) ? 0xFFFFFF : start_epoch, isLikeNone(count) ? 0x100000001 : (count) >>> 0, isLikeNone(ascending) ? 0xFFFFFF : ascending ? 1 : 0);
-    return ret;
-}
-
-/**
- * @param {WasmSdk} sdk
- * @param {number | null} [start_epoch]
- * @param {number | null} [count]
- * @param {boolean | null} [ascending]
- * @returns {Promise<any>}
- */
-export function get_finalized_epoch_infos(sdk, start_epoch, count, ascending) {
-    _assertClass(sdk, WasmSdk);
-    const ret = wasm.get_finalized_epoch_infos(sdk.__wbg_ptr, isLikeNone(start_epoch) ? 0xFFFFFF : start_epoch, isLikeNone(count) ? 0x100000001 : (count) >>> 0, isLikeNone(ascending) ? 0xFFFFFF : ascending ? 1 : 0);
-    return ret;
-}
-
-/**
- * @param {WasmSdk} sdk
- * @param {number} epoch
- * @param {string[]} ids
- * @returns {Promise<any>}
- */
-export function get_evonodes_proposed_epoch_blocks_by_ids(sdk, epoch, ids) {
-    _assertClass(sdk, WasmSdk);
-    const ptr0 = passArrayJsValueToWasm0(ids, wasm.__wbindgen_malloc);
-    const len0 = WASM_VECTOR_LEN;
-    const ret = wasm.get_evonodes_proposed_epoch_blocks_by_ids(sdk.__wbg_ptr, epoch, ptr0, len0);
-    return ret;
-}
-
-/**
- * @param {WasmSdk} sdk
- * @param {number} epoch
+ * @param {string} identity_id
+ * @param {string} key_request_type
+ * @param {Uint32Array | null} [specific_key_ids]
  * @param {number | null} [limit]
- * @param {string | null} [start_after]
- * @param {boolean | null} [order_ascending]
+ * @param {number | null} [offset]
  * @returns {Promise<any>}
  */
-export function get_evonodes_proposed_epoch_blocks_by_range(sdk, epoch, limit, start_after, order_ascending) {
+export function get_identity_keys_with_proof_info(sdk, identity_id, key_request_type, specific_key_ids, limit, offset) {
     _assertClass(sdk, WasmSdk);
-    var ptr0 = isLikeNone(start_after) ? 0 : passStringToWasm0(start_after, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-    var len0 = WASM_VECTOR_LEN;
-    const ret = wasm.get_evonodes_proposed_epoch_blocks_by_range(sdk.__wbg_ptr, epoch, isLikeNone(limit) ? 0x100000001 : (limit) >>> 0, ptr0, len0, isLikeNone(order_ascending) ? 0xFFFFFF : order_ascending ? 1 : 0);
+    const ptr0 = passStringToWasm0(identity_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passStringToWasm0(key_request_type, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len1 = WASM_VECTOR_LEN;
+    var ptr2 = isLikeNone(specific_key_ids) ? 0 : passArray32ToWasm0(specific_key_ids, wasm.__wbindgen_malloc);
+    var len2 = WASM_VECTOR_LEN;
+    const ret = wasm.get_identity_keys_with_proof_info(sdk.__wbg_ptr, ptr0, len0, ptr1, len1, ptr2, len2, isLikeNone(limit) ? 0x100000001 : (limit) >>> 0, isLikeNone(offset) ? 0x100000001 : (offset) >>> 0);
     return ret;
 }
 
 /**
  * @param {WasmSdk} sdk
+ * @param {string} id
  * @returns {Promise<any>}
  */
-export function get_current_epoch(sdk) {
+export function get_identity_balance_with_proof_info(sdk, id) {
     _assertClass(sdk, WasmSdk);
-    const ret = wasm.get_current_epoch(sdk.__wbg_ptr);
+    const ptr0 = passStringToWasm0(id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.get_identity_balance_with_proof_info(sdk.__wbg_ptr, ptr0, len0);
     return ret;
 }
 
 /**
  * @param {WasmSdk} sdk
+ * @param {string[]} identity_ids
  * @returns {Promise<any>}
  */
-export function get_status(sdk) {
+export function get_identities_balances_with_proof_info(sdk, identity_ids) {
     _assertClass(sdk, WasmSdk);
-    const ret = wasm.get_status(sdk.__wbg_ptr);
-    return ret;
-}
-
-/**
- * @param {WasmSdk} sdk
- * @returns {Promise<any>}
- */
-export function get_current_quorums_info(sdk) {
-    _assertClass(sdk, WasmSdk);
-    const ret = wasm.get_current_quorums_info(sdk.__wbg_ptr);
-    return ret;
-}
-
-/**
- * @param {WasmSdk} sdk
- * @returns {Promise<any>}
- */
-export function get_total_credits_in_platform(sdk) {
-    _assertClass(sdk, WasmSdk);
-    const ret = wasm.get_total_credits_in_platform(sdk.__wbg_ptr);
+    const ptr0 = passArrayJsValueToWasm0(identity_ids, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.get_identities_balances_with_proof_info(sdk.__wbg_ptr, ptr0, len0);
     return ret;
 }
 
@@ -576,85 +700,780 @@ export function get_total_credits_in_platform(sdk) {
  * @param {string} identity_id
  * @returns {Promise<any>}
  */
-export function get_prefunded_specialized_balance(sdk, identity_id) {
+export function get_identity_balance_and_revision_with_proof_info(sdk, identity_id) {
     _assertClass(sdk, WasmSdk);
     const ptr0 = passStringToWasm0(identity_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
     const len0 = WASM_VECTOR_LEN;
-    const ret = wasm.get_prefunded_specialized_balance(sdk.__wbg_ptr, ptr0, len0);
+    const ret = wasm.get_identity_balance_and_revision_with_proof_info(sdk.__wbg_ptr, ptr0, len0);
     return ret;
 }
 
 /**
  * @param {WasmSdk} sdk
- * @param {string} state_transition_hash
+ * @param {string} public_key_hash
  * @returns {Promise<any>}
  */
-export function wait_for_state_transition_result(sdk, state_transition_hash) {
+export function get_identity_by_public_key_hash_with_proof_info(sdk, public_key_hash) {
     _assertClass(sdk, WasmSdk);
-    const ptr0 = passStringToWasm0(state_transition_hash, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const ptr0 = passStringToWasm0(public_key_hash, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
     const len0 = WASM_VECTOR_LEN;
-    const ret = wasm.wait_for_state_transition_result(sdk.__wbg_ptr, ptr0, len0);
+    const ret = wasm.get_identity_by_public_key_hash_with_proof_info(sdk.__wbg_ptr, ptr0, len0);
     return ret;
 }
 
 /**
  * @param {WasmSdk} sdk
- * @param {string[]} keys
- * @returns {Promise<any>}
- */
-export function get_path_elements(sdk, keys) {
-    _assertClass(sdk, WasmSdk);
-    const ptr0 = passArrayJsValueToWasm0(keys, wasm.__wbindgen_malloc);
-    const len0 = WASM_VECTOR_LEN;
-    const ret = wasm.get_path_elements(sdk.__wbg_ptr, ptr0, len0);
-    return ret;
-}
-
-/**
- * @param {WasmSdk} sdk
- * @param {string} data_contract_id
- * @param {string} document_type
- * @param {string | null} [where_clause]
- * @param {string | null} [order_by]
- * @param {number | null} [limit]
+ * @param {string} public_key_hash
  * @param {string | null} [start_after]
- * @param {string | null} [start_at]
  * @returns {Promise<any>}
  */
-export function get_documents(sdk, data_contract_id, document_type, where_clause, order_by, limit, start_after, start_at) {
+export function get_identity_by_non_unique_public_key_hash_with_proof_info(sdk, public_key_hash, start_after) {
     _assertClass(sdk, WasmSdk);
-    const ptr0 = passStringToWasm0(data_contract_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const ptr0 = passStringToWasm0(public_key_hash, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
     const len0 = WASM_VECTOR_LEN;
-    const ptr1 = passStringToWasm0(document_type, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    var ptr1 = isLikeNone(start_after) ? 0 : passStringToWasm0(start_after, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    var len1 = WASM_VECTOR_LEN;
+    const ret = wasm.get_identity_by_non_unique_public_key_hash_with_proof_info(sdk.__wbg_ptr, ptr0, len0, ptr1, len1);
+    return ret;
+}
+
+/**
+ * @param {WasmSdk} sdk
+ * @param {string[]} identities_ids
+ * @param {string} contract_id
+ * @param {string | null} [_document_type_name]
+ * @param {Uint32Array | null} [purposes]
+ * @returns {Promise<any>}
+ */
+export function get_identities_contract_keys_with_proof_info(sdk, identities_ids, contract_id, _document_type_name, purposes) {
+    _assertClass(sdk, WasmSdk);
+    const ptr0 = passArrayJsValueToWasm0(identities_ids, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passStringToWasm0(contract_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
     const len1 = WASM_VECTOR_LEN;
-    var ptr2 = isLikeNone(where_clause) ? 0 : passStringToWasm0(where_clause, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    var ptr2 = isLikeNone(_document_type_name) ? 0 : passStringToWasm0(_document_type_name, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
     var len2 = WASM_VECTOR_LEN;
-    var ptr3 = isLikeNone(order_by) ? 0 : passStringToWasm0(order_by, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    var ptr3 = isLikeNone(purposes) ? 0 : passArray32ToWasm0(purposes, wasm.__wbindgen_malloc);
     var len3 = WASM_VECTOR_LEN;
-    var ptr4 = isLikeNone(start_after) ? 0 : passStringToWasm0(start_after, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-    var len4 = WASM_VECTOR_LEN;
-    var ptr5 = isLikeNone(start_at) ? 0 : passStringToWasm0(start_at, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-    var len5 = WASM_VECTOR_LEN;
-    const ret = wasm.get_documents(sdk.__wbg_ptr, ptr0, len0, ptr1, len1, ptr2, len2, ptr3, len3, isLikeNone(limit) ? 0x100000001 : (limit) >>> 0, ptr4, len4, ptr5, len5);
+    const ret = wasm.get_identities_contract_keys_with_proof_info(sdk.__wbg_ptr, ptr0, len0, ptr1, len1, ptr2, len2, ptr3, len3);
+    return ret;
+}
+
+/**
+ * @param {WasmSdk} sdk
+ * @param {string} identity_id
+ * @param {string[]} token_ids
+ * @returns {Promise<any>}
+ */
+export function get_identity_token_balances_with_proof_info(sdk, identity_id, token_ids) {
+    _assertClass(sdk, WasmSdk);
+    const ptr0 = passStringToWasm0(identity_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passArrayJsValueToWasm0(token_ids, wasm.__wbindgen_malloc);
+    const len1 = WASM_VECTOR_LEN;
+    const ret = wasm.get_identity_token_balances_with_proof_info(sdk.__wbg_ptr, ptr0, len0, ptr1, len1);
+    return ret;
+}
+
+/**
+ * @param {WasmSdk} sdk
+ * @param {string[]} identity_ids
+ * @param {string} token_id
+ * @returns {Promise<any>}
+ */
+export function get_identities_token_balances(sdk, identity_ids, token_id) {
+    _assertClass(sdk, WasmSdk);
+    const ptr0 = passArrayJsValueToWasm0(identity_ids, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passStringToWasm0(token_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len1 = WASM_VECTOR_LEN;
+    const ret = wasm.get_identities_token_balances(sdk.__wbg_ptr, ptr0, len0, ptr1, len1);
+    return ret;
+}
+
+/**
+ * @param {WasmSdk} sdk
+ * @param {string} identity_id
+ * @param {string[] | null} [token_ids]
+ * @param {number | null} [_limit]
+ * @param {number | null} [_offset]
+ * @returns {Promise<any>}
+ */
+export function get_identity_token_infos(sdk, identity_id, token_ids, _limit, _offset) {
+    _assertClass(sdk, WasmSdk);
+    const ptr0 = passStringToWasm0(identity_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    var ptr1 = isLikeNone(token_ids) ? 0 : passArrayJsValueToWasm0(token_ids, wasm.__wbindgen_malloc);
+    var len1 = WASM_VECTOR_LEN;
+    const ret = wasm.get_identity_token_infos(sdk.__wbg_ptr, ptr0, len0, ptr1, len1, isLikeNone(_limit) ? 0x100000001 : (_limit) >>> 0, isLikeNone(_offset) ? 0x100000001 : (_offset) >>> 0);
+    return ret;
+}
+
+/**
+ * @param {WasmSdk} sdk
+ * @param {string[]} identity_ids
+ * @param {string} token_id
+ * @returns {Promise<any>}
+ */
+export function get_identities_token_infos(sdk, identity_ids, token_id) {
+    _assertClass(sdk, WasmSdk);
+    const ptr0 = passArrayJsValueToWasm0(identity_ids, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passStringToWasm0(token_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len1 = WASM_VECTOR_LEN;
+    const ret = wasm.get_identities_token_infos(sdk.__wbg_ptr, ptr0, len0, ptr1, len1);
+    return ret;
+}
+
+/**
+ * @param {WasmSdk} sdk
+ * @param {string[]} token_ids
+ * @returns {Promise<any>}
+ */
+export function get_token_statuses(sdk, token_ids) {
+    _assertClass(sdk, WasmSdk);
+    const ptr0 = passArrayJsValueToWasm0(token_ids, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.get_token_statuses(sdk.__wbg_ptr, ptr0, len0);
+    return ret;
+}
+
+/**
+ * @param {WasmSdk} sdk
+ * @param {string[]} token_ids
+ * @returns {Promise<any>}
+ */
+export function get_token_direct_purchase_prices(sdk, token_ids) {
+    _assertClass(sdk, WasmSdk);
+    const ptr0 = passArrayJsValueToWasm0(token_ids, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.get_token_direct_purchase_prices(sdk.__wbg_ptr, ptr0, len0);
     return ret;
 }
 
 /**
  * @param {WasmSdk} sdk
  * @param {string} data_contract_id
- * @param {string} document_type
- * @param {string} document_id
  * @returns {Promise<any>}
  */
-export function get_document(sdk, data_contract_id, document_type, document_id) {
+export function get_token_contract_info(sdk, data_contract_id) {
     _assertClass(sdk, WasmSdk);
     const ptr0 = passStringToWasm0(data_contract_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
     const len0 = WASM_VECTOR_LEN;
-    const ptr1 = passStringToWasm0(document_type, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const ret = wasm.get_token_contract_info(sdk.__wbg_ptr, ptr0, len0);
+    return ret;
+}
+
+/**
+ * @param {WasmSdk} sdk
+ * @param {string} identity_id
+ * @param {string} token_id
+ * @returns {Promise<any>}
+ */
+export function get_token_perpetual_distribution_last_claim(sdk, identity_id, token_id) {
+    _assertClass(sdk, WasmSdk);
+    const ptr0 = passStringToWasm0(identity_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passStringToWasm0(token_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
     const len1 = WASM_VECTOR_LEN;
-    const ptr2 = passStringToWasm0(document_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const ret = wasm.get_token_perpetual_distribution_last_claim(sdk.__wbg_ptr, ptr0, len0, ptr1, len1);
+    return ret;
+}
+
+/**
+ * @param {WasmSdk} sdk
+ * @param {string} token_id
+ * @returns {Promise<any>}
+ */
+export function get_token_total_supply(sdk, token_id) {
+    _assertClass(sdk, WasmSdk);
+    const ptr0 = passStringToWasm0(token_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.get_token_total_supply(sdk.__wbg_ptr, ptr0, len0);
+    return ret;
+}
+
+/**
+ * @param {WasmSdk} sdk
+ * @param {string[]} identity_ids
+ * @param {string} token_id
+ * @returns {Promise<any>}
+ */
+export function get_identities_token_balances_with_proof_info(sdk, identity_ids, token_id) {
+    _assertClass(sdk, WasmSdk);
+    const ptr0 = passArrayJsValueToWasm0(identity_ids, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passStringToWasm0(token_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len1 = WASM_VECTOR_LEN;
+    const ret = wasm.get_identities_token_balances_with_proof_info(sdk.__wbg_ptr, ptr0, len0, ptr1, len1);
+    return ret;
+}
+
+/**
+ * @param {WasmSdk} sdk
+ * @param {string[]} token_ids
+ * @returns {Promise<any>}
+ */
+export function get_token_statuses_with_proof_info(sdk, token_ids) {
+    _assertClass(sdk, WasmSdk);
+    const ptr0 = passArrayJsValueToWasm0(token_ids, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.get_token_statuses_with_proof_info(sdk.__wbg_ptr, ptr0, len0);
+    return ret;
+}
+
+/**
+ * @param {WasmSdk} sdk
+ * @param {string} token_id
+ * @returns {Promise<any>}
+ */
+export function get_token_total_supply_with_proof_info(sdk, token_id) {
+    _assertClass(sdk, WasmSdk);
+    const ptr0 = passStringToWasm0(token_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.get_token_total_supply_with_proof_info(sdk.__wbg_ptr, ptr0, len0);
+    return ret;
+}
+
+/**
+ * @param {WasmSdk} sdk
+ * @param {string} identity_id
+ * @param {string[] | null} [token_ids]
+ * @param {number | null} [_limit]
+ * @param {number | null} [_offset]
+ * @returns {Promise<any>}
+ */
+export function get_identity_token_infos_with_proof_info(sdk, identity_id, token_ids, _limit, _offset) {
+    _assertClass(sdk, WasmSdk);
+    const ptr0 = passStringToWasm0(identity_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    var ptr1 = isLikeNone(token_ids) ? 0 : passArrayJsValueToWasm0(token_ids, wasm.__wbindgen_malloc);
+    var len1 = WASM_VECTOR_LEN;
+    const ret = wasm.get_identity_token_infos_with_proof_info(sdk.__wbg_ptr, ptr0, len0, ptr1, len1, isLikeNone(_limit) ? 0x100000001 : (_limit) >>> 0, isLikeNone(_offset) ? 0x100000001 : (_offset) >>> 0);
+    return ret;
+}
+
+/**
+ * @param {WasmSdk} sdk
+ * @param {string[]} identity_ids
+ * @param {string} token_id
+ * @returns {Promise<any>}
+ */
+export function get_identities_token_infos_with_proof_info(sdk, identity_ids, token_id) {
+    _assertClass(sdk, WasmSdk);
+    const ptr0 = passArrayJsValueToWasm0(identity_ids, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passStringToWasm0(token_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len1 = WASM_VECTOR_LEN;
+    const ret = wasm.get_identities_token_infos_with_proof_info(sdk.__wbg_ptr, ptr0, len0, ptr1, len1);
+    return ret;
+}
+
+/**
+ * @param {WasmSdk} sdk
+ * @param {string[]} token_ids
+ * @returns {Promise<any>}
+ */
+export function get_token_direct_purchase_prices_with_proof_info(sdk, token_ids) {
+    _assertClass(sdk, WasmSdk);
+    const ptr0 = passArrayJsValueToWasm0(token_ids, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.get_token_direct_purchase_prices_with_proof_info(sdk.__wbg_ptr, ptr0, len0);
+    return ret;
+}
+
+/**
+ * @param {WasmSdk} sdk
+ * @param {string} data_contract_id
+ * @returns {Promise<any>}
+ */
+export function get_token_contract_info_with_proof_info(sdk, data_contract_id) {
+    _assertClass(sdk, WasmSdk);
+    const ptr0 = passStringToWasm0(data_contract_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.get_token_contract_info_with_proof_info(sdk.__wbg_ptr, ptr0, len0);
+    return ret;
+}
+
+/**
+ * @param {WasmSdk} sdk
+ * @param {string} identity_id
+ * @param {string} token_id
+ * @returns {Promise<any>}
+ */
+export function get_token_perpetual_distribution_last_claim_with_proof_info(sdk, identity_id, token_id) {
+    _assertClass(sdk, WasmSdk);
+    const ptr0 = passStringToWasm0(identity_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passStringToWasm0(token_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len1 = WASM_VECTOR_LEN;
+    const ret = wasm.get_token_perpetual_distribution_last_claim_with_proof_info(sdk.__wbg_ptr, ptr0, len0, ptr1, len1);
+    return ret;
+}
+
+/**
+ * Convert a string to homograph-safe characters
+ * @param {string} input
+ * @returns {string}
+ */
+export function dpns_convert_to_homograph_safe(input) {
+    let deferred2_0;
+    let deferred2_1;
+    try {
+        const ptr0 = passStringToWasm0(input, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.dpns_convert_to_homograph_safe(ptr0, len0);
+        deferred2_0 = ret[0];
+        deferred2_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+    }
+}
+
+/**
+ * Check if a username is valid according to DPNS rules
+ * @param {string} label
+ * @returns {boolean}
+ */
+export function dpns_is_valid_username(label) {
+    const ptr0 = passStringToWasm0(label, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.dpns_is_valid_username(ptr0, len0);
+    return ret !== 0;
+}
+
+/**
+ * Check if a username is contested (requires masternode voting)
+ * @param {string} label
+ * @returns {boolean}
+ */
+export function dpns_is_contested_username(label) {
+    const ptr0 = passStringToWasm0(label, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.dpns_is_contested_username(ptr0, len0);
+    return ret !== 0;
+}
+
+/**
+ * Register a DPNS username
+ * @param {WasmSdk} sdk
+ * @param {string} label
+ * @param {string} identity_id
+ * @param {number} public_key_id
+ * @param {string} private_key_wif
+ * @param {Function | null} [preorder_callback]
+ * @returns {Promise<any>}
+ */
+export function dpns_register_name(sdk, label, identity_id, public_key_id, private_key_wif, preorder_callback) {
+    _assertClass(sdk, WasmSdk);
+    const ptr0 = passStringToWasm0(label, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passStringToWasm0(identity_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len1 = WASM_VECTOR_LEN;
+    const ptr2 = passStringToWasm0(private_key_wif, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
     const len2 = WASM_VECTOR_LEN;
-    const ret = wasm.get_document(sdk.__wbg_ptr, ptr0, len0, ptr1, len1, ptr2, len2);
+    const ret = wasm.dpns_register_name(sdk.__wbg_ptr, ptr0, len0, ptr1, len1, public_key_id, ptr2, len2, isLikeNone(preorder_callback) ? 0 : addToExternrefTable0(preorder_callback));
+    return ret;
+}
+
+/**
+ * Check if a DPNS name is available
+ * @param {WasmSdk} sdk
+ * @param {string} label
+ * @returns {Promise<boolean>}
+ */
+export function dpns_is_name_available(sdk, label) {
+    _assertClass(sdk, WasmSdk);
+    const ptr0 = passStringToWasm0(label, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.dpns_is_name_available(sdk.__wbg_ptr, ptr0, len0);
+    return ret;
+}
+
+/**
+ * Resolve a DPNS name to an identity ID
+ * @param {WasmSdk} sdk
+ * @param {string} name
+ * @returns {Promise<any>}
+ */
+export function dpns_resolve_name(sdk, name) {
+    _assertClass(sdk, WasmSdk);
+    const ptr0 = passStringToWasm0(name, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.dpns_resolve_name(sdk.__wbg_ptr, ptr0, len0);
+    return ret;
+}
+
+/**
+ * @returns {Promise<IdentityWasm | undefined>}
+ */
+export function verify_identity_response() {
+    const ret = wasm.verify_identity_response();
+    return ret;
+}
+
+/**
+ * @returns {Promise<DataContractWasm | undefined>}
+ */
+export function verify_data_contract() {
+    const ret = wasm.verify_data_contract();
+    return ret;
+}
+
+/**
+ * @returns {Promise<DocumentWasm[]>}
+ */
+export function verify_documents() {
+    const ret = wasm.verify_documents();
+    return ret;
+}
+
+/**
+ * @param {WasmSdk} sdk
+ * @param {string} base58_id
+ * @returns {Promise<DataContractWasm>}
+ */
+export function data_contract_fetch(sdk, base58_id) {
+    _assertClass(sdk, WasmSdk);
+    const ptr0 = passStringToWasm0(base58_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.data_contract_fetch(sdk.__wbg_ptr, ptr0, len0);
+    return ret;
+}
+
+/**
+ * @param {WasmSdk} sdk
+ * @param {string} base58_id
+ * @returns {Promise<any>}
+ */
+export function data_contract_fetch_with_proof_info(sdk, base58_id) {
+    _assertClass(sdk, WasmSdk);
+    const ptr0 = passStringToWasm0(base58_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.data_contract_fetch_with_proof_info(sdk.__wbg_ptr, ptr0, len0);
+    return ret;
+}
+
+/**
+ * @param {WasmSdk} sdk
+ * @param {string} id
+ * @param {number | null} [limit]
+ * @param {number | null} [_offset]
+ * @param {bigint | null} [start_at_ms]
+ * @returns {Promise<any>}
+ */
+export function get_data_contract_history(sdk, id, limit, _offset, start_at_ms) {
+    _assertClass(sdk, WasmSdk);
+    const ptr0 = passStringToWasm0(id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.get_data_contract_history(sdk.__wbg_ptr, ptr0, len0, isLikeNone(limit) ? 0x100000001 : (limit) >>> 0, isLikeNone(_offset) ? 0x100000001 : (_offset) >>> 0, !isLikeNone(start_at_ms), isLikeNone(start_at_ms) ? BigInt(0) : start_at_ms);
+    return ret;
+}
+
+/**
+ * @param {WasmSdk} sdk
+ * @param {string[]} ids
+ * @returns {Promise<any>}
+ */
+export function get_data_contracts(sdk, ids) {
+    _assertClass(sdk, WasmSdk);
+    const ptr0 = passArrayJsValueToWasm0(ids, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.get_data_contracts(sdk.__wbg_ptr, ptr0, len0);
+    return ret;
+}
+
+/**
+ * @param {WasmSdk} sdk
+ * @param {string} id
+ * @param {number | null} [limit]
+ * @param {number | null} [_offset]
+ * @param {bigint | null} [start_at_ms]
+ * @returns {Promise<any>}
+ */
+export function get_data_contract_history_with_proof_info(sdk, id, limit, _offset, start_at_ms) {
+    _assertClass(sdk, WasmSdk);
+    const ptr0 = passStringToWasm0(id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.get_data_contract_history_with_proof_info(sdk.__wbg_ptr, ptr0, len0, isLikeNone(limit) ? 0x100000001 : (limit) >>> 0, isLikeNone(_offset) ? 0x100000001 : (_offset) >>> 0, !isLikeNone(start_at_ms), isLikeNone(start_at_ms) ? BigInt(0) : start_at_ms);
+    return ret;
+}
+
+/**
+ * @param {WasmSdk} sdk
+ * @param {string[]} ids
+ * @returns {Promise<any>}
+ */
+export function get_data_contracts_with_proof_info(sdk, ids) {
+    _assertClass(sdk, WasmSdk);
+    const ptr0 = passArrayJsValueToWasm0(ids, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.get_data_contracts_with_proof_info(sdk.__wbg_ptr, ptr0, len0);
+    return ret;
+}
+
+/**
+ * @param {WasmSdk} sdk
+ * @param {string} username
+ * @returns {Promise<any>}
+ */
+export function get_dpns_username_by_name(sdk, username) {
+    _assertClass(sdk, WasmSdk);
+    const ptr0 = passStringToWasm0(username, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.get_dpns_username_by_name(sdk.__wbg_ptr, ptr0, len0);
+    return ret;
+}
+
+/**
+ * @param {WasmSdk} sdk
+ * @param {string} username
+ * @returns {Promise<any>}
+ */
+export function get_dpns_username_by_name_with_proof_info(sdk, username) {
+    _assertClass(sdk, WasmSdk);
+    const ptr0 = passStringToWasm0(username, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.get_dpns_username_by_name_with_proof_info(sdk.__wbg_ptr, ptr0, len0);
+    return ret;
+}
+
+/**
+ * @param {WasmSdk} sdk
+ * @param {string} document_type_name
+ * @param {string} data_contract_id
+ * @param {string} index_name
+ * @param {string} _result_type
+ * @param {boolean | null} [_allow_include_locked_and_abstaining_vote_tally]
+ * @param {Uint8Array | null} [start_at_value]
+ * @param {number | null} [limit]
+ * @param {number | null} [_offset]
+ * @param {boolean | null} [order_ascending]
+ * @returns {Promise<any>}
+ */
+export function get_contested_resources(sdk, document_type_name, data_contract_id, index_name, _result_type, _allow_include_locked_and_abstaining_vote_tally, start_at_value, limit, _offset, order_ascending) {
+    _assertClass(sdk, WasmSdk);
+    const ptr0 = passStringToWasm0(document_type_name, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passStringToWasm0(data_contract_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len1 = WASM_VECTOR_LEN;
+    const ptr2 = passStringToWasm0(index_name, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len2 = WASM_VECTOR_LEN;
+    const ptr3 = passStringToWasm0(_result_type, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len3 = WASM_VECTOR_LEN;
+    var ptr4 = isLikeNone(start_at_value) ? 0 : passArray8ToWasm0(start_at_value, wasm.__wbindgen_malloc);
+    var len4 = WASM_VECTOR_LEN;
+    const ret = wasm.get_contested_resources(sdk.__wbg_ptr, ptr0, len0, ptr1, len1, ptr2, len2, ptr3, len3, isLikeNone(_allow_include_locked_and_abstaining_vote_tally) ? 0xFFFFFF : _allow_include_locked_and_abstaining_vote_tally ? 1 : 0, ptr4, len4, isLikeNone(limit) ? 0x100000001 : (limit) >>> 0, isLikeNone(_offset) ? 0x100000001 : (_offset) >>> 0, isLikeNone(order_ascending) ? 0xFFFFFF : order_ascending ? 1 : 0);
+    return ret;
+}
+
+/**
+ * @param {WasmSdk} sdk
+ * @param {string} contract_id
+ * @param {string} document_type_name
+ * @param {string} index_name
+ * @param {any[]} index_values
+ * @param {string} contestant_id
+ * @param {string | null} [start_at_voter_info]
+ * @param {number | null} [limit]
+ * @param {boolean | null} [order_ascending]
+ * @returns {Promise<any>}
+ */
+export function get_contested_resource_voters_for_identity(sdk, contract_id, document_type_name, index_name, index_values, contestant_id, start_at_voter_info, limit, order_ascending) {
+    _assertClass(sdk, WasmSdk);
+    const ptr0 = passStringToWasm0(contract_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passStringToWasm0(document_type_name, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len1 = WASM_VECTOR_LEN;
+    const ptr2 = passStringToWasm0(index_name, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len2 = WASM_VECTOR_LEN;
+    const ptr3 = passArrayJsValueToWasm0(index_values, wasm.__wbindgen_malloc);
+    const len3 = WASM_VECTOR_LEN;
+    const ptr4 = passStringToWasm0(contestant_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len4 = WASM_VECTOR_LEN;
+    var ptr5 = isLikeNone(start_at_voter_info) ? 0 : passStringToWasm0(start_at_voter_info, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    var len5 = WASM_VECTOR_LEN;
+    const ret = wasm.get_contested_resource_voters_for_identity(sdk.__wbg_ptr, ptr0, len0, ptr1, len1, ptr2, len2, ptr3, len3, ptr4, len4, ptr5, len5, isLikeNone(limit) ? 0x100000001 : (limit) >>> 0, isLikeNone(order_ascending) ? 0xFFFFFF : order_ascending ? 1 : 0);
+    return ret;
+}
+
+/**
+ * @param {WasmSdk} sdk
+ * @param {string} identity_id
+ * @param {number | null} [limit]
+ * @param {string | null} [start_at_vote_poll_id_info]
+ * @param {boolean | null} [order_ascending]
+ * @returns {Promise<any>}
+ */
+export function get_contested_resource_identity_votes(sdk, identity_id, limit, start_at_vote_poll_id_info, order_ascending) {
+    _assertClass(sdk, WasmSdk);
+    const ptr0 = passStringToWasm0(identity_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    var ptr1 = isLikeNone(start_at_vote_poll_id_info) ? 0 : passStringToWasm0(start_at_vote_poll_id_info, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    var len1 = WASM_VECTOR_LEN;
+    const ret = wasm.get_contested_resource_identity_votes(sdk.__wbg_ptr, ptr0, len0, isLikeNone(limit) ? 0x100000001 : (limit) >>> 0, ptr1, len1, isLikeNone(order_ascending) ? 0xFFFFFF : order_ascending ? 1 : 0);
+    return ret;
+}
+
+/**
+ * @param {WasmSdk} sdk
+ * @param {string | null} [start_time_info]
+ * @param {string | null} [end_time_info]
+ * @param {number | null} [limit]
+ * @param {boolean | null} [order_ascending]
+ * @returns {Promise<any>}
+ */
+export function get_vote_polls_by_end_date(sdk, start_time_info, end_time_info, limit, order_ascending) {
+    _assertClass(sdk, WasmSdk);
+    var ptr0 = isLikeNone(start_time_info) ? 0 : passStringToWasm0(start_time_info, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    var len0 = WASM_VECTOR_LEN;
+    var ptr1 = isLikeNone(end_time_info) ? 0 : passStringToWasm0(end_time_info, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    var len1 = WASM_VECTOR_LEN;
+    const ret = wasm.get_vote_polls_by_end_date(sdk.__wbg_ptr, ptr0, len0, ptr1, len1, isLikeNone(limit) ? 0x100000001 : (limit) >>> 0, isLikeNone(order_ascending) ? 0xFFFFFF : order_ascending ? 1 : 0);
+    return ret;
+}
+
+/**
+ * @param {WasmSdk} sdk
+ * @param {string} document_type_name
+ * @param {string} data_contract_id
+ * @param {string} index_name
+ * @param {string} _result_type
+ * @param {boolean | null} [_allow_include_locked_and_abstaining_vote_tally]
+ * @param {Uint8Array | null} [start_at_value]
+ * @param {number | null} [limit]
+ * @param {number | null} [_offset]
+ * @param {boolean | null} [order_ascending]
+ * @returns {Promise<any>}
+ */
+export function get_contested_resources_with_proof_info(sdk, document_type_name, data_contract_id, index_name, _result_type, _allow_include_locked_and_abstaining_vote_tally, start_at_value, limit, _offset, order_ascending) {
+    _assertClass(sdk, WasmSdk);
+    const ptr0 = passStringToWasm0(document_type_name, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passStringToWasm0(data_contract_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len1 = WASM_VECTOR_LEN;
+    const ptr2 = passStringToWasm0(index_name, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len2 = WASM_VECTOR_LEN;
+    const ptr3 = passStringToWasm0(_result_type, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len3 = WASM_VECTOR_LEN;
+    var ptr4 = isLikeNone(start_at_value) ? 0 : passArray8ToWasm0(start_at_value, wasm.__wbindgen_malloc);
+    var len4 = WASM_VECTOR_LEN;
+    const ret = wasm.get_contested_resources_with_proof_info(sdk.__wbg_ptr, ptr0, len0, ptr1, len1, ptr2, len2, ptr3, len3, isLikeNone(_allow_include_locked_and_abstaining_vote_tally) ? 0xFFFFFF : _allow_include_locked_and_abstaining_vote_tally ? 1 : 0, ptr4, len4, isLikeNone(limit) ? 0x100000001 : (limit) >>> 0, isLikeNone(_offset) ? 0x100000001 : (_offset) >>> 0, isLikeNone(order_ascending) ? 0xFFFFFF : order_ascending ? 1 : 0);
+    return ret;
+}
+
+/**
+ * @param {WasmSdk} sdk
+ * @param {string} data_contract_id
+ * @param {string} document_type_name
+ * @param {string} index_name
+ * @param {string} result_type
+ * @param {boolean | null} [allow_include_locked_and_abstaining_vote_tally]
+ * @param {string | null} [start_at_identifier_info]
+ * @param {number | null} [count]
+ * @param {boolean | null} [_order_ascending]
+ * @returns {Promise<any>}
+ */
+export function get_contested_resource_vote_state_with_proof_info(sdk, data_contract_id, document_type_name, index_name, result_type, allow_include_locked_and_abstaining_vote_tally, start_at_identifier_info, count, _order_ascending) {
+    _assertClass(sdk, WasmSdk);
+    const ptr0 = passStringToWasm0(data_contract_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passStringToWasm0(document_type_name, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len1 = WASM_VECTOR_LEN;
+    const ptr2 = passStringToWasm0(index_name, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len2 = WASM_VECTOR_LEN;
+    const ptr3 = passStringToWasm0(result_type, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len3 = WASM_VECTOR_LEN;
+    var ptr4 = isLikeNone(start_at_identifier_info) ? 0 : passStringToWasm0(start_at_identifier_info, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    var len4 = WASM_VECTOR_LEN;
+    const ret = wasm.get_contested_resource_vote_state_with_proof_info(sdk.__wbg_ptr, ptr0, len0, ptr1, len1, ptr2, len2, ptr3, len3, isLikeNone(allow_include_locked_and_abstaining_vote_tally) ? 0xFFFFFF : allow_include_locked_and_abstaining_vote_tally ? 1 : 0, ptr4, len4, isLikeNone(count) ? 0x100000001 : (count) >>> 0, isLikeNone(_order_ascending) ? 0xFFFFFF : _order_ascending ? 1 : 0);
+    return ret;
+}
+
+/**
+ * @param {WasmSdk} sdk
+ * @param {string} data_contract_id
+ * @param {string} document_type_name
+ * @param {string} index_name
+ * @param {string} contestant_id
+ * @param {string | null} [start_at_identifier_info]
+ * @param {number | null} [count]
+ * @param {boolean | null} [order_ascending]
+ * @returns {Promise<any>}
+ */
+export function get_contested_resource_voters_for_identity_with_proof_info(sdk, data_contract_id, document_type_name, index_name, contestant_id, start_at_identifier_info, count, order_ascending) {
+    _assertClass(sdk, WasmSdk);
+    const ptr0 = passStringToWasm0(data_contract_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passStringToWasm0(document_type_name, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len1 = WASM_VECTOR_LEN;
+    const ptr2 = passStringToWasm0(index_name, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len2 = WASM_VECTOR_LEN;
+    const ptr3 = passStringToWasm0(contestant_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len3 = WASM_VECTOR_LEN;
+    var ptr4 = isLikeNone(start_at_identifier_info) ? 0 : passStringToWasm0(start_at_identifier_info, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    var len4 = WASM_VECTOR_LEN;
+    const ret = wasm.get_contested_resource_voters_for_identity_with_proof_info(sdk.__wbg_ptr, ptr0, len0, ptr1, len1, ptr2, len2, ptr3, len3, ptr4, len4, isLikeNone(count) ? 0x100000001 : (count) >>> 0, isLikeNone(order_ascending) ? 0xFFFFFF : order_ascending ? 1 : 0);
+    return ret;
+}
+
+/**
+ * @param {WasmSdk} sdk
+ * @param {string} identity_id
+ * @param {number | null} [limit]
+ * @param {number | null} [offset]
+ * @param {boolean | null} [order_ascending]
+ * @returns {Promise<any>}
+ */
+export function get_contested_resource_identity_votes_with_proof_info(sdk, identity_id, limit, offset, order_ascending) {
+    _assertClass(sdk, WasmSdk);
+    const ptr0 = passStringToWasm0(identity_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.get_contested_resource_identity_votes_with_proof_info(sdk.__wbg_ptr, ptr0, len0, isLikeNone(limit) ? 0x100000001 : (limit) >>> 0, isLikeNone(offset) ? 0x100000001 : (offset) >>> 0, isLikeNone(order_ascending) ? 0xFFFFFF : order_ascending ? 1 : 0);
+    return ret;
+}
+
+/**
+ * @param {WasmSdk} sdk
+ * @param {bigint | null} [start_time_ms]
+ * @param {bigint | null} [end_time_ms]
+ * @param {number | null} [limit]
+ * @param {number | null} [offset]
+ * @param {boolean | null} [order_ascending]
+ * @returns {Promise<any>}
+ */
+export function get_vote_polls_by_end_date_with_proof_info(sdk, start_time_ms, end_time_ms, limit, offset, order_ascending) {
+    _assertClass(sdk, WasmSdk);
+    const ret = wasm.get_vote_polls_by_end_date_with_proof_info(sdk.__wbg_ptr, !isLikeNone(start_time_ms), isLikeNone(start_time_ms) ? BigInt(0) : start_time_ms, !isLikeNone(end_time_ms), isLikeNone(end_time_ms) ? BigInt(0) : end_time_ms, isLikeNone(limit) ? 0x100000001 : (limit) >>> 0, isLikeNone(offset) ? 0x100000001 : (offset) >>> 0, isLikeNone(order_ascending) ? 0xFFFFFF : order_ascending ? 1 : 0);
+    return ret;
+}
+
+/**
+ * @param {WasmSdk} sdk
+ * @param {string} data_contract_id
+ * @param {string} document_type_name
+ * @param {string} index_name
+ * @param {string} result_type
+ * @param {boolean | null} [allow_include_locked_and_abstaining_vote_tally]
+ * @param {string | null} [start_at_identifier_info]
+ * @param {number | null} [count]
+ * @param {boolean | null} [_order_ascending]
+ * @returns {Promise<any>}
+ */
+export function get_contested_resource_vote_state(sdk, data_contract_id, document_type_name, index_name, result_type, allow_include_locked_and_abstaining_vote_tally, start_at_identifier_info, count, _order_ascending) {
+    _assertClass(sdk, WasmSdk);
+    const ptr0 = passStringToWasm0(data_contract_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passStringToWasm0(document_type_name, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len1 = WASM_VECTOR_LEN;
+    const ptr2 = passStringToWasm0(index_name, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len2 = WASM_VECTOR_LEN;
+    const ptr3 = passStringToWasm0(result_type, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len3 = WASM_VECTOR_LEN;
+    var ptr4 = isLikeNone(start_at_identifier_info) ? 0 : passStringToWasm0(start_at_identifier_info, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    var len4 = WASM_VECTOR_LEN;
+    const ret = wasm.get_contested_resource_vote_state(sdk.__wbg_ptr, ptr0, len0, ptr1, len1, ptr2, len2, ptr3, len3, isLikeNone(allow_include_locked_and_abstaining_vote_tally) ? 0xFFFFFF : allow_include_locked_and_abstaining_vote_tally ? 1 : 0, ptr4, len4, isLikeNone(count) ? 0x100000001 : (count) >>> 0, isLikeNone(_order_ascending) ? 0xFFFFFF : _order_ascending ? 1 : 0);
     return ret;
 }
 
@@ -782,308 +1601,127 @@ export function get_groups_data_contracts(sdk, data_contract_ids) {
     return ret;
 }
 
-function passArray8ToWasm0(arg, malloc) {
-    const ptr = malloc(arg.length * 1, 1) >>> 0;
-    getUint8ArrayMemory0().set(arg, ptr / 1);
-    WASM_VECTOR_LEN = arg.length;
-    return ptr;
-}
-/**
- * @returns {Promise<IdentityWasm | undefined>}
- */
-export function verify_identity_response() {
-    const ret = wasm.verify_identity_response();
-    return ret;
-}
-
-/**
- * @returns {Promise<DataContractWasm | undefined>}
- */
-export function verify_data_contract() {
-    const ret = wasm.verify_data_contract();
-    return ret;
-}
-
-/**
- * @returns {Promise<DocumentWasm[]>}
- */
-export function verify_documents() {
-    const ret = wasm.verify_documents();
-    return ret;
-}
-
 /**
  * @param {WasmSdk} sdk
- * @param {string} base58_id
- * @returns {Promise<DataContractWasm>}
+ * @param {string} data_contract_id
+ * @param {number} group_contract_position
+ * @returns {Promise<any>}
  */
-export function data_contract_fetch(sdk, base58_id) {
+export function get_group_info_with_proof_info(sdk, data_contract_id, group_contract_position) {
     _assertClass(sdk, WasmSdk);
-    const ptr0 = passStringToWasm0(base58_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const ptr0 = passStringToWasm0(data_contract_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
     const len0 = WASM_VECTOR_LEN;
-    const ret = wasm.data_contract_fetch(sdk.__wbg_ptr, ptr0, len0);
+    const ret = wasm.get_group_info_with_proof_info(sdk.__wbg_ptr, ptr0, len0, group_contract_position);
     return ret;
 }
 
 /**
  * @param {WasmSdk} sdk
- * @param {string} id
+ * @param {string} contract_id
+ * @param {any} start_at_info
+ * @param {number | null} [count]
+ * @returns {Promise<any>}
+ */
+export function get_group_infos_with_proof_info(sdk, contract_id, start_at_info, count) {
+    _assertClass(sdk, WasmSdk);
+    const ptr0 = passStringToWasm0(contract_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.get_group_infos_with_proof_info(sdk.__wbg_ptr, ptr0, len0, start_at_info, isLikeNone(count) ? 0x100000001 : (count) >>> 0);
+    return ret;
+}
+
+/**
+ * @param {WasmSdk} sdk
+ * @param {string} data_contract_id
+ * @param {number} group_contract_position
+ * @param {string[] | null} [member_ids]
+ * @param {string | null} [start_at]
  * @param {number | null} [limit]
- * @param {number | null} [_offset]
- * @param {bigint | null} [start_at_ms]
  * @returns {Promise<any>}
  */
-export function get_data_contract_history(sdk, id, limit, _offset, start_at_ms) {
+export function get_group_members_with_proof_info(sdk, data_contract_id, group_contract_position, member_ids, start_at, limit) {
     _assertClass(sdk, WasmSdk);
-    const ptr0 = passStringToWasm0(id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const ptr0 = passStringToWasm0(data_contract_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
     const len0 = WASM_VECTOR_LEN;
-    const ret = wasm.get_data_contract_history(sdk.__wbg_ptr, ptr0, len0, isLikeNone(limit) ? 0x100000001 : (limit) >>> 0, isLikeNone(_offset) ? 0x100000001 : (_offset) >>> 0, !isLikeNone(start_at_ms), isLikeNone(start_at_ms) ? BigInt(0) : start_at_ms);
-    return ret;
-}
-
-/**
- * @param {WasmSdk} sdk
- * @param {string[]} ids
- * @returns {Promise<any>}
- */
-export function get_data_contracts(sdk, ids) {
-    _assertClass(sdk, WasmSdk);
-    const ptr0 = passArrayJsValueToWasm0(ids, wasm.__wbindgen_malloc);
-    const len0 = WASM_VECTOR_LEN;
-    const ret = wasm.get_data_contracts(sdk.__wbg_ptr, ptr0, len0);
-    return ret;
-}
-
-/**
- * @param {WasmSdk} sdk
- * @param {string[]} identity_ids
- * @param {string} token_id
- * @returns {Promise<any>}
- */
-export function get_identities_token_balances(sdk, identity_ids, token_id) {
-    _assertClass(sdk, WasmSdk);
-    const ptr0 = passArrayJsValueToWasm0(identity_ids, wasm.__wbindgen_malloc);
-    const len0 = WASM_VECTOR_LEN;
-    const ptr1 = passStringToWasm0(token_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-    const len1 = WASM_VECTOR_LEN;
-    const ret = wasm.get_identities_token_balances(sdk.__wbg_ptr, ptr0, len0, ptr1, len1);
-    return ret;
-}
-
-/**
- * @param {WasmSdk} sdk
- * @param {string} identity_id
- * @param {string[] | null} [token_ids]
- * @param {number | null} [_limit]
- * @param {number | null} [_offset]
- * @returns {Promise<any>}
- */
-export function get_identity_token_infos(sdk, identity_id, token_ids, _limit, _offset) {
-    _assertClass(sdk, WasmSdk);
-    const ptr0 = passStringToWasm0(identity_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-    const len0 = WASM_VECTOR_LEN;
-    var ptr1 = isLikeNone(token_ids) ? 0 : passArrayJsValueToWasm0(token_ids, wasm.__wbindgen_malloc);
+    var ptr1 = isLikeNone(member_ids) ? 0 : passArrayJsValueToWasm0(member_ids, wasm.__wbindgen_malloc);
     var len1 = WASM_VECTOR_LEN;
-    const ret = wasm.get_identity_token_infos(sdk.__wbg_ptr, ptr0, len0, ptr1, len1, isLikeNone(_limit) ? 0x100000001 : (_limit) >>> 0, isLikeNone(_offset) ? 0x100000001 : (_offset) >>> 0);
-    return ret;
-}
-
-/**
- * @param {WasmSdk} sdk
- * @param {string[]} identity_ids
- * @param {string} token_id
- * @returns {Promise<any>}
- */
-export function get_identities_token_infos(sdk, identity_ids, token_id) {
-    _assertClass(sdk, WasmSdk);
-    const ptr0 = passArrayJsValueToWasm0(identity_ids, wasm.__wbindgen_malloc);
-    const len0 = WASM_VECTOR_LEN;
-    const ptr1 = passStringToWasm0(token_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-    const len1 = WASM_VECTOR_LEN;
-    const ret = wasm.get_identities_token_infos(sdk.__wbg_ptr, ptr0, len0, ptr1, len1);
-    return ret;
-}
-
-/**
- * @param {WasmSdk} sdk
- * @param {string[]} token_ids
- * @returns {Promise<any>}
- */
-export function get_token_statuses(sdk, token_ids) {
-    _assertClass(sdk, WasmSdk);
-    const ptr0 = passArrayJsValueToWasm0(token_ids, wasm.__wbindgen_malloc);
-    const len0 = WASM_VECTOR_LEN;
-    const ret = wasm.get_token_statuses(sdk.__wbg_ptr, ptr0, len0);
-    return ret;
-}
-
-/**
- * @param {WasmSdk} sdk
- * @param {string[]} token_ids
- * @returns {Promise<any>}
- */
-export function get_token_direct_purchase_prices(sdk, token_ids) {
-    _assertClass(sdk, WasmSdk);
-    const ptr0 = passArrayJsValueToWasm0(token_ids, wasm.__wbindgen_malloc);
-    const len0 = WASM_VECTOR_LEN;
-    const ret = wasm.get_token_direct_purchase_prices(sdk.__wbg_ptr, ptr0, len0);
-    return ret;
-}
-
-/**
- * @param {WasmSdk} sdk
- * @param {string} data_contract_id
- * @returns {Promise<any>}
- */
-export function get_token_contract_info(sdk, data_contract_id) {
-    _assertClass(sdk, WasmSdk);
-    const ptr0 = passStringToWasm0(data_contract_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-    const len0 = WASM_VECTOR_LEN;
-    const ret = wasm.get_token_contract_info(sdk.__wbg_ptr, ptr0, len0);
+    var ptr2 = isLikeNone(start_at) ? 0 : passStringToWasm0(start_at, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    var len2 = WASM_VECTOR_LEN;
+    const ret = wasm.get_group_members_with_proof_info(sdk.__wbg_ptr, ptr0, len0, group_contract_position, ptr1, len1, ptr2, len2, isLikeNone(limit) ? 0x100000001 : (limit) >>> 0);
     return ret;
 }
 
 /**
  * @param {WasmSdk} sdk
  * @param {string} identity_id
- * @param {string} token_id
+ * @param {string[] | null} [member_data_contracts]
+ * @param {string[] | null} [owner_data_contracts]
+ * @param {string[] | null} [moderator_data_contracts]
  * @returns {Promise<any>}
  */
-export function get_token_perpetual_distribution_last_claim(sdk, identity_id, token_id) {
+export function get_identity_groups_with_proof_info(sdk, identity_id, member_data_contracts, owner_data_contracts, moderator_data_contracts) {
     _assertClass(sdk, WasmSdk);
     const ptr0 = passStringToWasm0(identity_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
     const len0 = WASM_VECTOR_LEN;
-    const ptr1 = passStringToWasm0(token_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-    const len1 = WASM_VECTOR_LEN;
-    const ret = wasm.get_token_perpetual_distribution_last_claim(sdk.__wbg_ptr, ptr0, len0, ptr1, len1);
+    var ptr1 = isLikeNone(member_data_contracts) ? 0 : passArrayJsValueToWasm0(member_data_contracts, wasm.__wbindgen_malloc);
+    var len1 = WASM_VECTOR_LEN;
+    var ptr2 = isLikeNone(owner_data_contracts) ? 0 : passArrayJsValueToWasm0(owner_data_contracts, wasm.__wbindgen_malloc);
+    var len2 = WASM_VECTOR_LEN;
+    var ptr3 = isLikeNone(moderator_data_contracts) ? 0 : passArrayJsValueToWasm0(moderator_data_contracts, wasm.__wbindgen_malloc);
+    var len3 = WASM_VECTOR_LEN;
+    const ret = wasm.get_identity_groups_with_proof_info(sdk.__wbg_ptr, ptr0, len0, ptr1, len1, ptr2, len2, ptr3, len3);
     return ret;
 }
 
 /**
  * @param {WasmSdk} sdk
- * @param {string} token_id
- * @returns {Promise<any>}
- */
-export function get_token_total_supply(sdk, token_id) {
-    _assertClass(sdk, WasmSdk);
-    const ptr0 = passStringToWasm0(token_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-    const len0 = WASM_VECTOR_LEN;
-    const ret = wasm.get_token_total_supply(sdk.__wbg_ptr, ptr0, len0);
-    return ret;
-}
-
-/**
- * @param {WasmSdk} sdk
- * @param {string} document_type_name
- * @param {string} data_contract_id
- * @param {string} index_name
- * @param {string} result_type
- * @param {boolean | null} [_allow_include_locked_and_abstaining_vote_tally]
- * @param {Uint8Array | null} [start_at_value]
- * @param {number | null} [limit]
- * @param {number | null} [_offset]
- * @param {boolean | null} [order_ascending]
- * @returns {Promise<any>}
- */
-export function get_contested_resources(sdk, document_type_name, data_contract_id, index_name, result_type, _allow_include_locked_and_abstaining_vote_tally, start_at_value, limit, _offset, order_ascending) {
-    _assertClass(sdk, WasmSdk);
-    const ptr0 = passStringToWasm0(document_type_name, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-    const len0 = WASM_VECTOR_LEN;
-    const ptr1 = passStringToWasm0(data_contract_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-    const len1 = WASM_VECTOR_LEN;
-    const ptr2 = passStringToWasm0(index_name, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-    const len2 = WASM_VECTOR_LEN;
-    const ptr3 = passStringToWasm0(result_type, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-    const len3 = WASM_VECTOR_LEN;
-    var ptr4 = isLikeNone(start_at_value) ? 0 : passArray8ToWasm0(start_at_value, wasm.__wbindgen_malloc);
-    var len4 = WASM_VECTOR_LEN;
-    const ret = wasm.get_contested_resources(sdk.__wbg_ptr, ptr0, len0, ptr1, len1, ptr2, len2, ptr3, len3, isLikeNone(_allow_include_locked_and_abstaining_vote_tally) ? 0xFFFFFF : _allow_include_locked_and_abstaining_vote_tally ? 1 : 0, ptr4, len4, isLikeNone(limit) ? 0x100000001 : (limit) >>> 0, isLikeNone(_offset) ? 0x100000001 : (_offset) >>> 0, isLikeNone(order_ascending) ? 0xFFFFFF : order_ascending ? 1 : 0);
-    return ret;
-}
-
-/**
- * @param {WasmSdk} sdk
- * @param {string} data_contract_id
- * @param {string} document_type_name
- * @param {string} index_name
- * @param {string} result_type
- * @param {boolean | null} [allow_include_locked_and_abstaining_vote_tally]
- * @param {string | null} [start_at_identifier_info]
+ * @param {string} contract_id
+ * @param {number} group_contract_position
+ * @param {string} status
+ * @param {any} start_at_info
  * @param {number | null} [count]
- * @param {boolean | null} [_order_ascending]
  * @returns {Promise<any>}
  */
-export function get_contested_resource_vote_state(sdk, data_contract_id, document_type_name, index_name, result_type, allow_include_locked_and_abstaining_vote_tally, start_at_identifier_info, count, _order_ascending) {
+export function get_group_actions_with_proof_info(sdk, contract_id, group_contract_position, status, start_at_info, count) {
     _assertClass(sdk, WasmSdk);
-    const ptr0 = passStringToWasm0(data_contract_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const ptr0 = passStringToWasm0(contract_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
     const len0 = WASM_VECTOR_LEN;
-    const ptr1 = passStringToWasm0(document_type_name, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const ptr1 = passStringToWasm0(status, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
     const len1 = WASM_VECTOR_LEN;
-    const ptr2 = passStringToWasm0(index_name, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-    const len2 = WASM_VECTOR_LEN;
-    const ptr3 = passStringToWasm0(result_type, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-    const len3 = WASM_VECTOR_LEN;
-    var ptr4 = isLikeNone(start_at_identifier_info) ? 0 : passStringToWasm0(start_at_identifier_info, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-    var len4 = WASM_VECTOR_LEN;
-    const ret = wasm.get_contested_resource_vote_state(sdk.__wbg_ptr, ptr0, len0, ptr1, len1, ptr2, len2, ptr3, len3, isLikeNone(allow_include_locked_and_abstaining_vote_tally) ? 0xFFFFFF : allow_include_locked_and_abstaining_vote_tally ? 1 : 0, ptr4, len4, isLikeNone(count) ? 0x100000001 : (count) >>> 0, isLikeNone(_order_ascending) ? 0xFFFFFF : _order_ascending ? 1 : 0);
+    const ret = wasm.get_group_actions_with_proof_info(sdk.__wbg_ptr, ptr0, len0, group_contract_position, ptr1, len1, start_at_info, isLikeNone(count) ? 0x100000001 : (count) >>> 0);
     return ret;
 }
 
 /**
  * @param {WasmSdk} sdk
- * @param {string} data_contract_id
- * @param {string} document_type_name
- * @param {string} index_name
- * @param {string} contestant_id
- * @param {string | null} [start_at_identifier_info]
- * @param {number | null} [count]
- * @param {boolean | null} [order_ascending]
+ * @param {string} contract_id
+ * @param {number} group_contract_position
+ * @param {string} status
+ * @param {string} action_id
  * @returns {Promise<any>}
  */
-export function get_contested_resource_voters_for_identity(sdk, data_contract_id, document_type_name, index_name, contestant_id, start_at_identifier_info, count, order_ascending) {
+export function get_group_action_signers_with_proof_info(sdk, contract_id, group_contract_position, status, action_id) {
     _assertClass(sdk, WasmSdk);
-    const ptr0 = passStringToWasm0(data_contract_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const ptr0 = passStringToWasm0(contract_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
     const len0 = WASM_VECTOR_LEN;
-    const ptr1 = passStringToWasm0(document_type_name, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const ptr1 = passStringToWasm0(status, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
     const len1 = WASM_VECTOR_LEN;
-    const ptr2 = passStringToWasm0(index_name, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const ptr2 = passStringToWasm0(action_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
     const len2 = WASM_VECTOR_LEN;
-    const ptr3 = passStringToWasm0(contestant_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-    const len3 = WASM_VECTOR_LEN;
-    var ptr4 = isLikeNone(start_at_identifier_info) ? 0 : passStringToWasm0(start_at_identifier_info, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-    var len4 = WASM_VECTOR_LEN;
-    const ret = wasm.get_contested_resource_voters_for_identity(sdk.__wbg_ptr, ptr0, len0, ptr1, len1, ptr2, len2, ptr3, len3, ptr4, len4, isLikeNone(count) ? 0x100000001 : (count) >>> 0, isLikeNone(order_ascending) ? 0xFFFFFF : order_ascending ? 1 : 0);
+    const ret = wasm.get_group_action_signers_with_proof_info(sdk.__wbg_ptr, ptr0, len0, group_contract_position, ptr1, len1, ptr2, len2);
     return ret;
 }
 
 /**
  * @param {WasmSdk} sdk
- * @param {string} identity_id
- * @param {number | null} [limit]
- * @param {number | null} [offset]
- * @param {boolean | null} [order_ascending]
+ * @param {string[]} data_contract_ids
  * @returns {Promise<any>}
  */
-export function get_contested_resource_identity_votes(sdk, identity_id, limit, offset, order_ascending) {
+export function get_groups_data_contracts_with_proof_info(sdk, data_contract_ids) {
     _assertClass(sdk, WasmSdk);
-    const ptr0 = passStringToWasm0(identity_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const ptr0 = passArrayJsValueToWasm0(data_contract_ids, wasm.__wbindgen_malloc);
     const len0 = WASM_VECTOR_LEN;
-    const ret = wasm.get_contested_resource_identity_votes(sdk.__wbg_ptr, ptr0, len0, isLikeNone(limit) ? 0x100000001 : (limit) >>> 0, isLikeNone(offset) ? 0x100000001 : (offset) >>> 0, isLikeNone(order_ascending) ? 0xFFFFFF : order_ascending ? 1 : 0);
-    return ret;
-}
-
-/**
- * @param {WasmSdk} sdk
- * @param {bigint | null} [start_time_ms]
- * @param {bigint | null} [end_time_ms]
- * @param {number | null} [limit]
- * @param {number | null} [offset]
- * @param {boolean | null} [order_ascending]
- * @returns {Promise<any>}
- */
-export function get_vote_polls_by_end_date(sdk, start_time_ms, end_time_ms, limit, offset, order_ascending) {
-    _assertClass(sdk, WasmSdk);
-    const ret = wasm.get_vote_polls_by_end_date(sdk.__wbg_ptr, !isLikeNone(start_time_ms), isLikeNone(start_time_ms) ? BigInt(0) : start_time_ms, !isLikeNone(end_time_ms), isLikeNone(end_time_ms) ? BigInt(0) : end_time_ms, isLikeNone(limit) ? 0x100000001 : (limit) >>> 0, isLikeNone(offset) ? 0x100000001 : (offset) >>> 0, isLikeNone(order_ascending) ? 0xFFFFFF : order_ascending ? 1 : 0);
+    const ret = wasm.get_groups_data_contracts_with_proof_info(sdk.__wbg_ptr, ptr0, len0);
     return ret;
 }
 
@@ -1094,20 +1732,329 @@ export function start() {
     wasm.start();
 }
 
+/**
+ * @param {WasmSdk} sdk
+ * @param {string} data_contract_id
+ * @param {string} document_type
+ * @param {string | null} [where_clause]
+ * @param {string | null} [order_by]
+ * @param {number | null} [limit]
+ * @param {string | null} [start_after]
+ * @param {string | null} [start_at]
+ * @returns {Promise<any>}
+ */
+export function get_documents(sdk, data_contract_id, document_type, where_clause, order_by, limit, start_after, start_at) {
+    _assertClass(sdk, WasmSdk);
+    const ptr0 = passStringToWasm0(data_contract_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passStringToWasm0(document_type, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len1 = WASM_VECTOR_LEN;
+    var ptr2 = isLikeNone(where_clause) ? 0 : passStringToWasm0(where_clause, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    var len2 = WASM_VECTOR_LEN;
+    var ptr3 = isLikeNone(order_by) ? 0 : passStringToWasm0(order_by, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    var len3 = WASM_VECTOR_LEN;
+    var ptr4 = isLikeNone(start_after) ? 0 : passStringToWasm0(start_after, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    var len4 = WASM_VECTOR_LEN;
+    var ptr5 = isLikeNone(start_at) ? 0 : passStringToWasm0(start_at, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    var len5 = WASM_VECTOR_LEN;
+    const ret = wasm.get_documents(sdk.__wbg_ptr, ptr0, len0, ptr1, len1, ptr2, len2, ptr3, len3, isLikeNone(limit) ? 0x100000001 : (limit) >>> 0, ptr4, len4, ptr5, len5);
+    return ret;
+}
+
+/**
+ * @param {WasmSdk} sdk
+ * @param {string} data_contract_id
+ * @param {string} document_type
+ * @param {string | null} [where_clause]
+ * @param {string | null} [order_by]
+ * @param {number | null} [limit]
+ * @param {string | null} [start_after]
+ * @param {string | null} [start_at]
+ * @returns {Promise<any>}
+ */
+export function get_documents_with_proof_info(sdk, data_contract_id, document_type, where_clause, order_by, limit, start_after, start_at) {
+    _assertClass(sdk, WasmSdk);
+    const ptr0 = passStringToWasm0(data_contract_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passStringToWasm0(document_type, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len1 = WASM_VECTOR_LEN;
+    var ptr2 = isLikeNone(where_clause) ? 0 : passStringToWasm0(where_clause, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    var len2 = WASM_VECTOR_LEN;
+    var ptr3 = isLikeNone(order_by) ? 0 : passStringToWasm0(order_by, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    var len3 = WASM_VECTOR_LEN;
+    var ptr4 = isLikeNone(start_after) ? 0 : passStringToWasm0(start_after, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    var len4 = WASM_VECTOR_LEN;
+    var ptr5 = isLikeNone(start_at) ? 0 : passStringToWasm0(start_at, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    var len5 = WASM_VECTOR_LEN;
+    const ret = wasm.get_documents_with_proof_info(sdk.__wbg_ptr, ptr0, len0, ptr1, len1, ptr2, len2, ptr3, len3, isLikeNone(limit) ? 0x100000001 : (limit) >>> 0, ptr4, len4, ptr5, len5);
+    return ret;
+}
+
+/**
+ * @param {WasmSdk} sdk
+ * @param {string} data_contract_id
+ * @param {string} document_type
+ * @param {string} document_id
+ * @returns {Promise<any>}
+ */
+export function get_document(sdk, data_contract_id, document_type, document_id) {
+    _assertClass(sdk, WasmSdk);
+    const ptr0 = passStringToWasm0(data_contract_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passStringToWasm0(document_type, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len1 = WASM_VECTOR_LEN;
+    const ptr2 = passStringToWasm0(document_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len2 = WASM_VECTOR_LEN;
+    const ret = wasm.get_document(sdk.__wbg_ptr, ptr0, len0, ptr1, len1, ptr2, len2);
+    return ret;
+}
+
+/**
+ * @param {WasmSdk} sdk
+ * @param {string} data_contract_id
+ * @param {string} document_type
+ * @param {string} document_id
+ * @returns {Promise<any>}
+ */
+export function get_document_with_proof_info(sdk, data_contract_id, document_type, document_id) {
+    _assertClass(sdk, WasmSdk);
+    const ptr0 = passStringToWasm0(data_contract_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passStringToWasm0(document_type, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len1 = WASM_VECTOR_LEN;
+    const ptr2 = passStringToWasm0(document_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len2 = WASM_VECTOR_LEN;
+    const ret = wasm.get_document_with_proof_info(sdk.__wbg_ptr, ptr0, len0, ptr1, len1, ptr2, len2);
+    return ret;
+}
+
+/**
+ * @param {WasmSdk} sdk
+ * @param {string} identity_id
+ * @param {number | null} [limit]
+ * @returns {Promise<any>}
+ */
+export function get_dpns_usernames(sdk, identity_id, limit) {
+    _assertClass(sdk, WasmSdk);
+    const ptr0 = passStringToWasm0(identity_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.get_dpns_usernames(sdk.__wbg_ptr, ptr0, len0, isLikeNone(limit) ? 0x100000001 : (limit) >>> 0);
+    return ret;
+}
+
+/**
+ * @param {WasmSdk} sdk
+ * @param {string} identity_id
+ * @returns {Promise<any>}
+ */
+export function get_dpns_username(sdk, identity_id) {
+    _assertClass(sdk, WasmSdk);
+    const ptr0 = passStringToWasm0(identity_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.get_dpns_username(sdk.__wbg_ptr, ptr0, len0);
+    return ret;
+}
+
+/**
+ * @param {WasmSdk} sdk
+ * @param {string} identity_id
+ * @param {number | null} [limit]
+ * @returns {Promise<any>}
+ */
+export function get_dpns_usernames_with_proof_info(sdk, identity_id, limit) {
+    _assertClass(sdk, WasmSdk);
+    const ptr0 = passStringToWasm0(identity_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.get_dpns_usernames_with_proof_info(sdk.__wbg_ptr, ptr0, len0, isLikeNone(limit) ? 0x100000001 : (limit) >>> 0);
+    return ret;
+}
+
+/**
+ * @param {WasmSdk} sdk
+ * @param {string} identity_id
+ * @returns {Promise<any>}
+ */
+export function get_dpns_username_with_proof_info(sdk, identity_id) {
+    _assertClass(sdk, WasmSdk);
+    const ptr0 = passStringToWasm0(identity_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.get_dpns_username_with_proof_info(sdk.__wbg_ptr, ptr0, len0);
+    return ret;
+}
+
+/**
+ * @param {WasmSdk} sdk
+ * @returns {Promise<any>}
+ */
+export function get_protocol_version_upgrade_state(sdk) {
+    _assertClass(sdk, WasmSdk);
+    const ret = wasm.get_protocol_version_upgrade_state(sdk.__wbg_ptr);
+    return ret;
+}
+
+/**
+ * @param {WasmSdk} sdk
+ * @param {string} start_pro_tx_hash
+ * @param {number} count
+ * @returns {Promise<any>}
+ */
+export function get_protocol_version_upgrade_vote_status(sdk, start_pro_tx_hash, count) {
+    _assertClass(sdk, WasmSdk);
+    const ptr0 = passStringToWasm0(start_pro_tx_hash, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.get_protocol_version_upgrade_vote_status(sdk.__wbg_ptr, ptr0, len0, count);
+    return ret;
+}
+
+/**
+ * @param {WasmSdk} sdk
+ * @returns {Promise<any>}
+ */
+export function get_protocol_version_upgrade_state_with_proof_info(sdk) {
+    _assertClass(sdk, WasmSdk);
+    const ret = wasm.get_protocol_version_upgrade_state_with_proof_info(sdk.__wbg_ptr);
+    return ret;
+}
+
+/**
+ * @param {WasmSdk} sdk
+ * @param {string} start_pro_tx_hash
+ * @param {number} count
+ * @returns {Promise<any>}
+ */
+export function get_protocol_version_upgrade_vote_status_with_proof_info(sdk, start_pro_tx_hash, count) {
+    _assertClass(sdk, WasmSdk);
+    const ptr0 = passStringToWasm0(start_pro_tx_hash, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.get_protocol_version_upgrade_vote_status_with_proof_info(sdk.__wbg_ptr, ptr0, len0, count);
+    return ret;
+}
+
+/**
+ * @param {WasmSdk} sdk
+ * @returns {Promise<any>}
+ */
+export function get_status(sdk) {
+    _assertClass(sdk, WasmSdk);
+    const ret = wasm.get_status(sdk.__wbg_ptr);
+    return ret;
+}
+
+/**
+ * @param {WasmSdk} sdk
+ * @returns {Promise<any>}
+ */
+export function get_current_quorums_info(sdk) {
+    _assertClass(sdk, WasmSdk);
+    const ret = wasm.get_current_quorums_info(sdk.__wbg_ptr);
+    return ret;
+}
+
+/**
+ * @param {WasmSdk} sdk
+ * @returns {Promise<any>}
+ */
+export function get_total_credits_in_platform(sdk) {
+    _assertClass(sdk, WasmSdk);
+    const ret = wasm.get_total_credits_in_platform(sdk.__wbg_ptr);
+    return ret;
+}
+
+/**
+ * @param {WasmSdk} sdk
+ * @param {string} identity_id
+ * @returns {Promise<any>}
+ */
+export function get_prefunded_specialized_balance(sdk, identity_id) {
+    _assertClass(sdk, WasmSdk);
+    const ptr0 = passStringToWasm0(identity_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.get_prefunded_specialized_balance(sdk.__wbg_ptr, ptr0, len0);
+    return ret;
+}
+
+/**
+ * @param {WasmSdk} sdk
+ * @param {string} state_transition_hash
+ * @returns {Promise<any>}
+ */
+export function wait_for_state_transition_result(sdk, state_transition_hash) {
+    _assertClass(sdk, WasmSdk);
+    const ptr0 = passStringToWasm0(state_transition_hash, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.wait_for_state_transition_result(sdk.__wbg_ptr, ptr0, len0);
+    return ret;
+}
+
+/**
+ * @param {WasmSdk} sdk
+ * @param {string[]} path
+ * @param {string[]} keys
+ * @returns {Promise<any>}
+ */
+export function get_path_elements(sdk, path, keys) {
+    _assertClass(sdk, WasmSdk);
+    const ptr0 = passArrayJsValueToWasm0(path, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passArrayJsValueToWasm0(keys, wasm.__wbindgen_malloc);
+    const len1 = WASM_VECTOR_LEN;
+    const ret = wasm.get_path_elements(sdk.__wbg_ptr, ptr0, len0, ptr1, len1);
+    return ret;
+}
+
+/**
+ * @param {WasmSdk} sdk
+ * @returns {Promise<any>}
+ */
+export function get_total_credits_in_platform_with_proof_info(sdk) {
+    _assertClass(sdk, WasmSdk);
+    const ret = wasm.get_total_credits_in_platform_with_proof_info(sdk.__wbg_ptr);
+    return ret;
+}
+
+/**
+ * @param {WasmSdk} sdk
+ * @param {string} identity_id
+ * @returns {Promise<any>}
+ */
+export function get_prefunded_specialized_balance_with_proof_info(sdk, identity_id) {
+    _assertClass(sdk, WasmSdk);
+    const ptr0 = passStringToWasm0(identity_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.get_prefunded_specialized_balance_with_proof_info(sdk.__wbg_ptr, ptr0, len0);
+    return ret;
+}
+
+/**
+ * @param {WasmSdk} sdk
+ * @param {string[]} path
+ * @param {string[]} keys
+ * @returns {Promise<any>}
+ */
+export function get_path_elements_with_proof_info(sdk, path, keys) {
+    _assertClass(sdk, WasmSdk);
+    const ptr0 = passArrayJsValueToWasm0(path, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passArrayJsValueToWasm0(keys, wasm.__wbindgen_malloc);
+    const len1 = WASM_VECTOR_LEN;
+    const ret = wasm.get_path_elements_with_proof_info(sdk.__wbg_ptr, ptr0, len0, ptr1, len1);
+    return ret;
+}
+
 function __wbg_adapter_56(arg0, arg1) {
-    wasm._dyn_core__ops__function__FnMut_____Output___R_as_wasm_bindgen__closure__WasmClosure___describe__invoke__h4e12a65029bb24b2(arg0, arg1);
+    wasm._dyn_core__ops__function__FnMut_____Output___R_as_wasm_bindgen__closure__WasmClosure___describe__invoke__heae852875965dd90(arg0, arg1);
 }
 
 function __wbg_adapter_59(arg0, arg1) {
-    wasm._dyn_core__ops__function__FnMut_____Output___R_as_wasm_bindgen__closure__WasmClosure___describe__invoke__hd571f46da4a3ec78(arg0, arg1);
+    wasm._dyn_core__ops__function__FnMut_____Output___R_as_wasm_bindgen__closure__WasmClosure___describe__invoke__h5e78eb5dab6fc290(arg0, arg1);
 }
 
 function __wbg_adapter_62(arg0, arg1, arg2) {
-    wasm.closure2347_externref_shim(arg0, arg1, arg2);
+    wasm.closure2558_externref_shim(arg0, arg1, arg2);
 }
 
-function __wbg_adapter_371(arg0, arg1, arg2, arg3) {
-    wasm.closure4120_externref_shim(arg0, arg1, arg2, arg3);
+function __wbg_adapter_433(arg0, arg1, arg2, arg3) {
+    wasm.closure4309_externref_shim(arg0, arg1, arg2, arg3);
 }
 
 const __wbindgen_enum_ReadableStreamType = ["bytes"];
@@ -1568,6 +2515,206 @@ export class WasmSdk {
         return takeFromExternrefTable0(ret[0]);
     }
     /**
+     * Transfer credits from one identity to another.
+     *
+     * # Arguments
+     *
+     * * `sender_id` - The identity ID of the sender
+     * * `recipient_id` - The identity ID of the recipient
+     * * `amount` - The amount of credits to transfer
+     * * `private_key_wif` - The private key in WIF format for signing
+     * * `key_id` - Optional key ID to use for signing (if None, will auto-select)
+     *
+     * # Returns
+     *
+     * Returns a Promise that resolves to a JsValue containing the transfer result
+     * @param {string} sender_id
+     * @param {string} recipient_id
+     * @param {bigint} amount
+     * @param {string} private_key_wif
+     * @param {number | null} [key_id]
+     * @returns {Promise<any>}
+     */
+    identityCreditTransfer(sender_id, recipient_id, amount, private_key_wif, key_id) {
+        const ptr0 = passStringToWasm0(sender_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(recipient_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ptr2 = passStringToWasm0(private_key_wif, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len2 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmsdk_identityCreditTransfer(this.__wbg_ptr, ptr0, len0, ptr1, len1, amount, ptr2, len2, isLikeNone(key_id) ? 0x100000001 : (key_id) >>> 0);
+        return ret;
+    }
+    /**
+     * Withdraw credits from an identity to a Dash address.
+     *
+     * # Arguments
+     *
+     * * `identity_id` - The identity ID to withdraw from
+     * * `to_address` - The Dash address to send the withdrawn credits to
+     * * `amount` - The amount of credits to withdraw
+     * * `core_fee_per_byte` - Optional core fee per byte (defaults to 1)
+     * * `private_key_wif` - The private key in WIF format for signing
+     * * `key_id` - Optional key ID to use for signing (if None, will auto-select)
+     *
+     * # Returns
+     *
+     * Returns a Promise that resolves to a JsValue containing the withdrawal result
+     * @param {string} identity_id
+     * @param {string} to_address
+     * @param {bigint} amount
+     * @param {number | null | undefined} core_fee_per_byte
+     * @param {string} private_key_wif
+     * @param {number | null} [key_id]
+     * @returns {Promise<any>}
+     */
+    identityCreditWithdrawal(identity_id, to_address, amount, core_fee_per_byte, private_key_wif, key_id) {
+        const ptr0 = passStringToWasm0(identity_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(to_address, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ptr2 = passStringToWasm0(private_key_wif, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len2 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmsdk_identityCreditWithdrawal(this.__wbg_ptr, ptr0, len0, ptr1, len1, amount, isLikeNone(core_fee_per_byte) ? 0x100000001 : (core_fee_per_byte) >>> 0, ptr2, len2, isLikeNone(key_id) ? 0x100000001 : (key_id) >>> 0);
+        return ret;
+    }
+    /**
+     * Update an identity by adding or disabling public keys.
+     *
+     * # Arguments
+     *
+     * * `identity_id` - The identity ID to update
+     * * `add_public_keys` - JSON array of public keys to add
+     * * `disable_public_keys` - Array of key IDs to disable
+     * * `private_key_wif` - The private key in WIF format for signing (must be a master key)
+     *
+     * # Returns
+     *
+     * Returns a Promise that resolves to a JsValue containing the update result
+     * @param {string} identity_id
+     * @param {string | null | undefined} add_public_keys
+     * @param {Uint32Array | null | undefined} disable_public_keys
+     * @param {string} private_key_wif
+     * @returns {Promise<any>}
+     */
+    identityUpdate(identity_id, add_public_keys, disable_public_keys, private_key_wif) {
+        const ptr0 = passStringToWasm0(identity_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        var ptr1 = isLikeNone(add_public_keys) ? 0 : passStringToWasm0(add_public_keys, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        var len1 = WASM_VECTOR_LEN;
+        var ptr2 = isLikeNone(disable_public_keys) ? 0 : passArray32ToWasm0(disable_public_keys, wasm.__wbindgen_malloc);
+        var len2 = WASM_VECTOR_LEN;
+        const ptr3 = passStringToWasm0(private_key_wif, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len3 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmsdk_identityUpdate(this.__wbg_ptr, ptr0, len0, ptr1, len1, ptr2, len2, ptr3, len3);
+        return ret;
+    }
+    /**
+     * Submit a masternode vote for a contested resource.
+     *
+     * # Arguments
+     *
+     * * `pro_tx_hash` - The ProTxHash of the masternode
+     * * `contract_id` - The data contract ID containing the contested resource
+     * * `document_type_name` - The document type name (e.g., "domain")
+     * * `index_name` - The index name (e.g., "parentNameAndLabel")
+     * * `index_values` - JSON array of index values (e.g., ["dash", "username"])
+     * * `vote_choice` - The vote choice: "towardsIdentity:<identity_id>", "abstain", or "lock"
+     * * `private_key_wif` - The masternode voting key in WIF format
+     *
+     * # Returns
+     *
+     * Returns a Promise that resolves to a JsValue containing the vote result
+     * @param {string} masternode_pro_tx_hash
+     * @param {string} contract_id
+     * @param {string} document_type_name
+     * @param {string} index_name
+     * @param {string} index_values
+     * @param {string} vote_choice
+     * @param {string} voting_key_wif
+     * @returns {Promise<any>}
+     */
+    masternodeVote(masternode_pro_tx_hash, contract_id, document_type_name, index_name, index_values, vote_choice, voting_key_wif) {
+        const ptr0 = passStringToWasm0(masternode_pro_tx_hash, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(contract_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ptr2 = passStringToWasm0(document_type_name, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len2 = WASM_VECTOR_LEN;
+        const ptr3 = passStringToWasm0(index_name, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len3 = WASM_VECTOR_LEN;
+        const ptr4 = passStringToWasm0(index_values, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len4 = WASM_VECTOR_LEN;
+        const ptr5 = passStringToWasm0(vote_choice, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len5 = WASM_VECTOR_LEN;
+        const ptr6 = passStringToWasm0(voting_key_wif, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len6 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmsdk_masternodeVote(this.__wbg_ptr, ptr0, len0, ptr1, len1, ptr2, len2, ptr3, len3, ptr4, len4, ptr5, len5, ptr6, len6);
+        return ret;
+    }
+    /**
+     * Create a new data contract on Dash Platform.
+     *
+     * # Arguments
+     *
+     * * `owner_id` - The identity ID that will own the contract
+     * * `contract_definition` - JSON string containing the contract definition
+     * * `private_key_wif` - The private key in WIF format for signing
+     * * `key_id` - Optional key ID to use for signing (if None, will auto-select)
+     *
+     * # Returns
+     *
+     * Returns a Promise that resolves to a JsValue containing the created contract
+     * @param {string} owner_id
+     * @param {string} contract_definition
+     * @param {string} private_key_wif
+     * @param {number | null} [key_id]
+     * @returns {Promise<any>}
+     */
+    contractCreate(owner_id, contract_definition, private_key_wif, key_id) {
+        const ptr0 = passStringToWasm0(owner_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(contract_definition, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ptr2 = passStringToWasm0(private_key_wif, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len2 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmsdk_contractCreate(this.__wbg_ptr, ptr0, len0, ptr1, len1, ptr2, len2, isLikeNone(key_id) ? 0x100000001 : (key_id) >>> 0);
+        return ret;
+    }
+    /**
+     * Update an existing data contract on Dash Platform.
+     *
+     * # Arguments
+     *
+     * * `contract_id` - The ID of the contract to update
+     * * `owner_id` - The identity ID that owns the contract
+     * * `contract_updates` - JSON string containing the updated contract definition
+     * * `private_key_wif` - The private key in WIF format for signing
+     * * `key_id` - Optional key ID to use for signing (if None, will auto-select)
+     *
+     * # Returns
+     *
+     * Returns a Promise that resolves to a JsValue containing the update result
+     * @param {string} contract_id
+     * @param {string} owner_id
+     * @param {string} contract_updates
+     * @param {string} private_key_wif
+     * @param {number | null} [key_id]
+     * @returns {Promise<any>}
+     */
+    contractUpdate(contract_id, owner_id, contract_updates, private_key_wif, key_id) {
+        const ptr0 = passStringToWasm0(contract_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(owner_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ptr2 = passStringToWasm0(contract_updates, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len2 = WASM_VECTOR_LEN;
+        const ptr3 = passStringToWasm0(private_key_wif, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len3 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmsdk_contractUpdate(this.__wbg_ptr, ptr0, len0, ptr1, len1, ptr2, len2, ptr3, len3, isLikeNone(key_id) ? 0x100000001 : (key_id) >>> 0);
+        return ret;
+    }
+    /**
      * Create a new document on the platform.
      *
      * # Arguments
@@ -1806,144 +2953,6 @@ export class WasmSdk {
         return ret;
     }
     /**
-     * Transfer credits from one identity to another.
-     *
-     * # Arguments
-     *
-     * * `sender_id` - The identity ID of the sender
-     * * `recipient_id` - The identity ID of the recipient
-     * * `amount` - The amount of credits to transfer
-     * * `private_key_wif` - The private key in WIF format for signing
-     * * `key_id` - Optional key ID to use for signing (if None, will auto-select)
-     *
-     * # Returns
-     *
-     * Returns a Promise that resolves to a JsValue containing the transfer result
-     * @param {string} sender_id
-     * @param {string} recipient_id
-     * @param {bigint} amount
-     * @param {string} private_key_wif
-     * @param {number | null} [key_id]
-     * @returns {Promise<any>}
-     */
-    identityCreditTransfer(sender_id, recipient_id, amount, private_key_wif, key_id) {
-        const ptr0 = passStringToWasm0(sender_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-        const len0 = WASM_VECTOR_LEN;
-        const ptr1 = passStringToWasm0(recipient_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-        const len1 = WASM_VECTOR_LEN;
-        const ptr2 = passStringToWasm0(private_key_wif, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-        const len2 = WASM_VECTOR_LEN;
-        const ret = wasm.wasmsdk_identityCreditTransfer(this.__wbg_ptr, ptr0, len0, ptr1, len1, amount, ptr2, len2, isLikeNone(key_id) ? 0x100000001 : (key_id) >>> 0);
-        return ret;
-    }
-    /**
-     * Withdraw credits from an identity to a Dash address.
-     *
-     * # Arguments
-     *
-     * * `identity_id` - The identity ID to withdraw from
-     * * `to_address` - The Dash address to send the withdrawn credits to
-     * * `amount` - The amount of credits to withdraw
-     * * `core_fee_per_byte` - Optional core fee per byte (defaults to 1)
-     * * `private_key_wif` - The private key in WIF format for signing
-     * * `key_id` - Optional key ID to use for signing (if None, will auto-select)
-     *
-     * # Returns
-     *
-     * Returns a Promise that resolves to a JsValue containing the withdrawal result
-     * @param {string} identity_id
-     * @param {string} to_address
-     * @param {bigint} amount
-     * @param {number | null | undefined} core_fee_per_byte
-     * @param {string} private_key_wif
-     * @param {number | null} [key_id]
-     * @returns {Promise<any>}
-     */
-    identityCreditWithdrawal(identity_id, to_address, amount, core_fee_per_byte, private_key_wif, key_id) {
-        const ptr0 = passStringToWasm0(identity_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-        const len0 = WASM_VECTOR_LEN;
-        const ptr1 = passStringToWasm0(to_address, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-        const len1 = WASM_VECTOR_LEN;
-        const ptr2 = passStringToWasm0(private_key_wif, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-        const len2 = WASM_VECTOR_LEN;
-        const ret = wasm.wasmsdk_identityCreditWithdrawal(this.__wbg_ptr, ptr0, len0, ptr1, len1, amount, isLikeNone(core_fee_per_byte) ? 0x100000001 : (core_fee_per_byte) >>> 0, ptr2, len2, isLikeNone(key_id) ? 0x100000001 : (key_id) >>> 0);
-        return ret;
-    }
-    /**
-     * Update an identity by adding or disabling public keys.
-     *
-     * # Arguments
-     *
-     * * `identity_id` - The identity ID to update
-     * * `add_public_keys` - JSON array of public keys to add
-     * * `disable_public_keys` - Array of key IDs to disable
-     * * `private_key_wif` - The private key in WIF format for signing (must be a master key)
-     *
-     * # Returns
-     *
-     * Returns a Promise that resolves to a JsValue containing the update result
-     * @param {string} identity_id
-     * @param {string | null | undefined} add_public_keys
-     * @param {Uint32Array | null | undefined} disable_public_keys
-     * @param {string} private_key_wif
-     * @returns {Promise<any>}
-     */
-    identityUpdate(identity_id, add_public_keys, disable_public_keys, private_key_wif) {
-        const ptr0 = passStringToWasm0(identity_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-        const len0 = WASM_VECTOR_LEN;
-        var ptr1 = isLikeNone(add_public_keys) ? 0 : passStringToWasm0(add_public_keys, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-        var len1 = WASM_VECTOR_LEN;
-        var ptr2 = isLikeNone(disable_public_keys) ? 0 : passArray32ToWasm0(disable_public_keys, wasm.__wbindgen_malloc);
-        var len2 = WASM_VECTOR_LEN;
-        const ptr3 = passStringToWasm0(private_key_wif, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-        const len3 = WASM_VECTOR_LEN;
-        const ret = wasm.wasmsdk_identityUpdate(this.__wbg_ptr, ptr0, len0, ptr1, len1, ptr2, len2, ptr3, len3);
-        return ret;
-    }
-    /**
-     * Submit a masternode vote for a contested resource.
-     *
-     * # Arguments
-     *
-     * * `pro_tx_hash` - The ProTxHash of the masternode
-     * * `contract_id` - The data contract ID containing the contested resource
-     * * `document_type_name` - The document type name (e.g., "domain")
-     * * `index_name` - The index name (e.g., "parentNameAndLabel")
-     * * `index_values` - JSON array of index values (e.g., ["dash", "username"])
-     * * `vote_choice` - The vote choice: "towardsIdentity:<identity_id>", "abstain", or "lock"
-     * * `private_key_wif` - The masternode voting key in WIF format
-     *
-     * # Returns
-     *
-     * Returns a Promise that resolves to a JsValue containing the vote result
-     * @param {string} masternode_pro_tx_hash
-     * @param {string} contract_id
-     * @param {string} document_type_name
-     * @param {string} index_name
-     * @param {string} index_values
-     * @param {string} vote_choice
-     * @param {string} voting_key_wif
-     * @returns {Promise<any>}
-     */
-    masternodeVote(masternode_pro_tx_hash, contract_id, document_type_name, index_name, index_values, vote_choice, voting_key_wif) {
-        const ptr0 = passStringToWasm0(masternode_pro_tx_hash, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-        const len0 = WASM_VECTOR_LEN;
-        const ptr1 = passStringToWasm0(contract_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-        const len1 = WASM_VECTOR_LEN;
-        const ptr2 = passStringToWasm0(document_type_name, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-        const len2 = WASM_VECTOR_LEN;
-        const ptr3 = passStringToWasm0(index_name, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-        const len3 = WASM_VECTOR_LEN;
-        const ptr4 = passStringToWasm0(index_values, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-        const len4 = WASM_VECTOR_LEN;
-        const ptr5 = passStringToWasm0(vote_choice, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-        const len5 = WASM_VECTOR_LEN;
-        const ptr6 = passStringToWasm0(voting_key_wif, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-        const len6 = WASM_VECTOR_LEN;
-        const ret = wasm.wasmsdk_masternodeVote(this.__wbg_ptr, ptr0, len0, ptr1, len1, ptr2, len2, ptr3, len3, ptr4, len4, ptr5, len5, ptr6, len6);
-        return ret;
-    }
-    /**
      * Mint new tokens according to the token's configuration.
      *
      * # Arguments
@@ -2161,68 +3170,6 @@ export class WasmSdk {
         const ret = wasm.wasmsdk_tokenDestroyFrozen(this.__wbg_ptr, ptr0, len0, token_position, ptr1, len1, ptr2, len2, ptr3, len3);
         return ret;
     }
-    /**
-     * Create a new data contract on Dash Platform.
-     *
-     * # Arguments
-     *
-     * * `owner_id` - The identity ID that will own the contract
-     * * `contract_definition` - JSON string containing the contract definition
-     * * `private_key_wif` - The private key in WIF format for signing
-     * * `key_id` - Optional key ID to use for signing (if None, will auto-select)
-     *
-     * # Returns
-     *
-     * Returns a Promise that resolves to a JsValue containing the created contract
-     * @param {string} owner_id
-     * @param {string} contract_definition
-     * @param {string} private_key_wif
-     * @param {number | null} [key_id]
-     * @returns {Promise<any>}
-     */
-    contractCreate(owner_id, contract_definition, private_key_wif, key_id) {
-        const ptr0 = passStringToWasm0(owner_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-        const len0 = WASM_VECTOR_LEN;
-        const ptr1 = passStringToWasm0(contract_definition, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-        const len1 = WASM_VECTOR_LEN;
-        const ptr2 = passStringToWasm0(private_key_wif, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-        const len2 = WASM_VECTOR_LEN;
-        const ret = wasm.wasmsdk_contractCreate(this.__wbg_ptr, ptr0, len0, ptr1, len1, ptr2, len2, isLikeNone(key_id) ? 0x100000001 : (key_id) >>> 0);
-        return ret;
-    }
-    /**
-     * Update an existing data contract on Dash Platform.
-     *
-     * # Arguments
-     *
-     * * `contract_id` - The ID of the contract to update
-     * * `owner_id` - The identity ID that owns the contract
-     * * `contract_updates` - JSON string containing the updated contract definition
-     * * `private_key_wif` - The private key in WIF format for signing
-     * * `key_id` - Optional key ID to use for signing (if None, will auto-select)
-     *
-     * # Returns
-     *
-     * Returns a Promise that resolves to a JsValue containing the update result
-     * @param {string} contract_id
-     * @param {string} owner_id
-     * @param {string} contract_updates
-     * @param {string} private_key_wif
-     * @param {number | null} [key_id]
-     * @returns {Promise<any>}
-     */
-    contractUpdate(contract_id, owner_id, contract_updates, private_key_wif, key_id) {
-        const ptr0 = passStringToWasm0(contract_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-        const len0 = WASM_VECTOR_LEN;
-        const ptr1 = passStringToWasm0(owner_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-        const len1 = WASM_VECTOR_LEN;
-        const ptr2 = passStringToWasm0(contract_updates, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-        const len2 = WASM_VECTOR_LEN;
-        const ptr3 = passStringToWasm0(private_key_wif, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-        const len3 = WASM_VECTOR_LEN;
-        const ret = wasm.wasmsdk_contractUpdate(this.__wbg_ptr, ptr0, len0, ptr1, len1, ptr2, len2, ptr3, len3, isLikeNone(key_id) ? 0x100000001 : (key_id) >>> 0);
-        return ret;
-    }
 }
 
 const WasmSdkBuilderFinalization = (typeof FinalizationRegistry === 'undefined')
@@ -2249,6 +3196,14 @@ export class WasmSdkBuilder {
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_wasmsdkbuilder_free(ptr, 0);
+    }
+    /**
+     * Get the latest platform version number
+     * @returns {number}
+     */
+    static getLatestVersionNumber() {
+        const ret = wasm.wasmsdkbuilder_getLatestVersionNumber();
+        return ret >>> 0;
     }
     /**
      * @returns {WasmSdkBuilder}
@@ -2304,6 +3259,45 @@ export class WasmSdkBuilder {
         _assertClass(context_provider, WasmContext);
         var ptr0 = context_provider.__destroy_into_raw();
         const ret = wasm.wasmsdkbuilder_with_context_provider(ptr, ptr0);
+        return WasmSdkBuilder.__wrap(ret);
+    }
+    /**
+     * Configure platform version to use.
+     *
+     * Available versions:
+     * - 1: Platform version 1
+     * - 2: Platform version 2
+     * - ... up to latest version
+     *
+     * Defaults to latest version if not specified.
+     * @param {number} version_number
+     * @returns {WasmSdkBuilder}
+     */
+    with_version(version_number) {
+        const ptr = this.__destroy_into_raw();
+        const ret = wasm.wasmsdkbuilder_with_version(ptr, version_number);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return WasmSdkBuilder.__wrap(ret[0]);
+    }
+    /**
+     * Configure request settings for the SDK.
+     *
+     * Settings include:
+     * - connect_timeout_ms: Timeout for establishing connection (in milliseconds)
+     * - timeout_ms: Timeout for single request (in milliseconds)
+     * - retries: Number of retries in case of failed requests
+     * - ban_failed_address: Whether to ban DAPI address if node not responded or responded with error
+     * @param {number | null} [connect_timeout_ms]
+     * @param {number | null} [timeout_ms]
+     * @param {number | null} [retries]
+     * @param {boolean | null} [ban_failed_address]
+     * @returns {WasmSdkBuilder}
+     */
+    with_settings(connect_timeout_ms, timeout_ms, retries, ban_failed_address) {
+        const ptr = this.__destroy_into_raw();
+        const ret = wasm.wasmsdkbuilder_with_settings(ptr, isLikeNone(connect_timeout_ms) ? 0x100000001 : (connect_timeout_ms) >>> 0, isLikeNone(timeout_ms) ? 0x100000001 : (timeout_ms) >>> 0, isLikeNone(retries) ? 0x100000001 : (retries) >>> 0, isLikeNone(ban_failed_address) ? 0xFFFFFF : ban_failed_address ? 1 : 0);
         return WasmSdkBuilder.__wrap(ret);
     }
 }
@@ -2402,11 +3396,11 @@ function __wbg_get_imports() {
         const ret = arg0.catch(arg1);
         return ret;
     };
-    imports.wbg.__wbg_clearTimeout_5a54f8841c30079a = function(arg0) {
+    imports.wbg.__wbg_clearTimeout_0b53d391c1b94dda = function(arg0) {
         const ret = clearTimeout(arg0);
         return ret;
     };
-    imports.wbg.__wbg_clearTimeout_b1115618e821c3b2 = function(arg0) {
+    imports.wbg.__wbg_clearTimeout_5a54f8841c30079a = function(arg0) {
         const ret = clearTimeout(arg0);
         return ret;
     };
@@ -2458,7 +3452,7 @@ function __wbg_get_imports() {
         const ret = arg0.fetch(arg1, arg2);
         return ret;
     };
-    imports.wbg.__wbg_fetch_3afbdcc7ddbf16fe = function(arg0) {
+    imports.wbg.__wbg_fetch_11bff8299d0ecd2b = function(arg0) {
         const ret = fetch(arg0);
         return ret;
     };
@@ -2646,7 +3640,7 @@ function __wbg_get_imports() {
                 const a = state0.a;
                 state0.a = 0;
                 try {
-                    return __wbg_adapter_371(a, state0.b, arg0, arg1);
+                    return __wbg_adapter_433(a, state0.b, arg0, arg1);
                 } finally {
                     state0.a = a;
                 }
@@ -2757,7 +3751,7 @@ function __wbg_get_imports() {
     imports.wbg.__wbg_respond_1f279fa9f8edcb1c = function() { return handleError(function (arg0, arg1) {
         arg0.respond(arg1 >>> 0);
     }, arguments) };
-    imports.wbg.__wbg_setTimeout_ca12ead8b48245e2 = function(arg0, arg1) {
+    imports.wbg.__wbg_setTimeout_73ce8df12de4f2f2 = function(arg0, arg1) {
         const ret = setTimeout(arg0, arg1);
         return ret;
     };
@@ -2930,16 +3924,16 @@ function __wbg_get_imports() {
         const ret = false;
         return ret;
     };
-    imports.wbg.__wbindgen_closure_wrapper15034 = function(arg0, arg1, arg2) {
-        const ret = makeMutClosure(arg0, arg1, 2259, __wbg_adapter_59);
+    imports.wbg.__wbindgen_closure_wrapper15640 = function(arg0, arg1, arg2) {
+        const ret = makeMutClosure(arg0, arg1, 2470, __wbg_adapter_59);
         return ret;
     };
-    imports.wbg.__wbindgen_closure_wrapper15493 = function(arg0, arg1, arg2) {
-        const ret = makeMutClosure(arg0, arg1, 2348, __wbg_adapter_62);
+    imports.wbg.__wbindgen_closure_wrapper16084 = function(arg0, arg1, arg2) {
+        const ret = makeMutClosure(arg0, arg1, 2559, __wbg_adapter_62);
         return ret;
     };
-    imports.wbg.__wbindgen_closure_wrapper5549 = function(arg0, arg1, arg2) {
-        const ret = makeMutClosure(arg0, arg1, 1204, __wbg_adapter_56);
+    imports.wbg.__wbindgen_closure_wrapper6222 = function(arg0, arg1, arg2) {
+        const ret = makeMutClosure(arg0, arg1, 1439, __wbg_adapter_56);
         return ret;
     };
     imports.wbg.__wbindgen_debug_string = function(arg0, arg1) {

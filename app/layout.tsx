@@ -4,6 +4,7 @@ import './globals.css'
 import { Toaster } from 'react-hot-toast'
 import { Providers } from '@/components/providers'
 import ErrorBoundary from '@/components/error-boundary'
+import { DevelopmentBanner } from '@/components/ui/development-banner'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -22,6 +23,7 @@ export default function RootLayout({
       <body className={`${inter.className} h-full bg-white dark:bg-black`}>
         <ErrorBoundary level="app">
           <Providers>
+            <DevelopmentBanner />
             <ErrorBoundary level="page">
               {children}
             </ErrorBoundary>

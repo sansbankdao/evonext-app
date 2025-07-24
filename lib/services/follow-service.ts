@@ -5,7 +5,7 @@ export interface FollowDocument {
   $id: string;
   $ownerId: string;
   $createdAt: number;
-  userId: string;
+  followingId: string;
 }
 
 class FollowService extends BaseDocumentService<FollowDocument> {
@@ -17,50 +17,76 @@ class FollowService extends BaseDocumentService<FollowDocument> {
    * Transform document
    */
   protected transformDocument(doc: any): FollowDocument {
+    console.log('Transforming follow document:', doc);
+    
+    // Handle both direct properties and nested data structure
+    const id = doc.$id || doc.id;
+    const ownerId = doc.$ownerId || doc.ownerId;
+    const createdAt = doc.$createdAt || doc.createdAt;
+    const data = doc.data || doc;
+    
+    // followingId might be a byte array or base58 string
+    let followingId = data.followingId;
+    
+    // If it's a byte array, convert to base58
+    if (followingId && Array.isArray(followingId)) {
+      // Import bs58 dynamically
+      const bs58 = require('bs58');
+      followingId = bs58.encode(Buffer.from(followingId));
+    }
+    
     return {
-      $id: doc.$id,
-      $ownerId: doc.$ownerId,
-      $createdAt: doc.$createdAt,
-      userId: doc.userId
+      $id: id,
+      $ownerId: ownerId,
+      $createdAt: createdAt,
+      followingId: followingId
     };
   }
 
   /**
    * Follow a user
+   * @param followerUserId - The identity ID of the user who is following
+   * @param targetUserId - The identity ID of the user being followed
    */
-  async followUser(targetUserId: string, followerUserId: string): Promise<boolean> {
+  async followUser(followerUserId: string, targetUserId: string): Promise<{ success: boolean; error?: string }> {
     try {
       // Check if already following
       const existing = await this.getFollow(targetUserId, followerUserId);
       if (existing) {
         console.log('Already following user');
-        return true;
+        return { success: true };
       }
 
       // Use state transition service for creation
+      // The WASM SDK should handle the conversion of base58 ID to byte array
       const result = await stateTransitionService.createDocument(
         this.contractId,
         this.documentType,
         followerUserId,
-        { userId: targetUserId }
+        { followingId: targetUserId }
       );
 
-      return result.success;
+      return result;
     } catch (error) {
       console.error('Error following user:', error);
-      return false;
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Failed to follow user' 
+      };
     }
   }
 
   /**
    * Unfollow a user
+   * @param followerUserId - The identity ID of the user who is unfollowing
+   * @param targetUserId - The identity ID of the user being unfollowed
    */
-  async unfollowUser(targetUserId: string, followerUserId: string): Promise<boolean> {
+  async unfollowUser(followerUserId: string, targetUserId: string): Promise<{ success: boolean; error?: string }> {
     try {
       const follow = await this.getFollow(targetUserId, followerUserId);
       if (!follow) {
         console.log('Not following user');
-        return true;
+        return { success: true };
       }
 
       // Use state transition service for deletion
@@ -71,10 +97,13 @@ class FollowService extends BaseDocumentService<FollowDocument> {
         followerUserId
       );
 
-      return result.success;
+      return result;
     } catch (error) {
       console.error('Error unfollowing user:', error);
-      return false;
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Failed to unfollow user' 
+      };
     }
   }
 
@@ -93,7 +122,7 @@ class FollowService extends BaseDocumentService<FollowDocument> {
     try {
       const result = await this.query({
         where: [
-          ['userId', '==', targetUserId],
+          ['followingId', '==', targetUserId],
           ['$ownerId', '==', followerUserId]
         ],
         limit: 1
@@ -112,7 +141,7 @@ class FollowService extends BaseDocumentService<FollowDocument> {
   async getFollowers(userId: string, options: QueryOptions = {}): Promise<FollowDocument[]> {
     try {
       const result = await this.query({
-        where: [['userId', '==', userId]],
+        where: [['followingId', '==', userId]],
         orderBy: [['$createdAt', 'desc']],
         limit: 50,
         ...options

@@ -8,10 +8,7 @@ import {
   dpns_is_name_available,
   dpns_resolve_name 
 } from '../dash-wasm/wasm_sdk';
-
-// DPNS contract ID on testnet
-const DPNS_CONTRACT_ID = 'GWRSAVFMjXx8HpQFaNJMqBV7MBgMK4br5UESsB4S31Ec';
-const DPNS_DOCUMENT_TYPE = 'domain';
+import { DPNS_CONTRACT_ID, DPNS_DOCUMENT_TYPE } from '../constants';
 
 interface DpnsDocument {
   $id: string;
@@ -62,10 +59,14 @@ class DpnsService {
       console.log(`DPNS: Fetching username for identity: ${identityId}`);
       
       const sdk = await getWasmSdk();
+      console.log('DPNS: SDK object:', sdk);
+      console.log('DPNS: SDK type:', typeof sdk);
+      console.log('DPNS: identityId:', identityId);
       
       // Try the dedicated DPNS username function first
       try {
         const { get_dpns_username } = await import('../dash-wasm/wasm_sdk');
+        console.log('DPNS: get_dpns_username function:', typeof get_dpns_username);
         const response = await get_dpns_username(sdk, identityId);
         
         console.log('DPNS: Username response:', response);
@@ -224,35 +225,134 @@ class DpnsService {
   }
 
   /**
+   * Search for usernames by prefix with full details
+   */
+  async searchUsernamesWithDetails(prefix: string, limit: number = 10): Promise<Array<{ username: string; ownerId: string }>> {
+    try {
+      const sdk = await getWasmSdk();
+      
+      // Remove .dash suffix if present for search
+      const searchPrefix = prefix.toLowerCase().replace(/\.dash$/, '');
+      
+      // Search DPNS names by prefix
+      console.log(`DPNS: Searching usernames with prefix: ${searchPrefix}`);
+      
+      // Build where clause for starts-with query on normalizedLabel
+      const where = [
+        ['normalizedLabel', 'startsWith', searchPrefix],
+        ['normalizedParentDomainName', '==', 'dash']
+      ];
+      const orderBy = [['normalizedLabel', 'asc']];
+      
+      const documents = await get_documents(
+        sdk,
+        DPNS_CONTRACT_ID,
+        DPNS_DOCUMENT_TYPE,
+        JSON.stringify(where),
+        JSON.stringify(orderBy),
+        limit,
+        null,
+        null
+      );
+      
+      // The response is an array of documents
+      if (documents && Array.isArray(documents)) {
+        console.log(`DPNS: Found ${documents.length} documents`);
+        
+        // Map documents to results with owner IDs
+        const results = documents.map((doc: any) => {
+          // Access the data field which contains the DPNS document fields
+          const data = doc.data || doc;
+          const label = data.label || data.normalizedLabel || 'unknown';
+          const parentDomain = data.normalizedParentDomainName || 'dash';
+          const ownerId = doc.ownerId || doc.$ownerId || '';
+          
+          return {
+            username: `${label}.${parentDomain}`,
+            ownerId: ownerId
+          };
+        });
+        
+        return results;
+      }
+      
+      return [];
+    } catch (error) {
+      console.error('DPNS: Error searching usernames with details:', error);
+      return [];
+    }
+  }
+
+  /**
    * Search for usernames by prefix
    */
   async searchUsernames(prefix: string, limit: number = 10): Promise<string[]> {
     try {
       const sdk = await getWasmSdk();
       
-      // Search DPNS names by prefix
-      console.log(`Searching usernames with prefix: ${prefix}`);
+      // Remove .dash suffix if present for search
+      const searchPrefix = prefix.toLowerCase().replace(/\.dash$/, '');
       
-      const response = await get_documents(
+      // Search DPNS names by prefix
+      console.log(`DPNS: Searching usernames with prefix: ${searchPrefix}`);
+      console.log(`DPNS: Using contract ID: ${DPNS_CONTRACT_ID}`);
+      console.log(`DPNS: Document type: ${DPNS_DOCUMENT_TYPE}`);
+      
+      // Build where clause for starts-with query on normalizedLabel
+      const where = [
+        ['normalizedLabel', 'startsWith', searchPrefix],
+        ['normalizedParentDomainName', '==', 'dash']
+      ];
+      const orderBy = [['normalizedLabel', 'asc']];
+      
+      console.log('DPNS: Query where clause:', JSON.stringify(where));
+      console.log('DPNS: Query orderBy:', JSON.stringify(orderBy));
+      
+      const documents = await get_documents(
         sdk,
         DPNS_CONTRACT_ID,
         DPNS_DOCUMENT_TYPE,
-        JSON.stringify([['normalizedLabel', 'startsWith', prefix.toLowerCase()]]),
-        JSON.stringify([['normalizedLabel', 'asc']]),
+        JSON.stringify(where),
+        JSON.stringify(orderBy),
         limit,
         null,
         null
       );
       
-      if (response && response.documents) {
-        return response.documents.map((doc: DpnsDocument) => 
-          `${doc.label}.${doc.normalizedParentDomainName}`
-        );
+      console.log('DPNS: Search response:', documents);
+      console.log('DPNS: Response type:', typeof documents);
+      console.log('DPNS: Is array?:', Array.isArray(documents));
+      
+      // The response is an array of documents
+      if (documents && Array.isArray(documents)) {
+        console.log(`DPNS: Found ${documents.length} documents`);
+        
+        // Map documents to usernames
+        const usernames = documents.map((doc: any) => {
+          console.log('DPNS: Processing document:', doc);
+          
+          // Access the data field which contains the DPNS document fields
+          const data = doc.data || doc;
+          const label = data.label || data.normalizedLabel || 'unknown';
+          const parentDomain = data.normalizedParentDomainName || 'dash';
+          
+          console.log('DPNS: Document fields:', { 
+            label: data.label, 
+            normalizedLabel: data.normalizedLabel, 
+            parentDomain: data.normalizedParentDomainName,
+            ownerId: doc.ownerId || doc.$ownerId
+          });
+          
+          return `${label}.${parentDomain}`;
+        });
+        
+        return usernames;
       }
       
+      console.log('DPNS: No documents found in response');
       return [];
     } catch (error) {
-      console.error('Error searching usernames:', error);
+      console.error('DPNS: Error searching usernames:', error);
       return [];
     }
   }

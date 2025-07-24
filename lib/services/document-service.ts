@@ -1,6 +1,7 @@
 import { getWasmSdk } from './wasm-sdk-service';
 import { get_documents, get_document } from '../dash-wasm/wasm_sdk';
 import { stateTransitionService } from './state-transition-service';
+import { YAPPR_CONTRACT_ID } from '../constants';
 
 export interface QueryOptions {
   where?: Array<[string, string, any]>;
@@ -23,7 +24,7 @@ export abstract class BaseDocumentService<T> {
   protected readonly CACHE_TTL = 30000; // 30 seconds cache
 
   constructor(documentType: string) {
-    this.contractId = process.env.NEXT_PUBLIC_CONTRACT_ID!;
+    this.contractId = YAPPR_CONTRACT_ID;
     this.documentType = documentType;
   }
 
@@ -83,7 +84,22 @@ export abstract class BaseDocumentService<T> {
       console.log(`${this.documentType} result type:`, typeof result);
       console.log(`${this.documentType} result keys:`, result ? Object.keys(result) : 'null');
       
-      // Transform documents
+      // Check if result is an array (direct documents response)
+      if (Array.isArray(result)) {
+        console.log(`${this.documentType} result is array, transforming...`);
+        const documents = result.map((doc: any) => {
+          console.log(`Transforming ${this.documentType} document:`, doc);
+          return this.transformDocument(doc);
+        });
+        
+        return {
+          documents,
+          nextCursor: undefined,
+          prevCursor: undefined
+        };
+      }
+      
+      // Otherwise expect object with documents property
       const documents = result?.documents?.map((doc: any) => {
         console.log(`Transforming ${this.documentType} document:`, doc);
         return this.transformDocument(doc);
@@ -91,8 +107,8 @@ export abstract class BaseDocumentService<T> {
       
       return {
         documents,
-        nextCursor: result.nextCursor,
-        prevCursor: result.prevCursor
+        nextCursor: result?.nextCursor,
+        prevCursor: result?.prevCursor
       };
     } catch (error) {
       console.error(`Error querying ${this.documentType} documents:`, error);

@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { YAPPR_CONTRACT_ID } from '@/lib/constants'
 
 export interface AuthUser {
   identityId: string
@@ -101,7 +102,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Initialize SDK if needed
       await wasmSdkService.initialize({
         network: (process.env.NEXT_PUBLIC_NETWORK as 'testnet' | 'mainnet') || 'testnet',
-        contractId: process.env.NEXT_PUBLIC_CONTRACT_ID || ''
+        contractId: YAPPR_CONTRACT_ID
       })
       
       console.log('Fetching identity with WASM SDK...')
@@ -137,6 +138,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // This is needed for signing transactions
       const { storePrivateKey } = await import('@/lib/secure-storage')
       storePrivateKey(identityId, privateKey, 3600000) // 1 hour TTL
+      
+      // Also try to store with biometric protection for longer-term access
+      try {
+        const { storePrivateKeyWithBiometric } = await import('@/lib/biometric-storage')
+        const stored = await storePrivateKeyWithBiometric(identityId, privateKey)
+        if (stored) {
+          console.log('Private key stored with biometric protection')
+        }
+      } catch (e) {
+        console.log('Biometric storage not available:', e)
+      }
 
       setUser(authUser)
       
@@ -162,7 +174,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Then check if user has a profile
       console.log('Checking for user profile...')
       const { profileService } = await import('@/lib/services/profile-service')
-      const profile = await profileService.getProfile(identityId)
+      const profile = await profileService.getProfile(identityId, authUser.dpnsUsername)
       
       if (profile) {
         console.log('Profile found, redirecting to home...')

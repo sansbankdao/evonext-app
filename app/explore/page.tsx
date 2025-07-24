@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { MagnifyingGlassIcon, ArrowLeftIcon, EllipsisHorizontalIcon } from '@heroicons/react/24/outline'
+import { MagnifyingGlassIcon, ArrowLeftIcon, EllipsisHorizontalIcon, ArrowTrendingUpIcon, HashtagIcon, FireIcon } from '@heroicons/react/24/outline'
 import { Sidebar } from '@/components/layout/sidebar'
 import { RightSidebar } from '@/components/layout/right-sidebar'
 import { PostCard } from '@/components/post/post-card'
@@ -109,13 +109,20 @@ export default function ExplorePage() {
 
   const displayPosts = searchQuery ? searchResults : posts
   
-  // Mock trends for now - would come from analytics
+  // Mock trends with funny/creative hashtags
   const mockTrends = [
-    { topic: '#Dash', posts: 1234, category: 'Technology' },
-    { topic: 'Decentralized Social', posts: 892 },
-    { topic: '#Web3', posts: 567, category: 'Technology' },
-    { topic: 'Blockchain', posts: 3421, category: 'Technology' },
-    { topic: '#Yappr', posts: 234 },
+    { topic: '#Cancun', posts: 15420, popularity: Math.log10(15420).toFixed(2), trend: 'up' },
+    { topic: '#AllDogsGoToHeaven', posts: 8234, popularity: Math.log10(8234).toFixed(2), trend: 'up' },
+    { topic: '#PineapplePizzaDebate', posts: 6789, popularity: Math.log10(6789).toFixed(2), trend: 'stable' },
+    { topic: '#CoffeeIsLife', posts: 5432, popularity: Math.log10(5432).toFixed(2), trend: 'up' },
+    { topic: '#MondayMotivation', posts: 4321, popularity: Math.log10(4321).toFixed(2), trend: 'down' },
+    { topic: '#CatsOfYappr', posts: 3456, popularity: Math.log10(3456).toFixed(2), trend: 'up' },
+    { topic: '#Web3Memes', posts: 2876, popularity: Math.log10(2876).toFixed(2), trend: 'stable' },
+    { topic: '#TouchGrass', posts: 2345, popularity: Math.log10(2345).toFixed(2), trend: 'up' },
+    { topic: '#DecentralizedDating', posts: 1987, popularity: Math.log10(1987).toFixed(2), trend: 'up' },
+    { topic: '#CryptoKaraoke', posts: 1654, popularity: Math.log10(1654).toFixed(2), trend: 'stable' },
+    { topic: '#BananaForScale', posts: 1432, popularity: Math.log10(1432).toFixed(2), trend: 'down' },
+    { topic: '#SocksWithSandals', posts: 1234, popularity: Math.log10(1234).toFixed(2), trend: 'up' },
   ]
 
   const trendsByCategory = {
@@ -129,7 +136,8 @@ export default function ExplorePage() {
     <div className="min-h-screen flex">
       <Sidebar />
       
-      <main className="flex-1 ml-[275px] mr-[350px] max-w-[600px] border-x border-gray-200 dark:border-gray-800">
+      <div className="flex-1 flex justify-center">
+        <main className="w-full max-w-[600px] border-x border-gray-200 dark:border-gray-800">
         <header className="sticky top-0 z-40 bg-white/80 dark:bg-black/80 backdrop-blur-xl">
           <div className="flex items-center gap-4 p-4">
             {isSearchFocused && (
@@ -311,13 +319,15 @@ export default function ExplorePage() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
             >
-              {/* Hero Banner */}
-              <div className="relative h-80 bg-gradient-yappr overflow-hidden">
-                <div className="absolute inset-0 bg-black/20" />
-                <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
-                  <h2 className="text-3xl font-bold mb-2">Trending in Technology</h2>
-                  <p className="text-lg opacity-90">AI Revolution continues to transform industries</p>
-                </div>
+              {/* Trending Header */}
+              <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-800">
+                <h2 className="text-lg font-semibold flex items-center gap-2">
+                  <FireIcon className="h-5 w-5 text-orange-500" />
+                  Trending Hashtags
+                </h2>
+                <p className="text-sm text-gray-500 mt-1">
+                  Popularity score based on log of recent posts
+                </p>
               </div>
 
               {/* Trending Topics */}
@@ -331,12 +341,22 @@ export default function ExplorePage() {
                     className="w-full p-4 hover:bg-gray-50 dark:hover:bg-gray-950 transition-colors text-left"
                   >
                     <div className="flex items-start justify-between">
-                      <div>
-                        {trend.category && (
-                          <p className="text-xs text-gray-500 mb-1">{trend.category} · Trending</p>
-                        )}
-                        <p className="font-bold text-lg">{trend.topic}</p>
-                        <p className="text-sm text-gray-500 mt-1">{formatNumber(trend.posts)} posts</p>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-sm text-gray-500">#{index + 1}</span>
+                          <p className="font-bold text-lg text-yappr-500 hover:underline">{trend.topic}</p>
+                          {trend.trend === 'up' && <ArrowTrendingUpIcon className="h-4 w-4 text-green-500" />}
+                          {trend.trend === 'down' && <ArrowTrendingUpIcon className="h-4 w-4 text-red-500 rotate-180" />}
+                          {trend.trend === 'stable' && <div className="h-4 w-4 bg-gray-400 rounded-full" />}
+                        </div>
+                        <div className="flex items-center gap-4 text-sm text-gray-500">
+                          <span>{formatNumber(trend.posts)} posts</span>
+                          <span>•</span>
+                          <span className="flex items-center gap-1">
+                            Popularity: 
+                            <strong className="text-gray-900 dark:text-gray-100">{trend.popularity}</strong>
+                          </span>
+                        </div>
                       </div>
                       <button className="p-2 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-full transition-colors">
                         <EllipsisHorizontalIcon className="h-5 w-5 text-gray-500" />
@@ -363,7 +383,8 @@ export default function ExplorePage() {
             </motion.div>
           )}
         </AnimatePresence>
-      </main>
+        </main>
+      </div>
 
       <RightSidebar />
     </div>

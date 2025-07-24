@@ -157,7 +157,7 @@ function MessagesPage() {
     <div className="min-h-screen flex">
       <Sidebar />
       
-      <main className="flex-1 ml-[275px] max-w-[1000px] border-x border-gray-200 dark:border-gray-800 flex">
+      <main className="flex-1 max-w-[1000px] border-x border-gray-200 dark:border-gray-800 flex">
         {/* Conversations List */}
         <div className="w-[400px] border-r border-gray-200 dark:border-gray-800 flex flex-col">
           <header className="sticky top-0 z-40 bg-white/80 dark:bg-black/80 backdrop-blur-xl border-b border-gray-200 dark:border-gray-800">

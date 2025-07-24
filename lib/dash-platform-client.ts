@@ -8,6 +8,7 @@ import {
 
 // Import the centralized WASM service
 import { wasmSdkService } from './services/wasm-sdk-service'
+import { YAPPR_CONTRACT_ID } from './constants'
 
 export class DashPlatformClient {
   private sdk: any = null
@@ -39,7 +40,7 @@ export class DashPlatformClient {
     try {
       // Use the centralized WASM service
       const network = (process.env.NEXT_PUBLIC_NETWORK as 'testnet' | 'mainnet') || 'testnet'
-      const contractId = process.env.NEXT_PUBLIC_CONTRACT_ID || ''
+      const contractId = YAPPR_CONTRACT_ID
       
       console.log('DashPlatformClient: Initializing via WasmSdkService for network:', network)
       
@@ -107,21 +108,63 @@ export class DashPlatformClient {
       
       console.log('Creating post for identity:', identityId)
       
-      // Get the private key from secure storage
+      // Get the private key from secure storage (with biometric fallback)
       const { getPrivateKey } = await import('./secure-storage')
-      const privateKeyWIF = getPrivateKey(identityId)
+      let privateKeyWIF = getPrivateKey(identityId)
+      
+      // If not in memory, try biometric storage
+      if (!privateKeyWIF) {
+        try {
+          console.log('Private key not in memory, attempting biometric retrieval...')
+          const { getPrivateKeyWithBiometric } = await import('./biometric-storage')
+          privateKeyWIF = await getPrivateKeyWithBiometric(identityId)
+          
+          if (privateKeyWIF) {
+            console.log('Retrieved private key with biometric authentication')
+            // Also store in memory for this session to avoid repeated biometric prompts
+            const { storePrivateKey } = await import('./secure-storage')
+            storePrivateKey(identityId, privateKeyWIF, 3600000) // 1 hour TTL
+          }
+        } catch (e) {
+          console.log('Biometric retrieval failed:', e)
+        }
+      }
+      
       if (!privateKeyWIF) {
         throw new Error('Private key not found. Please log in again.')
       }
       
+      // Private key retrieved successfully
+      
       // Create the post document using WASM SDK
-      const postData = {
-        authorId: identityId,
-        content: content.trim(),
-        ...(options?.replyToPostId && { replyToPostId: options.replyToPostId }),
-        ...(options?.mediaUrl && { mediaUrl: options.mediaUrl }),
-        ...(options?.primaryHashtag && { primaryHashtag: options.primaryHashtag.replace('#', '') })
+      // Note: The actual contract doesn't have authorId - it uses $ownerId system field
+      const postData: any = {
+        content: content.trim()
       }
+      
+      // Convert replyToPostId if provided
+      if (options?.replyToPostId) {
+        try {
+          const bs58Module = await import('bs58')
+          const bs58 = bs58Module.default
+          postData.replyToPostId = Array.from(bs58.decode(options.replyToPostId))
+        } catch (e) {
+          console.error('Failed to decode replyToPostId:', e)
+          throw new Error('Invalid reply post ID format')
+        }
+      }
+      
+      // Add other optional fields
+      if (options?.mediaUrl) {
+        postData.mediaUrl = options.mediaUrl
+      }
+      
+      if (options?.primaryHashtag) {
+        postData.primaryHashtag = options.primaryHashtag.replace('#', '')
+      }
+      
+      // Add language (defaults to 'en' in the contract, but let's be explicit)
+      postData.language = 'en'
       
       console.log('Creating post with data:', postData)
       
@@ -132,22 +175,38 @@ export class DashPlatformClient {
         .map(b => b.toString(16).padStart(2, '0'))
         .join('')
       
-      const contractId = process.env.NEXT_PUBLIC_CONTRACT_ID
-      if (!contractId) {
-        throw new Error('Contract ID not configured')
-      }
+      const contractId = YAPPR_CONTRACT_ID
       
       // Create the document using the SDK
-      const result = await this.sdk.documentCreate(
-        contractId,
-        'post',
-        identityId,
-        JSON.stringify(postData),
-        entropyHex,
-        privateKeyWIF
-      )
+      let result
+      try {
+        
+        result = await this.sdk.documentCreate(
+          contractId,
+          'post',
+          identityId,
+          JSON.stringify(postData),
+          entropyHex,
+          privateKeyWIF
+        )
+      } catch (sdkError) {
+        console.error('SDK documentCreate error:', sdkError)
+        console.error('Error type:', typeof sdkError)
+        console.error('Error details:', {
+          message: sdkError instanceof Error ? sdkError.message : String(sdkError),
+          stack: sdkError instanceof Error ? sdkError.stack : undefined,
+          keys: sdkError && typeof sdkError === 'object' ? Object.keys(sdkError) : []
+        })
+        throw sdkError
+      }
       
-      console.log('Post creation result:', result)
+      console.log('Post created successfully!')
+      
+      // Check if we got a valid result
+      if (!result) {
+        console.error('WASM SDK returned undefined/null result')
+        throw new Error('Post creation failed - no result returned from SDK')
+      }
       
       // Invalidate posts cache since we created a new post
       this.postsCache.clear()
@@ -182,10 +241,7 @@ export class DashPlatformClient {
         limit: 1
       }
       
-      const contractId = process.env.NEXT_PUBLIC_CONTRACT_ID
-      if (!contractId) {
-        throw new Error('Contract ID not configured')
-      }
+      const contractId = YAPPR_CONTRACT_ID
       
       const profileResponse = await get_documents(
         this.sdk,
@@ -256,10 +312,7 @@ export class DashPlatformClient {
       
       await this.ensureInitialized()
       
-      const contractId = process.env.NEXT_PUBLIC_CONTRACT_ID
-      if (!contractId) {
-        throw new Error('Contract ID not configured')
-      }
+      const contractId = YAPPR_CONTRACT_ID
       
       console.log('DashPlatformClient: Querying posts from contract:', contractId)
       
@@ -289,7 +342,8 @@ export class DashPlatformClient {
       // Build where clause
       const where: any[] = []
       if (options?.authorId) {
-        where.push(['authorId', '==', options.authorId])
+        // Query by $ownerId (system field)
+        where.push(['$ownerId', '==', options.authorId])
       }
       
       // Build order by clause - most recent first

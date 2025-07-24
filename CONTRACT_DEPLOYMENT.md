@@ -1,8 +1,10 @@
 # Yappr Contract Deployment Summary
 
 ## Contract Details (Updated)
-- **Contract ID**: `9nzpvjVSStUrhkEs3eNHw2JYpcNoLh1MjmqW45QiyjSa`
-- **Previous Contract ID**: `AiZopUC5qFAcg58sX5CsMkLoiPywNG3zmJBXT9crunVk`
+- **Contract ID**: `AyWK6nDVfb8d1ZmkM5MmZZrThbUyWyso1aMeGuuVSfxf`
+- **Previous Contract IDs**: 
+  - `9nzpvjVSStUrhkEs3eNHw2JYpcNoLh1MjmqW45QiyjSa`
+  - `AiZopUC5qFAcg58sX5CsMkLoiPywNG3zmJBXT9crunVk`
 - **Network**: Testnet
 - **Identity ID**: `5DbLwAxGBzUzo81VewMUwn4b5P4bpv9FNFybi25XB5Bk`
 - **Deployed**: January 2025

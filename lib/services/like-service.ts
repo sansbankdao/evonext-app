@@ -37,12 +37,17 @@ class LikeService extends BaseDocumentService<LikeDocument> {
         return true;
       }
 
+      // Convert postId to byte array
+      const bs58Module = await import('bs58');
+      const bs58 = bs58Module.default;
+      const postIdBytes = Array.from(bs58.decode(postId));
+
       // Use state transition service for creation
       const result = await stateTransitionService.createDocument(
         this.contractId,
         this.documentType,
         ownerId,
-        { postId }
+        { postId: postIdBytes }
       );
 
       return result.success;
@@ -91,15 +96,51 @@ class LikeService extends BaseDocumentService<LikeDocument> {
    */
   async getLike(postId: string, ownerId: string): Promise<LikeDocument | null> {
     try {
-      const result = await this.query({
-        where: [
-          ['postId', '==', postId],
-          ['$ownerId', '==', ownerId]
-        ],
-        limit: 1
-      });
-
-      return result.documents.length > 0 ? result.documents[0] : null;
+      // Import necessary modules
+      const { getDashPlatformClient } = await import('../dash-platform-client');
+      const { get_documents } = await import('../dash-wasm/wasm_sdk');
+      const bs58Module = await import('bs58');
+      const bs58 = bs58Module.default;
+      
+      // Get SDK instance
+      const dashClient = getDashPlatformClient();
+      await dashClient.ensureInitialized();
+      const sdk = await import('../services/wasm-sdk-service').then(m => m.getWasmSdk());
+      
+      // Convert postId to byte array
+      const postIdBytes = Array.from(bs58.decode(postId));
+      
+      // Build where clause
+      const where = [
+        ['postId', '==', postIdBytes],
+        ['$ownerId', '==', ownerId]
+      ];
+      
+      // Query directly
+      const response = await get_documents(
+        sdk,
+        this.contractId,
+        'like',
+        JSON.stringify(where),
+        null, // orderBy
+        1,    // limit
+        null, // startAfter
+        null  // startAt
+      );
+      
+      // Convert response
+      let documents;
+      if (response && typeof response.toJSON === 'function') {
+        documents = response.toJSON();
+      } else if (response && response.documents) {
+        documents = response.documents;
+      } else if (Array.isArray(response)) {
+        documents = response;
+      } else {
+        documents = [];
+      }
+      
+      return documents.length > 0 ? this.transformDocument(documents[0]) : null;
     } catch (error) {
       console.error('Error getting like:', error);
       return null;
@@ -111,14 +152,57 @@ class LikeService extends BaseDocumentService<LikeDocument> {
    */
   async getPostLikes(postId: string, options: QueryOptions = {}): Promise<LikeDocument[]> {
     try {
-      const result = await this.query({
-        where: [['postId', '==', postId]],
-        orderBy: [['$createdAt', 'desc']],
-        limit: 50,
-        ...options
-      });
-
-      return result.documents;
+      console.log('Getting likes for post:', postId);
+      
+      // Import necessary modules
+      const { getDashPlatformClient } = await import('../dash-platform-client');
+      const { get_documents } = await import('../dash-wasm/wasm_sdk');
+      const bs58Module = await import('bs58');
+      const bs58 = bs58Module.default;
+      
+      // Get SDK instance
+      const dashClient = getDashPlatformClient();
+      await dashClient.ensureInitialized();
+      const sdk = await import('../services/wasm-sdk-service').then(m => m.getWasmSdk());
+      
+      // Convert postId to byte array
+      const postIdBytes = Array.from(bs58.decode(postId));
+      
+      // Build where clause with byte array
+      const where = [['postId', '==', postIdBytes]];
+      const orderBy = [['$createdAt', 'desc']];
+      
+      console.log('Querying likes with postIdBytes:', postIdBytes);
+      
+      // Query directly using get_documents
+      const response = await get_documents(
+        sdk,
+        this.contractId,
+        'like',
+        JSON.stringify(where),
+        JSON.stringify(orderBy),
+        options.limit || 50,
+        null, // startAfter
+        null  // startAt
+      );
+      
+      // Convert response
+      let documents;
+      if (response && typeof response.toJSON === 'function') {
+        documents = response.toJSON();
+      } else if (response && response.documents) {
+        documents = response.documents;
+      } else if (Array.isArray(response)) {
+        documents = response;
+      } else {
+        documents = [];
+      }
+      
+      console.log(`Found ${documents.length} likes for post ${postId}`);
+      
+      // Transform documents
+      return documents.map((doc: any) => this.transformDocument(doc));
+      
     } catch (error) {
       console.error('Error getting post likes:', error);
       return [];

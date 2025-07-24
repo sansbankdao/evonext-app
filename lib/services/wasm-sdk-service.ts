@@ -133,13 +133,19 @@ class WasmSdkService {
         await prefetch_trusted_quorums_testnet();
         console.log('WasmSdkService: Building testnet SDK in trusted mode...');
         const builder = WasmSdkBuilder.new_testnet_trusted();
+        // Set request timeout to 8 seconds (8000ms)
+        console.log('WasmSdkService: Setting request timeout to 8 seconds...');
+        builder.with_settings(null, 8000, null, null);
         this.sdk = builder.build();
-        console.log('WasmSdkService: Testnet SDK built successfully');
+        console.log('WasmSdkService: Testnet SDK built successfully with 8s timeout');
       } else {
         console.log('WasmSdkService: Prefetching mainnet quorum information...');
         await prefetch_trusted_quorums_mainnet();
         console.log('Building mainnet SDK in trusted mode...');
         const builder = WasmSdkBuilder.new_mainnet_trusted();
+        // Set request timeout to 8 seconds (8000ms)
+        console.log('WasmSdkService: Setting request timeout to 8 seconds...');
+        builder.with_settings(null, 8000, null, null);
         this.sdk = builder.build();
       }
       

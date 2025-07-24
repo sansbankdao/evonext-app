@@ -2,9 +2,7 @@
 
 import { getDashPlatformClient } from './dash-platform-client'
 import { get_documents } from './dash-wasm/wasm_sdk'
-
-// DPNS contract ID for testnet
-const DPNS_CONTRACT_ID = 'GWRSAVFMjXx8HpQFaNJMqBV7MBgMK4br5UESsB4S31Ec'
+import { DPNS_CONTRACT_ID } from './constants'
 
 /**
  * Service for managing DPNS (Dash Platform Name Service) operations

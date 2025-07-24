@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
-import { SparklesIcon } from '@heroicons/react/24/outline'
+import { SparklesIcon, ArrowPathIcon } from '@heroicons/react/24/outline'
 import { PostCard } from '@/components/post/post-card'
 import { Sidebar } from '@/components/layout/sidebar'
 import { RightSidebar } from '@/components/layout/right-sidebar'
@@ -17,6 +17,7 @@ import { generateAvatarV2 } from '@/lib/avatar-generator-v2'
 import { LoadingState, useAsyncState } from '@/components/ui/loading-state'
 import ErrorBoundary from '@/components/error-boundary'
 import { getDashPlatformClient } from '@/lib/dash-platform-client'
+import { cacheManager } from '@/lib/cache-manager'
 
 function FeedPage() {
   const [activeTab, setActiveTab] = useState('for-you')
@@ -34,53 +35,105 @@ function FeedPage() {
   const avatarFeatures = user && isHydrated ? generateAvatarV2(user.identityId) : null
   
   // Load posts function - using real WASM SDK with updated version
-  const loadPosts = useCallback(async () => {
-    postsState.setLoading(true)
-    postsState.setError(null)
+  const loadPosts = useCallback(async (forceRefresh: boolean = false) => {
+    // Use the setter functions directly, not the whole postsState object
+    const { setLoading, setError, setData } = postsState
+    
+    setLoading(true)
+    setError(null)
     
     try {
       console.log('Feed: Loading posts from Dash Platform...')
       
       const dashClient = getDashPlatformClient()
       
+      // Cache key based on active tab and user
+      const cacheKey = activeTab === 'your-posts' && user?.identityId 
+        ? `feed_your_posts_${user.identityId}`
+        : `feed_${activeTab}`
+      
+      // Check cache first unless force refresh
+      if (!forceRefresh) {
+        const cached = cacheManager.get<any[]>('feed', cacheKey)
+        if (cached) {
+          console.log('Feed: Using cached data')
+          setData(cached)
+          setLoading(false)
+          return
+        }
+      }
+      
       // Query posts from the platform
-      const posts = await dashClient.queryPosts({
+      const queryOptions: any = {
         limit: 20,
         forceRefresh: false
-      })
+      }
+      
+      // Only filter by user for "Your Posts" tab
+      if (activeTab === 'your-posts' && user?.identityId) {
+        queryOptions.authorId = user.identityId
+        console.log('Feed: Filtering posts by user:', user.identityId)
+      }
+      // For "For You" and "Trending", get all posts
+      else {
+        console.log('Feed: Loading all posts for:', activeTab)
+      }
+      
+      const posts = await dashClient.queryPosts(queryOptions)
       
       console.log('Feed: Raw posts from platform:', posts)
       
       // Transform posts to match our UI format
-      const transformedPosts = posts.map((doc: any) => {
+      const transformedPosts = await Promise.all(posts.map(async (doc: any) => {
         // Extract the document data
         const data = doc.data || doc
         
+        // Get the author ID from ownerId (SDK returns without $ prefix)
+        const authorIdStr = doc.ownerId || 'unknown'
+        
         return {
-          id: doc.id || doc.$id || Math.random().toString(36).substr(2, 9),
+          id: doc.id || Math.random().toString(36).substr(2, 9),
           content: data.content || 'No content',
           author: {
-            id: data.authorId || doc.$ownerId || 'unknown',
-            username: `user_${(data.authorId || doc.$ownerId || 'unknown').slice(-6)}`,
-            handle: `user_${(data.authorId || doc.$ownerId || 'unknown').slice(-6)}`
+            id: authorIdStr,
+            username: `user_${authorIdStr.slice(-6)}`,
+            handle: `user_${authorIdStr.slice(-6)}`,
+            displayName: `User ${authorIdStr.slice(-6)}`,
+            verified: false
           },
-          timestamp: data.$createdAt || doc.$createdAt || new Date().toISOString(),
+          createdAt: doc.createdAt ? new Date(doc.createdAt).toISOString() : new Date().toISOString(),
           likes: Math.floor(Math.random() * 50), // Placeholder until we implement likes
           replies: Math.floor(Math.random() * 20), // Placeholder until we implement replies
-          reposts: Math.floor(Math.random() * 10), // Placeholder until we implement reposts  
-          views: Math.floor(Math.random() * 200) // Placeholder until we implement views
+          reposts: Math.floor(Math.random() * 10), // Placeholder until we implement reposts
+          liked: false,
+          reposted: false,
+          bookmarked: false
         }
-      })
+      }))
       
       console.log('Feed: Transformed posts:', transformedPosts)
       
+      // Sort posts by createdAt to ensure newest first
+      const sortedPosts = transformedPosts.sort((a, b) => {
+        const dateA = new Date(a.createdAt).getTime()
+        const dateB = new Date(b.createdAt).getTime()
+        return dateB - dateA // Newest first
+      })
+      
+      
       // If no posts found, show helpful message but don't error
-      if (transformedPosts.length === 0) {
+      if (sortedPosts.length === 0) {
         console.log('Feed: No posts found on platform')
-        postsState.setData([])
+        setData([])
       } else {
-        postsState.setData(transformedPosts)
-        console.log(`Feed: Successfully loaded ${transformedPosts.length} posts`)
+        // Cache the results
+        const cacheKey = activeTab === 'your-posts' && user?.identityId 
+          ? `feed_your_posts_${user.identityId}`
+          : `feed_${activeTab}`
+        cacheManager.set('feed', cacheKey, sortedPosts)
+        
+        setData(sortedPosts)
+        console.log(`Feed: Successfully loaded ${sortedPosts.length} posts (newest first)`)
       }
       
     } catch (error) {
@@ -91,25 +144,25 @@ function FeedPage() {
       console.log('Feed: Falling back to empty state due to error:', errorMessage)
       
       // Set empty data instead of showing error to user
-      postsState.setData([])
+      setData([])
       
       // Only show error to user if it's a critical issue
       if (errorMessage.includes('Contract ID not configured') || 
           errorMessage.includes('Not logged in')) {
-        postsState.setError(errorMessage)
+        setError(errorMessage)
       }
     } finally {
-      postsState.setLoading(false)
+      setLoading(false)
     }
-  }, [postsState])
+  }, [postsState.setLoading, postsState.setError, postsState.setData, activeTab, user?.identityId])
 
-  // Load posts on mount and listen for new posts
+  // Load posts on mount, tab change, and listen for new posts
   useEffect(() => {
     loadPosts()
     
     // Listen for new posts created
     const handlePostCreated = () => {
-      loadPosts()
+      loadPosts(true) // Force refresh when new post is created
     }
     
     window.addEventListener('post-created', handlePostCreated)
@@ -117,16 +170,24 @@ function FeedPage() {
     return () => {
       window.removeEventListener('post-created', handlePostCreated)
     }
-  }, [loadPosts])
+  }, [loadPosts, activeTab])
 
   return (
     <div className="min-h-screen flex">
       <Sidebar />
       
-      <main className="flex-1 ml-[275px] mr-[350px] max-w-[600px] border-x border-gray-200 dark:border-gray-800">
+      <div className="flex-1 flex justify-center">
+        <main className="w-full max-w-[600px] border-x border-gray-200 dark:border-gray-800">
         <header className="sticky top-0 z-40 bg-white/80 dark:bg-black/80 backdrop-blur-xl">
-          <div className="px-4 py-3">
+          <div className="px-4 py-3 flex items-center justify-between">
             <h1 className="text-xl font-bold">Home</h1>
+            <button
+              onClick={() => loadPosts(true)}
+              disabled={postsState.loading}
+              className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-900 transition-colors"
+            >
+              <ArrowPathIcon className={`h-5 w-5 text-gray-500 ${postsState.loading ? 'animate-spin' : ''}`} />
+            </button>
           </div>
           
           <Tabs.Root value={activeTab} onValueChange={setActiveTab}>
@@ -135,7 +196,7 @@ function FeedPage() {
                 value="for-you"
                 className="flex-1 py-4 font-medium text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-950 transition-colors relative data-[state=active]:text-gray-900 dark:data-[state=active]:text-white"
               >
-                For you
+                For You
                 {activeTab === 'for-you' && (
                   <motion.div
                     layoutId="activeTab"
@@ -144,11 +205,11 @@ function FeedPage() {
                 )}
               </Tabs.Trigger>
               <Tabs.Trigger
-                value="following"
+                value="your-posts"
                 className="flex-1 py-4 font-medium text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-950 transition-colors relative data-[state=active]:text-gray-900 dark:data-[state=active]:text-white"
               >
-                Following
-                {activeTab === 'following' && (
+                Your Posts
+                {activeTab === 'your-posts' && (
                   <motion.div
                     layoutId="activeTab"
                     className="absolute bottom-0 left-0 right-0 h-1 bg-yappr-500"
@@ -161,23 +222,25 @@ function FeedPage() {
 
         <div className="border-b border-gray-200 dark:border-gray-800 p-4">
           <div className="flex gap-3">
-            <div className="h-12 w-12 rounded-full overflow-hidden bg-gray-100">
-              {isHydrated ? (
-                avatarFeatures ? (
-                  <AvatarCanvas features={avatarFeatures} size={48} />
-                ) : user ? (
-                  <Avatar>
-                    <AvatarFallback>{user.identityId.slice(0, 2).toUpperCase()}</AvatarFallback>
-                  </Avatar>
+            {activeTab !== 'your-posts' && (
+              <div className="h-12 w-12 rounded-full overflow-hidden bg-gray-100">
+                {isHydrated ? (
+                  avatarFeatures ? (
+                    <AvatarCanvas features={avatarFeatures} size={48} />
+                  ) : user ? (
+                    <Avatar>
+                      <AvatarFallback>{user.identityId.slice(0, 2).toUpperCase()}</AvatarFallback>
+                    </Avatar>
+                  ) : (
+                    <Avatar>
+                      <AvatarFallback>U</AvatarFallback>
+                    </Avatar>
+                  )
                 ) : (
-                  <Avatar>
-                    <AvatarFallback>U</AvatarFallback>
-                  </Avatar>
-                )
-              ) : (
-                <div className="w-full h-full bg-gray-300 dark:bg-gray-700 animate-pulse rounded-full" />
-              )}
-            </div>
+                  <div className="w-full h-full bg-gray-300 dark:bg-gray-700 animate-pulse rounded-full" />
+                )}
+              </div>
+            )}
             <button
               onClick={() => setComposeOpen(true)}
               className="flex-1 text-left px-4 py-3 bg-gray-50 dark:bg-gray-950 rounded-full text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-900 transition-colors"
@@ -198,18 +261,23 @@ function FeedPage() {
             onRetry={loadPosts}
             loadingText="Loading posts..."
             emptyText="No posts yet"
-            emptyDescription="Be the first to share something!"
+            emptyDescription="Be the first to share something! Note: Dash Platform testnet may be temporarily unavailable."
           >
             <div>
               {postsState.data?.map((post) => (
                 <ErrorBoundary key={post.id} level="component">
-                  <PostCard post={post} />
+                  <PostCard 
+                    post={post} 
+                    hideAvatar={activeTab === 'your-posts'} 
+                    isOwnPost={user?.identityId === post.author.id}
+                  />
                 </ErrorBoundary>
               ))}
             </div>
           </LoadingState>
         </ErrorBoundary>
-      </main>
+        </main>
+      </div>
 
       <RightSidebar />
       <ComposeModal />
