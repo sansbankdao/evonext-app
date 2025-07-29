@@ -95,7 +95,7 @@ export function BiometricSettings() {
         </CardHeader>
         <CardContent>
           <p className="text-sm text-gray-500">
-            Your device doesn't support Touch ID, Face ID, or Windows Hello.
+            Your device doesn&apos;t support Touch ID, Face ID, or Windows Hello.
             Private keys will be stored in memory for the duration of your session only.
           </p>
         </CardContent>
@@ -111,7 +111,7 @@ export function BiometricSettings() {
           Biometric Authentication
         </CardTitle>
         <CardDescription>
-          Protect your private key with your device's biometric authentication
+          Protect your private key with your device&apos;s biometric authentication
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -141,7 +141,7 @@ export function BiometricSettings() {
                   Biometric protection is active
                 </p>
                 <p className="text-sm text-blue-700 dark:text-blue-300">
-                  You'll be prompted to authenticate with Touch ID, Face ID, or Windows Hello when posting or performing other actions.
+                  You&apos;ll be prompted to authenticate with Touch ID, Face ID, or Windows Hello when posting or performing other actions.
                   Your private key is encrypted and will expire after 30 days.
                 </p>
               </div>
@@ -154,7 +154,7 @@ export function BiometricSettings() {
           <ul className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
             <li className="flex gap-2">
               <span className="text-purple-500">•</span>
-              Your private key is encrypted using your device's secure enclave
+              Your private key is encrypted using your device&apos;s secure enclave
             </li>
             <li className="flex gap-2">
               <span className="text-purple-500">•</span>

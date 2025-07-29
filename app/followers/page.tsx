@@ -14,6 +14,7 @@ import { AvatarCanvas } from '@/components/ui/avatar-canvas'
 import { generateAvatarV2 } from '@/lib/avatar-generator-v2'
 import { Button } from '@/components/ui/button'
 import { formatNumber } from '@/lib/utils'
+import { AlsoKnownAs } from '@/components/ui/also-known-as'
 
 interface Follower {
   id: string
@@ -24,6 +25,7 @@ interface Follower {
   followersCount: number
   followingCount: number
   isFollowingBack: boolean
+  allUsernames?: string[]
 }
 
 function FollowersPage() {
@@ -75,9 +77,9 @@ function FollowersPage() {
         return
       }
       
-      // Batch fetch DPNS names and profiles
-      const [dpnsNames, profiles] = await Promise.all([
-        // Fetch DPNS names for all identities
+      // Batch fetch DPNS names, all usernames, and profiles
+      const [dpnsNames, allUsernamesData, profiles] = await Promise.all([
+        // Fetch best DPNS names for all identities
         Promise.all(identityIds.map(async (id) => {
           try {
             const username = await dpnsService.resolveUsername(id)
@@ -85,6 +87,16 @@ function FollowersPage() {
           } catch (error) {
             console.error(`Failed to resolve DPNS for ${id}:`, error)
             return { id, username: null }
+          }
+        })),
+        // Fetch all usernames for each identity
+        Promise.all(identityIds.map(async (id) => {
+          try {
+            const usernames = await dpnsService.getAllUsernames(id)
+            return { id, usernames }
+          } catch (error) {
+            console.error(`Failed to get all usernames for ${id}:`, error)
+            return { id, usernames: [] }
           }
         })),
         // Fetch Yappr profiles
@@ -99,6 +111,7 @@ function FollowersPage() {
       
       // Create maps for easy lookup
       const dpnsMap = new Map(dpnsNames.map(item => [item.id, item.username]))
+      const allUsernamesMap = new Map(allUsernamesData.map(item => [item.id, item.usernames]))
       const profileMap = new Map(profiles.map(p => [p.$ownerId || p.ownerId, p]))
       
       // Create enriched user data
@@ -110,6 +123,7 @@ function FollowersPage() {
         }
         
         const username = dpnsMap.get(followerId)
+        const allUsernames = allUsernamesMap.get(followerId) || []
         const profile = profileMap.get(followerId)
         
         return {
@@ -120,7 +134,8 @@ function FollowersPage() {
           hasProfile: !!profile,
           followersCount: 0, // Would need to query this
           followingCount: 0, // Would need to query this
-          isFollowingBack: followingBackMap.get(followerId) || false
+          isFollowingBack: followingBackMap.get(followerId) || false,
+          allUsernames: allUsernames
         }
       }).filter(Boolean) // Remove any null entries
 
@@ -189,7 +204,7 @@ function FollowersPage() {
             <LoadingState
               loading={followersState.loading}
               error={followersState.error}
-              isEmpty={followersState.data?.length === 0}
+              isEmpty={!followersState.loading && followersState.data?.length === 0}
               onRetry={loadFollowers}
               loadingText="Loading followers..."
               emptyText="No followers yet"
@@ -215,6 +230,13 @@ function FollowersPage() {
                               {follower.displayName}
                             </h3>
                             <p className="text-sm text-gray-500">@{follower.username}</p>
+                            {follower.allUsernames && follower.allUsernames.length > 1 && (
+                              <AlsoKnownAs 
+                                primaryUsername={follower.username} 
+                                allUsernames={follower.allUsernames}
+                                identityId={follower.id}
+                              />
+                            )}
                             {follower.bio && (
                               <p className="text-sm mt-1">{follower.bio}</p>
                             )}

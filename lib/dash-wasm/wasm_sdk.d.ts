@@ -553,6 +553,10 @@ export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembl
 
 export interface InitOutput {
   readonly memory: WebAssembly.Memory;
+  readonly rustsecp256k1_v0_10_0_context_create: (a: number) => number;
+  readonly rustsecp256k1_v0_10_0_context_destroy: (a: number) => void;
+  readonly rustsecp256k1_v0_10_0_default_illegal_callback_fn: (a: number, b: number) => void;
+  readonly rustsecp256k1_v0_10_0_default_error_callback_fn: (a: number, b: number) => void;
   readonly __wbg_identitywasm_free: (a: number, b: number) => void;
   readonly identitywasm_new: (a: number) => [number, number, number];
   readonly identitywasm_setPublicKeys: (a: number, b: any) => [number, number, number];
@@ -579,7 +583,6 @@ export interface InitOutput {
   readonly get_finalized_epoch_infos_with_proof_info: (a: number, b: number, c: number, d: number) => any;
   readonly get_evonodes_proposed_epoch_blocks_by_ids_with_proof_info: (a: number, b: number, c: number, d: number) => any;
   readonly get_evonodes_proposed_epoch_blocks_by_range_with_proof_info: (a: number, b: number, c: number, d: number, e: number, f: number) => any;
-  readonly identitywasm_getBalance: (a: number) => number;
   readonly __wbg_wasmsdk_free: (a: number, b: number) => void;
   readonly wasmsdk_version: (a: number) => number;
   readonly wasmsdk_testSerialization: (a: number, b: number, c: number) => [number, number, number];
@@ -735,10 +738,7 @@ export interface InitOutput {
   readonly intounderlyingbytesource_start: (a: number, b: any) => void;
   readonly intounderlyingbytesource_pull: (a: number, b: any) => any;
   readonly intounderlyingbytesource_cancel: (a: number) => void;
-  readonly rustsecp256k1_v0_10_0_context_create: (a: number) => number;
-  readonly rustsecp256k1_v0_10_0_context_destroy: (a: number) => void;
-  readonly rustsecp256k1_v0_10_0_default_illegal_callback_fn: (a: number, b: number) => void;
-  readonly rustsecp256k1_v0_10_0_default_error_callback_fn: (a: number, b: number) => void;
+  readonly identitywasm_getBalance: (a: number) => number;
   readonly __wbindgen_malloc: (a: number, b: number) => number;
   readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
   readonly __wbindgen_exn_store: (a: number) => void;
@@ -747,10 +747,9 @@ export interface InitOutput {
   readonly __wbindgen_free: (a: number, b: number, c: number) => void;
   readonly __wbindgen_export_6: WebAssembly.Table;
   readonly __externref_table_dealloc: (a: number) => void;
-  readonly _dyn_core__ops__function__FnMut_____Output___R_as_wasm_bindgen__closure__WasmClosure___describe__invoke__heae852875965dd90: (a: number, b: number) => void;
-  readonly _dyn_core__ops__function__FnMut_____Output___R_as_wasm_bindgen__closure__WasmClosure___describe__invoke__h5e78eb5dab6fc290: (a: number, b: number) => void;
-  readonly closure2558_externref_shim: (a: number, b: number, c: any) => void;
-  readonly closure4309_externref_shim: (a: number, b: number, c: any, d: any) => void;
+  readonly _dyn_core__ops__function__FnMut_____Output___R_as_wasm_bindgen__closure__WasmClosure___describe__invoke__h9bc151ea2ccdfe69: (a: number, b: number) => void;
+  readonly closure1702_externref_shim: (a: number, b: number, c: any) => void;
+  readonly closure1418_externref_shim: (a: number, b: number, c: any, d: any) => void;
   readonly __wbindgen_start: () => void;
 }
 

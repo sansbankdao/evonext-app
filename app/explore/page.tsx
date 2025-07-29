@@ -127,7 +127,7 @@ export default function ExplorePage() {
 
   const trendsByCategory = {
     trending: mockTrends,
-    news: mockTrends.filter(t => t.category === 'Technology'),
+    news: mockTrends,
     sports: [],
     entertainment: [],
   }

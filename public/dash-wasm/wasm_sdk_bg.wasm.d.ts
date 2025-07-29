@@ -1,6 +1,10 @@
 /* tslint:disable */
 /* eslint-disable */
 export const memory: WebAssembly.Memory;
+export const rustsecp256k1_v0_10_0_context_create: (a: number) => number;
+export const rustsecp256k1_v0_10_0_context_destroy: (a: number) => void;
+export const rustsecp256k1_v0_10_0_default_illegal_callback_fn: (a: number, b: number) => void;
+export const rustsecp256k1_v0_10_0_default_error_callback_fn: (a: number, b: number) => void;
 export const __wbg_identitywasm_free: (a: number, b: number) => void;
 export const identitywasm_new: (a: number) => [number, number, number];
 export const identitywasm_setPublicKeys: (a: number, b: any) => [number, number, number];
@@ -27,7 +31,6 @@ export const get_current_epoch_with_proof_info: (a: number) => any;
 export const get_finalized_epoch_infos_with_proof_info: (a: number, b: number, c: number, d: number) => any;
 export const get_evonodes_proposed_epoch_blocks_by_ids_with_proof_info: (a: number, b: number, c: number, d: number) => any;
 export const get_evonodes_proposed_epoch_blocks_by_range_with_proof_info: (a: number, b: number, c: number, d: number, e: number, f: number) => any;
-export const identitywasm_getBalance: (a: number) => number;
 export const __wbg_wasmsdk_free: (a: number, b: number) => void;
 export const wasmsdk_version: (a: number) => number;
 export const wasmsdk_testSerialization: (a: number, b: number, c: number) => [number, number, number];
@@ -183,10 +186,7 @@ export const intounderlyingbytesource_autoAllocateChunkSize: (a: number) => numb
 export const intounderlyingbytesource_start: (a: number, b: any) => void;
 export const intounderlyingbytesource_pull: (a: number, b: any) => any;
 export const intounderlyingbytesource_cancel: (a: number) => void;
-export const rustsecp256k1_v0_10_0_context_create: (a: number) => number;
-export const rustsecp256k1_v0_10_0_context_destroy: (a: number) => void;
-export const rustsecp256k1_v0_10_0_default_illegal_callback_fn: (a: number, b: number) => void;
-export const rustsecp256k1_v0_10_0_default_error_callback_fn: (a: number, b: number) => void;
+export const identitywasm_getBalance: (a: number) => number;
 export const __wbindgen_malloc: (a: number, b: number) => number;
 export const __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
 export const __wbindgen_exn_store: (a: number) => void;
@@ -195,8 +195,7 @@ export const __wbindgen_export_4: WebAssembly.Table;
 export const __wbindgen_free: (a: number, b: number, c: number) => void;
 export const __wbindgen_export_6: WebAssembly.Table;
 export const __externref_table_dealloc: (a: number) => void;
-export const _dyn_core__ops__function__FnMut_____Output___R_as_wasm_bindgen__closure__WasmClosure___describe__invoke__heae852875965dd90: (a: number, b: number) => void;
-export const _dyn_core__ops__function__FnMut_____Output___R_as_wasm_bindgen__closure__WasmClosure___describe__invoke__h5e78eb5dab6fc290: (a: number, b: number) => void;
-export const closure2558_externref_shim: (a: number, b: number, c: any) => void;
-export const closure4309_externref_shim: (a: number, b: number, c: any, d: any) => void;
+export const _dyn_core__ops__function__FnMut_____Output___R_as_wasm_bindgen__closure__WasmClosure___describe__invoke__h9bc151ea2ccdfe69: (a: number, b: number) => void;
+export const closure1702_externref_shim: (a: number, b: number, c: any) => void;
+export const closure1418_externref_shim: (a: number, b: number, c: any, d: any) => void;
 export const __wbindgen_start: () => void;

@@ -257,7 +257,7 @@ function FeedPage() {
           <LoadingState
             loading={postsState.loading}
             error={postsState.error}
-            isEmpty={postsState.data?.length === 0}
+            isEmpty={!postsState.loading && postsState.data?.length === 0}
             onRetry={loadPosts}
             loadingText="Loading posts..."
             emptyText="No posts yet"

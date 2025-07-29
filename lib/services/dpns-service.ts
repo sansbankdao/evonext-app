@@ -45,7 +45,95 @@ class DpnsService {
   }
 
   /**
+   * Get all usernames for an identity ID
+   */
+  async getAllUsernames(identityId: string): Promise<string[]> {
+    try {
+      console.log(`DPNS: Fetching all usernames for identity: ${identityId}`);
+      
+      const sdk = await getWasmSdk();
+      
+      // Try the dedicated DPNS usernames function first
+      try {
+        const { get_dpns_usernames } = await import('../dash-wasm/wasm_sdk');
+        const response = await get_dpns_usernames(sdk, identityId, 20); // Get up to 20 usernames
+        
+        console.log('DPNS: Usernames response:', response);
+        
+        // Parse the response
+        let usernames: string[] = [];
+        
+        if (Array.isArray(response)) {
+          usernames = response.filter(u => typeof u === 'string' && u.length > 0);
+        } else if (response && typeof response === 'object' && response.usernames) {
+          usernames = response.usernames;
+        } else if (response && typeof response.toJSON === 'function') {
+          const jsonResponse = response.toJSON();
+          if (Array.isArray(jsonResponse)) {
+            usernames = jsonResponse.filter(u => typeof u === 'string' && u.length > 0);
+          } else if (jsonResponse && jsonResponse.usernames) {
+            usernames = jsonResponse.usernames;
+          }
+        }
+        
+        if (usernames.length > 0) {
+          console.log(`DPNS: Found ${usernames.length} usernames for identity ${identityId}`);
+          return usernames;
+        }
+      } catch (error) {
+        console.warn('DPNS: get_dpns_usernames failed, trying document query:', error);
+      }
+      
+      // Fallback: Query DPNS documents by identity ID
+      const response = await get_documents(
+        sdk,
+        DPNS_CONTRACT_ID,
+        DPNS_DOCUMENT_TYPE,
+        JSON.stringify([
+          ['records.identity', '==', identityId]
+        ]),
+        null,
+        20, // Get up to 20 usernames
+        null,
+        null
+      );
+      
+      if (response && response.documents && response.documents.length > 0) {
+        const usernames = response.documents.map((doc: DpnsDocument) => 
+          `${doc.label}.${doc.normalizedParentDomainName}`
+        );
+        
+        console.log(`DPNS: Found ${usernames.length} usernames for identity ${identityId} via document query`);
+        return usernames;
+      }
+      
+      console.log(`DPNS: No usernames found for identity ${identityId}`);
+      return [];
+    } catch (error) {
+      console.error('DPNS: Error fetching all usernames:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Sort usernames by contested status (contested usernames first)
+   */
+  sortUsernamesByContested(usernames: string[]): string[] {
+    return usernames.sort((a, b) => {
+      const aContested = dpns_is_contested_username(a.split('.')[0]);
+      const bContested = dpns_is_contested_username(b.split('.')[0]);
+      
+      if (aContested && !bContested) return -1;
+      if (!aContested && bContested) return 1;
+      
+      // If both contested or both not contested, sort alphabetically
+      return a.localeCompare(b);
+    });
+  }
+
+  /**
    * Resolve a username for an identity ID (reverse lookup)
+   * Returns the best username (contested usernames are preferred)
    */
   async resolveUsername(identityId: string): Promise<string | null> {
     try {
@@ -58,69 +146,21 @@ class DpnsService {
 
       console.log(`DPNS: Fetching username for identity: ${identityId}`);
       
-      const sdk = await getWasmSdk();
-      console.log('DPNS: SDK object:', sdk);
-      console.log('DPNS: SDK type:', typeof sdk);
-      console.log('DPNS: identityId:', identityId);
+      // Get all usernames for this identity
+      const allUsernames = await this.getAllUsernames(identityId);
       
-      // Try the dedicated DPNS username function first
-      try {
-        const { get_dpns_username } = await import('../dash-wasm/wasm_sdk');
-        console.log('DPNS: get_dpns_username function:', typeof get_dpns_username);
-        const response = await get_dpns_username(sdk, identityId);
-        
-        console.log('DPNS: Username response:', response);
-        
-        // Parse the response
-        let username: string | null = null;
-        
-        if (typeof response === 'string' && response.length > 0) {
-          username = response;
-        } else if (response && typeof response === 'object' && response.username) {
-          username = response.username;
-        } else if (response && typeof response.toJSON === 'function') {
-          const jsonResponse = response.toJSON();
-          if (typeof jsonResponse === 'string' && jsonResponse.length > 0) {
-            username = jsonResponse;
-          } else if (jsonResponse && jsonResponse.username) {
-            username = jsonResponse.username;
-          }
-        }
-        
-        if (username) {
-          console.log(`DPNS: Found username ${username} for identity ${identityId}`);
-          this._cacheEntry(username, identityId);
-          return username;
-        }
-      } catch (error) {
-        console.warn('DPNS: get_dpns_username failed, trying document query:', error);
+      if (allUsernames.length === 0) {
+        console.log(`DPNS: No username found for identity ${identityId}`);
+        return null;
       }
       
-      // Fallback: Query DPNS documents by identity ID
-      const response = await get_documents(
-        sdk,
-        DPNS_CONTRACT_ID,
-        DPNS_DOCUMENT_TYPE,
-        JSON.stringify([
-          ['records.identity', '==', identityId]
-        ]),
-        null,
-        1,
-        null,
-        null
-      );
+      // Sort usernames with contested ones first
+      const sortedUsernames = this.sortUsernamesByContested(allUsernames);
+      const bestUsername = sortedUsernames[0];
       
-      if (response && response.documents && response.documents.length > 0) {
-        const dpnsDoc = response.documents[0] as DpnsDocument;
-        const username = `${dpnsDoc.label}.${dpnsDoc.normalizedParentDomainName}`;
-        
-        console.log(`DPNS: Found username ${username} for identity ${identityId} via document query`);
-        this._cacheEntry(username, identityId);
-        return username;
-      }
-      
-      console.log(`DPNS: No username found for identity ${identityId}`);
-      return null;
+      console.log(`DPNS: Found best username ${bestUsername} for identity ${identityId} (from ${allUsernames.length} total)`);
+      this._cacheEntry(bestUsername, identityId);
+      return bestUsername;
     } catch (error) {
       console.error('DPNS: Error resolving username:', error);
       return null;

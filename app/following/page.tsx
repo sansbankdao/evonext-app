@@ -21,6 +21,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { dpns_convert_to_homograph_safe } from '@/lib/dash-wasm/wasm_sdk'
+import { AlsoKnownAs } from '@/components/ui/also-known-as'
 
 interface FollowingUser {
   id: string
@@ -31,6 +33,7 @@ interface FollowingUser {
   followersCount: number
   followingCount: number
   isFollowing: boolean
+  allUsernames?: string[]
 }
 
 function FollowingPage() {
@@ -87,9 +90,9 @@ function FollowingPage() {
         return
       }
       
-      // Batch fetch DPNS names and profiles
-      const [dpnsNames, profiles] = await Promise.all([
-        // Fetch DPNS names for all identities
+      // Batch fetch DPNS names, all usernames, and profiles
+      const [dpnsNames, allUsernamesData, profiles] = await Promise.all([
+        // Fetch best DPNS names for all identities
         Promise.all(identityIds.map(async (id) => {
           try {
             const username = await dpnsService.resolveUsername(id)
@@ -99,12 +102,23 @@ function FollowingPage() {
             return { id, username: null }
           }
         })),
+        // Fetch all usernames for each identity
+        Promise.all(identityIds.map(async (id) => {
+          try {
+            const usernames = await dpnsService.getAllUsernames(id)
+            return { id, usernames }
+          } catch (error) {
+            console.error(`Failed to get all usernames for ${id}:`, error)
+            return { id, usernames: [] }
+          }
+        })),
         // Fetch Yappr profiles
         profileService.getProfilesByIdentityIds(identityIds)
       ])
       
       // Create maps for easy lookup
       const dpnsMap = new Map(dpnsNames.map(item => [item.id, item.username]))
+      const allUsernamesMap = new Map(allUsernamesData.map(item => [item.id, item.usernames]))
       const profileMap = new Map(profiles.map(p => [p.$ownerId || p.ownerId, p]))
       
       // Create enriched user data
@@ -116,6 +130,7 @@ function FollowingPage() {
         }
         
         const username = dpnsMap.get(followingId)
+        const allUsernames = allUsernamesMap.get(followingId) || []
         const profile = profileMap.get(followingId)
         
         return {
@@ -126,7 +141,8 @@ function FollowingPage() {
           hasProfile: !!profile,
           followersCount: 0, // Would need to query this
           followingCount: 0, // Would need to query this
-          isFollowing: true
+          isFollowing: true,
+          allUsernames: allUsernames
         }
       }).filter(Boolean) // Remove any null entries
 
@@ -203,10 +219,12 @@ function FollowingPage() {
     setSearchError(null)
 
     try {
-      console.log('Searching for DPNS names starting with:', searchQuery)
+      // Convert search query to homograph-safe characters
+      const homographSafeQuery = dpns_convert_to_homograph_safe(searchQuery.trim())
+      console.log('Searching for DPNS names starting with:', searchQuery, '-> homograph-safe:', homographSafeQuery)
       
       // Search for usernames with details
-      const searchResults = await dpnsService.searchUsernamesWithDetails(searchQuery.trim(), 20)
+      const searchResults = await dpnsService.searchUsernamesWithDetails(homographSafeQuery, 20)
       
       if (searchResults.length > 0) {
         console.log('Found DPNS search results:', searchResults)
@@ -241,18 +259,20 @@ function FollowingPage() {
         // Create user objects - one per unique owner
         const searchUsers: FollowingUser[] = Array.from(ownerToNames.entries()).map(([ownerId, names]) => {
           const profile = profileMap.get(ownerId)
-          // Show all DPNS names for this owner
-          const username = names.length > 1 ? `${names[0]} (+${names.length - 1} more)` : names[0]
+          // Sort names with contested ones first
+          const sortedNames = dpnsService.sortUsernamesByContested(names)
+          const primaryUsername = sortedNames[0]
           
           return {
             id: ownerId,
-            username: username,
-            displayName: profile?.displayName || names[0],
+            username: primaryUsername,
+            displayName: profile?.displayName || primaryUsername,
             bio: profile?.bio || 'Not yet on Yappr',
             hasProfile: !!profile,
             followersCount: 0, // Would need to query this
             followingCount: 0, // Would need to query this
-            isFollowing: followingState.data?.some(u => u.id === ownerId) || false
+            isFollowing: followingState.data?.some(u => u.id === ownerId) || false,
+            allUsernames: sortedNames
           }
         })
         
@@ -376,6 +396,13 @@ function FollowingPage() {
                                   {searchUser.displayName}
                                 </h3>
                                 <p className="text-sm text-gray-500">@{searchUser.username}</p>
+                                {searchUser.allUsernames && searchUser.allUsernames.length > 1 && (
+                                  <AlsoKnownAs 
+                                    primaryUsername={searchUser.username} 
+                                    allUsernames={searchUser.allUsernames}
+                                    identityId={searchUser.id}
+                                  />
+                                )}
                                 {searchUser.bio && (
                                   <div className="flex items-start gap-1 mt-1">
                                     <p className="text-sm flex-1">{searchUser.bio}</p>
@@ -386,7 +413,7 @@ function FollowingPage() {
                                             <InformationCircleIcon className="h-4 w-4 text-gray-400 cursor-help flex-shrink-0 mt-0.5" />
                                           </TooltipTrigger>
                                           <TooltipContent side="top" className="max-w-xs">
-                                            <p>This user hasn't created a Yappr profile yet, but you can still follow them. They'll see your follow when they join!</p>
+                                            <p>This user hasn&apos;t created a Yappr profile yet, but you can still follow them. They&apos;ll see your follow when they join!</p>
                                           </TooltipContent>
                                         </Tooltip>
                                       </TooltipProvider>
@@ -435,7 +462,7 @@ function FollowingPage() {
               <LoadingState
                 loading={followingState.loading}
                 error={followingState.error}
-                isEmpty={followingState.data?.length === 0}
+                isEmpty={!followingState.loading && followingState.data?.length === 0}
                 onRetry={loadFollowing}
                 loadingText="Loading following list..."
                 emptyText="Not following anyone yet"
@@ -461,6 +488,13 @@ function FollowingPage() {
                               {followingUser.displayName}
                             </h3>
                             <p className="text-sm text-gray-500">@{followingUser.username}</p>
+                            {followingUser.allUsernames && followingUser.allUsernames.length > 1 && (
+                              <AlsoKnownAs 
+                                primaryUsername={followingUser.username} 
+                                allUsernames={followingUser.allUsernames}
+                                identityId={followingUser.id}
+                              />
+                            )}
                             {followingUser.bio && (
                               <div className="flex items-start gap-1 mt-1">
                                 <p className="text-sm flex-1">{followingUser.bio}</p>
@@ -471,7 +505,7 @@ function FollowingPage() {
                                         <InformationCircleIcon className="h-4 w-4 text-gray-400 cursor-help flex-shrink-0 mt-0.5" />
                                       </TooltipTrigger>
                                       <TooltipContent side="top" className="max-w-xs">
-                                        <p>This user hasn't created a Yappr profile yet, but you're following them. They'll see your follow when they join!</p>
+                                        <p>This user hasn&apos;t created a Yappr profile yet, but you&apos;re following them. They&apos;ll see your follow when they join!</p>
                                       </TooltipContent>
                                     </Tooltip>
                                   </TooltipProvider>

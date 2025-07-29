@@ -132,21 +132,69 @@ class WasmSdkService {
         console.log('WasmSdkService: Prefetching testnet quorum information...');
         await prefetch_trusted_quorums_testnet();
         console.log('WasmSdkService: Building testnet SDK in trusted mode...');
-        const builder = WasmSdkBuilder.new_testnet_trusted();
+        // Create builder - new_testnet_trusted() returns a Result that throws on error
+        console.log('WasmSdkService: Creating testnet builder...');
+        let builder;
+        try {
+          builder = WasmSdkBuilder.new_testnet_trusted();
+          console.log('WasmSdkService: Builder created successfully');
+        } catch (error) {
+          console.error('WasmSdkService: Failed to create testnet builder:', error);
+          throw error;
+        }
+        
         // Set request timeout to 8 seconds (8000ms)
         console.log('WasmSdkService: Setting request timeout to 8 seconds...');
-        builder.with_settings(null, 8000, null, null);
-        this.sdk = builder.build();
+        try {
+          builder = builder.with_settings(undefined, 8000, undefined, undefined);
+          console.log('WasmSdkService: Settings applied successfully');
+        } catch (error) {
+          console.error('WasmSdkService: Failed to apply settings:', error);
+          throw error;
+        }
+        
+        console.log('WasmSdkService: Building SDK...');
+        try {
+          this.sdk = builder.build();
+          console.log('WasmSdkService: SDK built successfully');
+        } catch (error) {
+          console.error('WasmSdkService: Failed to build SDK:', error);
+          throw error;
+        }
         console.log('WasmSdkService: Testnet SDK built successfully with 8s timeout');
       } else {
         console.log('WasmSdkService: Prefetching mainnet quorum information...');
         await prefetch_trusted_quorums_mainnet();
         console.log('Building mainnet SDK in trusted mode...');
-        const builder = WasmSdkBuilder.new_mainnet_trusted();
+        // Create builder - new_mainnet_trusted() returns a Result that throws on error
+        console.log('WasmSdkService: Creating mainnet builder...');
+        let builder;
+        try {
+          builder = WasmSdkBuilder.new_mainnet_trusted();
+          console.log('WasmSdkService: Builder created successfully');
+        } catch (error) {
+          console.error('WasmSdkService: Failed to create mainnet builder:', error);
+          throw error;
+        }
+        
         // Set request timeout to 8 seconds (8000ms)
         console.log('WasmSdkService: Setting request timeout to 8 seconds...');
-        builder.with_settings(null, 8000, null, null);
-        this.sdk = builder.build();
+        try {
+          builder = builder.with_settings(undefined, 8000, undefined, undefined);
+          console.log('WasmSdkService: Settings applied successfully');
+        } catch (error) {
+          console.error('WasmSdkService: Failed to apply settings:', error);
+          throw error;
+        }
+        
+        console.log('WasmSdkService: Building SDK...');
+        try {
+          this.sdk = builder.build();
+          console.log('WasmSdkService: SDK built successfully');
+        } catch (error) {
+          console.error('WasmSdkService: Failed to build SDK:', error);
+          throw error;
+        }
       }
       
       this._isInitialized = true;
