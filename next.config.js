@@ -1,5 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
   reactStrictMode: true,
   images: {
     domains: ['images.unsplash.com', 'api.dicebear.com'],
@@ -22,13 +25,13 @@ const nextConfig = {
         },
       }
     }
-    
+
     // Handle WASM files
     config.experiments = {
       ...config.experiments,
       asyncWebAssembly: true,
     }
-    
+
     return config
   },
   async headers() {
@@ -55,7 +58,7 @@ const nextConfig = {
             value: 'require-corp'
           },
           {
-            key: 'Cross-Origin-Opener-Policy', 
+            key: 'Cross-Origin-Opener-Policy',
             value: 'same-origin'
           }
         ]

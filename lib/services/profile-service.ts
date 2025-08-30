@@ -38,7 +38,7 @@ class ProfileService extends BaseDocumentService<User> {
   async query(options: QueryOptions = {}): Promise<DocumentResult<User>> {
     try {
       const sdk = await getWasmSdk();
-      
+
       // Build query
       const query: any = {
         contractId: this.contractId,
@@ -64,7 +64,7 @@ class ProfileService extends BaseDocumentService<User> {
       }
 
       console.log(`Querying ${this.documentType} documents:`, query);
-      
+
       const response = await get_documents(
         sdk,
         this.contractId,
@@ -78,32 +78,32 @@ class ProfileService extends BaseDocumentService<User> {
 
       // get_documents returns an object directly, not JSON string
       let result = response;
-      
+
       // Handle different response formats
       if (response && typeof response.toJSON === 'function') {
         result = response.toJSON();
       }
-      
+
       console.log(`${this.documentType} query result:`, result);
-      
+
       // Check if result is an array (direct documents response)
       if (Array.isArray(result)) {
         const documents = result.map((doc: any) => {
           return this.transformDocument(doc, { cachedUsername: this.cachedUsername });
         });
-        
+
         return {
           documents,
           nextCursor: undefined,
           prevCursor: undefined
         };
       }
-      
+
       // Otherwise expect object with documents property
       const documents = result?.documents?.map((doc: any) => {
         return this.transformDocument(doc, { cachedUsername: this.cachedUsername });
       }) || [];
-      
+
       return {
         documents,
         nextCursor: result?.nextCursor,
@@ -120,12 +120,15 @@ class ProfileService extends BaseDocumentService<User> {
    */
   protected transformDocument(doc: ProfileDocument, options?: { cachedUsername?: string }): User {
     console.log('ProfileService: transformDocument input:', doc);
-    
+
     // Handle both $ prefixed and non-prefixed properties
-    const ownerId = doc.$ownerId || doc.ownerId;
-    const createdAt = doc.$createdAt || doc.createdAt;
-    const data = doc.data || doc;
-    
+    // const ownerId = doc.$ownerId || doc.ownerId;
+    const ownerId = doc.$ownerId;
+    // const createdAt = doc.$createdAt || doc.createdAt;
+    const createdAt = doc.$createdAt;
+    // const data = doc.data || doc;
+    const data = doc;
+
     // Return a basic User object - additional data will be loaded separately
     const user: User = {
       id: ownerId,
@@ -159,7 +162,7 @@ class ProfileService extends BaseDocumentService<User> {
           user.username = username;
         }
       }
-      
+
       // Get avatar data if avatarId exists
       if (doc.avatarId) {
         const avatarData = await this.getAvatarData(doc.avatarId);
@@ -183,7 +186,7 @@ class ProfileService extends BaseDocumentService<User> {
   async getProfile(ownerId: string, cachedUsername?: string): Promise<User | null> {
     try {
       console.log('ProfileService: Getting profile for owner ID:', ownerId);
-      
+
       // Check cache first
       const cached = cacheManager.get<User>(this.PROFILE_CACHE, ownerId);
       if (cached) {
@@ -194,10 +197,10 @@ class ProfileService extends BaseDocumentService<User> {
         }
         return cached;
       }
-      
+
       // Set cached username for transform
       this.cachedUsername = cachedUsername;
-      
+
       // Query by owner ID
       const result = await this.query({
         where: [['$ownerId', '==', ownerId]],
@@ -210,13 +213,13 @@ class ProfileService extends BaseDocumentService<User> {
       if (result.documents.length > 0) {
         const profile = result.documents[0];
         console.log('ProfileService: Returning profile:', profile);
-        
+
         // Cache the result with profile and user tags
         cacheManager.set(this.PROFILE_CACHE, ownerId, profile, {
           ttl: 300000, // 5 minutes
           tags: ['profile', `user:${ownerId}`]
         });
-        
+
         return profile;
       }
 
@@ -252,10 +255,10 @@ class ProfileService extends BaseDocumentService<User> {
     }
 
     const result = await this.create(ownerId, data);
-    
+
     // Invalidate cache for this user
     cacheManager.invalidateByTag(`user:${ownerId}`);
-    
+
     return result;
   }
 
@@ -278,11 +281,11 @@ class ProfileService extends BaseDocumentService<User> {
       }
 
       const data: any = {};
-      
+
       if (updates.displayName !== undefined) {
         data.displayName = updates.displayName;
       }
-      
+
       if (updates.bio !== undefined) {
         data.bio = updates.bio;
       }
@@ -311,10 +314,10 @@ class ProfileService extends BaseDocumentService<User> {
       if (profileDoc.documents.length > 0) {
         const docId = profileDoc.documents[0].id;
         const result = await this.update(docId, ownerId, data);
-        
+
         // Invalidate cache for this user
         cacheManager.invalidateByTag(`user:${ownerId}`);
-        
+
         return result;
       }
 
@@ -337,7 +340,7 @@ class ProfileService extends BaseDocumentService<User> {
 
     try {
       const username = await dpnsService.resolveUsername(ownerId);
-      
+
       if (username) {
         // Cache the result with user and username tags
         cacheManager.set(this.USERNAME_CACHE, ownerId, username, {
@@ -359,7 +362,7 @@ class ProfileService extends BaseDocumentService<User> {
   private async getAvatarDocument(avatarId: string): Promise<AvatarDocument | null> {
     try {
       const sdk = await getWasmSdk();
-      
+
       const response = await get_document(
         sdk,
         this.contractId,
@@ -390,7 +393,7 @@ class ProfileService extends BaseDocumentService<User> {
 
     try {
       const sdk = await getWasmSdk();
-      
+
       const response = await get_document(
         sdk,
         this.contractId,
@@ -401,7 +404,7 @@ class ProfileService extends BaseDocumentService<User> {
       if (response) {
         // get_document returns an object directly
         const doc = response as AvatarDocument;
-        
+
         // Cache the result with avatar tag
         cacheManager.set(this.AVATAR_CACHE, avatarId, doc.data, {
           ttl: 1800000, // 30 minutes (avatars change less frequently)
@@ -422,18 +425,18 @@ class ProfileService extends BaseDocumentService<User> {
    */
   private async createAvatar(ownerId: string, avatarData: string): Promise<string> {
     const sdk = await getWasmSdk();
-    
+
     const result = await stateTransitionService.createDocument(
       this.contractId,
       'avatar',
       ownerId,
       { data: avatarData }
     );
-    
+
     if (!result.success) {
       throw new Error(result.error || 'Failed to create avatar');
     }
-    
+
     return result.document.$id;
   }
 
@@ -448,13 +451,13 @@ class ProfileService extends BaseDocumentService<User> {
     if (existingAvatarId) {
       // Update existing avatar
       const sdk = await getWasmSdk();
-      
+
       // Get current avatar document to find revision
       const currentAvatar = await this.getAvatarDocument(existingAvatarId);
       if (!currentAvatar) {
         throw new Error('Avatar not found');
       }
-      
+
       const result = await stateTransitionService.updateDocument(
         this.contractId,
         'avatar',
@@ -463,14 +466,14 @@ class ProfileService extends BaseDocumentService<User> {
         { data: avatarData },
         (currentAvatar as any).$revision || 0
       );
-      
+
       if (!result.success) {
         throw new Error(result.error || 'Failed to update avatar');
       }
-      
+
       // Clear cache
       cacheManager.delete(this.AVATAR_CACHE, existingAvatarId);
-      
+
       return existingAvatarId;
     } else {
       // Create new avatar
@@ -484,18 +487,18 @@ class ProfileService extends BaseDocumentService<User> {
   private async deleteAvatar(avatarId: string, ownerId: string): Promise<void> {
     try {
       const sdk = await getWasmSdk();
-      
+
       const result = await stateTransitionService.deleteDocument(
         this.contractId,
         'avatar',
         avatarId,
         ownerId
       );
-      
+
       if (!result.success) {
         console.error('Failed to delete avatar:', result.error);
       }
-      
+
       // Clear cache
       cacheManager.delete(this.AVATAR_CACHE, avatarId);
     } catch (error) {
@@ -528,14 +531,14 @@ class ProfileService extends BaseDocumentService<User> {
       }
 
       console.log('ProfileService: Getting profiles for identity IDs:', identityIds);
-      
+
       const sdk = await getWasmSdk();
-      
+
       // Query profiles where $ownerId is in the array
       // Need to add orderBy for 'in' queries
       const where = [['$ownerId', 'in', identityIds]];
       const orderBy = [['$ownerId', 'asc']];
-      
+
       const response = await get_documents(
         sdk,
         this.contractId,
@@ -555,7 +558,7 @@ class ProfileService extends BaseDocumentService<User> {
         console.log(`ProfileService: Found ${response.documents.length} profiles`);
         return response.documents;
       }
-      
+
       return [];
     } catch (error) {
       console.error('ProfileService: Error getting profiles by identity IDs:', error);

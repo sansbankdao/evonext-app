@@ -54,7 +54,7 @@ function FollowingPage() {
 
     try {
       console.log('Following: Loading following list...')
-      
+
       if (!user?.identityId) {
         setData([])
         setLoading(false)
@@ -62,7 +62,7 @@ function FollowingPage() {
       }
 
       const cacheKey = `following_${user.identityId}`
-      
+
       // Check cache first unless force refresh
       if (!forceRefresh) {
         const cached = cacheManager.get<FollowingUser[]>('following', cacheKey)
@@ -76,20 +76,20 @@ function FollowingPage() {
 
       // Use followService to get following list
       const follows = await followService.getFollowing(user.identityId, { limit: 50 })
-      
+
       console.log('Following: Raw follows from platform:', follows)
 
       // Get unique identity IDs from follows
       const identityIds = follows
         .map(f => f.followingId)
         .filter(Boolean)
-      
+
       if (identityIds.length === 0) {
         setData([])
         setLoading(false)
         return
       }
-      
+
       // Batch fetch DPNS names, all usernames, and profiles
       const [dpnsNames, allUsernamesData, profiles] = await Promise.all([
         // Fetch best DPNS names for all identities
@@ -115,12 +115,13 @@ function FollowingPage() {
         // Fetch Yappr profiles
         profileService.getProfilesByIdentityIds(identityIds)
       ])
-      
+
       // Create maps for easy lookup
       const dpnsMap = new Map(dpnsNames.map(item => [item.id, item.username]))
       const allUsernamesMap = new Map(allUsernamesData.map(item => [item.id, item.usernames]))
-      const profileMap = new Map(profiles.map(p => [p.$ownerId || p.ownerId, p]))
-      
+      // const profileMap = new Map(profiles.map(p => [p.$ownerId || p.ownerId, p]))
+      const profileMap = new Map(profiles.map(p => [p.$ownerId, p]))
+
       // Create enriched user data
       const followingUsers = follows.map((follow: any) => {
         const followingId = follow.followingId
@@ -128,11 +129,11 @@ function FollowingPage() {
           console.warn('Follow document missing followingId:', follow)
           return null
         }
-        
+
         const username = dpnsMap.get(followingId)
         const allUsernames = allUsernamesMap.get(followingId) || []
         const profile = profileMap.get(followingId)
-        
+
         return {
           id: followingId,
           username: username || `user_${followingId.slice(-6)}`,
@@ -148,8 +149,8 @@ function FollowingPage() {
 
       // Cache the results
       cacheManager.set('following', cacheKey, followingUsers)
-      
-      setData(followingUsers)
+
+// setData(followingUsers)
       console.log(`Following: Successfully loaded ${followingUsers.length} following`)
 
     } catch (error) {
@@ -180,16 +181,16 @@ function FollowingPage() {
 
     try {
       console.log('Following user:', userId)
-      
+
       // Create follow document
       const result = await followService.followUser(user.identityId, userId)
-      
+
       if (result.success) {
         // Update the search results to reflect the new follow status
-        setSearchResults(prev => 
+        setSearchResults(prev =>
           prev.map(u => u.id === userId ? { ...u, isFollowing: true } : u)
         )
-        
+
         // Force refresh the following list to show the new follow
         await loadFollowing(true)
       } else {
@@ -222,16 +223,16 @@ function FollowingPage() {
       // Convert search query to homograph-safe characters
       const homographSafeQuery = dpns_convert_to_homograph_safe(searchQuery.trim())
       console.log('Searching for DPNS names starting with:', searchQuery, '-> homograph-safe:', homographSafeQuery)
-      
+
       // Search for usernames with details
       const searchResults = await dpnsService.searchUsernamesWithDetails(homographSafeQuery, 20)
-      
+
       if (searchResults.length > 0) {
         console.log('Found DPNS search results:', searchResults)
-        
+
         // Get all unique identity IDs from search results
         const uniqueIdentityIds = Array.from(new Set(searchResults.map(r => r.ownerId).filter(id => id)))
-        
+
         // Query Yappr profiles for all these identities
         let profiles: any[] = []
         if (uniqueIdentityIds.length > 0) {
@@ -244,10 +245,10 @@ function FollowingPage() {
             console.error('Error fetching profiles:', error)
           }
         }
-        
+
         // Create a map of identity ID to profile for easy lookup
         const profileMap = new Map(profiles.map(p => [p.$ownerId || p.ownerId, p]))
-        
+
         // Group DPNS names by owner to handle multiple names per owner
         const ownerToNames = new Map<string, string[]>()
         searchResults.forEach(result => {
@@ -255,14 +256,14 @@ function FollowingPage() {
           names.push(result.username)
           ownerToNames.set(result.ownerId, names)
         })
-        
+
         // Create user objects - one per unique owner
         const searchUsers: FollowingUser[] = Array.from(ownerToNames.entries()).map(([ownerId, names]) => {
           const profile = profileMap.get(ownerId)
           // Sort names with contested ones first
           const sortedNames = dpnsService.sortUsernamesByContested(names)
           const primaryUsername = sortedNames[0]
-          
+
           return {
             id: ownerId,
             username: primaryUsername,
@@ -275,7 +276,7 @@ function FollowingPage() {
             allUsernames: sortedNames
           }
         })
-        
+
         setSearchResults(searchUsers)
       } else {
         setSearchResults([])
@@ -304,7 +305,7 @@ function FollowingPage() {
   return (
     <div className="min-h-screen flex">
       <Sidebar />
-      
+
       <div className="flex-1 flex justify-center">
         <main className="w-full max-w-[600px] border-x border-gray-200 dark:border-gray-800">
           <header className="sticky top-0 z-40 bg-white/80 dark:bg-black/80 backdrop-blur-xl">
@@ -313,9 +314,9 @@ function FollowingPage() {
                 <div>
                   <h1 className="text-xl font-bold">Following</h1>
                   <p className="text-sm text-gray-500 mt-1">
-                    {searchQuery ? 
+                    {searchQuery ?
                       `${searchResults.length} search result${searchResults.length === 1 ? '' : 's'}` :
-                      followingState.loading ? 
+                      followingState.loading ?
                         'Loading...' :
                         `${followingState.data?.length || 0} ${followingState.data?.length === 1 ? 'user' : 'users'}`
                     }
@@ -333,7 +334,7 @@ function FollowingPage() {
                 )}
               </div>
             </div>
-            
+
             <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-800">
               <div className="relative">
                 <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-500" />
@@ -388,7 +389,7 @@ function FollowingPage() {
                           <div className="h-12 w-12 rounded-full overflow-hidden bg-gray-100">
                             <AvatarCanvas features={generateAvatarV2(searchUser.id)} size={48} />
                           </div>
-                          
+
                           <div className="flex-1">
                             <div className="flex items-start justify-between">
                               <div>
@@ -397,8 +398,8 @@ function FollowingPage() {
                                 </h3>
                                 <p className="text-sm text-gray-500">@{searchUser.username}</p>
                                 {searchUser.allUsernames && searchUser.allUsernames.length > 1 && (
-                                  <AlsoKnownAs 
-                                    primaryUsername={searchUser.username} 
+                                  <AlsoKnownAs
+                                    primaryUsername={searchUser.username}
                                     allUsernames={searchUser.allUsernames}
                                     identityId={searchUser.id}
                                   />
@@ -421,7 +422,7 @@ function FollowingPage() {
                                   </div>
                                 )}
                               </div>
-                              
+
                               {searchUser.isFollowing ? (
                                 <Button
                                   variant="outline"
@@ -480,7 +481,7 @@ function FollowingPage() {
                       <div className="h-12 w-12 rounded-full overflow-hidden bg-gray-100">
                         <AvatarCanvas features={generateAvatarV2(followingUser.id)} size={48} />
                       </div>
-                      
+
                       <div className="flex-1">
                         <div className="flex items-start justify-between">
                           <div>
@@ -489,8 +490,8 @@ function FollowingPage() {
                             </h3>
                             <p className="text-sm text-gray-500">@{followingUser.username}</p>
                             {followingUser.allUsernames && followingUser.allUsernames.length > 1 && (
-                              <AlsoKnownAs 
-                                primaryUsername={followingUser.username} 
+                              <AlsoKnownAs
+                                primaryUsername={followingUser.username}
                                 allUsernames={followingUser.allUsernames}
                                 identityId={followingUser.id}
                               />
@@ -525,7 +526,7 @@ function FollowingPage() {
                               </span>
                             </div>
                           </div>
-                          
+
                           <Button
                             variant="outline"
                             size="sm"

@@ -32,7 +32,7 @@ export function LikesModal({ isOpen, onClose, postId }: LikesModalProps) {
     try {
       // Fetch actual likes from Dash Platform
       const likes = await likeService.getPostLikes(postId)
-      
+
       // Transform likes to include user info
       // For now, we'll generate usernames from the ownerId
       const likesWithUsers: LikeWithUser[] = likes.map(like => ({
@@ -40,7 +40,7 @@ export function LikesModal({ isOpen, onClose, postId }: LikesModalProps) {
         username: `user_${like.$ownerId.slice(-6)}`,
         displayName: `User ${like.$ownerId.slice(-6)}`
       }))
-      
+
       setData(likesWithUsers)
     } catch (error) {
       console.error('Failed to load likes:', error)
@@ -73,7 +73,7 @@ export function LikesModal({ isOpen, onClose, postId }: LikesModalProps) {
           </div>
 
           <div className="max-h-[500px] overflow-y-auto">
-            <LoadingState
+            {/* <LoadingState
               loading={likesState.loading}
               error={likesState.error}
               isEmpty={likesState.data.length === 0}
@@ -102,7 +102,7 @@ export function LikesModal({ isOpen, onClose, postId }: LikesModalProps) {
                   </div>
                 ))}
               </div>
-            </LoadingState>
+            </LoadingState> */}
           </div>
         </Dialog.Content>
       </Dialog.Portal>

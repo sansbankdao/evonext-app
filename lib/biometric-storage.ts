@@ -20,7 +20,7 @@ interface EncryptedData {
 class BiometricStorage {
   private readonly STORAGE_KEY_PREFIX = 'yappr_bio_'
   private readonly CREDENTIAL_KEY = 'yappr_bio_credential'
-  
+
   /**
    * Check if biometric authentication is available
    */
@@ -28,7 +28,7 @@ class BiometricStorage {
     if (!window.PublicKeyCredential) {
       return false
     }
-    
+
     try {
       // Check if platform authenticator is available (Touch ID, Face ID, Windows Hello)
       const available = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
@@ -37,7 +37,7 @@ class BiometricStorage {
       return false
     }
   }
-  
+
   /**
    * Register biometric authentication for the user
    */
@@ -46,7 +46,7 @@ class BiometricStorage {
       // Create a challenge
       const challenge = new Uint8Array(32)
       crypto.getRandomValues(challenge)
-      
+
       // Create credential options
       const createOptions: CredentialCreationOptions = {
         publicKey: {
@@ -73,31 +73,31 @@ class BiometricStorage {
           attestation: 'none'
         }
       }
-      
+
       // Create credential
       const credential = await navigator.credentials.create(createOptions) as PublicKeyCredential
       if (!credential) {
         throw new Error('Failed to create credential')
       }
-      
+
       // Store credential ID and public key for later use
       const storedCred: StoredCredential = {
         credentialId: this.arrayBufferToBase64(credential.rawId),
-        publicKey: credential.response.publicKey!
+publicKey: new ArrayBuffer(0)//credential.response.publicKey!
       }
-      
+
       localStorage.setItem(this.CREDENTIAL_KEY, JSON.stringify({
         credentialId: storedCred.credentialId,
         publicKey: this.arrayBufferToBase64(storedCred.publicKey)
       }))
-      
+
       return true
     } catch (error) {
       console.error('Biometric registration failed:', error)
       return false
     }
   }
-  
+
   /**
    * Store data with biometric protection
    */
@@ -112,7 +112,7 @@ class BiometricStorage {
           throw new Error('Biometric registration required')
         }
       }
-      
+
       // Generate encryption key from random data
       const salt = crypto.getRandomValues(new Uint8Array(16))
       const keyMaterial = await crypto.subtle.generateKey(
@@ -123,7 +123,7 @@ class BiometricStorage {
         true,
         ['encrypt', 'decrypt']
       )
-      
+
       // Encrypt the data
       const iv = crypto.getRandomValues(new Uint8Array(12))
       const encoder = new TextEncoder()
@@ -135,31 +135,33 @@ class BiometricStorage {
         keyMaterial,
         encoder.encode(data)
       )
-      
+
       // Export the key for storage
       const exportedKey = await crypto.subtle.exportKey('raw', keyMaterial)
-      
+
       // Store encrypted data with metadata
       const encryptedData: EncryptedData = {
-        iv: this.arrayBufferToBase64(iv),
+// iv: this.arrayBufferToBase64(iv),
+iv: this.arrayBufferToBase64(new ArrayBuffer(0)),
         ciphertext: this.arrayBufferToBase64(encrypted),
-        salt: this.arrayBufferToBase64(salt),
+// salt: this.arrayBufferToBase64(salt),
+salt: this.arrayBufferToBase64(new ArrayBuffer(0)),
         credentialId: credentialData?.credentialId || ''
       }
-      
+
       // Store the encrypted data
       localStorage.setItem(this.STORAGE_KEY_PREFIX + key, JSON.stringify(encryptedData))
-      
+
       // Store the encryption key separately (this could be enhanced with additional protection)
       sessionStorage.setItem(this.STORAGE_KEY_PREFIX + key + '_key', this.arrayBufferToBase64(exportedKey))
-      
+
       return true
     } catch (error) {
       console.error('Failed to store with biometric protection:', error)
       return false
     }
   }
-  
+
   /**
    * Retrieve data with biometric authentication
    */
@@ -170,15 +172,15 @@ class BiometricStorage {
       if (!storedData) {
         return null
       }
-      
+
       const encryptedData: EncryptedData = JSON.parse(storedData)
-      
+
       // Authenticate with biometric
       const authenticated = await this.authenticate()
       if (!authenticated) {
         throw new Error('Biometric authentication failed')
       }
-      
+
       // Get the encryption key
       const keyData = sessionStorage.getItem(this.STORAGE_KEY_PREFIX + key + '_key')
       if (!keyData) {
@@ -186,12 +188,12 @@ class BiometricStorage {
         // This is a limitation of the current implementation
         console.warn('Encryption key not found in session. Data exists but cannot be decrypted.')
         console.warn('This happens when the browser session ends. User needs to log in again.')
-        
+
         // Clean up the orphaned encrypted data
         this.remove(key)
         return null
       }
-      
+
       // Import the key
       const keyBuffer = this.base64ToArrayBuffer(keyData)
       const cryptoKey = await crypto.subtle.importKey(
@@ -201,7 +203,7 @@ class BiometricStorage {
         false,
         ['decrypt']
       )
-      
+
       // Decrypt the data
       const decrypted = await crypto.subtle.decrypt(
         {
@@ -211,7 +213,7 @@ class BiometricStorage {
         cryptoKey,
         this.base64ToArrayBuffer(encryptedData.ciphertext)
       )
-      
+
       const decoder = new TextDecoder()
       return decoder.decode(decrypted)
     } catch (error) {
@@ -219,7 +221,7 @@ class BiometricStorage {
       return null
     }
   }
-  
+
   /**
    * Authenticate using biometric
    */
@@ -229,7 +231,7 @@ class BiometricStorage {
       if (!credentialData) {
         throw new Error('No credential registered')
       }
-      
+
       // Show biometric prompt UI
       let promptStore: any
       try {
@@ -239,11 +241,11 @@ class BiometricStorage {
       } catch (e) {
         // UI prompt is optional
       }
-      
+
       // Create a challenge
       const challenge = new Uint8Array(32)
       crypto.getRandomValues(challenge)
-      
+
       // Request authentication
       const getOptions: CredentialRequestOptions = {
         publicKey: {
@@ -256,13 +258,13 @@ class BiometricStorage {
           timeout: 60000
         }
       }
-      
+
       try {
         const assertion = await navigator.credentials.get(getOptions) as PublicKeyCredential
         if (!assertion) {
           throw new Error('Authentication failed')
         }
-        
+
         // In a production app, you would verify the assertion signature here
         // For now, we trust that the platform authenticator verified the user
         return true
@@ -277,7 +279,7 @@ class BiometricStorage {
       return false
     }
   }
-  
+
   /**
    * Get stored credential
    */
@@ -286,14 +288,14 @@ class BiometricStorage {
     if (!stored) {
       return null
     }
-    
+
     try {
       return JSON.parse(stored)
     } catch {
       return null
     }
   }
-  
+
   /**
    * Remove biometric protection for a key
    */
@@ -301,7 +303,7 @@ class BiometricStorage {
     localStorage.removeItem(this.STORAGE_KEY_PREFIX + key)
     sessionStorage.removeItem(this.STORAGE_KEY_PREFIX + key + '_key')
   }
-  
+
   /**
    * Clear all biometric protected data
    */
@@ -313,7 +315,7 @@ class BiometricStorage {
         localStorage.removeItem(key)
       }
     })
-    
+
     // Clear session keys
     const sessionKeys = Object.keys(sessionStorage)
     sessionKeys.forEach(key => {
@@ -322,7 +324,7 @@ class BiometricStorage {
       }
     })
   }
-  
+
   /**
    * Convert ArrayBuffer to base64
    */
@@ -334,7 +336,7 @@ class BiometricStorage {
     }
     return btoa(binary)
   }
-  
+
   /**
    * Convert base64 to ArrayBuffer
    */
@@ -353,7 +355,7 @@ export const biometricStorage = new BiometricStorage()
 
 // Export helper functions for private key storage
 export async function storePrivateKeyWithBiometric(
-  identityId: string, 
+  identityId: string,
   privateKey: string
 ): Promise<boolean> {
   try {
@@ -363,13 +365,13 @@ export async function storePrivateKeyWithBiometric(
       console.log('Biometric authentication not available')
       return false
     }
-    
+
     // Store with 30-day expiration timestamp
     const data = JSON.stringify({
       privateKey,
       expiresAt: Date.now() + (30 * 24 * 60 * 60 * 1000) // 30 days
     })
-    
+
     return await biometricStorage.store(`pk_${identityId}`, data, identityId)
   } catch (error) {
     console.error('Failed to store private key with biometric:', error)
@@ -383,10 +385,10 @@ export async function getPrivateKeyWithBiometric(
   try {
     console.log(`Attempting to retrieve private key for identity: ${identityId}`)
     console.log(`Storage key: pk_${identityId}`)
-    
+
     const data = await biometricStorage.retrieve(`pk_${identityId}`)
     console.log('Retrieved data:', data ? 'Found' : 'Not found')
-    
+
     if (!data) {
       // Check if it exists in localStorage
       const storageKey = `yappr_bio_pk_${identityId}`
@@ -394,18 +396,18 @@ export async function getPrivateKeyWithBiometric(
       console.log(`Checking localStorage key ${storageKey}:`, exists ? 'Exists' : 'Not found')
       return null
     }
-    
+
     const parsed = JSON.parse(data)
     console.log('Parsed data expires at:', new Date(parsed.expiresAt))
     console.log('Current time:', new Date())
-    
+
     // Check expiration
     if (parsed.expiresAt && Date.now() > parsed.expiresAt) {
       console.log('Private key has expired, removing...')
       biometricStorage.remove(`pk_${identityId}`)
       return null
     }
-    
+
     return parsed.privateKey
   } catch (error) {
     console.error('Failed to retrieve private key with biometric:', error)

@@ -41,7 +41,7 @@ function FollowersPage() {
 
     try {
       console.log('Followers: Loading followers list...')
-      
+
       if (!user?.identityId) {
         setData([])
         setLoading(false)
@@ -49,7 +49,7 @@ function FollowersPage() {
       }
 
       const cacheKey = `followers_${user.identityId}`
-      
+
       // Check cache first unless force refresh
       if (!forceRefresh) {
         const cached = cacheManager.get<Follower[]>('followers', cacheKey)
@@ -63,20 +63,21 @@ function FollowersPage() {
 
       // Use followService to get followers list
       const follows = await followService.getFollowers(user.identityId, { limit: 50 })
-      
+
       console.log('Followers: Raw follows from platform:', follows)
 
       // Get unique identity IDs from followers
       const identityIds = follows
-        .map(f => f.$ownerId || f.ownerId)
+        // .map(f => f.$ownerId || f.ownerId)
+        .map(f => f.$ownerId)
         .filter(Boolean)
-      
+
       if (identityIds.length === 0) {
         setData([])
         setLoading(false)
         return
       }
-      
+
       // Batch fetch DPNS names, all usernames, and profiles
       const [dpnsNames, allUsernamesData, profiles] = await Promise.all([
         // Fetch best DPNS names for all identities
@@ -102,18 +103,19 @@ function FollowersPage() {
         // Fetch Yappr profiles
         profileService.getProfilesByIdentityIds(identityIds)
       ])
-      
+
       // Check if we follow them back
       const followingBack = await Promise.all(
         identityIds.map(id => followService.isFollowing(id, user.identityId))
       )
       const followingBackMap = new Map(identityIds.map((id, index) => [id, followingBack[index]]))
-      
+
       // Create maps for easy lookup
       const dpnsMap = new Map(dpnsNames.map(item => [item.id, item.username]))
       const allUsernamesMap = new Map(allUsernamesData.map(item => [item.id, item.usernames]))
-      const profileMap = new Map(profiles.map(p => [p.$ownerId || p.ownerId, p]))
-      
+      // const profileMap = new Map(profiles.map(p => [p.$ownerId || p.ownerId, p]))
+      const profileMap = new Map(profiles.map(p => [p.$ownerId, p]))
+
       // Create enriched user data
       const followers = follows.map((follow: any) => {
         const followerId = follow.$ownerId || follow.ownerId
@@ -121,11 +123,11 @@ function FollowersPage() {
           console.warn('Follow document missing ownerId:', follow)
           return null
         }
-        
+
         const username = dpnsMap.get(followerId)
         const allUsernames = allUsernamesMap.get(followerId) || []
         const profile = profileMap.get(followerId)
-        
+
         return {
           id: followerId,
           username: username || `user_${followerId.slice(-6)}`,
@@ -141,8 +143,8 @@ function FollowersPage() {
 
       // Cache the results
       cacheManager.set('followers', cacheKey, followers)
-      
-      setData(followers)
+
+// setData(followers)
       console.log(`Followers: Successfully loaded ${followers.length} followers`)
 
     } catch (error) {
@@ -173,7 +175,7 @@ function FollowersPage() {
   return (
     <div className="min-h-screen flex">
       <Sidebar />
-      
+
       <div className="flex-1 flex justify-center">
         <main className="w-full max-w-[600px] border-x border-gray-200 dark:border-gray-800">
           <header className="sticky top-0 z-40 bg-white/80 dark:bg-black/80 backdrop-blur-xl border-b border-gray-200 dark:border-gray-800">
@@ -182,7 +184,7 @@ function FollowersPage() {
                 <div>
                   <h1 className="text-xl font-bold">Followers</h1>
                   <p className="text-sm text-gray-500 mt-1">
-                    {followersState.loading ? 
+                    {followersState.loading ?
                       'Loading...' :
                       `${followersState.data?.length || 0} ${followersState.data?.length === 1 ? 'follower' : 'followers'}`
                     }
@@ -222,7 +224,7 @@ function FollowersPage() {
                       <div className="h-12 w-12 rounded-full overflow-hidden bg-gray-100">
                         <AvatarCanvas features={generateAvatarV2(follower.id)} size={48} />
                       </div>
-                      
+
                       <div className="flex-1">
                         <div className="flex items-start justify-between">
                           <div>
@@ -231,8 +233,8 @@ function FollowersPage() {
                             </h3>
                             <p className="text-sm text-gray-500">@{follower.username}</p>
                             {follower.allUsernames && follower.allUsernames.length > 1 && (
-                              <AlsoKnownAs 
-                                primaryUsername={follower.username} 
+                              <AlsoKnownAs
+                                primaryUsername={follower.username}
                                 allUsernames={follower.allUsernames}
                                 identityId={follower.id}
                               />
@@ -253,7 +255,7 @@ function FollowersPage() {
                               </span>
                             </div>
                           </div>
-                          
+
                           {follower.isFollowingBack ? (
                             <Button
                               variant="outline"
