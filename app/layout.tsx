@@ -3,7 +3,7 @@ import type { Metadata } from 'next'
 import Script from 'next/script'
 import { Inter } from 'next/font/google'
 
-/* Import sytles. */
+/* Import styles. */
 import './globals.css'
 
 /* Import (3rd-party) modules. */
