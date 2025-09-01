@@ -11,19 +11,19 @@ export const DEFAULT_NETWORK = 'testnet'
 
 // Document types
 export const DOCUMENT_TYPES = {
-  PROFILE: 'profile',
-  AVATAR: 'avatar',
-  POST: 'post',
-  LIKE: 'like',
-  REPOST: 'repost',
-  FOLLOW: 'follow',
-  BOOKMARK: 'bookmark',
-  LIST: 'list',
-  LIST_MEMBER: 'listMember',
-  BLOCK: 'block',
-  MUTE: 'mute',
-  DIRECT_MESSAGE: 'directMessage',
-  NOTIFICATION: 'notification'
+    PROFILE: 'profile',
+    AVATAR: 'avatar',
+    POST: 'post',
+    LIKE: 'like',
+    REPOST: 'repost',
+    FOLLOW: 'follow',
+    BOOKMARK: 'bookmark',
+    LIST: 'list',
+    LIST_MEMBER: 'listMember',
+    BLOCK: 'block',
+    MUTE: 'mute',
+    DIRECT_MESSAGE: 'directMessage',
+    NOTIFICATION: 'notification'
 } as const
 
 // DPNS
