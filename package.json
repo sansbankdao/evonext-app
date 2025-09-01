@@ -1,6 +1,6 @@
 {
-  "name": "yappr",
-  "version": "25.8.30",
+  "name": "yappr-world",
+  "version": "25.9.1",
   "license": "MIT",
   "scripts": {
     "dev": "next dev",
