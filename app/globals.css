@@ -3,44 +3,44 @@
 @tailwind utilities;
 
 @layer base {
-  :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-  }
+    :root {
+        --background: 0 0% 100%;
+        --foreground: 222.2 84% 4.9%;
+    }
 
-  .dark {
-    --background: 0 0% 0%;
-    --foreground: 210 40% 98%;
-  }
+    .dark {
+        --background: 0 0% 0%;
+        --foreground: 210 40% 98%;
+    }
 }
 
 @layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
+    .text-balance {
+        text-wrap: balance;
+    }
 
-  .scrollbar-hide {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
+    .scrollbar-hide {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
 
-  .scrollbar-hide::-webkit-scrollbar {
-    display: none;
-  }
+    .scrollbar-hide::-webkit-scrollbar {
+        display: none;
+    }
 
-  .glass-effect {
-    @apply backdrop-blur-xl bg-white/80 dark:bg-black/80;
-  }
+    .glass-effect {
+        @apply backdrop-blur-xl bg-white/80 dark:bg-black/80;
+    }
 
-  .glass-border {
-    @apply border border-gray-200/50 dark:border-gray-800/50;
-  }
+    .glass-border {
+        @apply border border-gray-200/50 dark:border-gray-800/50;
+    }
 
-  .interactive-scale {
-    @apply transition-transform duration-150 active:scale-[0.98];
-  }
+    .interactive-scale {
+        @apply transition-transform duration-150 active:scale-[0.98];
+    }
 
-  .text-gradient {
-    @apply bg-gradient-to-r from-yappr-500 to-yappr-600 bg-clip-text text-transparent;
-  }
+    .text-gradient {
+        @apply bg-gradient-to-r from-yappr-500 to-yappr-600 bg-clip-text text-transparent;
+    }
 }
