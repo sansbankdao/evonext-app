@@ -43,12 +43,11 @@ const nextConfig = {
                         key: 'Content-Security-Policy',
                         value: [
                             "default-src 'self'",
-                            "script-src 'self' 'unsafe-eval' 'unsafe-inline'",
+                            "script-src 'self' 'unsafe-eval' 'unsafe-inline'  https://scripts.simpleanalyticscdn.com",
                             "style-src 'self' 'unsafe-inline'",
                             "img-src 'self' data: https: blob:",
                             "font-src 'self'",
                             "connect-src 'self' https: wss: https://44.240.98.102:1443",
-                            "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://scripts.simpleanalyticscdn.com",
                             "worker-src 'self' blob:",
                             "child-src 'self' blob:"
                         ].join('; ')
