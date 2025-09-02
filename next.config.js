@@ -52,6 +52,11 @@ const nextConfig = {
                             "child-src 'self' blob:"
                         ].join('; ')
                     },
+                    // This header is required for 3rd-party SCRIPTS to work
+                    {
+                        key: 'Cross-Origin-Resource-Policy',
+                        value: 'cross-origin'
+                    },
                     // CRITICAL: These headers are required for WASM to work
                     {
                         key: 'Cross-Origin-Embedder-Policy',
@@ -60,10 +65,6 @@ const nextConfig = {
                     {
                         key: 'Cross-Origin-Opener-Policy',
                         value: 'same-origin'
-                    },
-                    {
-                        key: 'Cross-Origin-Resource-Policy',
-                        value: 'cross-origin'
                     },
                 ]
             },
