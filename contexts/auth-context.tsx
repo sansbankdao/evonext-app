@@ -304,7 +304,7 @@ export function withAuth<P extends object>(
 
             if (!options?.allowWithoutDPNS && !user.dpnsUsername && !skipDPNS) {
                 console.log('No DPNS username found, redirecting to DPNS registration...')
-                router.push('/dpns/register')
+                router.push('/claim')
 
                 return
             }
