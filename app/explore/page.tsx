@@ -16,71 +16,72 @@ import { useAuth } from '@/contexts/auth-context'
 type TabType = 'trending' | 'news' | 'sports' | 'entertainment'
 
 export default function ExplorePage() {
-  const { user } = useAuth()
-  const [searchQuery, setSearchQuery] = useState('')
-  const [isSearchFocused, setIsSearchFocused] = useState(false)
-  const [activeTab, setActiveTab] = useState<TabType>('trending')
-  const [searchHistory] = useState(['Web Development', 'React', 'TypeScript', 'Yappr'])
-  const [posts, setPosts] = useState<any[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [searchResults, setSearchResults] = useState<any[]>([])
+    const { user } = useAuth()
+    const [searchQuery, setSearchQuery] = useState('')
+    const [isSearchFocused, setIsSearchFocused] = useState(false)
+    const [activeTab, setActiveTab] = useState<TabType>('trending')
+    const [searchHistory] = useState(['Web Development', 'React', 'TypeScript', 'Yappr'])
+    const [posts, setPosts] = useState<any[]>([])
+    const [isLoading, setIsLoading] = useState(true)
+    const [searchResults, setSearchResults] = useState<any[]>([])
 
-  // Load trending posts (public data, no auth required)
-  useEffect(() => {
-    const loadTrendingPosts = async () => {
-      try {
-        setIsLoading(true)
-        const { getDashPlatformClient } = await import('@/lib/dash-platform-client')
-        const dashClient = getDashPlatformClient()
-        
-        // Load recent posts (as trending)
-        const fetchedPosts = await dashClient.queryPosts({ 
-          limit: 20
-        })
-        
-        // Transform posts
-        const transformedPosts = fetchedPosts.map((post: any) => ({
-          id: post.$id,
-          content: post.content,
-          author: {
-            id: post.authorId,
-            username: post.authorId.slice(0, 8) + '...',
-            handle: post.authorId.slice(0, 8).toLowerCase()
-          },
-          timestamp: new Date(post.$createdAt).toISOString(),
-          likes: 0,
-          replies: 0,
-          reposts: 0,
-          views: 0
-        }))
-        
-        setPosts(transformedPosts)
-      } catch (error) {
-        console.error('Failed to load posts:', error)
-      } finally {
-        setIsLoading(false)
-      }
-    }
-    
-    loadTrendingPosts()
-  }, [])
+    // Load trending posts (public data, no auth required)
+    useEffect(() => {
+        const loadTrendingPosts = async () => {
+            try {
+                setIsLoading(true)
 
-  // Search posts when query changes
-  useEffect(() => {
-    if (!searchQuery) {
-      setSearchResults([])
-      return
-    }
-    
+                const { getDashPlatformClient } = await import('@/lib/dash-platform-client')
+                const dashClient = getDashPlatformClient()
+
+                // Load recent posts (as trending)
+                const fetchedPosts = await dashClient.queryPosts({
+                    limit: 20
+                })
+
+                // Transform posts
+                const transformedPosts = fetchedPosts.map((post: any) => ({
+                    id: post.$id,
+                    content: post.content,
+                    author: {
+                        id: post.authorId,
+                        username: post.authorId.slice(0, 8) + '...',
+                        handle: post.authorId.slice(0, 8).toLowerCase()
+                    },
+                    timestamp: new Date(post.$createdAt).toISOString(),
+                    likes: 0,
+                    replies: 0,
+                    reposts: 0,
+                    views: 0
+                }))
+
+                setPosts(transformedPosts)
+            } catch (error) {
+                console.error('Failed to load posts:', error)
+            } finally {
+                setIsLoading(false)
+            }
+        }
+
+        loadTrendingPosts()
+    }, [])
+
+    // Search posts when query changes
+    useEffect(() => {
+        if (!searchQuery) {
+            setSearchResults([])
+            return
+        }
+
     const searchPosts = async () => {
       try {
         const { getDashPlatformClient } = await import('@/lib/dash-platform-client')
         const dashClient = getDashPlatformClient()
-        
+
         // Simple content search - in production you'd want full-text search
         const allPosts = await dashClient.queryPosts({ limit: 100 })
-        
-        const filtered = allPosts.filter((post: any) => 
+
+        const filtered = allPosts.filter((post: any) =>
           post.content.toLowerCase().includes(searchQuery.toLowerCase())
         ).map((post: any) => ({
           id: post.$id,
@@ -96,19 +97,19 @@ export default function ExplorePage() {
           reposts: 0,
           views: 0
         }))
-        
+
         setSearchResults(filtered)
       } catch (error) {
         console.error('Search failed:', error)
       }
     }
-    
+
     const debounceTimer = setTimeout(searchPosts, 300)
     return () => clearTimeout(debounceTimer)
   }, [searchQuery])
 
   const displayPosts = searchQuery ? searchResults : posts
-  
+
   // Mock trends with funny/creative hashtags
   const mockTrends = [
     { topic: '#Cancun', posts: 15420, popularity: Math.log10(15420).toFixed(2), trend: 'up' },
@@ -135,7 +136,7 @@ export default function ExplorePage() {
   return (
     <div className="min-h-screen flex">
       <Sidebar />
-      
+
       <div className="flex-1 flex justify-center">
         <main className="w-full max-w-[600px] border-x border-gray-200 dark:border-gray-800">
         <header className="sticky top-0 z-40 bg-white/80 dark:bg-black/80 backdrop-blur-xl">
@@ -151,7 +152,7 @@ export default function ExplorePage() {
                 <ArrowLeftIcon className="h-5 w-5" />
               </button>
             )}
-            
+
             <div className="relative flex-1">
               <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-500" />
               <input
@@ -353,7 +354,7 @@ export default function ExplorePage() {
                           <span>{formatNumber(trend.posts)} posts</span>
                           <span>•</span>
                           <span className="flex items-center gap-1">
-                            Popularity: 
+                            Popularity:
                             <strong className="text-gray-900 dark:text-gray-100">{trend.popularity}</strong>
                           </span>
                         </div>
