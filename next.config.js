@@ -43,19 +43,14 @@ const nextConfig = {
                         key: 'Content-Security-Policy',
                         value: [
                             "default-src 'self'",
-                            "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://scripts.simpleanalyticscdn.com",
+                            "script-src 'self' 'unsafe-eval' 'unsafe-inline'",
                             "style-src 'self' 'unsafe-inline'",
                             "img-src 'self' data: https: blob:",
                             "font-src 'self'",
-                            "connect-src 'self' https: wss: https://44.240.98.102:1443",
+                            // "connect-src 'self' https: wss: https://44.240.98.102:1443",
                             "worker-src 'self' blob:",
                             "child-src 'self' blob:"
                         ].join('; ')
-                    },
-                    // This header is required for 3rd-party SCRIPTS to work
-                    {
-                        key: 'Cross-Origin-Resource-Policy',
-                        value: 'cross-origin'
                     },
                     // CRITICAL: These headers are required for WASM to work
                     {

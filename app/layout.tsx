@@ -53,7 +53,7 @@ export default function RootLayout({
                     }}
                 />
             </body>
-            <Script src="https://scripts.simpleanalyticscdn.com/latest.js" />
+            <Script src="/js/latest.js" strategy="afterInteractive" />
         </html>
     )
 }
