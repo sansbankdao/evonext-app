@@ -43,7 +43,7 @@ const nextConfig = {
                         key: 'Content-Security-Policy',
                         value: [
                             "default-src 'self'",
-                            "script-src 'self' 'unsafe-eval' 'unsafe-inline'  https://scripts.simpleanalyticscdn.com",
+                            "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://scripts.simpleanalyticscdn.com",
                             "style-src 'self' 'unsafe-inline'",
                             "img-src 'self' data: https: blob:",
                             "font-src 'self'",
@@ -60,7 +60,11 @@ const nextConfig = {
                     {
                         key: 'Cross-Origin-Opener-Policy',
                         value: 'same-origin'
-                    }
+                    },
+                    {
+                        key: 'Cross-Origin-Resource-Policy',
+                        value: 'cross-origin'
+                    },
                 ]
             },
             {
