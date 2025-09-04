@@ -132,7 +132,7 @@ export default function PublicHomePage() {
                 </div>
 
                 {/* Main content skeleton */}
-                <main className="flex-1 max-w-[1200px] mx-auto px-8 py-16">
+                <main className="flex-1 mx-auto px-8 py-16">
                     <div className="text-center mb-16">
                         <div className="h-16 w-96 bg-gray-200 dark:bg-gray-800 rounded mx-auto mb-4 animate-pulse" />
                         <div className="h-6 w-[500px] bg-gray-100 dark:bg-gray-900 rounded mx-auto mb-8 animate-pulse" />
@@ -151,7 +151,7 @@ export default function PublicHomePage() {
         <div className="min-h-screen flex">
             <Sidebar />
 
-            <main className="flex-1 max-w-[1200px] mx-auto px-8">
+            <main className="flex-1 mx-auto px-8">
                 {/* Hero Section */}
                 <section className="py-12 text-center">
                     <motion.div
