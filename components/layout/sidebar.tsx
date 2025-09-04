@@ -17,6 +17,7 @@ import {
     UserGroupIcon,
     UsersIcon,
     HashtagIcon,
+    SparklesIcon,
 } from '@heroicons/react/24/outline'
 
 import {
@@ -29,6 +30,7 @@ import {
     UserGroupIcon as UserGroupIconSolid,
     UsersIcon as UsersIconSolid,
     HashtagIcon as HashtagIconSolid,
+    SparklesIcon as SparklesIconSolid,
 } from '@heroicons/react/24/solid'
 
 import { cn } from '@/lib/utils'
@@ -45,7 +47,7 @@ const getNavigation = (isLoggedIn: boolean) => {
     if (!isLoggedIn) {
         return [
             { name: 'Home', href: '/', icon: HomeIcon, activeIcon: HomeIconSolid },
-            { name: 'Following', href: '/following', icon: UserGroupIcon, activeIcon: UserGroupIconSolid },
+            { name: 'Explore', href: '/explore', icon: HashtagIcon, activeIcon: HashtagIconSolid },
             { name: 'Claim', href: '/claim', icon: UserIcon, activeIcon: UserIconSolid },
         ]
     }
@@ -54,7 +56,8 @@ const getNavigation = (isLoggedIn: boolean) => {
         { name: 'Home', href: '/feed', icon: HomeIcon, activeIcon: HomeIconSolid },
         { name: 'Following', href: '/following', icon: UserGroupIcon, activeIcon: UserGroupIconSolid },
         { name: 'Followers', href: '/followers', icon: UsersIcon, activeIcon: UsersIconSolid },
-        { name: 'Explore', href: '/explore', icon: HashtagIcon, activeIcon: HashtagIconSolid },
+        { name: 'Explore', href: '/explore', icon: SparklesIcon, activeIcon: SparklesIconSolid },
+        { name: 'Remix', href: '/remix', icon: BookmarkIcon, activeIcon: BookmarkIconSolid },
         { name: 'Messages', href: '/messages', icon: EnvelopeIcon, activeIcon: EnvelopeIconSolid },
         { name: 'Bookmarks', href: '/bookmarks', icon: BookmarkIcon, activeIcon: BookmarkIconSolid },
         { name: 'Profile', href: '/profile', icon: UserIcon, activeIcon: UserIconSolid },

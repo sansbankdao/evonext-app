@@ -5,7 +5,6 @@ const nextConfig = {
     },
     reactStrictMode: true,
     images: {
-        // domains: ['images.unsplash.com', 'api.dicebear.com'],
         // remotePatterns: [ // NOTE: Avail after v15.3.0
         //     new URL('https://images.unsplash.com/**'),
         //     new URL('https://api.dicebear.com/**'),

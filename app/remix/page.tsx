@@ -155,11 +155,11 @@ function BookmarksPage() {
                     <div className="flex items-center justify-between px-4 py-3">
                         <div>
                             <h1 className="text-xl font-bold">
-                                Bookmarks
+                                Remixes
                             </h1>
 
                             <p className="text-sm text-gray-500">
-                                {bookmarks.length} saved posts
+                                {bookmarks.length} remixed posts
                             </p>
                         </div>
 
