@@ -185,7 +185,7 @@ export default function PublicHomePage() {
 
                             <Button size="lg" variant="outline" asChild className="text-xl font-medium">
                                 <Link href="/explore">
-                                    Explore Posts
+                                    Open Feed
                                 </Link>
                             </Button>
                         </div>
