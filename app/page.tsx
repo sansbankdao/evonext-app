@@ -15,12 +15,14 @@ import { Sidebar } from '@/components/layout/sidebar'
 import { Button } from '@/components/ui/button'
 import { PostCard } from '@/components/post/post-card'
 import { useAuth } from '@/contexts/auth-context'
+import { useNetwork } from '@/contexts/network-context'
 import Link from 'next/link'
 import { formatNumber } from '@/lib/utils'
 
 export default function PublicHomePage() {
     const router = useRouter()
     const { user } = useAuth()
+    const { network } = useNetwork()
     const [trendingPosts, setTrendingPosts] = useState<any[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [isHydrated, setIsHydrated] = useState(false)
@@ -46,7 +48,7 @@ export default function PublicHomePage() {
                 const mockTrendingPosts = [
                     {
                         id: '1',
-                        content: 'Just deployed my first dApp on Dash Platform! 🚀 The future is decentralized.',
+                        content: `Just deployed my first dApp on Dash (${network}) Platform! 🚀 The future is decentralized.`,
                         author: {
                             id: 'trending1',
                             username: 'cryptodev',

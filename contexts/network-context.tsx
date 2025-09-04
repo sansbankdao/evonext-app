@@ -4,35 +4,42 @@ import React, { createContext, useContext, useEffect, useState } from 'react'
 import { wasmSdkService } from '@/lib/services/wasm-sdk-service'
 import { YAPPR_CONTRACT_ID } from '@/lib/constants'
 
+type Network = 'mainnet' | 'testnet' | string | null;
+
 interface NetworkContextType {
-    isReady: boolean
-    error: string | null
+    network: Network;
+    error: string | null;
 }
 
-const NetworkContext = createContext<NetworkContextType>({ isReady: false, error: null })
+const NetworkContext = createContext<NetworkContextType>({ network: null, error: null })
 
 export function NetworkProvider({ children }: { children: React.ReactNode }) {
-    const [isReady, setIsReady] = useState(false)
+    const [network, setNetwork] = useState<Network>(null)
     const [error, setError] = useState<string | null>(null)
 
     useEffect(() => {
         const initializeNetwork = async () => {
             try {
-                console.log('NetworkProvider: Starting WASM SDK initialization for testnet...')
+                /* Set host. */
+                const host = window.location.host
+    // console.log('DOMAIN HOST', host)
 
-                // Initialize with testnet configuration
-                await wasmSdkService.initialize({
-                    network: 'testnet',
-                    contractId: YAPPR_CONTRACT_ID
-                })
-
-                setIsReady(true)
-                console.log('NetworkProvider: WASM SDK initialized successfully, isReady = true')
+                /* Handle host. */
+                switch(host) {
+                case 'yappr.world':
+                    setNetwork('mainnet')
+                    break
+                case 'testnet.yappr.world':
+                    setNetwork('testnet')
+                    break
+                default:
+                    setNetwork(host)
+                    break
+                }
+console.log('YOUR CURRENT NETWORK IS', network)
             } catch (err) {
                 console.error('NetworkProvider: Failed to initialize WASM SDK:', err)
                 setError(err instanceof Error ? err.message : 'Failed to initialize SDK')
-                // Still set isReady to false explicitly
-                setIsReady(false)
             }
         }
 
@@ -46,7 +53,7 @@ export function NetworkProvider({ children }: { children: React.ReactNode }) {
     }, [])
 
     return (
-        <NetworkContext.Provider value={{ isReady, error }}>
+        <NetworkContext.Provider value={{ network, error }}>
             {children}
         </NetworkContext.Provider>
     )
