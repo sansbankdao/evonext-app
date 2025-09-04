@@ -48,6 +48,7 @@ const nextConfig = {
                             "img-src 'self' data: https: blob:",
                             "font-src 'self'",
                             // "connect-src 'self' https: wss: https://44.240.98.102:1443",
+                            "connect-src 'self' *",
                             "worker-src 'self' blob:",
                             "child-src 'self' blob:"
                         ].join('; ')

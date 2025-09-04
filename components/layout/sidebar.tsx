@@ -46,6 +46,7 @@ const getNavigation = (isLoggedIn: boolean) => {
         return [
             { name: 'Home', href: '/', icon: HomeIcon, activeIcon: HomeIconSolid },
             { name: 'Following', href: '/following', icon: UserGroupIcon, activeIcon: UserGroupIconSolid },
+            { name: 'Claim', href: '/claim', icon: UserIcon, activeIcon: UserIconSolid },
         ]
     }
 
@@ -109,7 +110,7 @@ export function Sidebar() {
                                 )}
                             >
                                 <Icon className="h-7 w-7" />
-                                <span className="hidden xl:block">{item.name}</span>
+                                <span className="block">{item.name}</span>
                             </Link>
                         )
                     })}
@@ -120,7 +121,7 @@ export function Sidebar() {
                             className="flex items-center gap-4 px-3 py-3 text-xl rounded-full transition-all duration-200 hover:bg-gray-100 dark:hover:bg-gray-900"
                         >
                             <Cog6ToothIcon className="h-7 w-7" />
-                            <span className="hidden xl:block">Settings</span>
+                            <span className="block">Settings</span>
                         </Link>
                     )}
                 </nav>
@@ -132,7 +133,7 @@ export function Sidebar() {
                         size="lg"
                     >
                         <PencilSquareIcon className="h-6 w-6 xl:hidden" />
-                        <span className="hidden xl:block">Post</span>
+                        <span className="block">Post</span>
                     </Button>
                 ) : isHydrated ? (
                     <div className="mt-8 space-y-3">
@@ -167,7 +168,7 @@ export function Sidebar() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
                     </svg>
 
-                    <span className="hidden xl:block">View Data Contract</span>
+                    <span className="block">View Data Contract</span>
                 </Link>
 
                 {user && isHydrated && (
@@ -184,7 +185,7 @@ export function Sidebar() {
                                     )}
                                 </div>
 
-                                <div className="hidden xl:flex flex-1 text-left">
+                                <div className="flex flex-1 text-left">
                                     <div className="flex-1">
                                         <p className="text-sm font-semibold">Identity</p>
 
