@@ -176,16 +176,16 @@ export default function PublicHomePage() {
                         </p>
 
                         <div className="flex gap-4 justify-center">
-                            <Button size="lg" asChild className="shadow-yappr-lg text-xl font-medium">
+                            <Button size="lg" asChild className="shadow-yappr-lg text-lg font-medium">
                                 <Link href="/login">
                                     Get Connected
                                     <ArrowRightIcon className="ml-2 h-5 w-5" />
                                 </Link>
                             </Button>
 
-                            <Button size="lg" variant="outline" asChild className="text-xl font-medium">
+                            <Button size="lg" variant="outline" asChild className="text-lg font-medium">
                                 <Link href="/explore">
-                                    Open Feed
+                                    Start Exploring
                                 </Link>
                             </Button>
                         </div>
