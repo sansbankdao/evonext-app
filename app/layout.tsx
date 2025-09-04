@@ -18,7 +18,44 @@ const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
     title: 'Yappr! Free Your Inner Voice',
-    description: 'An unstoppable social community for the fearless and the brave.',
+    description: 'Discover safe and enjoyable spaces to Explore. Curate. Share YOUR TRUTH without any fear of social consequence.',
+
+    viewport: 'width=device-width, initial-scale=1.0',
+    icons: {
+        icon: '/favicon.ico',
+    },
+    keywords: 'dash evolution platform social media network',
+    authors: [
+        {
+            name: 'Sansbank DAO',
+            url: 'https://sansbank.org',
+        }
+    ],
+    openGraph: {
+        title: 'Yappr! Free Your Inner Voice',
+        description: 'Discover safe and enjoyable spaces to Explore. Curate. Share YOUR TRUTH without any fear of social consequence.',
+        images: [
+            {
+                url: '/poster.webp',
+                width: 1500,
+                height: 500,
+                alt: 'Yappr! media banner',
+            }
+        ],
+    },
+    twitter: {
+        card: 'summary_large_image',
+        title: 'Yappr! Free Your Inner Voice',
+        description: 'Discover safe and enjoyable spaces to Explore. Curate. Share YOUR TRUTH without any fear of social consequence.',
+        images: [
+            {
+                url: '/poster.webp',
+                width: 1500,
+                height: 500,
+                alt: 'Yappr! media banner',
+            }
+        ],
+    },
 }
 
 export default function RootLayout({
@@ -27,8 +64,8 @@ export default function RootLayout({
     children: React.ReactNode
 }) {
     return (
-        <html lang="en" className="h-full">
-            <body className={`${inter.className} h-full bg-white dark:bg-black`}>
+        <html lang="en" className="w-screen h-screen bg-rose-500">
+            <body className={`${inter.className} w-screen h-screen bg-lime-500`}>
                 <ErrorBoundary level="app">
                     <Providers>
                         <DevelopmentBanner />
