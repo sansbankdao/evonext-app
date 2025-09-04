@@ -1,5 +1,7 @@
 /* Import (core) modules. */
 import type { Metadata } from 'next'
+import type { Viewport } from 'next'
+
 import Script from 'next/script'
 import { Inter } from 'next/font/google'
 
@@ -16,12 +18,19 @@ import { DevelopmentBanner } from '@/components/ui/development-banner'
 
 const inter = Inter({ subsets: ['latin'] })
 
+export const viewport: Viewport = {
+    width: 'device-width',
+    initialScale: 1,
+    maximumScale: 1,
+    userScalable: false,
+    // themeColor: 'black',
+}
+
 export const metadata: Metadata = {
+    metadataBase: new URL('https://yappr.world'), // FIXME Handle Testnet
     title: 'Yappr! Free Your Inner Voice',
     applicationName: 'Yappr! Free Your Inner Voice',
     description: 'Discover safe and enjoyable spaces to Explore. Curate. Share YOUR TRUTH without any fear of social consequence.',
-
-    viewport: 'width=device-width, initial-scale=1.0',
     icons: {
         icon: '/favicon.ico',
     },
