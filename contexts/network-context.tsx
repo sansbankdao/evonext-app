@@ -22,7 +22,6 @@ export function NetworkProvider({ children }: { children: React.ReactNode }) {
             try {
                 /* Set host. */
                 const host = window.location.host
-    // console.log('DOMAIN HOST', host)
 
                 /* Handle host. */
                 switch(host) {
@@ -36,7 +35,6 @@ export function NetworkProvider({ children }: { children: React.ReactNode }) {
                     setNetwork(host)
                     break
                 }
-console.log('YOUR CURRENT NETWORK IS', network)
             } catch (err) {
                 console.error('NetworkProvider: Failed to initialize WASM SDK:', err)
                 setError(err instanceof Error ? err.message : 'Failed to initialize SDK')

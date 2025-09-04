@@ -100,7 +100,7 @@ export default function PublicHomePage() {
 
         // Load immediately for better perceived performance
         loadTrendingPosts()
-    }, [])
+    }, [network])
 
     const trendingTopics = [
         { topic: '#DashPlatform', posts: 1234, trend: '+15%' },
