@@ -179,7 +179,7 @@ export default function PublicHomePage() {
 
                         <div className="flex gap-4 justify-center">
                             <Button size="lg" asChild className="shadow-yappr-lg text-2xl font-medium">
-                                <Link href="/login">
+                                <Link href="/connect">
                                     Connect
                                     <ArrowRightIcon className="ml-2 h-5 w-5" />
                                 </Link>
@@ -305,8 +305,8 @@ export default function PublicHomePage() {
 
                             <div className="text-center pt-8">
                                 <Button variant="outline" asChild>
-                                    <Link href="/login">
-                                        Sign in to see more
+                                    <Link href="/connect">
+                                        Connect to see more
                                     </Link>
                                 </Button>
                             </div>
@@ -323,7 +323,7 @@ export default function PublicHomePage() {
                     </p>
 
                     <Button size="lg" asChild className="shadow-yappr-lg">
-                        <Link href="/login">
+                        <Link href="/connect">
                             Create Account
                             <ArrowRightIcon className="ml-2 h-5 w-5" />
                         </Link>

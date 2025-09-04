@@ -32,9 +32,13 @@ export default function LoginPage() {
         <div className="min-h-screen bg-white dark:bg-black flex items-center justify-center px-4">
             <div className="max-w-md w-full space-y-8">
                 <div className="text-center">
-                    <h1 className="text-4xl font-bold text-gradient mb-2">Yappr</h1>
+                    <h1 className="text-4xl font-bold text-gradient mb-2">
+                        Yappr!
+                    </h1>
 
-                    <p className="text-gray-600 dark:text-gray-400">Sign in with your Dash Platform identity</p>
+                    <p className="text-gray-600 dark:text-gray-400">
+                        Get connected with your Dash Platform Identity
+                    </p>
                 </div>
 
                 <form onSubmit={handleSubmit} className="mt-8 space-y-6">
@@ -119,7 +123,8 @@ export default function LoginPage() {
                         </h3>
 
                         <p>
-                            Your private key is only used locally to sign transactions. It is never sent to any server.
+                            Your private key is only used locally to sign transactions.
+                            It is never sent to any server.
                         </p>
                     </div>
                 </div>

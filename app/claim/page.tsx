@@ -39,10 +39,10 @@ export default function DPNSRegisterPage() {
 
                     <div className="space-y-4">
                         <Link
-                            href="/login"
+                            href="/connect"
                             className="block w-full text-center font-bold tracking-wider bg-purple-600 text-slate-100 text-xl py-3 px-4 rounded-lg hover:bg-purple-700 transition-colors"
                         >
-                            Go to Login
+                            Get Connected
                         </Link>
 
                         <Link

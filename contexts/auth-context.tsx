@@ -224,7 +224,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             dashClient.setIdentity('')
         })
 
-        router.push('/login')
+        router.push('/connect')
     }, [router])
 
     const updateDPNSUsername = useCallback((username: string) => {
@@ -294,7 +294,7 @@ export function withAuth<P extends object>(
                 }
 
                 console.log('No user found, redirecting to login...')
-                router.push('/login')
+                router.push('/connect')
 
                 return
             }

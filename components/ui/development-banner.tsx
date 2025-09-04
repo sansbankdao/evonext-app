@@ -74,6 +74,18 @@ export function DevelopmentBanner() {
                         Clear Cache
                     </span>
                 </button>
+
+                <a
+                    href="/connect"
+                    className="ml-4 flex items-center gap-1 px-3 py-1 bg-white/20 hover:bg-white/30 rounded-md transition-colors"
+                    title="Clear cache and reload"
+                >
+                    {/* <ArrowPathIcon className="h-4 w-4" /> */}
+
+                    <span className="font-mono">
+                        Connect
+                    </span>
+                </a>
             </div>
         </div>
     )
