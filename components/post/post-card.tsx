@@ -92,7 +92,7 @@ export function PostCard({ post, hideAvatar = false, isOwnPost = false }: PostCa
                     <div className="h-12 w-12 rounded-full overflow-hidden bg-gray-100">
                         {isOwnPost ? (
                             <Image
-                                src="/yappr.png"
+                                src="/icon.png"
                                 alt="Yappr"
                                 width={48}
                                 height={48}

@@ -5,7 +5,25 @@ const nextConfig = {
     },
     reactStrictMode: true,
     images: {
-        domains: ['images.unsplash.com', 'api.dicebear.com'],
+        // domains: ['images.unsplash.com', 'api.dicebear.com'],
+        // remotePatterns: [ // NOTE: Avail after v15.3.0
+        //     new URL('https://images.unsplash.com/**'),
+        //     new URL('https://api.dicebear.com/**'),
+        // ],
+        remotePatterns: [
+            {
+                protocol: 'https',
+                hostname: 'images.unsplash.com',
+                port: '',
+                pathname: '/**',
+            },
+            {
+                protocol: 'https',
+                hostname: 'api.dicebear.com',
+                port: '',
+                pathname: '/**',
+            },
+        ]
     },
     webpack: (config, { isServer }) => {
         // Optimize Dash SDK bundle size
