@@ -172,20 +172,20 @@ export default function PublicHomePage() {
                         </h2>
 
                         <p className="text-lg/7 text-slate-600 dark:text-slate-400 sm:max-w-2xl mb-8 mx-auto tracking-wider">
-                            Discover safe and enjoyable spaces to Explore. Curate. Share YOUR TRUTH without any fear of social consequences.
+                            Discover safe and enjoyable spaces to <span className="font-extrabold">Explore. Curate. Share YOUR TRUTH</span> without any fear of social consequences.
                         </p>
 
                         <div className="flex gap-4 justify-center">
-                            <Button size="lg" asChild className="shadow-yappr-lg">
+                            <Button size="lg" asChild className="shadow-yappr-lg text-xl font-medium">
                                 <Link href="/login">
-                                    Get Started
+                                    Get Connected
                                     <ArrowRightIcon className="ml-2 h-5 w-5" />
                                 </Link>
                             </Button>
 
-                            <Button size="lg" variant="outline" asChild>
+                            <Button size="lg" variant="outline" asChild className="text-xl font-medium">
                                 <Link href="/explore">
-                                    Explore Public Posts
+                                    Explore Posts
                                 </Link>
                             </Button>
                         </div>
