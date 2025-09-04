@@ -151,7 +151,7 @@ export default function PublicHomePage() {
         <div className="min-h-screen flex">
             <Sidebar />
 
-            <main className="flex-1 mx-auto px-8">
+            <main className="flex px-3 sm:px-8">
                 {/* Hero Section */}
                 <section className="py-12 text-center">
                     <motion.div
