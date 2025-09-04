@@ -1,8 +1,8 @@
-# Yappr Contract Deployment Summary
+# Yappr! Contract Deployment Summary
 
 ## Contract Details (Updated)
 - **Contract ID**: `AyWK6nDVfb8d1ZmkM5MmZZrThbUyWyso1aMeGuuVSfxf`
-- **Previous Contract IDs**: 
+- **Previous Contract IDs**:
   - `9nzpvjVSStUrhkEs3eNHw2JYpcNoLh1MjmqW45QiyjSa`
   - `AiZopUC5qFAcg58sX5CsMkLoiPywNG3zmJBXT9crunVk`
 - **Network**: Testnet
@@ -27,7 +27,7 @@ Due to Dash Platform validation requirements, the following changes were made:
 ### 3. Complex Arrays
 Due to platform limitations with object arrays, we temporarily simplified:
 - **media**: Changed from array of objects to single `mediaUrl` string field
-- **mentions**: Changed from array to single `firstMentionId` field  
+- **mentions**: Changed from array to single `firstMentionId` field
 - **hashtags**: Changed from array to single `primaryHashtag` string field
 
 ### 4. Required Properties

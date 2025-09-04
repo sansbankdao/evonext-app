@@ -1,10 +1,10 @@
-# Yappr Social Platform - Dash Data Contract
+# Yappr! Social Platform - Dash Data Contract
 
-This directory contains the Dash Platform data contract for the Yappr social media dapp.
+This directory contains the Dash Platform data contract for the Yappr! social media dapp.
 
 ## Overview
 
-The Yappr data contract defines all the document types and schemas needed for a full-featured social media platform on Dash Platform. It includes support for:
+The Yappr! data contract defines all the document types and schemas needed for a full-featured social media platform on Dash Platform. It includes support for:
 
 - User profiles with verification
 - Posts with media attachments

@@ -1,4 +1,4 @@
-// Enhanced Avatar generator for Yappr with 32 customizable properties
+// Enhanced Avatar generator for Yappr! with 32 customizable properties
 // Generates a unique avatar string based on various features with slider controls
 
 export interface AvatarFeaturesV2 {

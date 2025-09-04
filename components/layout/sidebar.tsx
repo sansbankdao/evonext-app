@@ -151,7 +151,7 @@ export function Sidebar() {
                         </Button>
 
                         <p className="text-xs text-center text-gray-500 px-4">
-                            Join Yappr to share your voice on the decentralized web
+                            Join Yappr! to share your voice on the decentralized web
                         </p>
                     </div>
                 ) : (

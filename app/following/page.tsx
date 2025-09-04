@@ -122,7 +122,7 @@ function FollowingPage() {
                     }
                 })),
 
-                // Fetch Yappr profiles
+                // Fetch Yappr! profiles
                 profileService.getProfilesByIdentityIds(identityIds)
             ])
 
@@ -149,7 +149,7 @@ function FollowingPage() {
                     id: followingId,
                     username: username || `user_${followingId.slice(-6)}`,
                     displayName: profile?.displayName || username || `User ${followingId.slice(-6)}`,
-                    bio: profile?.bio || (profile ? 'Yappr user' : 'Not yet on Yappr'),
+                    bio: profile?.bio || (profile ? 'Yappr! user' : 'Not yet on Yappr!'),
                     hasProfile: !!profile,
                     followersCount: 0, // Would need to query this
                     followingCount: 0, // Would need to query this
@@ -255,7 +255,7 @@ function FollowingPage() {
                 // Get all unique identity IDs from search results
                 const uniqueIdentityIds = Array.from(new Set(searchResults.map(r => r.ownerId).filter(id => id)))
 
-                // Query Yappr profiles for all these identities
+                // Query Yappr! profiles for all these identities
                 let profiles: any[] = []
 
                 if (uniqueIdentityIds.length > 0) {
@@ -264,7 +264,7 @@ function FollowingPage() {
                         // Query profiles where $ownerId is in the array of unique identity IDs
 
                         profiles = await profileService.getProfilesByIdentityIds(uniqueIdentityIds)
-                        console.log('Found Yappr profiles:', profiles)
+                        console.log('Found Yappr! profiles:', profiles)
                     } catch (error) {
                         console.error('Error fetching profiles:', error)
                     }
@@ -459,7 +459,7 @@ function FollowingPage() {
                                                                                     </TooltipTrigger>
 
                                                                                     <TooltipContent side="top" className="max-w-xs">
-                                                                                        <p>This user hasn&apos;t created a Yappr profile yet, but you can still follow them. They&apos;ll see your follow when they join!</p>
+                                                                                        <p>This user hasn&apos;t created a Yappr! profile yet, but you can still follow them. They&apos;ll see your follow when they join!</p>
                                                                                     </TooltipContent>
                                                                                 </Tooltip>
                                                                             </TooltipProvider>
@@ -556,7 +556,7 @@ function FollowingPage() {
                                                                                 </TooltipTrigger>
 
                                                                                 <TooltipContent side="top" className="max-w-xs">
-                                                                                    <p>This user hasn&apos;t created a Yappr profile yet, but you&apos;re following them. They&apos;ll see your follow when they join!</p>
+                                                                                    <p>This user hasn&apos;t created a Yappr! profile yet, but you&apos;re following them. They&apos;ll see your follow when they join!</p>
                                                                                 </TooltipContent>
                                                                             </Tooltip>
                                                                         </TooltipProvider>

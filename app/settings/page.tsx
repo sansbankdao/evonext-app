@@ -33,8 +33,8 @@ const settingsSections = [
     { id: 'account', label: 'Account', icon: UserIcon, description: 'Manage your account details' },
     { id: 'notifications', label: 'Notifications', icon: BellIcon, description: 'Control your notification preferences' },
     { id: 'privacy', label: 'Privacy & Security', icon: ShieldCheckIcon, description: 'Manage your privacy settings' },
-    { id: 'appearance', label: 'Appearance', icon: PaintBrushIcon, description: 'Customize how Yappr looks' },
-    { id: 'about', label: 'About', icon: InformationCircleIcon, description: 'Learn more about Yappr' },
+    { id: 'appearance', label: 'Appearance', icon: PaintBrushIcon, description: 'Customize how Yappr! looks' },
+    { id: 'about', label: 'About', icon: InformationCircleIcon, description: 'Learn more about Yappr!' },
 ]
 
 function SettingsPage() {
@@ -364,7 +364,7 @@ function SettingsPage() {
 
                     <div className="p-4 bg-gray-50 dark:bg-gray-950 rounded-lg">
                         <p className="text-sm text-gray-500 mb-2">Color</p>
-                        <p className="text-sm">Yappr Purple (default)</p>
+                        <p className="text-sm">Yappr! Purple (default)</p>
                     </div>
                 </div>
             </div>
@@ -374,13 +374,22 @@ function SettingsPage() {
     const renderAboutSettings = () => (
         <div className="p-6 space-y-6">
             <div className="text-center py-8">
-                <h1 className="text-4xl font-bold text-gradient mb-4">Yappr</h1>
+                <h1 className="text-4xl font-bold text-gradient mb-4">
+                    Yappr!
+                </h1>
 
-                <p className="text-gray-500 mb-8">Decentralized social media on Dash Platform</p>
+                <p className="text-gray-500 mb-8">
+                    Decentralized social media on Dash Platform
+                </p>
 
                 <div className="space-y-2 text-sm text-gray-500">
-                    <p>Version 1.0.0</p>
-                    <p>Built with Next.js, React, and Dash Platform</p>
+                    <p>
+                        Version 25.9.4
+                    </p>
+
+                    <p>
+                        Built with Next.js, React, and Dash Platform
+                    </p>
                 </div>
             </div>
 
@@ -392,13 +401,13 @@ function SettingsPage() {
                 </Button>
 
                 <Button variant="outline" className="w-full" asChild>
-                    <a href="https://github.com/dashpay/platform" target="_blank" rel="noopener noreferrer">
+                    <a href="https://github.com/sansbankdao/yappr-world" target="_blank" rel="noopener noreferrer">
                         GitHub Repository
                     </a>
                 </Button>
 
                 <Button variant="outline" className="w-full" asChild>
-                    <a href="https://docs.dash.org/projects/platform" target="_blank" rel="noopener noreferrer">
+                    <a href="https://docs.yappr.world" target="_blank" rel="noopener noreferrer">
                         Documentation
                     </a>
                 </Button>
@@ -407,8 +416,8 @@ function SettingsPage() {
             <div className="pt-6 border-t border-gray-200 dark:border-gray-800">
                 <p className="text-xs text-gray-500 text-center">
                     &copy; 2025
-                    <a href="https://sansbank.org" target="_blank" className="text-blue-400 font-medium hover:underline">
-                        Sansbank
+                    <a href="https://sansbank.org" target="_blank" className="pl-1 text-blue-400 font-medium hover:underline">
+                        Sansbank DAO
                     </a>. All rights reserved.
                 </p>
             </div>

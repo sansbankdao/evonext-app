@@ -146,7 +146,7 @@ function CreateProfilePage() {
                     </div>
 
                     <p className="text-gray-600 dark:text-gray-400 text-center mb-8">
-                        Set up your Yappr profile to start connecting
+                        Set up your Yappr! profile to start connecting
                     </p>
 
                     {/* Display username if available */}

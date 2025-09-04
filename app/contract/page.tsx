@@ -50,7 +50,7 @@ export default function ContractPage() {
                             <CodeBracketIcon className="h-8 w-8" />
 
                             <h1 className="text-3xl font-bold">
-                                Yappr Data Contract
+                                Yappr! Data Contract
                             </h1>
                         </div>
 
