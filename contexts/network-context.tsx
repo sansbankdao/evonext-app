@@ -1,8 +1,6 @@
 'use client'
 
 import React, { createContext, useContext, useEffect, useState } from 'react'
-import { wasmSdkService } from '@/lib/services/wasm-sdk-service'
-import { YAPPR_CONTRACT_ID } from '@/lib/constants'
 
 type Network = 'mainnet' | 'testnet' | string | null;
 

@@ -18,19 +18,22 @@ const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
     title: 'Yappr! Free Your Inner Voice',
+    applicationName: 'Yappr! Free Your Inner Voice',
     description: 'Discover safe and enjoyable spaces to Explore. Curate. Share YOUR TRUTH without any fear of social consequence.',
 
     viewport: 'width=device-width, initial-scale=1.0',
     icons: {
         icon: '/favicon.ico',
     },
-    keywords: 'dash evolution platform social media network',
+    keywords: ['dash', 'evolution', 'platform', 'social', 'media', 'network'],
     authors: [
         {
             name: 'Sansbank DAO',
             url: 'https://sansbank.org',
         }
     ],
+    creator: '0xShomari + Frens',
+    publisher: 'Sansbank DAO',
     openGraph: {
         title: 'Yappr! Free Your Inner Voice',
         description: 'Discover safe and enjoyable spaces to Explore. Curate. Share YOUR TRUTH without any fear of social consequence.',
