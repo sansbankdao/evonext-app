@@ -5,9 +5,9 @@ import Image from 'next/image'
 import { motion } from 'framer-motion'
 import {
     ChatBubbleOvalLeftIcon,
-    ArrowPathIcon,
+    SparklesIcon,
     HeartIcon,
-    ArrowUpTrayIcon,
+    CurrencyDollarIcon,
     BookmarkIcon,
     EllipsisHorizontalIcon,
 } from '@heroicons/react/24/outline'
@@ -63,7 +63,7 @@ export function PostCard({ post, hideAvatar = false, isOwnPost = false }: PostCa
     const handleRepost = () => {
         setReposted(!reposted)
         setReposts(reposted ? reposts - 1 : reposts + 1)
-        toast.success(reposted ? 'Removed repost' : 'Reposted!')
+        toast.success(reposted ? 'Removed remix' : 'Remixed!')
     }
 
     const handleBookmark = () => {
@@ -254,40 +254,7 @@ export function PostCard({ post, hideAvatar = false, isOwnPost = false }: PostCa
                                 </Tooltip.Portal>
                             </Tooltip.Root>
 
-                            <Tooltip.Root>
-                                <Tooltip.Trigger asChild>
-                                    <button
-                                        onClick={handleRepost}
-                                        className={cn(
-                                            'group flex items-center gap-1 p-2 rounded-full transition-colors',
-                                            reposted
-                                            ? 'text-green-500 hover:bg-green-50 dark:hover:bg-green-950'
-                                            : 'hover:bg-green-50 dark:hover:bg-green-950'
-                                        )}
-                                    >
-                                        <ArrowPathIcon className={cn(
-                                            'h-5 w-5 transition-colors',
-                                            reposted ? 'text-green-500' : 'text-gray-500 group-hover:text-green-500'
-                                        )} />
-
-                                        <span className={cn(
-                                            'text-sm transition-colors',
-                                            reposted ? 'text-green-500' : 'text-gray-500 group-hover:text-green-500'
-                                        )}>
-                                            {reposts > 0 && formatNumber(reposts)}
-                                        </span>
-                                    </button>
-                                </Tooltip.Trigger>
-
-                                <Tooltip.Portal>
-                                    <Tooltip.Content
-                                        className="bg-gray-800 dark:bg-gray-700 text-white text-xs px-2 py-1 rounded"
-                                        sideOffset={5}
-                                    >
-                                        Repost
-                                    </Tooltip.Content>
-                                </Tooltip.Portal>
-                            </Tooltip.Root>
+                            {/* WAS PREVIOUSLY RE-POST */}
 
                             <Tooltip.Root>
                                 <Tooltip.Trigger asChild>
@@ -334,6 +301,40 @@ export function PostCard({ post, hideAvatar = false, isOwnPost = false }: PostCa
                                 <Tooltip.Root>
                                     <Tooltip.Trigger asChild>
                                         <button
+                                            onClick={handleRepost}
+                                            className={cn(
+                                                'group flex items-center gap-1 p-2 rounded-full transition-colors',
+                                                reposted
+                                                ? 'text-green-500 hover:bg-green-50 dark:hover:bg-green-950'
+                                                : 'hover:bg-green-50 dark:hover:bg-green-950'
+                                            )}
+                                        >
+                                            <SparklesIcon className={cn(
+                                                'h-5 w-5 transition-colors',
+                                                reposted ? 'text-green-500' : 'text-gray-500 group-hover:text-green-500'
+                                            )} />
+
+                                            <span className={cn(
+                                                'text-sm transition-colors',
+                                                reposted ? 'text-green-500' : 'text-gray-500 group-hover:text-green-500'
+                                            )}>
+                                                {reposts > 0 && formatNumber(reposts)}
+                                            </span>
+                                        </button>
+                                    </Tooltip.Trigger>
+
+                                    <Tooltip.Portal>
+                                        <Tooltip.Content
+                                            className="bg-gray-800 dark:bg-gray-700 text-white text-xs px-2 py-1 rounded"
+                                            sideOffset={5}
+                                        >
+                                            Remix
+                                        </Tooltip.Content>
+                                    </Tooltip.Portal>
+                                </Tooltip.Root>
+                                {/* <Tooltip.Root>9
+                                    <Tooltip.Trigger asChild>
+                                        <button
                                             onClick={handleBookmark}
                                             className="p-2 rounded-full hover:bg-yappr-50 dark:hover:bg-yappr-950 transition-colors"
                                         >
@@ -353,7 +354,7 @@ export function PostCard({ post, hideAvatar = false, isOwnPost = false }: PostCa
                                             Bookmark
                                         </Tooltip.Content>
                                     </Tooltip.Portal>
-                                </Tooltip.Root>
+                                </Tooltip.Root> */}
 
                                 <Tooltip.Root>
                                     <Tooltip.Trigger asChild>
@@ -361,7 +362,7 @@ export function PostCard({ post, hideAvatar = false, isOwnPost = false }: PostCa
                                             onClick={handleShare}
                                             className="p-2 rounded-full hover:bg-yappr-50 dark:hover:bg-yappr-950 transition-colors"
                                         >
-                                            <ArrowUpTrayIcon className="h-5 w-5 text-gray-500 hover:text-yappr-500 transition-colors" />
+                                            <CurrencyDollarIcon className="h-5 w-5 text-gray-500 hover:text-yappr-500 transition-colors" />
                                         </button>
                                     </Tooltip.Trigger>
 
@@ -370,7 +371,7 @@ export function PostCard({ post, hideAvatar = false, isOwnPost = false }: PostCa
                                             className="bg-gray-800 dark:bg-gray-700 text-white text-xs px-2 py-1 rounded"
                                             sideOffset={5}
                                         >
-                                            Share
+                                            Send a Tip
                                         </Tooltip.Content>
                                     </Tooltip.Portal>
                                 </Tooltip.Root>
