@@ -1,6 +1,7 @@
 'use client'
 
 import { AuthProvider } from '@/contexts/auth-context'
+import { NetworkProvider } from '@/contexts/network-context'
 import { SdkProvider } from '@/contexts/sdk-context'
 import { UsernameModalProvider } from '@/components/dpns/username-modal-provider'
 import { BiometricPrompt } from '@/components/ui/biometric-prompt'
@@ -15,9 +16,11 @@ export function Providers({ children }: { children: React.ReactNode }) {
     return (
         <SdkProvider>
             <AuthProvider>
-                {children}
-                <UsernameModalProvider />
-                <BiometricPromptWrapper />
+                <NetworkProvider>
+                    {children}
+                    <UsernameModalProvider />
+                    <BiometricPromptWrapper />
+                </NetworkProvider>
             </AuthProvider>
         </SdkProvider>
     )

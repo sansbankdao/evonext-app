@@ -15,13 +15,13 @@ export interface WasmSdkConfig {
 }
 
 class WasmSdkService {
-    private sdk: WasmSdk | null = null;
-    private initPromise: Promise<void> | null = null;
-    private config: WasmSdkConfig | null = null;
-    private _isInitialized = false;
-    private _isInitializing = false;
-    private static wasmModuleInitialized = false;
-    private static wasmInitPromise: Promise<void> | null = null;
+    private sdk: WasmSdk | null = null
+    private initPromise: Promise<void> | null = null
+    private config: WasmSdkConfig | null = null
+    private _isInitialized = false
+    private _isInitializing = false
+    private static wasmModuleInitialized = false
+    private static wasmInitPromise: Promise<void> | null = null
 
     /**
      * Initialize the WASM SDK with configuration
@@ -109,7 +109,7 @@ class WasmSdkService {
         }
 
         try {
-            console.log('WasmSdkService: Adding yappr contract to trusted context...')
+            console.log('WasmSdkService: Adding Yappr! contract to trusted context...')
 
             const contractId = this.config.contractId
 
@@ -117,7 +117,7 @@ class WasmSdkService {
             // For now, let's try the fetch and see if it succeeds (it might if the contract exists on testnet)
             try {
                 await data_contract_fetch(this.sdk, contractId)
-                console.log('WasmSdkService: Yappr contract found on network and cached in trusted context');
+                console.log('WasmSdkService: Yappr! contract found on network and cached in trusted context');
             } catch (error) {
                 console.log('WasmSdkService: Contract not found on network (expected for local development)');
                 console.log('WasmSdkService: Local contract operations will be handled gracefully');
