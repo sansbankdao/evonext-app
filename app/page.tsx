@@ -151,7 +151,7 @@ export default function PublicHomePage() {
         <div className="min-h-screen flex">
             <Sidebar />
 
-            <main className="flex px-3 sm:px-8">
+            <main className="flex flex-col px-3 sm:px-8">
                 {/* Hero Section */}
                 <section className="py-12 text-center">
                     <motion.div
@@ -176,16 +176,17 @@ export default function PublicHomePage() {
                         </p>
 
                         <div className="flex gap-4 justify-center">
-                            <Button size="lg" asChild className="shadow-yappr-lg text-lg font-medium">
+                            <Button size="lg" asChild className="shadow-yappr-lg text-2xl font-medium">
                                 <Link href="/login">
-                                    Get Connected
+                                    Connect
                                     <ArrowRightIcon className="ml-2 h-5 w-5" />
                                 </Link>
                             </Button>
 
-                            <Button size="lg" variant="outline" asChild className="text-lg font-medium">
+                            <Button size="lg" variant="outline" asChild className="text-2xl font-medium">
                                 <Link href="/explore">
-                                    Start Exploring
+                                    Explore
+                                    <ArrowRightIcon className="ml-2 h-5 w-5" />
                                 </Link>
                             </Button>
                         </div>
