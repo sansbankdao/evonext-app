@@ -153,19 +153,26 @@ export default function PublicHomePage() {
 
             <main className="flex-1 max-w-[1200px] mx-auto px-8">
                 {/* Hero Section */}
-                <section className="py-16 text-center">
+                <section className="py-12 text-center">
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.5 }}
                     >
-                        <h1 className="text-5xl font-bold mb-4">
-                            Welcome to <span className="text-gradient">Yappr</span>
+                        <h3 className="text-2xl font-medium uppercase text-slate-500 tracking-widest">
+                            Welcome to
+                        </h3>
+
+                        <h1 className="-mt-3 text-gradient text-8xl font-bold text-slate-500 tracking-widest">
+                            Yappr!
                         </h1>
 
-                        <p className="text-xl text-gray-600 dark:text-gray-400 mb-8 max-w-2xl mx-auto">
-                            The decentralized social platform where you own your data, your identity, and your voice.
-                            Built on Dash Platform.
+                        <h2 className="text-2xl text-sky-700 dark:text-sky-300 mb-8 max-w-2xl mx-auto font-bold tracking-widest">
+                            Free Your Inner Voice
+                        </h2>
+
+                        <p className="text-lg/7 text-slate-600 dark:text-slate-400 sm:max-w-2xl mb-8 mx-auto tracking-wider">
+                            Discover safe and enjoyable spaces to Explore. Curate. Share YOUR TRUTH without any fear of social consequences.
                         </p>
 
                         <div className="flex gap-4 justify-center">

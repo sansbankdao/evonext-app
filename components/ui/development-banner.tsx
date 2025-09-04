@@ -41,22 +41,25 @@ export function DevelopmentBanner() {
     }
 
     return (
-        <div className="bg-yappr-500 text-white px-4 py-2 text-sm">
+        <div className="w-full bg-yappr-500 text-white px-4 py-2 text-sm">
             <div className="max-w-7xl mx-auto flex items-center justify-between">
                 <p className="text-center flex-1 text-xs font-mono tracking-wider">
-                    <span className="font-medium">
+                    <span className="inline font-medium">
                         Yappr! is in an early development phase
                     </span>
-                    <span className="px-1">—</span>
-                    <span className="opacity-90">
-                        latest version is {packageJson.version}
-                    </span>
-                    <span className="px-1">—</span>
-                    <span className="opacity-90">
-                        NO need to
-                        <a href="https://github.com/sansbankdao/yappr-world/issues" target="_blank" className="px-1 text-sky-200 font-bold hover:underline">
-                            report issues
-                        </a>yet
+
+                    <span className="hidden sm:inline-flex">
+                        <span className="px-1">—</span>
+                        <span className="opacity-90">
+                            latest version is {packageJson.version}
+                        </span>
+                        <span className="px-1">—</span>
+                        <span className="opacity-90">
+                            NO need to
+                            <a href="https://github.com/sansbankdao/yappr-world/issues" target="_blank" className="px-1 text-sky-200 font-bold hover:underline">
+                                report issues
+                            </a>yet
+                        </span>
                     </span>
                 </p>
 
