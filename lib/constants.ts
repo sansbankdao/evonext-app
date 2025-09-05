@@ -1,10 +1,26 @@
 /**
- * Application constants
+ * Application Constants
+ *
+ * A single source for ALL applications constants.
  */
 
-// Contract IDs
-export const YAPPR_CONTRACT_ID = 'AyWK6nDVfb8d1ZmkM5MmZZrThbUyWyso1aMeGuuVSfxf' // Testnet
-export const DPNS_CONTRACT_ID = 'GWRSAVFMjXx8HpQFaNJMqBV7MBgMK4br5UESsB4S31Ec' // Testnet
+/* DPNS Contract ID */
+export const DPNS_CONTRACT_ID = 'GWRSAVFMjXx8HpQFaNJMqBV7MBgMK4br5UESsB4S31Ec' // Mainnet + Testnet
+
+/* DUSD Contract IDs */
+// NOTE: Platform official stablecoin
+export const DUSD_CONTRACT_ID_MAINNET = '' // Mainnet
+export const DUSD_CONTRACT_ID_TESTNET = '' // Testnet
+
+/* SANS Contract IDs */
+// NOTE: Platform official staking token
+export const SANS_CONTRACT_ID_MAINNET = '' // Mainnet
+export const SANS_CONTRACT_ID_TESTNET = '' // Testnet
+
+/* YAPPR Contract IDs */
+export const YAPPR_CONTRACT_ID_MAINNET = '' // Mainnet
+// export const YAPPR_CONTRACT_ID_TESTNET = '' // Testnet
+export const YAPPR_CONTRACT_ID_ALT = 'AyWK6nDVfb8d1ZmkM5MmZZrThbUyWyso1aMeGuuVSfxf' // Testnet (owned by therealslimshady)
 
 // Network configuration
 export const DEFAULT_NETWORK = 'testnet'
