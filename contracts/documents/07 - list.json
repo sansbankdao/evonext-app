@@ -1,6 +1,27 @@
 {
     "list": {
         "type": "object",
+        "description": "A user-created list.",
+        "properties": {
+            "name": {
+                "position": 0,
+                "type": "string",
+                "maxLength": 50,
+                "minLength": 1,
+                "description": "Name of the list"
+            },
+            "description": {
+                "position": 1,
+                "type": "string",
+                "maxLength": 160,
+                "description": "Description of the list"
+            },
+            "private": {
+                "position": 2,
+                "type": "boolean",
+                "description": "Whether the list is private"
+            }
+        },
         "indices": [
             {
                 "name": "ownerLists",
@@ -18,27 +39,6 @@
             "$createdAt",
             "name"
         ],
-        "properties": {
-            "name": {
-                "type": "string",
-                "position": 0,
-                "maxLength": 50,
-                "minLength": 1,
-                "description": "Name of the list"
-            },
-            "private": {
-                "type": "boolean",
-                "position": 2,
-                "description": "Whether the list is private"
-            },
-            "description": {
-                "type": "string",
-                "position": 1,
-                "maxLength": 160,
-                "description": "Description of the list"
-            }
-        },
-        "description": "A user-created list",
         "additionalProperties": false
     }
 }

@@ -1,6 +1,45 @@
 {
     "notification": {
         "type": "object",
+        "description": "A notification for a user.",
+        "properties": {
+            "type": {
+                "position": 0,
+                "type": "string",
+                "description": "Type of notification",
+                "enum": [
+                    "like",
+                    "repost",
+                    "follow",
+                    "reply",
+                    "mention",
+                    "quote"
+                ]
+            },
+            "fromUserId": {
+                "position": 1,
+                "type": "array",
+                "description": "Identity ID of the user who triggered the notification",
+                "maxItems": 32,
+                "minItems": 32,
+                "byteArray": true,
+                "contentMediaType": "application/x.dash.dpp.identifier"
+            },
+            "postId": {
+                "position": 2,
+                "type": "array",
+                "description": "Related post ID (if applicable)",
+                "maxItems": 32,
+                "minItems": 32,
+                "byteArray": true,
+                "contentMediaType": "application/x.dash.dpp.identifier"
+            },
+            "read": {
+                "position": 3,
+                "type": "boolean",
+                "description": "Whether the notification has been read"
+            }
+        },
         "indices": [
             {
                 "name": "ownerNotifications",
@@ -33,45 +72,6 @@
             "type",
             "fromUserId"
         ],
-        "properties": {
-            "read": {
-                "type": "boolean",
-                "position": 3,
-                "description": "Whether the notification has been read"
-            },
-            "type": {
-                "enum": [
-                    "like",
-                    "repost",
-                    "follow",
-                    "reply",
-                    "mention",
-                    "quote"
-                ],
-                "type": "string",
-                "position": 0,
-                "description": "Type of notification"
-            },
-            "postId": {
-                "type": "array",
-                "maxItems": 32,
-                "minItems": 32,
-                "position": 2,
-                "byteArray": true,
-                "description": "Related post ID (if applicable)",
-                "contentMediaType": "application/x.dash.dpp.identifier"
-            },
-            "fromUserId": {
-                "type": "array",
-                "maxItems": 32,
-                "minItems": 32,
-                "position": 1,
-                "byteArray": true,
-                "description": "Identity ID of the user who triggered the notification",
-                "contentMediaType": "application/x.dash.dpp.identifier"
-            }
-        },
-        "description": "A notification for a user",
         "additionalProperties": false
     }
 }

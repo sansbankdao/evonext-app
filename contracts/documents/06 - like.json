@@ -1,6 +1,18 @@
 {
     "like": {
         "type": "object",
+        "description": "A like on a post",
+        "properties": {
+            "postId": {
+                "position": 0,
+                "type": "array",
+                "maxItems": 32,
+                "minItems": 32,
+                "byteArray": true,
+                "description": "ID of the liked post",
+                "contentMediaType": "application/x.dash.dpp.identifier"
+            }
+        },
         "indices": [
             {
                 "name": "postAndOwner",
@@ -40,20 +52,8 @@
         "mutable": false,
         "required": [
             "$createdAt",
-            "postId"
+            "postid"
         ],
-        "properties": {
-            "postId": {
-                "type": "array",
-                "maxItems": 32,
-                "minItems": 32,
-                "position": 0,
-                "byteArray": true,
-                "description": "ID of the liked post",
-                "contentMediaType": "application/x.dash.dpp.identifier"
-            }
-        },
-        "description": "A like on a post",
         "additionalProperties": false
     }
 }

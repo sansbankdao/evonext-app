@@ -1,6 +1,18 @@
 {
     "follow": {
         "type": "object",
+        "description": "A follow relationship between users",
+        "properties": {
+            "followingId": {
+                "position": 0,
+                "type": "array",
+                "maxItems": 32,
+                "minItems": 32,
+                "byteArray": true,
+                "description": "Identity ID of the user being followed",
+                "contentMediaType": "application/x.dash.dpp.identifier"
+            }
+        },
         "indices": [
             {
                 "name": "ownerAndFollowing",
@@ -10,7 +22,7 @@
                         "$ownerId": "asc"
                     },
                     {
-                        "followingId": "asc"
+                        "followingid": "asc"
                     }
                 ]
             },
@@ -42,18 +54,6 @@
             "$createdAt",
             "followingId"
         ],
-        "properties": {
-            "followingId": {
-                "type": "array",
-                "maxItems": 32,
-                "minItems": 32,
-                "position": 0,
-                "byteArray": true,
-                "description": "Identity ID of the user being followed",
-                "contentMediaType": "application/x.dash.dpp.identifier"
-            }
-        },
-        "description": "A follow relationship between users",
         "additionalProperties": false
     }
 }

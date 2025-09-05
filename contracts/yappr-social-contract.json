@@ -27,18 +27,11 @@
                 }
             ],
             "properties": {
-                "displayName": {
-                    "type": "string",
-                    "description": "Display name shown on profile",
-                    "minLength": 1,
-                    "maxLength": 50,
-                    "position": 0
-                },
                 "bio": {
                     "type": "string",
                     "description": "User biography",
                     "maxLength": 160,
-                    "position": 1
+                    "position": 0
                 },
                 "avatarId": {
                     "type": "array",
@@ -47,33 +40,30 @@
                     "maxItems": 32,
                     "contentMediaType": "application/x.dash.dpp.identifier",
                     "description": "Reference to the user's avatar document",
-                    "position": 2
+                    "position": 1
                 },
                 "bannerUrl": {
                     "type": "string",
                     "description": "URL to profile banner image",
                     "maxLength": 512,
                     "pattern": "^https?://.+$",
-                    "position": 3
+                    "position": 2
                 },
                 "website": {
                     "type": "string",
                     "description": "User's website",
                     "maxLength": 100,
                     "pattern": "^https?://.+$",
-                    "position": 4
+                    "position": 3
                 },
                 "location": {
                     "type": "string",
                     "description": "User location",
                     "maxLength": 50,
-                    "position": 5
+                    "position": 4
                 }
             },
-            "required": [
-                "$createdAt",
-                "displayName"
-            ],
+            "required": [],
             "additionalProperties": false
         },
         "avatar": {
@@ -113,25 +103,24 @@
                     "maxLength": 128,
                     "position": 1
                 },
-                "style": {
-                    "type": "string",
-                    "enum": [
-                        "realistic",
-                        "cartoon",
-                        "anime",
-                        "pixel"
-                    ],
-                    "description": "Rendering style for the avatar",
-                    "position": 2
-                }
-            },
-            "required": [
-                "$updatedAt",
-                "version",
-                "data"
-            ],
-            "additionalProperties": false
+            "style": {
+                "type": "string",
+                "enum": [
+                    "realistic",
+                    "cartoon",
+                    "anime",
+                    "pixel"
+                ],
+                "description": "Rendering style for the avatar",
+                "position": 2
+            }
         },
+        "required": [
+            "version",
+            "data"
+        ],
+        "additionalProperties": false
+    },
 "post": {
       "type": "object",
       "description": "A post/tweet in the social network",
@@ -230,7 +219,6 @@
         }
       },
       "required": [
-        "$createdAt",
         "content"
       ],
       "additionalProperties": false
@@ -238,7 +226,6 @@
     "like": {
       "type": "object",
       "description": "A like on a post",
-      "mutable": false,
       "indices": [
         {
           "name": "postAndOwner",
@@ -287,7 +274,6 @@
         }
       },
       "required": [
-        "$createdAt",
         "postId"
       ],
       "additionalProperties": false
@@ -295,7 +281,6 @@
     "repost": {
       "type": "object",
       "description": "A repost/retweet of a post",
-      "mutable": false,
       "indices": [
         {
           "name": "postAndOwner",
@@ -344,7 +329,6 @@
         }
       },
       "required": [
-        "$createdAt",
         "postId"
       ],
       "additionalProperties": false
@@ -352,7 +336,6 @@
     "follow": {
       "type": "object",
       "description": "A follow relationship between users",
-      "mutable": false,
       "indices": [
         {
           "name": "ownerAndFollowing",
@@ -401,7 +384,6 @@
         }
       },
       "required": [
-        "$createdAt",
         "followingId"
       ],
       "additionalProperties": false
@@ -409,7 +391,6 @@
     "bookmark": {
       "type": "object",
       "description": "A bookmarked post",
-      "mutable": false,
       "indices": [
         {
           "name": "ownerAndPost",
@@ -447,7 +428,6 @@
         }
       },
       "required": [
-        "$createdAt",
         "postId"
       ],
       "additionalProperties": false
@@ -489,7 +469,6 @@
         }
       },
       "required": [
-        "$createdAt",
         "name"
       ],
       "additionalProperties": false
@@ -497,7 +476,6 @@
     "listMember": {
       "type": "object",
       "description": "A member of a list",
-      "mutable": false,
       "indices": [
         {
           "name": "listAndMember",
@@ -544,7 +522,6 @@
         }
       },
       "required": [
-        "$createdAt",
         "listId",
         "memberId"
       ],
@@ -553,7 +530,6 @@
     "block": {
       "type": "object",
       "description": "A block relationship",
-      "mutable": false,
       "indices": [
         {
           "name": "ownerAndBlocked",
@@ -591,7 +567,6 @@
         }
       },
       "required": [
-        "$createdAt",
         "blockedId"
       ],
       "additionalProperties": false
@@ -599,7 +574,6 @@
     "mute": {
       "type": "object",
       "description": "A mute relationship",
-      "mutable": false,
       "indices": [
         {
           "name": "ownerAndMuted",
@@ -643,7 +617,6 @@
         }
       },
       "required": [
-        "$createdAt",
         "mutedId"
       ],
       "additionalProperties": false
@@ -707,7 +680,6 @@
         }
       },
       "required": [
-        "$createdAt",
         "recipientId",
         "conversationId",
         "encryptedContent"
@@ -783,7 +755,6 @@
         }
       },
       "required": [
-        "$createdAt",
         "type",
         "fromUserId"
       ],
