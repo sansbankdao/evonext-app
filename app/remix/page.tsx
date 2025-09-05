@@ -42,9 +42,9 @@ interface BookmarkedPost {
     bookmarkedAt: Date
 }
 
-function BookmarksPage() {
+function RemixesPage() {
     const { user } = useAuth()
-    const [bookmarks, setBookmarks] = useState<BookmarkedPost[]>([])
+    const [remixes, setRemixes] = useState<BookmarkedPost[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [searchQuery, setSearchQuery] = useState('')
     const [sortBy, setSortBy] = useState<'recent' | 'oldest'>('recent')
@@ -53,7 +53,7 @@ function BookmarksPage() {
         // In a real app, this would fetch bookmarked posts from Dash Platform
         // For now, we'll simulate some bookmarked posts
         setTimeout(() => {
-            const mockBookmarks: BookmarkedPost[] = [
+            const mockRemixes: BookmarkedPost[] = [
                 {
                     id: '1',
                     content: 'Just deployed my first dApp on Dash Platform! 🚀 The future is decentralized.',
@@ -118,24 +118,24 @@ function BookmarksPage() {
                     bookmarkedAt: new Date(Date.now() - 1000 * 60 * 60 * 24)
                 }
             ]
-            setBookmarks(mockBookmarks)
+            setRemixes(mockRemixes)
             setIsLoading(false)
         }, 1000)
     }, [])
 
     const removeBookmark = (postId: string) => {
-        setBookmarks(prev => prev.filter(post => post.id !== postId))
-        toast.success('Removed from bookmarks')
+        setRemixes(prev => prev.filter(post => post.id !== postId))
+        toast.success('Removed from remixes')
     }
 
-    const clearAllBookmarks = () => {
-        if (confirm('Are you sure you want to clear all bookmarks?')) {
-            setBookmarks([])
-            toast.success('All bookmarks cleared')
+    const clearAllRemixes = () => {
+        if (confirm('Are you sure you want to clear all remixes?')) {
+            setRemixes([])
+            toast.success('All remixes cleared')
         }
     }
 
-    const filteredBookmarks = bookmarks
+    const filteredRemixes = remixes
         .filter(post =>
             post.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
             post.author.username.toLowerCase().includes(searchQuery.toLowerCase())
@@ -150,7 +150,7 @@ function BookmarksPage() {
         <div className="min-h-screen flex">
             <Sidebar />
 
-            <main className="flex-1 mr-[350px] max-w-[600px] border-x border-gray-200 dark:border-gray-800">
+            <main className="pt-16 flex-1 border-x border-gray-200 dark:border-gray-800">
                 <header className="sticky top-0 z-40 bg-white/80 dark:bg-black/80 backdrop-blur-xl border-b border-gray-200 dark:border-gray-800">
                     <div className="flex items-center justify-between px-4 py-3">
                         <div>
@@ -159,7 +159,7 @@ function BookmarksPage() {
                             </h1>
 
                             <p className="text-sm text-gray-500">
-                                {bookmarks.length} remixed posts
+                                {remixes.length} remixed posts
                             </p>
                         </div>
 
@@ -190,24 +190,24 @@ function BookmarksPage() {
 
                                     <DropdownMenu.Item
                                         className="px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-900 cursor-pointer outline-none flex items-center gap-2 text-red-600"
-                                        onClick={clearAllBookmarks}
+                                        onClick={clearAllRemixes}
                                     >
                                         <TrashIcon className="h-4 w-4" />
-                                        Clear all bookmarks
+                                        Clear all remixes
                                     </DropdownMenu.Item>
                                 </DropdownMenu.Content>
                             </DropdownMenu.Portal>
                         </DropdownMenu.Root>
                     </div>
 
-                    {bookmarks.length > 0 && (
+                    {remixes.length > 0 && (
                         <div className="px-4 pb-3">
                             <div className="relative">
                                 <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-500" />
 
                                 <Input
                                     type="text"
-                                    placeholder="Search bookmarks"
+                                    placeholder="Search remixes"
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                     className="pl-10"
@@ -220,9 +220,9 @@ function BookmarksPage() {
                 {isLoading ? (
                     <div className="p-8 text-center">
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto mb-4"></div>
-                        <p className="text-gray-500">Loading bookmarks...</p>
+                        <p className="text-gray-500">Loading remixes...</p>
                     </div>
-                ) : bookmarks.length === 0 ? (
+                ) : remixes.length === 0 ? (
                     <div className="p-8 text-center">
                         <BookmarkIcon className="h-12 w-12 text-gray-300 mx-auto mb-4" />
 
@@ -232,14 +232,14 @@ function BookmarksPage() {
                             Don&apos;t let the good ones fly away! Bookmark posts to easily find them again.
                         </p>
                     </div>
-                ) : filteredBookmarks.length === 0 ? (
+                ) : filteredRemixes.length === 0 ? (
                     <div className="p-8 text-center">
                         <MagnifyingGlassIcon className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-                        <p className="text-gray-500">No bookmarks found matching &quot;{searchQuery}&quot;</p>
+                        <p className="text-gray-500">No remixes found matching &quot;{searchQuery}&quot;</p>
                     </div>
                 ) : (
                     <div className="divide-y divide-gray-200 dark:divide-gray-800">
-                        {filteredBookmarks.map((post) => (
+                        {filteredRemixes.map((post) => (
                             <motion.div
                                 key={post.id}
                                 initial={{ opacity: 0, y: 20 }}
@@ -297,4 +297,4 @@ function BookmarksPage() {
     )
 }
 
-export default withAuth(BookmarksPage)
+export default withAuth(RemixesPage)
