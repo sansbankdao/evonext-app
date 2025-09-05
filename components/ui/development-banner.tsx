@@ -41,14 +41,15 @@ export function DevelopmentBanner() {
     }
 
     return (
-        <div className="w-full bg-yappr-500 text-white px-4 py-2 text-sm">
+        <div className="absolute top-0 z-50 w-full bg-yappr-500 text-white px-4 py-2 text-sm">
             <div className="max-w-7xl mx-auto flex items-center justify-between">
-                <p className="text-center flex-1 text-xs font-mono tracking-wider">
-                    <span className="inline font-medium">
-                        EvoNext is in an early development phase
-                    </span>
+                <p className="text-center flex-1 text-xs font-mono tracking-wider items-center">
+                    <h1 className="px-2 text-xl font-bold inline tracking-wider">
+                        EvoNext
+                    </h1>
 
                     <span className="hidden sm:inline-flex">
+                        <span>is in an early development phase</span>
                         <span className="px-1">—</span>
                         <span className="opacity-90">
                             latest version is {packageJson.version}

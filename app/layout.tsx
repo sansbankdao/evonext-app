@@ -15,6 +15,7 @@ import { Toaster } from 'react-hot-toast'
 import { Providers } from '@/components/providers'
 import ErrorBoundary from '@/components/error-boundary'
 import { DevelopmentBanner } from '@/components/ui/development-banner'
+import { Footer } from '@/components/ui/footer'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -85,6 +86,8 @@ export default function RootLayout({
                         <ErrorBoundary level="page">
                             {children}
                         </ErrorBoundary>
+
+                        <Footer />
                     </Providers>
                 </ErrorBoundary>
 

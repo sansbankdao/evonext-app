@@ -1,6 +1,6 @@
 {
-  "name": "yappr-world",
-  "version": "25.9.1",
+  "name": "evonext",
+  "version": "25.9.5",
   "license": "MIT",
   "scripts": {
     "dev": "next dev",
