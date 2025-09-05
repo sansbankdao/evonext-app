@@ -9,7 +9,7 @@ module.exports = {
     theme: {
         extend: {
             colors: {
-                yappr: {
+                evonext: {
                     50: '#f0f9ff',
                     100: '#e0f2fe',
                     200: '#bae6fd',
@@ -28,7 +28,7 @@ module.exports = {
                 }
             },
             fontFamily: {
-                sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+                sans: ['system-ui', '-apple-system', 'sans-serif'],
             },
             animation: {
                 'slide-up': 'slideUp 0.3s ease-out',
@@ -60,12 +60,12 @@ module.exports = {
                 }
             },
             backgroundImage: {
-                'gradient-yappr': 'linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)',
+                'gradient-evonext': 'linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)',
                 'gradient-dark': 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
             },
             boxShadow: {
-                'yappr': '0 4px 20px -4px rgba(14, 165, 233, 0.5)',
-                'yappr-lg': '0 10px 40px -10px rgba(14, 165, 233, 0.4)',
+                'evonext': '0 4px 20px -4px rgba(14, 165, 233, 0.5)',
+                'evonext-lg': '0 10px 40px -10px rgba(14, 165, 233, 0.4)',
             }
         },
     },

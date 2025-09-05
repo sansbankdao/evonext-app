@@ -59,7 +59,7 @@ function CreateProfilePage() {
         }
 
         // Check if private key is in session storage
-        const storedPrivateKey = sessionStorage.getItem('yappr_pk')
+        const storedPrivateKey = sessionStorage.getItem('evonext_pk')
 
         if (!storedPrivateKey && !privateKey) {
             setShowPrivateKeyInput(true)
@@ -70,7 +70,7 @@ function CreateProfilePage() {
 
         // If private key was entered, store it
         if (privateKey && !storedPrivateKey) {
-            sessionStorage.setItem('yappr_pk', privateKey)
+            sessionStorage.setItem('evonext_pk', privateKey)
         }
 
         setIsSubmitting(true)
@@ -121,7 +121,7 @@ function CreateProfilePage() {
         return (
             <div className="min-h-screen bg-gray-50 dark:bg-black flex items-center justify-center">
                 <div className="text-center">
-                    <Loader2 className="h-12 w-12 animate-spin text-yappr-500 mx-auto mb-4" />
+                    <Loader2 className="h-12 w-12 animate-spin text-evonext-500 mx-auto mb-4" />
 
                     <p className="text-gray-600 dark:text-gray-400">Checking for existing profile...</p>
                 </div>
@@ -150,10 +150,10 @@ function CreateProfilePage() {
                     </p>
 
                     {/* Display username if available */}
-                    {(user?.dpnsUsername || sessionStorage.getItem('yappr_dpns_username')) && (
+                    {(user?.dpnsUsername || sessionStorage.getItem('evonext_dpns_username')) && (
                         <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-4 mb-6">
                             <p className="text-sm text-purple-700 dark:text-purple-300">
-                                <span className="font-semibold">Username:</span> @{user?.dpnsUsername || sessionStorage.getItem('yappr_dpns_username')}
+                                <span className="font-semibold">Username:</span> @{user?.dpnsUsername || sessionStorage.getItem('evonext_dpns_username')}
                             </p>
                         </div>
                     )}
@@ -259,7 +259,7 @@ function CreateProfilePage() {
                             Identity: {user?.identityId.slice(0, 8)}...
                         </p>
 
-                        {!sessionStorage.getItem('yappr_pk') && (
+                        {!sessionStorage.getItem('evonext_pk') && (
                             <button
                                 type="button"
                                 onClick={() => setShowPrivateKeyInput(!showPrivateKeyInput)}

@@ -1,5 +1,5 @@
 /**
- * Centralized cache management for yappr
+ * Centralized cache management for evonext
  * Provides coordinated caching with proper invalidation strategies
  */
 

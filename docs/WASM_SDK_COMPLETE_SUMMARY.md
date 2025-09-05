@@ -124,7 +124,7 @@ await wasmSdkService.initialize({
 });
 
 // Store private key for the session
-sessionStorage.setItem('yappr_pk', privateKeyWIF);
+sessionStorage.setItem('evonext_pk', privateKeyWIF);
 
 // Create a post
 const post = await postService.createPost(
@@ -157,4 +157,4 @@ Thanks for pointing out that the index.html file shows working examples! This di
 
 ---
 
-The yappr social media platform can now operate fully on the Dash blockchain with real data persistence and decentralized social interactions!
+The evonext social media platform can now operate fully on the Dash blockchain with real data persistence and decentralized social interactions!

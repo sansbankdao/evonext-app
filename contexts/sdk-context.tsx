@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import { wasmSdkService } from '@/lib/services/wasm-sdk-service'
-import { YAPPR_CONTRACT_ID_ALT } from '@/lib/constants'
+import { EVONEXT_CONTRACT_ID_ALT } from '@/lib/constants'
 
 interface SdkContextType {
     isReady: boolean
@@ -23,7 +23,7 @@ export function SdkProvider({ children }: { children: React.ReactNode }) {
                 // Initialize with testnet configuration
                 await wasmSdkService.initialize({
                     network: 'testnet',
-                    contractId: YAPPR_CONTRACT_ID_ALT
+                    contractId: EVONEXT_CONTRACT_ID_ALT
                 })
 
                 setIsReady(true)

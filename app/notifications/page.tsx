@@ -153,7 +153,7 @@ function NotificationsPage() {
                                 {filter === filterType && (
                                     <motion.div
                                         layoutId="notificationTab"
-                                        className="absolute bottom-0 left-0 right-0 h-1 bg-yappr-500"
+                                        className="absolute bottom-0 left-0 right-0 h-1 bg-evonext-500"
                                     />
                                 )}
                             </button>
@@ -167,7 +167,7 @@ function NotificationsPage() {
                             variant="ghost"
                             size="sm"
                             onClick={markAllAsRead}
-                            className="text-yappr-500 hover:text-yappr-600"
+                            className="text-evonext-500 hover:text-evonext-600"
                         >
                             Mark all as read
                         </Button>
@@ -196,7 +196,7 @@ function NotificationsPage() {
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 className={`p-4 hover:bg-gray-50 dark:hover:bg-gray-950 transition-colors ${
-                                    !notification.read ? 'bg-yappr-50/20 dark:bg-yappr-950/10' : ''
+                                    !notification.read ? 'bg-evonext-50/20 dark:bg-evonext-950/10' : ''
                                 }`}
                             >
                                 <div className="flex gap-3">
@@ -232,7 +232,7 @@ function NotificationsPage() {
                                     </div>
 
                                     {!notification.read && (
-                                        <div className="w-2 h-2 bg-yappr-500 rounded-full mt-2" />
+                                        <div className="w-2 h-2 bg-evonext-500 rounded-full mt-2" />
                                     )}
                                 </div>
                             </motion.div>

@@ -52,7 +52,7 @@ Visit http://localhost:3001/test-dpns to try:
 
 ## What This Means:
 
-The yappr social media platform now has **FULL USERNAME SUPPORT**:
+The evonext social media platform now has **FULL USERNAME SUPPORT**:
 - Users can be displayed with their DPNS usernames
 - Search for users by username
 - Check if a username is available
@@ -69,4 +69,4 @@ With this final piece, the WASM SDK integration is **99% complete**! We have:
 - ✅ Username resolution and search
 - ✅ All social media features
 
-The yappr platform can now operate as a fully functional decentralized social media application on the Dash blockchain!
+The evonext platform can now operate as a fully functional decentralized social media application on the Dash blockchain!

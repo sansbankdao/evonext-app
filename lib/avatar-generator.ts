@@ -1,4 +1,4 @@
-// Avatar generator for Yappr
+// Avatar generator for EvoNext
 // Generates a unique avatar string based on various features
 
 export interface AvatarFeatures {

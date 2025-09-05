@@ -295,7 +295,7 @@ function FollowingPage() {
                         id: ownerId,
                         username: primaryUsername,
                         displayName: profile?.displayName || primaryUsername,
-                        bio: profile?.bio || 'Not yet on Yappr',
+                        bio: profile?.bio || 'Not yet on EvoNext',
                         hasProfile: !!profile,
                         followersCount: 0, // Would need to query this
                         followingCount: 0, // Would need to query this
@@ -512,7 +512,7 @@ function FollowingPage() {
                                 onRetry={loadFollowing}
                                 loadingText="Loading following list..."
                                 emptyText="Not following anyone yet"
-                                emptyDescription="Find interesting people to follow on Yappr"
+                                emptyDescription="Find interesting people to follow on EvoNext"
                             >
                                 <div>
                                     {followingState.data?.map((followingUser) => (

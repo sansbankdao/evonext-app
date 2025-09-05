@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { ArrowLeftIcon, DocumentDuplicateIcon, CheckIcon, CodeBracketIcon } from '@heroicons/react/24/outline'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import dataContract from '@/contracts/yappr-social-contract.json'
+import dataContract from '@/contracts/evonext-social-contract.json'
 import toast from 'react-hot-toast'
 
 export default function ContractPage() {
@@ -45,7 +45,7 @@ export default function ContractPage() {
                     animate={{ opacity: 1, y: 0 }}
                     className="bg-white dark:bg-black rounded-2xl shadow-lg overflow-hidden"
                 >
-                    <div className="bg-gradient-yappr p-8 text-white">
+                    <div className="bg-gradient-evonext p-8 text-white">
                         <div className="flex items-center gap-3 mb-4">
                             <CodeBracketIcon className="h-8 w-8" />
 
@@ -117,7 +117,7 @@ export default function ContractPage() {
                                 <ul className="space-y-2 text-sm">
                                     {Object.keys(dataContract.documents).map((_docType) => (
                                         <li key={_docType} className="flex items-center gap-2">
-                                            <div className="h-2 w-2 bg-yappr-500 rounded-full" />
+                                            <div className="h-2 w-2 bg-evonext-500 rounded-full" />
 
                                             <span className="font-mono text-lg">
                                                 {_docType}
@@ -161,7 +161,7 @@ export default function ContractPage() {
                             </div>
                         </div>
 
-                        <div className="mt-8 p-6 bg-yappr-50 dark:bg-yappr-950 rounded-lg">
+                        <div className="mt-8 p-6 bg-evonext-50 dark:bg-evonext-950 rounded-lg">
                             <h3 className="text-xl font-semibold mb-2">
                                 Deployment Instructions
                             </h3>

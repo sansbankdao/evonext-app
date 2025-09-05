@@ -92,12 +92,12 @@ export function Sidebar() {
 
     return (
         <div className="hidden h-screen max-w-sm w-full lg:flex flex-col px-2 sticky top-0">
-            <div className="flex-1 space-y-1 py-4 overflow-y-auto scrollbar-hide">
-                <Link href="/" className="flex items-center px-3 py-4 mb-2 group">
+            <div className="pt-24 flex-1 space-y-1 py-4 overflow-y-auto scrollbar-hide">
+                {/* <Link href="/" className="flex items-center px-3 py-4 mb-2 group">
                     <div className="text-6xl font-bold text-gradient">
                         EvoNext
                     </div>
-                </Link>
+                </Link> */}
 
                 <nav className="space-y-1">
                     {navigation.map((item) => {
@@ -138,7 +138,7 @@ export function Sidebar() {
                 {isHydrated && user ? (
                     <Button
                         onClick={() => setComposeOpen(true)}
-                        className="w-full mt-8 h-12 text-base xl:text-lg shadow-yappr-lg"
+                        className="w-full mt-8 h-12 text-base xl:text-lg shadow-evonext-lg"
                         size="lg"
                     >
                         <PencilSquareIcon className="h-6 w-6 xl:hidden" />
@@ -150,7 +150,7 @@ export function Sidebar() {
                     <div className="mt-8 space-y-3">
                         <Button
                             asChild
-                            className="w-full h-12 text-base xl:text-lg shadow-yappr-lg"
+                            className="w-full h-12 text-base xl:text-lg shadow-evonext-lg"
                             size="lg"
                         >
                             <Link href="/connect">

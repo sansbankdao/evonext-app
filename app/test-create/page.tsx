@@ -18,7 +18,7 @@ export default function TestCreatePage() {
             setError(null)
 
             // Store private key in session for state transitions
-            sessionStorage.setItem('yappr_pk', privateKey)
+            sessionStorage.setItem('evonext_pk', privateKey)
 
             const post = await postService.createPost(
                 identityId,
@@ -43,7 +43,7 @@ export default function TestCreatePage() {
             setError(null)
 
             // Store private key in session for state transitions
-            sessionStorage.setItem('yappr_pk', privateKey)
+            sessionStorage.setItem('evonext_pk', privateKey)
 
             const profile = await profileService.createProfile(
                 identityId,

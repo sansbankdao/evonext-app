@@ -126,7 +126,7 @@ export function UsernameModal({ isOpen, onClose, customIdentityId: initialIdenti
 
         try {
             // Get the private key from session storage
-            const privateKey = sessionStorage.getItem('yappr_pk')
+            const privateKey = sessionStorage.getItem('evonext_pk')
 
             if (!privateKey) {
                 throw new Error('Authentication required. Please log in again.')
@@ -472,7 +472,7 @@ export function UsernameModal({ isOpen, onClose, customIdentityId: initialIdenti
                                     type="button"
                                     onClick={() => {
                                         // Mark that user chose to skip DPNS registration
-                                        sessionStorage.setItem('yappr_skip_dpns', 'true')
+                                        sessionStorage.setItem('evonext_skip_dpns', 'true')
                                         onClose()
                                         router.push('/profile/create')
                                     }}

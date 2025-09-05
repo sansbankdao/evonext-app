@@ -41,6 +41,6 @@
     }
 
     .text-gradient {
-        @apply bg-gradient-to-r from-yappr-500 to-yappr-600 bg-clip-text text-transparent;
+        @apply bg-gradient-to-r from-evonext-500 to-evonext-600 bg-clip-text text-transparent;
     }
 }

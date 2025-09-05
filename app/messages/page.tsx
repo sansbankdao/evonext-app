@@ -231,7 +231,7 @@ function MessagesPage() {
 
                                     {conversation.unreadCount > 0 && (
                                         <div className="flex items-center">
-                                            <div className="bg-yappr-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                                            <div className="bg-evonext-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
                                                 {conversation.unreadCount}
                                             </div>
                                         </div>
@@ -285,7 +285,7 @@ function MessagesPage() {
                                             <div
                                                 className={`px-4 py-2 rounded-2xl ${
                                                     isOwn
-                                                    ? 'bg-yappr-500 text-white'
+                                                    ? 'bg-evonext-500 text-white'
                                                     : 'bg-gray-100 dark:bg-gray-900'
                                                 }`}
                                             >

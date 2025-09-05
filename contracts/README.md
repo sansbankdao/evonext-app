@@ -140,7 +140,7 @@ const profile = {
 const post = {
   authorId: identity.getId().toBuffer(), // 32-byte buffer
   content: "Hello EvoNext This is my first post on the decentralized social network 🚀",
-  hashtags: ["yappr", "dash", "decentralized"],
+  hashtags: ["evonext", "dash", "decentralized"],
   language: "en"
 };
 

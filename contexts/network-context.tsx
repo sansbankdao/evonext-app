@@ -23,10 +23,10 @@ export function NetworkProvider({ children }: { children: React.ReactNode }) {
 
                 /* Handle host. */
                 switch(host) {
-                case 'yappr.world':
+                case 'evonext.world':
                     setNetwork('mainnet')
                     break
-                case 'testnet.yappr.world':
+                case 'testnet.evonext.world':
                     setNetwork('testnet')
                     break
                 default:

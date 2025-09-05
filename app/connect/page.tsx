@@ -54,7 +54,7 @@ export default function LoginPage() {
                                 value={identityId}
                                 onChange={(e) => setIdentityId(e.target.value)}
                                 placeholder="e.g., 5DbLwAxGBzUzo81VewMUwn4b5P4bpv9FNFybi25XB5Bk"
-                                className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-lg text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yappr-500 focus:border-transparent transition-colors"
+                                className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-lg text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-evonext-500 focus:border-transparent transition-colors"
                                 required
                             />
                         </div>
@@ -70,7 +70,7 @@ export default function LoginPage() {
                                 value={privateKey}
                                 onChange={(e) => setPrivateKey(e.target.value)}
                                 placeholder="e.g., XK6CFyvYUMvY9FVQLeYBZBF..."
-                                className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-lg text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yappr-500 focus:border-transparent transition-colors"
+                                className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-lg text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-evonext-500 focus:border-transparent transition-colors"
                                 required
                             />
                         </div>
@@ -86,7 +86,7 @@ export default function LoginPage() {
                         <Button
                             type="submit"
                             disabled={isLoading || !identityId || !privateKey}
-                            className="w-full shadow-yappr-lg"
+                            className="w-full shadow-evonext-lg"
                             size="lg"
                         >
                             {isLoading ? (

@@ -9,7 +9,7 @@ import {
 } from '@heroicons/react/24/outline'
 import { formatNumber, formatTime } from '@/lib/utils'
 import { useAuth } from '@/contexts/auth-context'
-import { YAPPR_CONTRACT_ID_ALT } from '@/lib/constants'
+import { EVONEXT_CONTRACT_ID_ALT } from '@/lib/constants'
 
 export function RightSidebar() {
     const { user } = useAuth()
@@ -22,7 +22,7 @@ export function RightSidebar() {
                 <input
                     type="text"
                     placeholder="Search"
-                    className="w-full h-12 pl-12 pr-4 bg-gray-100 dark:bg-gray-900 rounded-full focus:outline-none focus:ring-2 focus:ring-yappr-500 focus:bg-transparent dark:focus:bg-transparent"
+                    className="w-full h-12 pl-12 pr-4 bg-gray-100 dark:bg-gray-900 rounded-full focus:outline-none focus:ring-2 focus:ring-evonext-500 focus:bg-transparent dark:focus:bg-transparent"
                 />
             </div>
 
@@ -34,7 +34,7 @@ export function RightSidebar() {
                 <div className="px-4 py-3 space-y-2">
                     <div>
                         <p className="text-sm text-gray-500">Contract ID</p>
-                        <p className="text-xs font-mono break-all">{YAPPR_CONTRACT_ID_ALT}</p>
+                        <p className="text-xs font-mono break-all">{EVONEXT_CONTRACT_ID_ALT}</p>
                     </div>
 
                     <div>

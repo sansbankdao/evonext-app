@@ -185,7 +185,7 @@ function SettingsPage() {
                                     setNotificationSettings(prev => ({ ...prev, [key]: checked }))
                                 }
                                 className={`w-11 h-6 rounded-full relative transition-colors ${
-                                    value ? 'bg-yappr-500' : 'bg-gray-200 dark:bg-gray-800'
+                                    value ? 'bg-evonext-500' : 'bg-gray-200 dark:bg-gray-800'
                                 }`}
                             >
                                 <Switch.Thumb className="block w-5 h-5 bg-white rounded-full transition-transform data-[state=checked]:translate-x-5 translate-x-0.5" />
@@ -215,7 +215,7 @@ function SettingsPage() {
                                 setPrivacySettings(prev => ({ ...prev, publicProfile: checked }))
                             }
                             className={`w-11 h-6 rounded-full relative transition-colors ${
-                                privacySettings.publicProfile ? 'bg-yappr-500' : 'bg-gray-200 dark:bg-gray-800'
+                                privacySettings.publicProfile ? 'bg-evonext-500' : 'bg-gray-200 dark:bg-gray-800'
                             }`}
                         >
                             <Switch.Thumb className="block w-5 h-5 bg-white rounded-full transition-transform data-[state=checked]:translate-x-5 translate-x-0.5" />
@@ -234,7 +234,7 @@ function SettingsPage() {
                                 setPrivacySettings(prev => ({ ...prev, showActivity: checked }))
                             }
                             className={`w-11 h-6 rounded-full relative transition-colors ${
-                                privacySettings.showActivity ? 'bg-yappr-500' : 'bg-gray-200 dark:bg-gray-800'
+                                privacySettings.showActivity ? 'bg-evonext-500' : 'bg-gray-200 dark:bg-gray-800'
                             }`}
                         >
                             <Switch.Thumb className="block w-5 h-5 bg-white rounded-full transition-transform data-[state=checked]:translate-x-5 translate-x-0.5" />
@@ -256,9 +256,9 @@ function SettingsPage() {
                     <div className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-950">
                         <RadioGroup.Item
                             value="everyone"
-                            className="w-5 h-5 rounded-full border-2 border-gray-300 dark:border-gray-700 data-[state=checked]:border-yappr-500"
+                            className="w-5 h-5 rounded-full border-2 border-gray-300 dark:border-gray-700 data-[state=checked]:border-evonext-500"
                         >
-                            <RadioGroup.Indicator className="flex items-center justify-center w-full h-full after:block after:w-2.5 after:h-2.5 after:rounded-full after:bg-yappr-500" />
+                            <RadioGroup.Indicator className="flex items-center justify-center w-full h-full after:block after:w-2.5 after:h-2.5 after:rounded-full after:bg-evonext-500" />
                         </RadioGroup.Item>
 
                         <label htmlFor="everyone" className="flex-1 cursor-pointer">
@@ -270,9 +270,9 @@ function SettingsPage() {
                     <div className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-950">
                         <RadioGroup.Item
                             value="followers"
-                            className="w-5 h-5 rounded-full border-2 border-gray-300 dark:border-gray-700 data-[state=checked]:border-yappr-500"
+                            className="w-5 h-5 rounded-full border-2 border-gray-300 dark:border-gray-700 data-[state=checked]:border-evonext-500"
                         >
-                            <RadioGroup.Indicator className="flex items-center justify-center w-full h-full after:block after:w-2.5 after:h-2.5 after:rounded-full after:bg-yappr-500" />
+                            <RadioGroup.Indicator className="flex items-center justify-center w-full h-full after:block after:w-2.5 after:h-2.5 after:rounded-full after:bg-evonext-500" />
                         </RadioGroup.Item>
 
                         <label htmlFor="followers" className="flex-1 cursor-pointer">
@@ -284,9 +284,9 @@ function SettingsPage() {
                     <div className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-950">
                         <RadioGroup.Item
                             value="none"
-                            className="w-5 h-5 rounded-full border-2 border-gray-300 dark:border-gray-700 data-[state=checked]:border-yappr-500"
+                            className="w-5 h-5 rounded-full border-2 border-gray-300 dark:border-gray-700 data-[state=checked]:border-evonext-500"
                         >
-                            <RadioGroup.Indicator className="flex items-center justify-center w-full h-full after:block after:w-2.5 after:h-2.5 after:rounded-full after:bg-yappr-500" />
+                            <RadioGroup.Indicator className="flex items-center justify-center w-full h-full after:block after:w-2.5 after:h-2.5 after:rounded-full after:bg-evonext-500" />
                         </RadioGroup.Item>
 
                         <label htmlFor="none" className="flex-1 cursor-pointer">
@@ -316,7 +316,7 @@ function SettingsPage() {
                         />
 
                         <label
-                            className="flex flex-col items-center gap-2 p-4 rounded-lg border-2 cursor-pointer transition-all peer-data-[state=checked]:border-yappr-500 peer-data-[state=checked]:bg-yappr-50 dark:peer-data-[state=checked]:bg-yappr-950/20 border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-950"
+                            className="flex flex-col items-center gap-2 p-4 rounded-lg border-2 cursor-pointer transition-all peer-data-[state=checked]:border-evonext-500 peer-data-[state=checked]:bg-evonext-50 dark:peer-data-[state=checked]:bg-evonext-950/20 border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-950"
                         >
                             <SunIcon className="h-8 w-8" />
                             <span className="text-sm font-medium">Light</span>
@@ -330,7 +330,7 @@ function SettingsPage() {
                         />
 
                         <label
-                            className="flex flex-col items-center gap-2 p-4 rounded-lg border-2 cursor-pointer transition-all peer-data-[state=checked]:border-yappr-500 peer-data-[state=checked]:bg-yappr-50 dark:peer-data-[state=checked]:bg-yappr-950/20 border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-950"
+                            className="flex flex-col items-center gap-2 p-4 rounded-lg border-2 cursor-pointer transition-all peer-data-[state=checked]:border-evonext-500 peer-data-[state=checked]:bg-evonext-50 dark:peer-data-[state=checked]:bg-evonext-950/20 border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-950"
                         >
                             <MoonIcon className="h-8 w-8" />
                             <span className="text-sm font-medium">Dark</span>
@@ -344,7 +344,7 @@ function SettingsPage() {
                         />
 
                         <label
-                            className="flex flex-col items-center gap-2 p-4 rounded-lg border-2 cursor-pointer transition-all peer-data-[state=checked]:border-yappr-500 peer-data-[state=checked]:bg-yappr-50 dark:peer-data-[state=checked]:bg-yappr-950/20 border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-950"
+                            className="flex flex-col items-center gap-2 p-4 rounded-lg border-2 cursor-pointer transition-all peer-data-[state=checked]:border-evonext-500 peer-data-[state=checked]:bg-evonext-50 dark:peer-data-[state=checked]:bg-evonext-950/20 border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-950"
                         >
                             <ComputerDesktopIcon className="h-8 w-8" />
                             <span className="text-sm font-medium">System</span>
@@ -401,13 +401,13 @@ function SettingsPage() {
                 </Button>
 
                 <Button variant="outline" className="w-full" asChild>
-                    <a href="https://github.com/sansbankdao/yappr-world" target="_blank" rel="noopener noreferrer">
+                    <a href="https://github.com/sansbankdao/evonext-world" target="_blank" rel="noopener noreferrer">
                         GitHub Repository
                     </a>
                 </Button>
 
                 <Button variant="outline" className="w-full" asChild>
-                    <a href="https://docs.yappr.world" target="_blank" rel="noopener noreferrer">
+                    <a href="https://docs.evonext.world" target="_blank" rel="noopener noreferrer">
                         Documentation
                     </a>
                 </Button>

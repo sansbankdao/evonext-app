@@ -211,7 +211,7 @@ function FeedPage() {
                                     {activeTab === 'for-you' && (
                                         <motion.div
                                             layoutId="activeTab"
-                                            className="absolute bottom-0 left-0 right-0 h-1 bg-yappr-500"
+                                            className="absolute bottom-0 left-0 right-0 h-1 bg-evonext-500"
                                         />
                                     )}
                                 </Tabs.Trigger>
@@ -224,7 +224,7 @@ function FeedPage() {
                                     {activeTab === 'your-posts' && (
                                         <motion.div
                                             layoutId="activeTab"
-                                            className="absolute bottom-0 left-0 right-0 h-1 bg-yappr-500"
+                                            className="absolute bottom-0 left-0 right-0 h-1 bg-evonext-500"
                                         />
                                     )}
                                 </Tabs.Trigger>
@@ -263,7 +263,7 @@ function FeedPage() {
                                 What&apos;s happening?
                             </button>
 
-                            <button className="p-3 rounded-full hover:bg-yappr-50 dark:hover:bg-yappr-950 text-yappr-500">
+                            <button className="p-3 rounded-full hover:bg-evonext-50 dark:hover:bg-evonext-950 text-evonext-500">
                                 <SparklesIcon className="h-5 w-5" />
                             </button>
                         </div>

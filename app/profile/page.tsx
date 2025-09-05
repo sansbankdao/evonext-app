@@ -157,7 +157,7 @@ function ProfilePage() {
                 </header>
 
                 {/* Banner */}
-                <div className="relative h-48 bg-gradient-yappr">
+                <div className="relative h-48 bg-gradient-evonext">
                     <button className="absolute bottom-4 right-4 p-2 bg-black/50 rounded-full hover:bg-black/70 transition-colors">
                         <CameraIcon className="h-5 w-5 text-white" />
                     </button>
@@ -218,7 +218,7 @@ function ProfilePage() {
                                     type="text"
                                     value={displayName}
                                     onChange={(e) => setDisplayName(e.target.value)}
-                                    className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-transparent focus:outline-none focus:ring-2 focus:ring-yappr-500"
+                                    className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-transparent focus:outline-none focus:ring-2 focus:ring-evonext-500"
                                     maxLength={50}
                                 />
                             </div>
@@ -231,7 +231,7 @@ function ProfilePage() {
                                 <textarea
                                     value={bio}
                                     onChange={(e) => setBio(e.target.value)}
-                                    className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-transparent focus:outline-none focus:ring-2 focus:ring-yappr-500 resize-none"
+                                    className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-transparent focus:outline-none focus:ring-2 focus:ring-evonext-500 resize-none"
                                     rows={3}
                                     maxLength={160}
                                 />
@@ -250,7 +250,7 @@ function ProfilePage() {
                                     type="text"
                                     value={location}
                                     onChange={(e) => setLocation(e.target.value)}
-                                    className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-transparent focus:outline-none focus:ring-2 focus:ring-yappr-500"
+                                    className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-transparent focus:outline-none focus:ring-2 focus:ring-evonext-500"
                                     maxLength={50}
                                 />
                             </div>
@@ -265,7 +265,7 @@ function ProfilePage() {
                                     value={website}
                                     onChange={(e) => setWebsite(e.target.value)}
                                     placeholder="https://example.com"
-                                    className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-transparent focus:outline-none focus:ring-2 focus:ring-yappr-500"
+                                    className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-transparent focus:outline-none focus:ring-2 focus:ring-evonext-500"
                                     maxLength={100}
                                 />
                             </div>
@@ -293,7 +293,7 @@ function ProfilePage() {
                                 )}
 
                                 {website && (
-                                    <a href={website} className="flex items-center gap-1 text-yappr-500 hover:underline">
+                                    <a href={website} className="flex items-center gap-1 text-evonext-500 hover:underline">
                                         <LinkIcon className="h-4 w-4" />
                                         {website.replace(/^https?:\/\//, '')}
                                     </a>
@@ -355,8 +355,8 @@ function ProfilePage() {
                         </button>
 
                         <button className="w-full p-4 rounded-lg border border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-950 transition-colors flex items-center gap-3">
-                            <div className="h-10 w-10 rounded-lg bg-yappr-100 dark:bg-yappr-950 flex items-center justify-center">
-                                <LinkIcon className="h-5 w-5 text-yappr-500" />
+                            <div className="h-10 w-10 rounded-lg bg-evonext-100 dark:bg-evonext-950 flex items-center justify-center">
+                                <LinkIcon className="h-5 w-5 text-evonext-500" />
                             </div>
 
                             <div className="flex-1 text-left">
@@ -444,13 +444,13 @@ function ProfilePage() {
                                                     return (
                                                         <div key={key} className={cn(
                                                             "p-3 rounded-lg transition-colors",
-                                                            isModified && "bg-yappr-50 dark:bg-yappr-950/20"
+                                                            isModified && "bg-evonext-50 dark:bg-evonext-950/20"
                                                         )}>
                                                             <div className="flex items-center justify-between mb-2">
                                                                 <label className="text-sm font-medium flex items-center gap-2">
                                                                     {label}
                                                                     {isModified && (
-                                                                        <span className="text-xs text-yappr-500">• modified</span>
+                                                                        <span className="text-xs text-evonext-500">• modified</span>
                                                                     )}
                                                                 </label>
 
@@ -468,10 +468,10 @@ function ProfilePage() {
                                                                 step={step}
                                                             >
                                                                 <Slider.Track className="bg-gray-200 dark:bg-gray-800 relative grow rounded-full h-2">
-                                                                    <Slider.Range className="absolute bg-yappr-500 rounded-full h-full" />
+                                                                    <Slider.Range className="absolute bg-evonext-500 rounded-full h-full" />
                                                                 </Slider.Track>
 
-                                                                <Slider.Thumb className="block w-5 h-5 bg-white dark:bg-gray-200 shadow-lg rounded-full hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-yappr-500 cursor-grab active:cursor-grabbing" />
+                                                                <Slider.Thumb className="block w-5 h-5 bg-white dark:bg-gray-200 shadow-lg rounded-full hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-evonext-500 cursor-grab active:cursor-grabbing" />
                                                             </Slider.Root>
                                                         </div>
                                                     )

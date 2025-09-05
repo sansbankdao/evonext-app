@@ -18,8 +18,8 @@ interface EncryptedData {
 }
 
 class BiometricStorage {
-    private readonly STORAGE_KEY_PREFIX = 'yappr_bio_'
-    private readonly CREDENTIAL_KEY = 'yappr_bio_credential'
+    private readonly STORAGE_KEY_PREFIX = 'evonext_bio_'
+    private readonly CREDENTIAL_KEY = 'evonext_bio_credential'
 
     /**
      * Check if biometric authentication is available
@@ -416,7 +416,7 @@ export async function getPrivateKeyWithBiometric(
 
         if (!data) {
             // Check if it exists in localStorage
-            const storageKey = `yappr_bio_pk_${identityId}`
+            const storageKey = `evonext_bio_pk_${identityId}`
             const exists = localStorage.getItem(storageKey)
             console.log(`Checking localStorage key ${storageKey}:`, exists ? 'Exists' : 'Not found')
 

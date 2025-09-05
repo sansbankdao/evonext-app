@@ -107,7 +107,7 @@ export default function PublicHomePage() {
         { topic: '#Web3Social', posts: 892, trend: '+23%' },
         { topic: '#Decentralized', posts: 567, trend: '+8%' },
         { topic: '#Blockchain', posts: 3421, trend: '+45%' },
-        { topic: '#Yappr', posts: 234, trend: 'New' },
+        { topic: '#EvoNext', posts: 234, trend: 'New' },
     ]
 
     const stats = [
@@ -178,7 +178,7 @@ export default function PublicHomePage() {
                         </p>
 
                         <div className="flex gap-4 justify-center">
-                            <Button size="lg" asChild className="shadow-yappr-lg text-2xl font-medium">
+                            <Button size="lg" asChild className="shadow-evonext-lg text-2xl font-medium">
                                 <Link href="/connect">
                                     Connect
                                     <ArrowRightIcon className="ml-2 h-5 w-5" />
@@ -206,7 +206,7 @@ export default function PublicHomePage() {
                                 transition={{ delay: index * 0.1 }}
                                 className="text-center"
                             >
-                                <stat.icon className="h-8 w-8 text-yappr-500 mx-auto mb-2" />
+                                <stat.icon className="h-8 w-8 text-evonext-500 mx-auto mb-2" />
                                 <div className="text-3xl font-bold">{stat.value}</div>
                                 <div className="text-sm text-gray-500">{stat.label}</div>
                             </motion.div>
@@ -217,7 +217,7 @@ export default function PublicHomePage() {
                 {/* Trending Topics */}
                 <section className="py-12">
                     <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
-                        <ArrowTrendingUpIcon className="h-6 w-6 text-yappr-500" />
+                        <ArrowTrendingUpIcon className="h-6 w-6 text-evonext-500" />
                         Trending Topics
                     </h2>
 
@@ -243,7 +243,7 @@ export default function PublicHomePage() {
 
                                     <span className={`text-sm font-medium ${
                                         topic.trend === 'New'
-                                        ? 'text-yappr-500'
+                                        ? 'text-evonext-500'
                                         : topic.trend.startsWith('+')
                                         ? 'text-green-500'
                                         : 'text-red-500'
@@ -259,7 +259,7 @@ export default function PublicHomePage() {
                 {/* Trending Posts */}
                 <section className="py-12">
                     <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
-                        <SparklesIcon className="h-6 w-6 text-yappr-500" />
+                        <SparklesIcon className="h-6 w-6 text-evonext-500" />
                         Trending Posts
                     </h2>
 
@@ -322,7 +322,7 @@ export default function PublicHomePage() {
                         Create your decentralized identity and start sharing your thoughts.
                     </p>
 
-                    <Button size="lg" asChild className="shadow-yappr-lg">
+                    <Button size="lg" asChild className="shadow-evonext-lg">
                         <Link href="/connect">
                             Create Account
                             <ArrowRightIcon className="ml-2 h-5 w-5" />

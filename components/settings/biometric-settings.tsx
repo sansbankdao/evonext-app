@@ -32,7 +32,7 @@ export function BiometricSettings() {
 
             if (available) {
                 // Check if already registered
-                const credentialData = localStorage.getItem('yappr_bio_credential')
+                const credentialData = localStorage.getItem('evonext_bio_credential')
                 setIsEnabled(!!credentialData)
             }
         } catch (error) {
@@ -49,7 +49,7 @@ export function BiometricSettings() {
                     // Disable biometric
                     await clearBiometricPrivateKey(user.identityId)
 
-                    localStorage.removeItem('yappr_bio_credential')
+                    localStorage.removeItem('evonext_bio_credential')
 
                     setIsEnabled(false)
 

@@ -1,11 +1,11 @@
 # DPNS Integration Complete! 🎉
 
-The yappr app now has full DPNS (Dash Platform Name Service) functionality integrated from the WASM SDK.
+The evonext app now has full DPNS (Dash Platform Name Service) functionality integrated from the WASM SDK.
 
 ## What's New
 
 ### 1. **Native DPNS Functions**
-The WASM SDK now provides native DPNS functions that have been integrated into the yappr app:
+The WASM SDK now provides native DPNS functions that have been integrated into the evonext app:
 
 - `dpns_convert_to_homograph_safe()` - Converts usernames to homograph-safe characters
 - `dpns_is_valid_username()` - Validates username format
@@ -76,7 +76,7 @@ const validation = dpnsService.validateUsername('alice');
 if (validation.isValid) {
   // Check availability
   const available = await dpnsService.isUsernameAvailableNative('alice');
-  
+
   if (available) {
     // Register with progress tracking
     await dpnsService.registerUsername(

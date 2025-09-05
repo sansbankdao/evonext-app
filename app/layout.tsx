@@ -3,7 +3,7 @@ import type { Metadata } from 'next'
 import type { Viewport } from 'next'
 
 import Script from 'next/script'
-import { Inter } from 'next/font/google'
+// import { Inter } from 'next/font/google'
 
 /* Import styles. */
 import './globals.css'
@@ -14,10 +14,10 @@ import { Toaster } from 'react-hot-toast'
 /* Import (local) modules. */
 import { Providers } from '@/components/providers'
 import ErrorBoundary from '@/components/error-boundary'
-import { DevelopmentBanner } from '@/components/ui/development-banner'
+import { Header } from '@/components/ui/header'
 import { Footer } from '@/components/ui/footer'
 
-const inter = Inter({ subsets: ['latin'] })
+// const inter = Inter({ subsets: ['latin'] })
 
 export const viewport: Viewport = {
     width: 'device-width',
@@ -28,7 +28,7 @@ export const viewport: Viewport = {
 }
 
 export const metadata: Metadata = {
-    metadataBase: new URL('https://yappr.world'), // FIXME Handle Testnet
+    metadataBase: new URL('https://evonext.world'), // FIXME Handle Testnet
     title: 'EvoNext Free Your Inner Voice',
     applicationName: 'EvoNext Free Your Inner Voice',
     description: 'Discover safe and enjoyable spaces to Explore. Curate. Share YOUR TRUTH without any fear of social consequence.',
@@ -78,10 +78,11 @@ export default function RootLayout({
 }) {
     return (
         <html lang="en" className="w-screen h-screen overflow-x-hidden">
-            <body className={`${inter.className} w-screen h-screen overflow-x-hidden`}>
+            {/* <body className={`${inter.className} w-screen h-screen overflow-x-hidden`}> */}
+            <body className={`w-screen h-screen overflow-x-hidden`}>
                 <ErrorBoundary level="app">
                     <Providers>
-                        <DevelopmentBanner />
+                        <Header />
 
                         <ErrorBoundary level="page">
                             {children}

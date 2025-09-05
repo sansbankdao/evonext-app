@@ -20,7 +20,7 @@ export default function ExplorePage() {
     const [searchQuery, setSearchQuery] = useState('')
     const [isSearchFocused, setIsSearchFocused] = useState(false)
     const [activeTab, setActiveTab] = useState<TabType>('trending')
-    const [searchHistory] = useState(['Web Development', 'React', 'TypeScript', 'Yappr'])
+    const [searchHistory] = useState(['Web Development', 'React', 'TypeScript', 'EvoNext'])
     const [posts, setPosts] = useState<any[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [searchResults, setSearchResults] = useState<any[]>([])
@@ -118,7 +118,7 @@ export default function ExplorePage() {
         { topic: '#PineapplePizzaDebate', posts: 6789, popularity: Math.log10(6789).toFixed(2), trend: 'stable' },
         { topic: '#CoffeeIsLife', posts: 5432, popularity: Math.log10(5432).toFixed(2), trend: 'up' },
         { topic: '#MondayMotivation', posts: 4321, popularity: Math.log10(4321).toFixed(2), trend: 'down' },
-        { topic: '#CatsOfYappr', posts: 3456, popularity: Math.log10(3456).toFixed(2), trend: 'up' },
+        { topic: '#CatsOfEvoNext', posts: 3456, popularity: Math.log10(3456).toFixed(2), trend: 'up' },
         { topic: '#Web3Memes', posts: 2876, popularity: Math.log10(2876).toFixed(2), trend: 'stable' },
         { topic: '#TouchGrass', posts: 2345, popularity: Math.log10(2345).toFixed(2), trend: 'up' },
         { topic: '#DecentralizedDating', posts: 1987, popularity: Math.log10(1987).toFixed(2), trend: 'up' },
@@ -163,7 +163,7 @@ export default function ExplorePage() {
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                     onFocus={() => setIsSearchFocused(true)}
                                     placeholder="Search"
-                                    className="w-full h-12 pl-12 pr-4 bg-gray-100 dark:bg-gray-900 rounded-full focus:outline-none focus:ring-2 focus:ring-yappr-500 focus:bg-transparent dark:focus:bg-transparent"
+                                    className="w-full h-12 pl-12 pr-4 bg-gray-100 dark:bg-gray-900 rounded-full focus:outline-none focus:ring-2 focus:ring-evonext-500 focus:bg-transparent dark:focus:bg-transparent"
                                 />
                             </div>
                         </div>
@@ -179,7 +179,7 @@ export default function ExplorePage() {
                                         {activeTab === 'trending' && (
                                             <motion.div
                                                 layoutId="exploreTab"
-                                                className="absolute bottom-0 left-0 right-0 h-1 bg-yappr-500"
+                                                className="absolute bottom-0 left-0 right-0 h-1 bg-evonext-500"
                                             />
                                         )}
                                     </Tabs.Trigger>
@@ -192,7 +192,7 @@ export default function ExplorePage() {
                                         {activeTab === 'news' && (
                                             <motion.div
                                                 layoutId="exploreTab"
-                                                className="absolute bottom-0 left-0 right-0 h-1 bg-yappr-500"
+                                                className="absolute bottom-0 left-0 right-0 h-1 bg-evonext-500"
                                             />
                                         )}
                                     </Tabs.Trigger>
@@ -205,7 +205,7 @@ export default function ExplorePage() {
                                         {activeTab === 'sports' && (
                                             <motion.div
                                                 layoutId="exploreTab"
-                                                className="absolute bottom-0 left-0 right-0 h-1 bg-yappr-500"
+                                                className="absolute bottom-0 left-0 right-0 h-1 bg-evonext-500"
                                             />
                                         )}
                                     </Tabs.Trigger>
@@ -218,7 +218,7 @@ export default function ExplorePage() {
                                         {activeTab === 'entertainment' && (
                                             <motion.div
                                                 layoutId="exploreTab"
-                                                className="absolute bottom-0 left-0 right-0 h-1 bg-yappr-500"
+                                                className="absolute bottom-0 left-0 right-0 h-1 bg-evonext-500"
                                             />
                                         )}
                                     </Tabs.Trigger>
@@ -357,7 +357,7 @@ export default function ExplorePage() {
                                                     <div className="flex items-center gap-2 mb-1">
                                                         <span className="text-sm text-gray-500">#{index + 1}</span>
 
-                                                        <p className="font-bold text-lg text-yappr-500 hover:underline">{trend.topic}</p>
+                                                        <p className="font-bold text-lg text-evonext-500 hover:underline">{trend.topic}</p>
 
                                                         {trend.trend === 'up' && <ArrowTrendingUpIcon className="h-4 w-4 text-green-500" />}
                                                         {trend.trend === 'down' && <ArrowTrendingUpIcon className="h-4 w-4 text-red-500 rotate-180" />}

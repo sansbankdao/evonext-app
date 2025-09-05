@@ -1,5 +1,5 @@
 /**
- * Dash Platform integration for Yappr
+ * Dash Platform integration for EvoNext
  * Handles profile and avatar document management
  */
 

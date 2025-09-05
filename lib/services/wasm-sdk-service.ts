@@ -100,10 +100,10 @@ class WasmSdkService {
     }
 
     /**
-     * We need to avoid network requests for our yappr contract.
+     * We need to avoid network requests for our evonext contract.
      * The solution is to perform a controlled fetch that provides local contract data.
      */
-    private async _preloadYapprContract(): Promise<void> {
+    private async _preloadEvoNextContract(): Promise<void> {
         if (!this.config || !this.sdk) {
             return
         }
@@ -223,8 +223,8 @@ class WasmSdkService {
             this._isInitialized = true;
             console.log('WasmSdkService: WASM SDK initialized successfully, _isInitialized = true');
 
-            // Preload the yappr contract into the trusted context
-            await this._preloadYapprContract();
+            // Preload the evonext contract into the trusted context
+            await this._preloadEvoNextContract();
         } catch (error) {
             console.error('WasmSdkService: Failed to initialize WASM SDK:', error);
             console.error('WasmSdkService: Error details:', {

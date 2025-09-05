@@ -156,7 +156,7 @@ export function ComposeModal() {
                                 <div className="p-4">
                                     {replyingTo && (
                                         <div className="mb-4 text-sm text-gray-500">
-                                            Replying to <span className="text-yappr-500">@{replyingTo.author.username}</span>
+                                            Replying to <span className="text-evonext-500">@{replyingTo.author.username}</span>
                                         </div>
                                     )}
 
@@ -229,7 +229,7 @@ export function ComposeModal() {
                                                                         ? 'text-red-500'
                                                                         : remainingCharacters < 20
                                                                         ? 'text-yellow-500'
-                                                                        : 'text-yappr-500'
+                                                                        : 'text-evonext-500'
                                                                     }
                                                                 />
                                                             </svg>

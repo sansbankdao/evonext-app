@@ -17,10 +17,10 @@ export const DUSD_CONTRACT_ID_TESTNET = '' // Testnet
 export const SANS_CONTRACT_ID_MAINNET = '' // Mainnet
 export const SANS_CONTRACT_ID_TESTNET = '' // Testnet
 
-/* YAPPR Contract IDs */
-export const YAPPR_CONTRACT_ID_MAINNET = '' // Mainnet
-// export const YAPPR_CONTRACT_ID_TESTNET = '' // Testnet
-export const YAPPR_CONTRACT_ID_ALT = 'AyWK6nDVfb8d1ZmkM5MmZZrThbUyWyso1aMeGuuVSfxf' // Testnet (owned by therealslimshady)
+/* EVONEXT Contract IDs */
+export const EVONEXT_CONTRACT_ID_MAINNET = '' // Mainnet
+// export const EVONEXT_CONTRACT_ID_TESTNET = '' // Testnet
+export const EVONEXT_CONTRACT_ID_ALT = 'AyWK6nDVfb8d1ZmkM5MmZZrThbUyWyso1aMeGuuVSfxf' // Testnet (owned by therealslimshady)
 
 // Network configuration
 export const DEFAULT_NETWORK = 'testnet'

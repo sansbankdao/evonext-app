@@ -14,7 +14,7 @@ Complete integration of the Dash Platform WASM SDK into the EvoNext social media
 ### Phase 1: WASM SDK Setup & Infrastructure
 
 1. **Build WASM SDK** ✅
-   - Copy WASM SDK from platform to yappr/lib/wasm-sdk
+   - Copy WASM SDK from platform to evonext/lib/wasm-sdk
    - Build the WASM module
    - Set up proper serving of WASM files
 

@@ -2,7 +2,7 @@
  * Service for managing local data contracts
  */
 
-import yapprContractJson from '../../contracts/yappr-minimal.json'
+import evonextContractJson from '../../contracts/evonext-minimal.json'
 
 export interface DataContract {
     $id?: string
@@ -14,17 +14,17 @@ export interface DataContract {
 }
 
 class ContractService {
-    private yapprContract: DataContract | null = null
+    private evonextContract: DataContract | null = null
     private contractId: string | null = null
 
     /**
-     * Get the yappr contract with the specified owner ID and contract ID
+     * Get the evonext contract with the specified owner ID and contract ID
      */
-    getYapprContract(ownerId: string, contractId: string): DataContract {
-        if (!this.yapprContract || this.contractId !== contractId) {
+    getEvoNextContract(ownerId: string, contractId: string): DataContract {
+        if (!this.evonextContract || this.contractId !== contractId) {
             // Create a copy and set the owner ID and contract ID
-            this.yapprContract = {
-                ...yapprContractJson,
+            this.evonextContract = {
+                ...evonextContractJson,
                 ownerId,
                 $id: contractId
             }
@@ -32,21 +32,21 @@ class ContractService {
             this.contractId = contractId
         }
 
-        return this.yapprContract
+        return this.evonextContract
     }
 
     /**
-     * Get the yappr contract JSON as a string
+     * Get the evonext contract JSON as a string
      */
-    getYapprContractJson(ownerId: string, contractId: string): string {
-        const contract = this.getYapprContract(ownerId, contractId)
+    getEvoNextContractJson(ownerId: string, contractId: string): string {
+        const contract = this.getEvoNextContract(ownerId, contractId)
         return JSON.stringify(contract)
     }
 
     /**
-     * Validate if a contract ID matches our yappr contract
+     * Validate if a contract ID matches our evonext contract
      */
-    isYapprContract(contractId: string): boolean {
+    isEvoNextContract(contractId: string): boolean {
         return this.contractId === contractId
     }
 }

@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { YAPPR_CONTRACT_ID_ALT } from '@/lib/constants'
+import { EVONEXT_CONTRACT_ID_ALT } from '@/lib/constants'
 
 export interface AuthUser {
     identityId: string
@@ -36,7 +36,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Check for saved session on mount
     useEffect(() => {
         const restoreSession = async () => {
-            const savedSession = localStorage.getItem('yappr_session')
+            const savedSession = localStorage.getItem('evonext_session')
 
             if (savedSession) {
                 try {
@@ -75,7 +75,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                                     // Update saved session
 
                                     const updatedSession = { ...sessionData, user: { ...savedUser, dpnsUsername } }
-                                    localStorage.setItem('yappr_session', JSON.stringify(updatedSession))
+                                    localStorage.setItem('evonext_session', JSON.stringify(updatedSession))
                                 }
                             } catch (e) {
                                 console.error('Auth: Background DPNS fetch failed:', e)
@@ -84,7 +84,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     }
                 } catch (e) {
                     console.error('Failed to restore session:', e)
-                    localStorage.removeItem('yappr_session')
+                    localStorage.removeItem('evonext_session')
                 }
             }
         }
@@ -109,7 +109,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             // Initialize SDK if needed
             await wasmSdkService.initialize({
                 network: (process.env.NEXT_PUBLIC_NETWORK as 'testnet' | 'mainnet') || 'testnet',
-                contractId: YAPPR_CONTRACT_ID_ALT
+                contractId: EVONEXT_CONTRACT_ID_ALT
             })
 
             console.log('Fetching identity with WASM SDK...')
@@ -140,7 +140,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 timestamp: Date.now()
             }
 
-            localStorage.setItem('yappr_session', JSON.stringify(sessionData))
+            localStorage.setItem('evonext_session', JSON.stringify(sessionData))
 
             // Store private key securely in memory for this session only
             // This is needed for signing transactions
@@ -206,9 +206,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, [router])
 
     const logout = useCallback(async () => {
-        localStorage.removeItem('yappr_session')
-        sessionStorage.removeItem('yappr_dpns_username')
-        sessionStorage.removeItem('yappr_skip_dpns')
+        localStorage.removeItem('evonext_session')
+        sessionStorage.removeItem('evonext_dpns_username')
+        sessionStorage.removeItem('evonext_skip_dpns')
 
         // Clear private key from secure storage
         if (user?.identityId) {
@@ -233,13 +233,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setUser(updatedUser)
 
             // Update session storage
-            const savedSession = localStorage.getItem('yappr_session')
+            const savedSession = localStorage.getItem('evonext_session')
 
             if (savedSession) {
                 try {
                     const sessionData = JSON.parse(savedSession)
                     sessionData.user.dpnsUsername = username
-                    localStorage.setItem('yappr_session', JSON.stringify(sessionData))
+                    localStorage.setItem('evonext_session', JSON.stringify(sessionData))
                 } catch (e) {
                     console.error('Failed to update session:', e)
                 }
@@ -300,7 +300,7 @@ export function withAuth<P extends object>(
             }
 
             // Check if user has DPNS username (unless explicitly allowed without)
-            const skipDPNS = sessionStorage.getItem('yappr_skip_dpns') === 'true'
+            const skipDPNS = sessionStorage.getItem('evonext_skip_dpns') === 'true'
 
             if (!options?.allowWithoutDPNS && !user.dpnsUsername && !skipDPNS) {
                 console.log('No DPNS username found, redirecting to DPNS registration...')
@@ -319,7 +319,7 @@ export function withAuth<P extends object>(
         }
 
         // If DPNS is required but not present, show loading (redirect will happen)
-        const skipDPNS = sessionStorage.getItem('yappr_skip_dpns') === 'true'
+        const skipDPNS = sessionStorage.getItem('evonext_skip_dpns') === 'true'
 
         if (!options?.allowWithoutDPNS && !user.dpnsUsername && !skipDPNS) {
             return (
