@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import { wasmSdkService } from '@/lib/services/wasm-sdk-service'
-import { YAPPR_CONTRACT_ID } from '@/lib/constants'
+import { YAPPR_CONTRACT_ID_ALT } from '@/lib/constants'
 
 interface SdkContextType {
     isReady: boolean

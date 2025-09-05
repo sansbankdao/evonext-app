@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { YAPPR_CONTRACT_ID } from '@/lib/constants'
+import { YAPPR_CONTRACT_ID_ALT } from '@/lib/constants'
 
 export interface AuthUser {
     identityId: string

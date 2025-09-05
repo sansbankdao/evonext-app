@@ -9,7 +9,7 @@ import {
 } from '@heroicons/react/24/outline'
 import { formatNumber, formatTime } from '@/lib/utils'
 import { useAuth } from '@/contexts/auth-context'
-import { YAPPR_CONTRACT_ID } from '@/lib/constants'
+import { YAPPR_CONTRACT_ID_ALT } from '@/lib/constants'
 
 export function RightSidebar() {
     const { user } = useAuth()

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { wasmSdkService, dpnsService } from '@/lib/services'
-import { YAPPR_CONTRACT_ID } from '@/lib/constants'
+import { YAPPR_CONTRACT_ID_ALT } from '@/lib/constants'
 
 export default function TestDpnsPage() {
     const [status, setStatus] = useState<string>('Not initialized')

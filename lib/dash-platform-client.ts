@@ -8,7 +8,7 @@ import {
 
 // Import the centralized WASM service
 import { wasmSdkService } from './services/wasm-sdk-service'
-import { YAPPR_CONTRACT_ID } from './constants'
+import { YAPPR_CONTRACT_ID_ALT } from './constants'
 
 export class DashPlatformClient {
     private sdk: any = null

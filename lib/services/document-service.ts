@@ -2,7 +2,7 @@
 import { getWasmSdk } from './wasm-sdk-service'
 import { get_documents, get_document } from '../dash-wasm/wasm_sdk'
 import { stateTransitionService } from './state-transition-service'
-import { YAPPR_CONTRACT_ID } from '../constants'
+import { YAPPR_CONTRACT_ID_ALT } from '../constants'
 
 export interface QueryOptions {
     where?: Array<[string, string, any]>;
