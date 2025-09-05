@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import {
     BookmarkIcon,
@@ -44,10 +45,14 @@ interface BookmarkedPost {
 
 function BookmarksPage() {
     const { user } = useAuth()
+    const router = useRouter()
     const [bookmarks, setBookmarks] = useState<BookmarkedPost[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [searchQuery, setSearchQuery] = useState('')
     const [sortBy, setSortBy] = useState<'recent' | 'oldest'>('recent')
+
+// FIXME FOR DEVELOPMENT PURPOSES ONLY
+router.push('/bootstrap')
 
     useEffect(() => {
         // In a real app, this would fetch bookmarked posts from Dash Platform
