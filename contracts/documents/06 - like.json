@@ -1,15 +1,15 @@
 {
     "like": {
         "type": "object",
-        "description": "A like on a post",
+        "description": "A like on a post.",
         "properties": {
             "postId": {
                 "position": 0,
                 "type": "array",
+                "description": "ID of the liked post.",
                 "maxItems": 32,
                 "minItems": 32,
                 "byteArray": true,
-                "description": "ID of the liked post",
                 "contentMediaType": "application/x.dash.dpp.identifier"
             }
         },
@@ -52,7 +52,7 @@
         "mutable": false,
         "required": [
             "$createdAt",
-            "postid"
+            "postId"
         ],
         "additionalProperties": false
     }

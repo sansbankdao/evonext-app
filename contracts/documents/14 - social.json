@@ -1,12 +1,12 @@
 {
-    "profile": {
+    "social": {
         "type": "object",
-        "description": "User profile information",
+        "description": "User social network information.",
         "properties": {
             "avatarId": {
                 "position": 0,
                 "type": "array",
-                "description": "Reference to the user's avatar (NFT) document.",
+                "description": "Reference to the user's avatar document.",
                 "maxItems": 32,
                 "minItems": 32,
                 "byteArray": true,
@@ -15,7 +15,7 @@
             "bannerId": {
                 "position": 1,
                 "type": "array",
-                "description": "Reference to the user's banner image document.",
+                "description": "Reference to the user's banner (image) document.",
                 "maxItems": 32,
                 "minItems": 32,
                 "byteArray": true,
@@ -24,21 +24,21 @@
             "bio": {
                 "position": 2,
                 "type": "string",
-                "description": "Brief biography of a user.",
-                "maxLength": 160
+                "maxLength": 160,
+                "description": "User biography"
             },
             "location": {
                 "position": 3,
                 "type": "string",
-                "description": "Primary location of a user.",
-                "maxLength": 50
+                "maxLength": 50,
+                "description": "User location"
             },
             "website": {
                 "position": 4,
                 "type": "string",
-                "description": "Link to a user's website.",
                 "pattern": "^https?://.+$",
-                "maxLength": 100
+                "maxLength": 100,
+                "description": "User's website"
             }
         },
         "indices": [

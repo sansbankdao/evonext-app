@@ -1,74 +1,67 @@
 {
     "post": {
         "type": "object",
-        "description": "A post/tweet in the social network",
+        "description": "A post (or remix) within the social network.",
         "properties": {
             "content": {
                 "position": 0,
                 "type": "string",
+                "description": "Content of a post.",
                 "maxLength": 500,
-                "minLength": 1,
-                "description": "Post content"
+                "minLength": 1
             },
             "remix": {
                 "position": 1,
                 "type": "string",
-                "description": "Remix content",
+                "description": "Remixed (content) of a post.",
                 "maxLength": 500,
                 "minLength": 1
             },
-            "mediaUrl": {
+            "language": {
                 "position": 2,
                 "type": "string",
-                "pattern": "^https?://.+$",
-                "maxLength": 512,
-                "description": "URL to media file (temporary field - will support multiple media in future)"
-            },
-            "language": {
-                "position": 6,
-                "type": "string",
+                "description": "Language code of the post.",
                 "pattern": "^[a-z]{2}$",
-                "maxLength": 2,
-                "description": "Language code of the post"
-            },
-            "sensitive": {
-                "position": 7,
-                "type": "boolean",
-                "description": "Whether post contains sensitive content"
-            },
-            "quotedPostId": {
-                "position": 3,
-                "type": "array",
-                "maxItems": 32,
-                "minItems": 32,
-                "byteArray": true,
-                "description": "ID of quoted post",
-                "contentMediaType": "application/x.dash.dpp.identifier"
+                "maxLength": 2
             },
             "replyToPostId": {
-                "position": 2,
+                "position": 3,
                 "type": "array",
+                "description": "ID of the post this is replying to.",
                 "maxItems": 32,
                 "minItems": 32,
                 "byteArray": true,
-                "description": "ID of post this is replying to",
                 "contentMediaType": "application/x.dash.dpp.identifier"
             },
-            "firstMentionId": {
+            "mediaUrl": {
                 "position": 4,
                 "type": "array",
-                "maxItems": 32,
-                "minItems": 32,
+                "description": "IDs to media data (support for up to 3 IDs per post).",
+                "maxItems": 96,
+                "minItems": 96,
                 "byteArray": true,
-                "description": "First mentioned user ID (temporary field - will support multiple mentions in future)",
                 "contentMediaType": "application/x.dash.dpp.identifier"
             },
-            "primaryHashtag": {
+            "mentionIds": {
                 "position": 5,
+                "type": "array",
+                "description": "Mentioned user IDs (support for up to 3 IDs per post).",
+                "maxItems": 96,
+                "minItems": 96,
+                "byteArray": true,
+                "contentMediaType": "application/x.dash.dpp.identifier"
+            },
+            "hashtag": {
+                "position": 6,
                 "type": "string",
+                "description": "A (featured) hashtag for the post.",
                 "pattern": "^[a-zA-Z0-9_]{1,100}$",
-                "maxLength": 100,
-                "description": "Primary hashtag for the post (temporary field - will support multiple hashtags in future)"
+                "maxLength": 100
+            },
+            "isSensitive": {
+                "position": 7,
+                "type": "boolean",
+                "description": "A flag for whether a post contains sensitive content."
             }
         },
         "indices": [
@@ -84,10 +77,13 @@
                 ]
             },
             {
-                "name": "timeline",
+                "name": "remixToPost",
                 "properties": [
                     {
-                        "$createdAt": "asc"
+                        "ownerId": "asc"
+                    },
+                    {
+                        "$updatedAt": "asc"
                     }
                 ]
             },
@@ -101,12 +97,33 @@
                         "$createdAt": "asc"
                     }
                 ]
+            },
+            {
+                "name": "timeline",
+                "properties": [
+                    {
+                        "$createdAt": "asc"
+                    }
+                ]
+            },
+            {
+                "name": "sensitive",
+                "properties": [
+                    {
+                        "isSensitive": "asc"
+                    },
+                    {
+                        "$createdAt": "asc"
+                    }
+                ]
             }
         ],
         "required": [
             "$createdAt",
+            "$updatedAt",
             "content",
-            "remix"
+            "remix",
+            "isSensitive"
         ],
         "additionalProperties": false
     }
