@@ -1,7 +1,7 @@
 {
     "profile": {
         "type": "object",
-        "description": "User profile information",
+        "description": "A user's (primary) profile information.",
         "properties": {
             "avatarId": {
                 "position": 0,

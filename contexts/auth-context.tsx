@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { EVONEXT_CONTRACT_ID_ALT } from '@/lib/constants'
+import { EVONEXT_CONTRACT_ID } from '@/lib/constants'
 
 export interface AuthUser {
     identityId: string
@@ -109,7 +109,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             // Initialize SDK if needed
             await wasmSdkService.initialize({
                 network: (process.env.NEXT_PUBLIC_NETWORK as 'testnet' | 'mainnet') || 'testnet',
-                contractId: EVONEXT_CONTRACT_ID_ALT
+                contractId: EVONEXT_CONTRACT_ID
             })
 
             console.log('Fetching identity with WASM SDK...')

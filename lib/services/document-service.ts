@@ -2,7 +2,7 @@
 import { getWasmSdk } from './wasm-sdk-service'
 import { get_documents, get_document } from '../dash-wasm/wasm_sdk'
 import { stateTransitionService } from './state-transition-service'
-import { EVONEXT_CONTRACT_ID_ALT } from '../constants'
+import { EVONEXT_CONTRACT_ID } from '../constants'
 
 export interface QueryOptions {
     where?: Array<[string, string, any]>;
@@ -25,7 +25,7 @@ export abstract class BaseDocumentService<T> {
     protected readonly CACHE_TTL = 30000; // 30 seconds cache
 
     constructor(documentType: string) {
-        this.contractId = EVONEXT_CONTRACT_ID_ALT;
+        this.contractId = EVONEXT_CONTRACT_ID;
         this.documentType = documentType;
     }
 

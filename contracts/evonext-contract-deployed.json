@@ -1,4 +1,61 @@
 {
+    "like": {
+        "type": "object",
+        "description": "A like on a post.",
+        "properties": {
+            "postId": {
+                "position": 0,
+                "type": "array",
+                "description": "ID of the liked post.",
+                "maxItems": 32,
+                "minItems": 32,
+                "byteArray": true,
+                "contentMediaType": "application/x.dash.dpp.identifier"
+            }
+        },
+        "indices": [
+            {
+                "name": "postAndOwner",
+                "unique": true,
+                "properties": [
+                    {
+                        "postId": "asc"
+                    },
+                    {
+                        "$ownerId": "asc"
+                    }
+                ]
+            },
+            {
+                "name": "ownerLikes",
+                "properties": [
+                    {
+                        "$ownerId": "asc"
+                    },
+                    {
+                        "$createdAt": "asc"
+                    }
+                ]
+            },
+            {
+                "name": "postLikes",
+                "properties": [
+                    {
+                        "postId": "asc"
+                    },
+                    {
+                        "$createdAt": "asc"
+                    }
+                ]
+            }
+        ],
+        "mutable": false,
+        "required": [
+            "$createdAt",
+            "postId"
+        ],
+        "additionalProperties": false
+    },
     "post": {
         "type": "object",
         "description": "A post (or remix) within the social network.",
@@ -124,6 +181,72 @@
             "content",
             "remix",
             "isSensitive"
+        ],
+        "additionalProperties": false
+    },
+    "profile": {
+        "type": "object",
+        "description": "A user's (primary) profile information.",
+        "properties": {
+            "avatarId": {
+                "position": 0,
+                "type": "array",
+                "description": "Reference to the user's avatar (NFT) document.",
+                "maxItems": 32,
+                "minItems": 32,
+                "byteArray": true,
+                "contentMediaType": "application/x.dash.dpp.identifier"
+            },
+            "bannerId": {
+                "position": 1,
+                "type": "array",
+                "description": "Reference to the user's banner image document.",
+                "maxItems": 32,
+                "minItems": 32,
+                "byteArray": true,
+                "contentMediaType": "application/x.dash.dpp.identifier"
+            },
+            "bio": {
+                "position": 2,
+                "type": "string",
+                "description": "Brief biography of a user.",
+                "maxLength": 160
+            },
+            "location": {
+                "position": 3,
+                "type": "string",
+                "description": "Primary location of a user.",
+                "maxLength": 50
+            },
+            "website": {
+                "position": 4,
+                "type": "string",
+                "description": "Link to a user's website.",
+                "pattern": "^https?://.+$",
+                "maxLength": 100
+            }
+        },
+        "indices": [
+            {
+                "name": "owner",
+                "unique": true,
+                "properties": [
+                    {
+                        "$ownerId": "asc"
+                    }
+                ]
+            },
+            {
+                "name": "createdAt",
+                "properties": [
+                    {
+                        "$createdAt": "asc"
+                    }
+                ]
+            }
+        ],
+        "required": [
+            "$createdAt"
         ],
         "additionalProperties": false
     }

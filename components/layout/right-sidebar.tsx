@@ -9,7 +9,7 @@ import {
 } from '@heroicons/react/24/outline'
 import { formatNumber, formatTime } from '@/lib/utils'
 import { useAuth } from '@/contexts/auth-context'
-import { EVONEXT_CONTRACT_ID_ALT } from '@/lib/constants'
+import { EVONEXT_CONTRACT_ID } from '@/lib/constants'
 
 export function RightSidebar() {
     const { user } = useAuth()
@@ -34,7 +34,7 @@ export function RightSidebar() {
                 <div className="px-4 py-3 space-y-2">
                     <div>
                         <p className="text-sm text-gray-500">Contract ID</p>
-                        <p className="text-xs font-mono break-all">{EVONEXT_CONTRACT_ID_ALT}</p>
+                        <p className="text-xs font-mono break-all">{EVONEXT_CONTRACT_ID}</p>
                     </div>
 
                     <div>
