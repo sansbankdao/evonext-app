@@ -57,7 +57,7 @@ export function ComposeModal() {
                     replyToPostId: replyingTo?.id
                 })
             })
-
+console.log('COMPOSE RESULT', result)
             if (result.success) {
                 toast.success('Post created successfully!')
 
@@ -77,7 +77,7 @@ export function ComposeModal() {
             console.error('Failed to create post:', error)
 
             const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-
+console.log('COMPOSE ERROR', errorMessage)
             if (errorMessage.includes('no available addresses') || errorMessage.includes('Missing response message')) {
                 toast.error('Dash Platform is temporarily unavailable. Please try again in a few moments.')
             } else if (errorMessage.includes('Network') || errorMessage.includes('connection') || errorMessage.includes('timeout')) {

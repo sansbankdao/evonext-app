@@ -12,52 +12,84 @@ class SecureStorage {
      * Store a value securely in memory with optional TTL
      */
     set(key: string, value: any, ttlMs?: number): void {
-        this.storage.set(key, value)
+        localStorage.setItem(key, value)
+        // this.storage.set(key, value)
 
-        // Clear any existing timer for this key
-        const existingTimer = this.timers.get(key)
+        // // Clear any existing timer for this key
+        // const existingTimer = this.timers.get(key)
 
-        if (existingTimer) {
-            clearTimeout(existingTimer)
-        }
+        // if (existingTimer) {
+        //     clearTimeout(existingTimer)
+        // }
 
-        // Set TTL if provided
-        if (ttlMs && ttlMs > 0) {
-            const timer = setTimeout(() => {
-                this.delete(key)
-            }, ttlMs)
+        // // Set TTL if provided
+        // if (ttlMs && ttlMs > 0) {
+        //     const timer = setTimeout(() => {
+        //         this.delete(key)
+        //     }, ttlMs)
 
-            this.timers.set(key, timer)
-        }
+        //     this.timers.set(key, timer)
+        // }
     }
 
     /**
      * Get a value from secure storage
      */
     get(key: string): any {
-        return this.storage.get(key)
+        /* Request saved storage (from local storage). */
+        const savedStorage = localStorage.getItem(key)
+
+        /* Validate saved storage. */
+        if (typeof savedStorage === 'string') {
+            return savedStorage
+        } else if (typeof savedStorage !== 'undefined' && savedStorage !== null ) {
+            return JSON.parse(savedStorage)
+        } else {
+            return null
+        }
+        // return this.storage.get(key)
     }
 
     /**
      * Check if a key exists
      */
     has(key: string): boolean {
-        return this.storage.has(key)
+        /* Request saved storage (from local storage). */
+        const savedStorage = localStorage.getItem(key)
+
+        /* Validate saved storage. */
+        if (typeof savedStorage === 'string') {
+            return false
+        } else if (typeof savedStorage !== 'undefined' && savedStorage !== null ) {
+            const parsed = JSON.parse(savedStorage)
+
+            /* Validate key exists. */
+            if (parsed[key]) {
+                return true
+            }
+
+            return false
+        } else {
+            return false
+        }
+        // return this.storage.has(key)
     }
 
     /**
      * Delete a value from secure storage
      */
     delete(key: string): boolean {
-        // Clear timer if exists
-        const timer = this.timers.get(key)
+        localStorage.removeItem(key)
+        return true
+        // // Clear timer if exists
+        // const timer = this.timers.get(key)
 
-        if (timer) {
-            clearTimeout(timer)
-            this.timers.delete(key)
-        }
+        // if (timer) {
+        //     clearTimeout(timer)
+        //     this.timers.delete(key)
+        // }
 
-        return this.storage.delete(key)
+        // return this.storage.delete(key)
     }
 
     /**

@@ -116,7 +116,7 @@ export class DashPlatformClient {
             const { getPrivateKey } = await import('./secure-storage')
 
             let privateKeyWIF = getPrivateKey(identityId)
-
+console.log('PLATFORM CLIENT (pk)', privateKeyWIF)
             // If not in memory, try biometric storage
             if (!privateKeyWIF) {
                 try {
