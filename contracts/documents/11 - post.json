@@ -1,0 +1,105 @@
+{
+    "post": {
+        "type": "object",
+        "indices": [
+            {
+                "name": "ownerAndTime",
+                "properties": [
+                    {
+                        "$ownerId": "asc"
+                    },
+                    {
+                        "$createdAt": "asc"
+                    }
+                ]
+            },
+            {
+                "name": "timeline",
+                "properties": [
+                    {
+                        "$createdAt": "asc"
+                    }
+                ]
+            },
+            {
+                "name": "replyToPost",
+                "properties": [
+                    {
+                        "replyToPostId": "asc"
+                    },
+                    {
+                        "$createdAt": "asc"
+                    }
+                ]
+            }
+        ],
+        "required": [
+            "$createdAt",
+            "content"
+        ],
+        "properties": {
+            "content": {
+                "type": "string",
+                "position": 0,
+                "maxLength": 500,
+                "minLength": 1,
+                "description": "Post content"
+            },
+            "language": {
+                "type": "string",
+                "pattern": "^[a-z]{2}$",
+                "position": 6,
+                "maxLength": 2,
+                "description": "Language code of the post"
+            },
+            "mediaUrl": {
+                "type": "string",
+                "pattern": "^https?://.+$",
+                "position": 1,
+                "maxLength": 512,
+                "description": "URL to media file (temporary field - will support multiple media in future)"
+            },
+            "sensitive": {
+                "type": "boolean",
+                "position": 7,
+                "description": "Whether post contains sensitive content"
+            },
+            "quotedPostId": {
+                "type": "array",
+                "maxItems": 32,
+                "minItems": 32,
+                "position": 3,
+                "byteArray": true,
+                "description": "ID of quoted post",
+                "contentMediaType": "application/x.dash.dpp.identifier"
+            },
+            "replyToPostId": {
+                "type": "array",
+                "maxItems": 32,
+                "minItems": 32,
+                "position": 2,
+                "byteArray": true,
+                "description": "ID of post this is replying to",
+                "contentMediaType": "application/x.dash.dpp.identifier"
+            },
+            "firstMentionId": {
+                "type": "array",
+                "maxItems": 32,
+                "minItems": 32,
+                "position": 4,
+                "byteArray": true,
+                "description": "First mentioned user ID (temporary field - will support multiple mentions in future)",
+                "contentMediaType": "application/x.dash.dpp.identifier"
+            },
+            "primaryHashtag": {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9_]{1,100}$",
+                "position": 5,
+                "maxLength": 100,
+                "description": "Primary hashtag for the post (temporary field - will support multiple hashtags in future)"
+            }
+        },
+        "description": "A post/tweet in the social network",
+        "additionalProperties": false
+    }
+}

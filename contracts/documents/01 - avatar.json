@@ -1,0 +1,58 @@
+{
+    "avatar": {
+        "type": "object",
+        "indices": [
+            {
+                "name": "owner",
+                "unique": true,
+                "properties": [
+                    {
+                        "$ownerId": "asc"
+                    }
+                ]
+            },
+            {
+                "name": "updatedAt",
+                "properties": [
+                    {
+                        "$updatedAt": "asc"
+                    }
+                ]
+            }
+        ],
+        "required": [
+            "$updatedAt",
+            "version",
+            "data"
+        ],
+        "properties": {
+            "data": {
+                "type": "string",
+                "position": 1,
+                "maxLength": 128,
+                "minLength": 16,
+                "description": "Encoded avatar feature data"
+            },
+            "style": {
+                "enum": [
+                    "realistic",
+                    "cartoon",
+                    "anime",
+                    "pixel"
+                ],
+                "type": "string",
+                "position": 2,
+                "description": "Rendering style for the avatar"
+            },
+            "version": {
+                "type": "integer",
+                "maximum": 10,
+                "minimum": 1,
+                "position": 0,
+                "description": "Avatar format version"
+            }
+        },
+        "description": "User avatar customization data",
+        "additionalProperties": false
+    }
+}

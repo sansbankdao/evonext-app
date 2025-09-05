@@ -1,0 +1,68 @@
+{
+    "directMessage": {
+        "type": "object",
+        "indices": [
+            {
+                "name": "conversation",
+                "properties": [
+                    {
+                        "conversationId": "asc"
+                    },
+                    {
+                        "$createdAt": "asc"
+                    }
+                ]
+            },
+            {
+                "name": "senderMessages",
+                "properties": [
+                    {
+                        "$ownerId": "asc"
+                    },
+                    {
+                        "$createdAt": "asc"
+                    }
+                ]
+            }
+        ],
+        "required": [
+            "$createdAt",
+            "recipientId",
+            "conversationId",
+            "encryptedContent"
+        ],
+        "properties": {
+            "read": {
+                "type": "boolean",
+                "position": 3,
+                "description": "Whether the message has been read"
+            },
+            "recipientId": {
+                "type": "array",
+                "maxItems": 32,
+                "minItems": 32,
+                "position": 0,
+                "byteArray": true,
+                "description": "Identity ID of the recipient",
+                "contentMediaType": "application/x.dash.dpp.identifier"
+            },
+            "conversationId": {
+                "type": "array",
+                "maxItems": 32,
+                "minItems": 32,
+                "position": 1,
+                "byteArray": true,
+                "description": "Unique conversation ID",
+                "contentMediaType": "application/x.dash.dpp.identifier"
+            },
+            "encryptedContent": {
+                "type": "string",
+                "position": 2,
+                "maxLength": 2048,
+                "description": "Encrypted message content"
+            }
+        },
+        "description": "A direct message between users",
+        "additionalProperties": false
+    }
+}

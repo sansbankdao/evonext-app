@@ -1,0 +1,77 @@
+{
+    "notification": {
+        "type": "object",
+        "indices": [
+            {
+                "name": "ownerNotifications",
+                "properties": [
+                    {
+                        "$ownerId": "asc"
+                    },
+                    {
+                        "$createdAt": "asc"
+                    }
+                ]
+            },
+            {
+                "name": "unreadNotifications",
+                "properties": [
+                    {
+                        "$ownerId": "asc"
+                    },
+                    {
+                        "read": "asc"
+                    },
+                    {
+                        "$createdAt": "asc"
+                    }
+                ]
+            }
+        ],
+        "required": [
+            "$createdAt",
+            "type",
+            "fromUserId"
+        ],
+        "properties": {
+            "read": {
+                "type": "boolean",
+                "position": 3,
+                "description": "Whether the notification has been read"
+            },
+            "type": {
+                "enum": [
+                    "like",
+                    "repost",
+                    "follow",
+                    "reply",
+                    "mention",
+                    "quote"
+                ],
+                "type": "string",
+                "position": 0,
+                "description": "Type of notification"
+            },
+            "postId": {
+                "type": "array",
+                "maxItems": 32,
+                "minItems": 32,
+                "position": 2,
+                "byteArray": true,
+                "description": "Related post ID (if applicable)",
+                "contentMediaType": "application/x.dash.dpp.identifier"
+            },
+            "fromUserId": {
+                "type": "array",
+                "maxItems": 32,
+                "minItems": 32,
+                "position": 1,
+                "byteArray": true,
+                "description": "Identity ID of the user who triggered the notification",
+                "contentMediaType": "application/x.dash.dpp.identifier"
+            }
+        },
+        "description": "A notification for a user",
+        "additionalProperties": false
+    }
+}

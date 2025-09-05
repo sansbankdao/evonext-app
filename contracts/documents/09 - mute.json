@@ -1,0 +1,54 @@
+{
+    "mute": {
+        "type": "object",
+        "indices": [
+            {
+                "name": "ownerAndMuted",
+                "unique": true,
+                "properties": [
+                    {
+                        "$ownerId": "asc"
+                    },
+                    {
+                        "mutedId": "asc"
+                    }
+                ]
+            },
+            {
+                "name": "ownerMutes",
+                "properties": [
+                    {
+                        "$ownerId": "asc"
+                    },
+                    {
+                        "$createdAt": "asc"
+                    }
+                ]
+            }
+        ],
+        "mutable": false,
+        "required": [
+            "$createdAt",
+            "mutedId"
+        ],
+        "properties": {
+            "mutedId": {
+                "type": "array",
+                "maxItems": 32,
+                "minItems": 32,
+                "position": 0,
+                "byteArray": true,
+                "description": "Identity ID of the muted user",
+                "contentMediaType": "application/x.dash.dpp.identifier"
+            },
+            "untilTimestamp": {
+                "type": "integer",
+                "minimum": 0,
+                "position": 1,
+                "description": "Unix timestamp when mute expires (optional)"
+            }
+        },
+        "description": "A mute relationship",
+        "additionalProperties": false
+    }
+}

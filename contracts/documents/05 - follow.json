@@ -1,0 +1,59 @@
+{
+    "follow": {
+        "type": "object",
+        "indices": [
+            {
+                "name": "ownerAndFollowing",
+                "unique": true,
+                "properties": [
+                    {
+                        "$ownerId": "asc"
+                    },
+                    {
+                        "followingId": "asc"
+                    }
+                ]
+            },
+            {
+                "name": "following",
+                "properties": [
+                    {
+                        "$ownerId": "asc"
+                    },
+                    {
+                        "$createdAt": "asc"
+                    }
+                ]
+            },
+            {
+                "name": "followers",
+                "properties": [
+                    {
+                        "followingId": "asc"
+                    },
+                    {
+                        "$createdAt": "asc"
+                    }
+                ]
+            }
+        ],
+        "mutable": false,
+        "required": [
+            "$createdAt",
+            "followingId"
+        ],
+        "properties": {
+            "followingId": {
+                "type": "array",
+                "maxItems": 32,
+                "minItems": 32,
+                "position": 0,
+                "byteArray": true,
+                "description": "Identity ID of the user being followed",
+                "contentMediaType": "application/x.dash.dpp.identifier"
+            }
+        },
+        "description": "A follow relationship between users",
+        "additionalProperties": false
+    }
+}

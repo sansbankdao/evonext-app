@@ -1,0 +1,48 @@
+{
+    "bookmark": {
+        "type": "object",
+        "indices": [
+            {
+                "name": "ownerAndPost",
+                "unique": true,
+                "properties": [
+                    {
+                        "$ownerId": "asc"
+                    },
+                    {
+                        "postId": "asc"
+                    }
+                ]
+            },
+            {
+                "name": "ownerBookmarks",
+                "properties": [
+                    {
+                        "$ownerId": "asc"
+                    },
+                    {
+                        "$createdAt": "asc"
+                    }
+                ]
+            }
+        ],
+        "mutable": false,
+        "required": [
+            "$createdAt",
+            "postId"
+        ],
+        "properties": {
+            "postId": {
+                "type": "array",
+                "maxItems": 32,
+                "minItems": 32,
+                "position": 0,
+                "byteArray": true,
+                "description": "ID of the bookmarked post",
+                "contentMediaType": "application/x.dash.dpp.identifier"
+            }
+        },
+        "description": "A bookmarked post",
+        "additionalProperties": false
+    }
+}

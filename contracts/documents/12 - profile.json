@@ -1,0 +1,74 @@
+{
+    "profile": {
+        "type": "object",
+        "indices": [
+            {
+                "name": "owner",
+                "unique": true,
+                "properties": [
+                    {
+                        "$ownerId": "asc"
+                    }
+                ]
+            },
+            {
+                "name": "createdAt",
+                "properties": [
+                    {
+                        "$createdAt": "asc"
+                    }
+                ]
+            }
+        ],
+        "required": [
+            "$createdAt",
+            "displayName"
+        ],
+        "properties": {
+            "bio": {
+                "type": "string",
+                "position": 1,
+                "maxLength": 160,
+                "description": "User biography"
+            },
+            "website": {
+                "type": "string",
+                "pattern": "^https?://.+$",
+                "position": 4,
+                "maxLength": 100,
+                "description": "User's website"
+            },
+            "avatarId": {
+                "type": "array",
+                "maxItems": 32,
+                "minItems": 32,
+                "position": 2,
+                "byteArray": true,
+                "description": "Reference to the user's avatar document",
+                "contentMediaType": "application/x.dash.dpp.identifier"
+            },
+            "location": {
+                "type": "string",
+                "position": 5,
+                "maxLength": 50,
+                "description": "User location"
+            },
+            "bannerUrl": {
+                "type": "string",
+                "pattern": "^https?://.+$",
+                "position": 3,
+                "maxLength": 512,
+                "description": "URL to profile banner image"
+            },
+            "displayName": {
+                "type": "string",
+                "position": 0,
+                "maxLength": 50,
+                "minLength": 1,
+                "description": "Display name shown on profile"
+            }
+        },
+        "description": "User profile information",
+        "additionalProperties": false
+    }
+}

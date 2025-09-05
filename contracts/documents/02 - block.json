@@ -1,0 +1,48 @@
+{
+    "block": {
+        "type": "object",
+        "indices": [
+            {
+                "name": "ownerAndBlocked",
+                "unique": true,
+                "properties": [
+                    {
+                        "$ownerId": "asc"
+                    },
+                    {
+                        "blockedId": "asc"
+                    }
+                ]
+            },
+            {
+                "name": "ownerBlocks",
+                "properties": [
+                    {
+                        "$ownerId": "asc"
+                    },
+                    {
+                        "$createdAt": "asc"
+                    }
+                ]
+            }
+        ],
+        "mutable": false,
+        "required": [
+            "$createdAt",
+            "blockedId"
+        ],
+        "properties": {
+            "blockedId": {
+                "type": "array",
+                "maxItems": 32,
+                "minItems": 32,
+                "position": 0,
+                "byteArray": true,
+                "description": "Identity ID of the blocked user",
+                "contentMediaType": "application/x.dash.dpp.identifier"
+            }
+        },
+        "description": "A block relationship",
+        "additionalProperties": false
+    }
+}

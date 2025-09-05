@@ -1,0 +1,58 @@
+{
+    "listMember": {
+        "type": "object",
+        "indices": [
+            {
+                "name": "listAndMember",
+                "unique": true,
+                "properties": [
+                    {
+                        "listId": "asc"
+                    },
+                    {
+                        "memberId": "asc"
+                    }
+                ]
+            },
+            {
+                "name": "listMembers",
+                "properties": [
+                    {
+                        "listId": "asc"
+                    },
+                    {
+                        "$createdAt": "asc"
+                    }
+                ]
+            }
+        ],
+        "mutable": false,
+        "required": [
+            "$createdAt",
+            "listId",
+            "memberId"
+        ],
+        "properties": {
+            "listId": {
+                "type": "array",
+                "maxItems": 32,
+                "minItems": 32,
+                "position": 0,
+                "byteArray": true,
+                "description": "ID of the list",
+                "contentMediaType": "application/x.dash.dpp.identifier"
+            },
+            "memberId": {
+                "type": "array",
+                "maxItems": 32,
+                "minItems": 32,
+                "position": 1,
+                "byteArray": true,
+                "description": "Identity ID of the list member",
+                "contentMediaType": "application/x.dash.dpp.identifier"
+            }
+        },
+        "description": "A member of a list",
+        "additionalProperties": false
+    }
+}

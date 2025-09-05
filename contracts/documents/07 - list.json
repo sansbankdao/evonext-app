@@ -1,0 +1,44 @@
+{
+    "list": {
+        "type": "object",
+        "indices": [
+            {
+                "name": "ownerLists",
+                "properties": [
+                    {
+                        "$ownerId": "asc"
+                    },
+                    {
+                        "$createdAt": "asc"
+                    }
+                ]
+            }
+        ],
+        "required": [
+            "$createdAt",
+            "name"
+        ],
+        "properties": {
+            "name": {
+                "type": "string",
+                "position": 0,
+                "maxLength": 50,
+                "minLength": 1,
+                "description": "Name of the list"
+            },
+            "private": {
+                "type": "boolean",
+                "position": 2,
+                "description": "Whether the list is private"
+            },
+            "description": {
+                "type": "string",
+                "position": 1,
+                "maxLength": 160,
+                "description": "Description of the list"
+            }
+        },
+        "description": "A user-created list",
+        "additionalProperties": false
+    }
+}
