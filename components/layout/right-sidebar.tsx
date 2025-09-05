@@ -28,7 +28,7 @@ export function RightSidebar() {
 
             <div className="bg-gray-50 dark:bg-gray-950 rounded-2xl overflow-hidden">
                 <h2 className="text-xl font-bold px-4 py-3">
-                    Contract Info
+                    Platform Info
                 </h2>
 
                 <div className="px-4 py-3 space-y-2">
@@ -38,14 +38,14 @@ export function RightSidebar() {
                     </div>
 
                     <div>
-                        <p className="text-sm text-gray-500">Network</p>
+                        <p className="text-sm text-gray-500">Dash Platform Network</p>
                         <p className="text-sm font-semibold capitalize">{process.env.NEXT_PUBLIC_NETWORK || 'testnet'}</p>
                     </div>
 
-                    <div>
+                    {/* <div>
                         <p className="text-sm text-gray-500">Document Types</p>
                         <p className="text-sm">13 types available</p>
-                    </div>
+                    </div> */}
                 </div>
             </div>
 
@@ -56,14 +56,15 @@ export function RightSidebar() {
 
                 <div className="px-4 py-3 space-y-3 text-sm">
                     <p className="text-gray-600 dark:text-gray-400">
-                        Welcome to Yappr! Here&apos;s what you can do:
+                        Welcome to Yappr!
+                        <br />Here&apos;s what you can do:
                     </p>
 
-                    <ul className="space-y-2 text-gray-600 dark:text-gray-400">
-                        <li>• Create your profile</li>
-                        <li>• Share your first post</li>
-                        <li>• Follow other users</li>
-                        <li>• Explore trending topics</li>
+                    <ul className="space-y-2 pl-5 list-decimal text-gray-600 dark:text-gray-400">
+                        <li>Register your Platform Identity</li>
+                        <li>Customize your Platform Identity</li>
+                        <li>Share Your First Post</li>
+                        <li>Remix Your First Post</li>
                     </ul>
                 </div>
             </div>
