@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { ArrowLeftIcon, DocumentDuplicateIcon, CheckIcon, CodeBracketIcon } from '@heroicons/react/24/outline'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import dataContract from '@/contracts/evonext-social-contract.json'
+import dataContract from '@/contracts/evonext-contract.json'
 import toast from 'react-hot-toast'
 
 export default function ContractPage() {

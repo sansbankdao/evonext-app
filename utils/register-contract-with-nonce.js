@@ -26,7 +26,7 @@ async function registerContract() {
 
         const identityId = '5DbLwAxGBzUzo81VewMUwn4b5P4bpv9FNFybi25XB5Bk'
         const privateKey = 'XJ1CkT9xEz4Q471Rs8efttjo7kx7MfAz46Pn9GQWQJFK1oKkW84K'
-        const contractPath = '../dash-contract-cli/contracts/evonext-social-contract.json'
+        const contractPath = '../dash-contract-cli/contracts/evonext-contract.json'
 
         console.log('Fetching current identity nonce...')
         const nonceResult = await get_identity_nonce(sdk, identityId)
@@ -69,7 +69,7 @@ async function registerContract() {
         // Save contract ID
         const contractId = result.contractId || result.id;
         if (contractId) {
-            fs.writeFileSync('../dash-contract-cli/contracts/evonext-social-contract.contract-id', contractId)
+            fs.writeFileSync('../dash-contract-cli/contracts/evonext-contract.contract-id', contractId)
             console.log('Contract ID saved!')
 
             // Update .env file
