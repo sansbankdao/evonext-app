@@ -36,7 +36,7 @@ export default function ContractPage() {
                         className="inline-flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
                     >
                         <ArrowLeftIcon className="h-4 w-4" />
-                        Back to Yappr!
+                        Back to EvoNext
                     </Link>
                 </div>
 
@@ -50,12 +50,12 @@ export default function ContractPage() {
                             <CodeBracketIcon className="h-8 w-8" />
 
                             <h1 className="text-3xl font-bold">
-                                Yappr! Roadmap
+                                EvoNext Roadmap
                             </h1>
                         </div>
 
                         <p className="text-lg opacity-90 mb-6">
-                            Dash Platform data contract for the Yappr! social media platform
+                            Dash Platform data contract for the EvoNext social media platform
                         </p>
 
                         <div className="flex gap-6 text-sm">

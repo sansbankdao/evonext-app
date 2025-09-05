@@ -111,7 +111,7 @@ function FollowersPage() {
                     }
                 })),
 
-                // Fetch Yappr! profiles
+                // Fetch EvoNext profiles
                 profileService.getProfilesByIdentityIds(identityIds)
             ])
 
@@ -146,7 +146,7 @@ function FollowersPage() {
                     id: followerId,
                     username: username || `user_${followerId.slice(-6)}`,
                     displayName: profile?.displayName || username || `User ${followerId.slice(-6)}`,
-                    bio: profile?.bio || (profile ? 'Yappr! user' : 'Not yet on Yappr!'),
+                    bio: profile?.bio || (profile ? 'EvoNext user' : 'Not yet on EvoNext'),
                     hasProfile: !!profile,
                     followersCount: 0, // Would need to query this
                     followingCount: 0, // Would need to query this

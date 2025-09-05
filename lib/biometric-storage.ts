@@ -53,13 +53,13 @@ class BiometricStorage {
                 publicKey: {
                     challenge,
                     rp: {
-                        name: 'Yappr!',
+                        name: 'EvoNext',
                         id: window.location.hostname
                     },
                     user: {
                         id: new TextEncoder().encode(userId),
                         name: userId,
-                        displayName: 'Yappr! User'
+                        displayName: 'EvoNext User'
                     },
                     pubKeyCredParams: [
                         { alg: -7, type: 'public-key' }, // ES256

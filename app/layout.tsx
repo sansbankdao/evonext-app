@@ -28,8 +28,8 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
     metadataBase: new URL('https://yappr.world'), // FIXME Handle Testnet
-    title: 'Yappr! Free Your Inner Voice',
-    applicationName: 'Yappr! Free Your Inner Voice',
+    title: 'EvoNext Free Your Inner Voice',
+    applicationName: 'EvoNext Free Your Inner Voice',
     description: 'Discover safe and enjoyable spaces to Explore. Curate. Share YOUR TRUTH without any fear of social consequence.',
     icons: {
         icon: '/favicon.ico',
@@ -44,27 +44,27 @@ export const metadata: Metadata = {
     creator: '0xShomari + Frens',
     publisher: 'Sansbank DAO',
     openGraph: {
-        title: 'Yappr! Free Your Inner Voice',
+        title: 'EvoNext Free Your Inner Voice',
         description: 'Discover safe and enjoyable spaces to Explore. Curate. Share YOUR TRUTH without any fear of social consequence.',
         images: [
             {
                 url: '/poster.webp',
                 width: 1500,
                 height: 500,
-                alt: 'Yappr! media banner',
+                alt: 'EvoNext media banner',
             }
         ],
     },
     twitter: {
         card: 'summary_large_image',
-        title: 'Yappr! Free Your Inner Voice',
+        title: 'EvoNext Free Your Inner Voice',
         description: 'Discover safe and enjoyable spaces to Explore. Curate. Share YOUR TRUTH without any fear of social consequence.',
         images: [
             {
                 url: '/poster.webp',
                 width: 1500,
                 height: 500,
-                alt: 'Yappr! media banner',
+                alt: 'EvoNext media banner',
             }
         ],
     },

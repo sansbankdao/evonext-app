@@ -56,7 +56,7 @@ export function RightSidebar() {
 
                 <div className="px-4 py-3 space-y-3 text-sm">
                     <p className="text-gray-600 dark:text-gray-400">
-                        Welcome to Yappr!
+                        Welcome to EvoNext
                         <br />Here&apos;s what you can do:
                     </p>
 

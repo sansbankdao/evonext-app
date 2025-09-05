@@ -95,7 +95,7 @@ export function Sidebar() {
             <div className="flex-1 space-y-1 py-4 overflow-y-auto scrollbar-hide">
                 <Link href="/" className="flex items-center px-3 py-4 mb-2 group">
                     <div className="text-6xl font-bold text-gradient">
-                        Yappr!
+                        EvoNext
                     </div>
                 </Link>
 
@@ -159,7 +159,7 @@ export function Sidebar() {
                         </Button>
 
                         <p className="text-xs text-center text-gray-500 px-4">
-                            Join Yappr! to share your voice on the decentralized web
+                            Join EvoNext to share your voice on the decentralized web
                         </p>
                     </div>
                 ) : (

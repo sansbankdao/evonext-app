@@ -35,7 +35,7 @@ node test-dpns-resolve.js
 
 ## Architecture Overview
 
-Yappr! is a decentralized social media platform built with Next.js 14 and Dash Platform. It follows a modern React architecture with server-side rendering capabilities.
+EvoNext is a decentralized social media platform built with Next.js 14 and Dash Platform. It follows a modern React architecture with server-side rendering capabilities.
 
 ### Key Architectural Decisions
 
@@ -74,7 +74,7 @@ The social platform uses 12 document types. The actual registered contract is in
 ### Important Patterns
 
 1. **State Management**: Uses Zustand for global state (see `lib/store.ts`)
-2. **Styling**: Tailwind CSS with custom Yappr! design system defined in `tailwind.config.js`
+2. **Styling**: Tailwind CSS with custom EvoNext design system defined in `tailwind.config.js`
 3. **Component Organization**:
    - `components/ui/` - Reusable, styled UI primitives
    - `components/layout/` - Page layout components

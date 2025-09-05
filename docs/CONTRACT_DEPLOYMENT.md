@@ -1,4 +1,4 @@
-# Yappr! Contract Deployment Summary
+# EvoNext Contract Deployment Summary
 
 ## Contract Details (Updated)
 - **Contract ID**: `AyWK6nDVfb8d1ZmkM5MmZZrThbUyWyso1aMeGuuVSfxf`

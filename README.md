@@ -1,4 +1,4 @@
-# Yappr! - Modern Social Platform
+# EvoNext - Modern Social Platform
 
 A Twitter/Bluesky-inspired social media application built with Next.js 14 and Dash Platform, focusing on exceptional UI/UX design and smooth interactions.
 
@@ -40,7 +40,7 @@ npm run dev
 
 ## Design Highlights
 
-- Custom color palette with Yappr! brand colors
+- Custom color palette with EvoNext brand colors
 - Smooth micro-interactions on all interactive elements
 - Glass morphism effects for modern aesthetics
 - Thoughtful loading states and transitions
@@ -70,7 +70,7 @@ yappr/
 
 ## Dash Platform Integration
 
-Yappr! uses Dash Platform for decentralized data storage:
+EvoNext uses Dash Platform for decentralized data storage:
 
 - **Profiles**: Stored without usernames (usernames come from DPNS)
 - **Avatars**: Stored as separate documents with encoded customization data

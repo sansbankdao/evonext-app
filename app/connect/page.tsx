@@ -33,7 +33,7 @@ export default function LoginPage() {
             <div className="max-w-md w-full space-y-8">
                 <div className="text-center">
                     <h1 className="text-4xl font-bold text-gradient mb-2">
-                        Yappr!
+                        EvoNext
                     </h1>
 
                     <p className="text-gray-600 dark:text-gray-400">

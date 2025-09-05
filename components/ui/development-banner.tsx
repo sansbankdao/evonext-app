@@ -45,7 +45,7 @@ export function DevelopmentBanner() {
             <div className="max-w-7xl mx-auto flex items-center justify-between">
                 <p className="text-center flex-1 text-xs font-mono tracking-wider">
                     <span className="inline font-medium">
-                        Yappr! is in an early development phase
+                        EvoNext is in an early development phase
                     </span>
 
                     <span className="hidden sm:inline-flex">

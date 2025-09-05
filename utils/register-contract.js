@@ -10,7 +10,7 @@ const CONTRACT_PATH = './contracts/yappr-minimal.json'
 
 async function registerContract() {
     try {
-        console.log('🚀 Yappr! Contract Registration');
+        console.log('🚀 EvoNext Contract Registration');
         console.log('===============================');
         console.log('Identity:', IDENTITY_ID);
         console.log('Contract:', CONTRACT_PATH);

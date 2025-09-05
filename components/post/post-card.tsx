@@ -93,7 +93,7 @@ export function PostCard({ post, hideAvatar = false, isOwnPost = false }: PostCa
                         {isOwnPost ? (
                             <Image
                                 src="/icon.png"
-                                alt="Yappr! World"
+                                alt="EvoNext World"
                                 width={48}
                                 height={48}
                                 className="w-full h-full object-cover"

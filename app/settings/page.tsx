@@ -33,8 +33,8 @@ const settingsSections = [
     { id: 'account', label: 'Account', icon: UserIcon, description: 'Manage your account details' },
     { id: 'notifications', label: 'Notifications', icon: BellIcon, description: 'Control your notification preferences' },
     { id: 'privacy', label: 'Privacy & Security', icon: ShieldCheckIcon, description: 'Manage your privacy settings' },
-    { id: 'appearance', label: 'Appearance', icon: PaintBrushIcon, description: 'Customize how Yappr! looks' },
-    { id: 'about', label: 'About', icon: InformationCircleIcon, description: 'Learn more about Yappr!' },
+    { id: 'appearance', label: 'Appearance', icon: PaintBrushIcon, description: 'Customize how EvoNext looks' },
+    { id: 'about', label: 'About', icon: InformationCircleIcon, description: 'Learn more about EvoNext' },
 ]
 
 function SettingsPage() {
@@ -364,7 +364,7 @@ function SettingsPage() {
 
                     <div className="p-4 bg-gray-50 dark:bg-gray-950 rounded-lg">
                         <p className="text-sm text-gray-500 mb-2">Color</p>
-                        <p className="text-sm">Yappr! Purple (default)</p>
+                        <p className="text-sm">EvoNext Purple (default)</p>
                     </div>
                 </div>
             </div>
@@ -375,7 +375,7 @@ function SettingsPage() {
         <div className="p-6 space-y-6">
             <div className="text-center py-8">
                 <h1 className="text-4xl font-bold text-gradient mb-4">
-                    Yappr!
+                    EvoNext
                 </h1>
 
                 <p className="text-gray-500 mb-8">

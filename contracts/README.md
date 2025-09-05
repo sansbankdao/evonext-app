@@ -1,10 +1,10 @@
-# Yappr! Social Platform - Dash Data Contract
+# EvoNext Social Platform - Dash Data Contract
 
-This directory contains the Dash Platform data contract for the Yappr! social media dapp.
+This directory contains the Dash Platform data contract for the EvoNext social media dapp.
 
 ## Overview
 
-The Yappr! data contract defines all the document types and schemas needed for a full-featured social media platform on Dash Platform. It includes support for:
+The EvoNext data contract defines all the document types and schemas needed for a full-featured social media platform on Dash Platform. It includes support for:
 
 - User profiles with verification
 - Posts with media attachments
@@ -139,7 +139,7 @@ const profile = {
 // Create a post
 const post = {
   authorId: identity.getId().toBuffer(), // 32-byte buffer
-  content: "Hello Yappr! This is my first post on the decentralized social network 🚀",
+  content: "Hello EvoNext This is my first post on the decentralized social network 🚀",
   hashtags: ["yappr", "dash", "decentralized"],
   language: "en"
 };

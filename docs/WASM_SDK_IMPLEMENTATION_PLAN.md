@@ -1,7 +1,7 @@
 # WASM SDK Integration Implementation Plan
 
 ## Overview
-Complete integration of the Dash Platform WASM SDK into the Yappr! social media application, replacing the current mock implementation with real blockchain functionality.
+Complete integration of the Dash Platform WASM SDK into the EvoNext social media application, replacing the current mock implementation with real blockchain functionality.
 
 ## Current State
 - **Contract ID**: `9nzpvjVSStUrhkEs3eNHw2JYpcNoLh1MjmqW45QiyjSa` (existing)
