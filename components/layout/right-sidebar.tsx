@@ -34,7 +34,7 @@ export function RightSidebar() {
                 <div className="px-4 py-3 space-y-2">
                     <div>
                         <p className="text-sm text-gray-500">Contract ID</p>
-                        <p className="text-xs font-mono break-all">{YAPPR_CONTRACT_ID}</p>
+                        <p className="text-xs font-mono break-all">{YAPPR_CONTRACT_ID_ALT}</p>
                     </div>
 
                     <div>

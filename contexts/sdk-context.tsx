@@ -23,7 +23,7 @@ export function SdkProvider({ children }: { children: React.ReactNode }) {
                 // Initialize with testnet configuration
                 await wasmSdkService.initialize({
                     network: 'testnet',
-                    contractId: YAPPR_CONTRACT_ID
+                    contractId: YAPPR_CONTRACT_ID_ALT
                 })
 
                 setIsReady(true)

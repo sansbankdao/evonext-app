@@ -109,7 +109,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             // Initialize SDK if needed
             await wasmSdkService.initialize({
                 network: (process.env.NEXT_PUBLIC_NETWORK as 'testnet' | 'mainnet') || 'testnet',
-                contractId: YAPPR_CONTRACT_ID
+                contractId: YAPPR_CONTRACT_ID_ALT
             })
 
             console.log('Fetching identity with WASM SDK...')

@@ -25,7 +25,7 @@ export abstract class BaseDocumentService<T> {
     protected readonly CACHE_TTL = 30000; // 30 seconds cache
 
     constructor(documentType: string) {
-        this.contractId = YAPPR_CONTRACT_ID;
+        this.contractId = YAPPR_CONTRACT_ID_ALT;
         this.documentType = documentType;
     }
 

@@ -28,7 +28,7 @@ export default function TestDpnsPage() {
             setStatus('Initializing WASM SDK...')
             await wasmSdkService.initialize({
                 network: 'testnet',
-                contractId: YAPPR_CONTRACT_ID
+                contractId: YAPPR_CONTRACT_ID_ALT
             })
             setStatus('SDK initialized - DPNS ready!')
             setError(null)

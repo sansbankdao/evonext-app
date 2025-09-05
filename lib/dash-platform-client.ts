@@ -41,7 +41,7 @@ export class DashPlatformClient {
         try {
             // Use the centralized WASM service
             const network = (process.env.NEXT_PUBLIC_NETWORK as 'testnet' | 'mainnet') || 'testnet'
-            const contractId = YAPPR_CONTRACT_ID
+            const contractId = YAPPR_CONTRACT_ID_ALT
 
             console.log('DashPlatformClient: Initializing via WasmSdkService for network:', network)
 
@@ -186,7 +186,7 @@ export class DashPlatformClient {
                 .map(b => b.toString(16).padStart(2, '0'))
                 .join('')
 
-            const contractId = YAPPR_CONTRACT_ID
+            const contractId = YAPPR_CONTRACT_ID_ALT
 
             // Create the document using the SDK
             let result
@@ -252,7 +252,7 @@ export class DashPlatformClient {
                 limit: 1
             }
 
-            const contractId = YAPPR_CONTRACT_ID
+            const contractId = YAPPR_CONTRACT_ID_ALT
 
             const profileResponse = await get_documents(
                 this.sdk,
@@ -326,7 +326,7 @@ export class DashPlatformClient {
 
             await this.ensureInitialized()
 
-            const contractId = YAPPR_CONTRACT_ID
+            const contractId = YAPPR_CONTRACT_ID_ALT
 
             console.log('DashPlatformClient: Querying posts from contract:', contractId)
 
