@@ -1,7 +1,12 @@
 'use client'
 
 import React, { useState } from 'react'
-import { wasmSdkService, postService, profileService } from '@/lib/services'
+import {
+    likeService,
+    postService,
+    profileService,
+    wasmSdkService,
+} from '@/lib/services'
 import { EVONEXT_CONTRACT_ID } from '@/lib/constants'
 
 export default function TestCreatePage() {
@@ -33,6 +38,28 @@ export default function TestCreatePage() {
 
             setStatus('Post created successfully!')
             console.log('Created post:', post)
+        } catch (err) {
+            console.error('Error creating post:', err)
+            setError(err instanceof Error ? err.message : 'Unknown error')
+            setStatus('Error occurred')
+        }
+    }
+
+    const testLikePost = async () => {
+        try {
+            setStatus('Liking post...')
+            setError(null)
+
+            // Store private key in session for state transitions
+            sessionStorage.setItem('evonext_pk', privateKey)
+
+            const post = await likeService.likePost(
+                'DtLm5smKwE9B7ekpVPcXJ18UsdSopcfbVUu3qBYFj3Yf',
+                identityId,
+            )
+
+            setStatus('Post liked successfully!')
+            console.log('Liked post:', post)
         } catch (err) {
             console.error('Error creating post:', err)
             setError(err instanceof Error ? err.message : 'Unknown error')
@@ -147,6 +174,14 @@ export default function TestCreatePage() {
                             className="bg-blue-500 text-white px-4 py-2 rounded disabled:opacity-50"
                         >
                             Create Post
+                        </button>
+
+                        <button
+                            onClick={testLikePost}
+                            disabled={!privateKey || !identityId}
+                            className="bg-blue-500 text-white px-4 py-2 rounded disabled:opacity-50"
+                        >
+                            Like Post
                         </button>
                     </div>
                 </div>

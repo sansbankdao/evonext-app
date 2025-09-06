@@ -40,7 +40,6 @@ class PostService extends BaseDocumentService<Post> {
      * Transform document to Post type
      */
     protected transformDocument(doc: PostDocument): Post {
-console.log('***POST DOCUMENT', doc)
         // Return a basic Post object - additional data will be loaded separately
         const post: Post = {
             id: doc.$id,

@@ -1,4 +1,5 @@
 /* Import modules. */
+import { getWasmSdk } from './wasm-sdk-service'
 import { BaseDocumentService, QueryOptions } from './document-service'
 import { stateTransitionService } from './state-transition-service'
 
@@ -31,18 +32,28 @@ class LikeService extends BaseDocumentService<LikeDocument> {
      */
     async likePost(postId: string, ownerId: string): Promise<boolean> {
         try {
-            // Check if already liked
-            const existing = await this.getLike(postId, ownerId);
+            const sdk = await getWasmSdk()
 
+            // Check if already liked
+            const existing = await this.getLike(postId, ownerId)
+console.log('EXISTING LIKE', existing)
             if (existing) {
-                console.log('Post already liked');
-                return true;
+                console.log('Post already liked')
+                return true
             }
 
             // Convert postId to byte array
-            const bs58Module = await import('bs58');
-            const bs58 = bs58Module.default;
-            const postIdBytes = Array.from(bs58.decode(postId));
+            const bs58Module = await import('bs58')
+            const bs58 = bs58Module.default
+            const postIdBytes = Array.from(bs58.decode(postId))
+console.log('DEBUG DOCUMENT', {
+    contractId: this.contractId,
+    documentType: this.documentType,
+    ownerId,
+    postIdBytes,
+})
+
+            console.log(`Liking ${this.documentType} document:`, postId)
 
             // Use state transition service for creation
             const result = await stateTransitionService.createDocument(
@@ -64,10 +75,12 @@ class LikeService extends BaseDocumentService<LikeDocument> {
      */
     async unlikePost(postId: string, ownerId: string): Promise<boolean> {
         try {
-            const like = await this.getLike(postId, ownerId);
+            const sdk = await getWasmSdk()
 
+            const like = await this.getLike(postId, ownerId)
+console.log('EXISTING LIKE', like)
             if (!like) {
-                console.log('Post not liked');
+                console.log('Post not liked')
                 return true;
             }
 
@@ -81,8 +94,8 @@ class LikeService extends BaseDocumentService<LikeDocument> {
 
             return result.success
         } catch (error) {
-            console.error('Error unliking post:', error);
-            return false;
+            console.error('Error unliking post:', error)
+            return false
         }
     }
 
@@ -100,28 +113,30 @@ class LikeService extends BaseDocumentService<LikeDocument> {
      */
     async getLike(postId: string, ownerId: string): Promise<LikeDocument | null> {
         try {
+            const sdk = await getWasmSdk()
+
             // Import necessary modules
-            const { getDashPlatformClient } = await import('../dash-platform-client');
-            const { get_documents } = await import('../dash-wasm/wasm_sdk');
-            const bs58Module = await import('bs58');
-            const bs58 = bs58Module.default;
+            const { getDashPlatformClient } = await import('../dash-platform-client')
+            const { get_documents } = await import('../dash-wasm/wasm_sdk')
+            const bs58Module = await import('bs58')
+            const bs58 = bs58Module.default
 
             // Get SDK instance
-            const dashClient = getDashPlatformClient();
+            const dashClient = getDashPlatformClient()
 
-            await dashClient.ensureInitialized();
+            await dashClient.ensureInitialized()
 
-            const sdk = await import('../services/wasm-sdk-service').then(m => m.getWasmSdk());
+            // const sdk = await import('../services/wasm-sdk-service').then(m => m.getWasmSdk())
 
             // Convert postId to byte array
-            const postIdBytes = Array.from(bs58.decode(postId));
-
+            const postIdBytes = Array.from(bs58.decode(postId))
+console.log('POST BYTES', postIdBytes)
             // Build where clause
             const where = [
                 ['postId', '==', postIdBytes],
                 ['$ownerId', '==', ownerId]
             ]
-
+console.log('WHERE', where)
             // Query directly
             const response = await get_documents(
                 sdk,
@@ -133,9 +148,9 @@ class LikeService extends BaseDocumentService<LikeDocument> {
                 null, // startAfter
                 null  // startAt
             )
-
+console.log('GET LIKE (response)', response)
             // Convert response
-            let documents;
+            let documents
 
             if (response && typeof response.toJSON === 'function') {
                 documents = response.toJSON();
@@ -144,13 +159,13 @@ class LikeService extends BaseDocumentService<LikeDocument> {
             } else if (Array.isArray(response)) {
                 documents = response;
             } else {
-                documents = [];
+                documents = []
             }
 
-            return documents.length > 0 ? this.transformDocument(documents[0]) : null;
+            return documents.length > 0 ? this.transformDocument(documents[0]) : null
         } catch (error) {
-            console.error('Error getting like:', error);
-            return null;
+            console.error('Error getting like:', error)
+            return null
         }
     }
 

@@ -90,9 +90,9 @@ class StateTransitionService {
             const privateKey = await this.getPrivateKey(ownerId)
             const entropy = this.generateEntropy()
 
-            console.log(`Creating ${documentType} document with data:`, documentData);
-            console.log(`Contract ID: ${contractId}`);
-            console.log(`Owner ID: ${ownerId}`);
+            console.log(`Creating ${documentType} document with data:`, documentData)
+            console.log(`Contract ID: ${contractId}`)
+            console.log(`Owner ID: ${ownerId}`)
 
             // Create the document using the SDK method
             const result = await sdk.documentCreate(
@@ -104,7 +104,7 @@ class StateTransitionService {
                 privateKey
             )
 
-            console.log('Document creation result:', result);
+            console.log('Document creation result:', result)
 
             // The result contains the document and transition info
             return {

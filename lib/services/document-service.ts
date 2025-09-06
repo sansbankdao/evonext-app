@@ -122,7 +122,6 @@ export abstract class BaseDocumentService<T> {
      * Get a single document by ID
      */
     async get(documentId: string): Promise<T | null> {
-console.log('GET DOCUMENT', documentId)
         try {
             // Check cache
             const cached = this.cache.get(documentId)
@@ -139,7 +138,6 @@ console.log('GET DOCUMENT', documentId)
                 this.documentType,
                 documentId
             )
-console.log('NO CACHE_WITH_PROOF (response)', response)
 
             if (!response) {
                 return null
@@ -148,7 +146,7 @@ console.log('NO CACHE_WITH_PROOF (response)', response)
             // get_document returns an object directly
             const doc = response
             const transformed = this.transformDocument(doc)
-console.log('TRANSORMED', transformed)
+
             // Cache the result
             this.cache.set(documentId, {
                 data: transformed,
@@ -167,9 +165,9 @@ console.log('TRANSORMED', transformed)
      */
     async create(ownerId: string, data: any): Promise<T> {
         try {
-            const sdk = await getWasmSdk();
+            const sdk = await getWasmSdk()
 
-            console.log(`Creating ${this.documentType} document:`, data);
+            console.log(`Creating ${this.documentType} document:`, data)
 
             // Use state transition service for document creation
             const result = await stateTransitionService.createDocument(
@@ -197,7 +195,6 @@ console.log('TRANSORMED', transformed)
      * Update a document
      */
     async update(documentId: string, ownerId: string, data: any): Promise<T> {
-console.log('DOCUMENT UPDATE', documentId)
         try {
             const sdk = await getWasmSdk()
 
@@ -205,7 +202,7 @@ console.log('DOCUMENT UPDATE', documentId)
 
             // Get current document to find revision
             const currentDoc = await this.get(documentId)
-console.log('CURRENT DOC', currentDoc)
+
             if (!currentDoc) {
                 throw new Error('Document not found')
             }

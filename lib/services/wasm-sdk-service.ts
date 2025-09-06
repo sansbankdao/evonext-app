@@ -103,13 +103,13 @@ class WasmSdkService {
      * We need to avoid network requests for our yappr contract.
      * The solution is to perform a controlled fetch that provides local contract data.
      */
-    private async _preloadYapprContract(): Promise<void> {
+    private async _preloadEvoNextContract(): Promise<void> {
         if (!this.config || !this.sdk) {
             return
         }
 
         try {
-            console.log('WasmSdkService: Adding Yappr! contract to trusted context...')
+            console.log('WasmSdkService: Adding EvoNext contract to trusted context...')
 
             const contractId = this.config.contractId
 
@@ -117,7 +117,7 @@ class WasmSdkService {
             // For now, let's try the fetch and see if it succeeds (it might if the contract exists on testnet)
             try {
                 await data_contract_fetch(this.sdk, contractId)
-                console.log('WasmSdkService: Yappr! contract found on network and cached in trusted context');
+                console.log('WasmSdkService: EvoNext contract found on network and cached in trusted context');
             } catch (error) {
                 console.log('WasmSdkService: Contract not found on network (expected for local development)');
                 console.log('WasmSdkService: Local contract operations will be handled gracefully');
@@ -224,7 +224,7 @@ class WasmSdkService {
             console.log('WasmSdkService: WASM SDK initialized successfully, _isInitialized = true');
 
             // Preload the yappr contract into the trusted context
-            await this._preloadYapprContract();
+            await this._preloadEvoNextContract();
         } catch (error) {
             console.error('WasmSdkService: Failed to initialize WASM SDK:', error);
             console.error('WasmSdkService: Error details:', {
