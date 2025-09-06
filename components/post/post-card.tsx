@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { motion } from 'framer-motion'
 import {
@@ -37,6 +38,7 @@ interface PostCardProps {
 }
 
 export function PostCard({ post, hideAvatar = false, isOwnPost = false }: PostCardProps) {
+    const router = useRouter()
     const [liked, setLiked] = useState(post.liked || false)
     const [likes, setLikes] = useState(post.likes)
     const [reposted, setReposted] = useState(post.reposted || false)
@@ -77,8 +79,12 @@ export function PostCard({ post, hideAvatar = false, isOwnPost = false }: PostCa
     }
 
     const handleShare = () => {
-        navigator.clipboard.writeText(`https://evonext.app/posts/${post.id}`)
+        navigator.clipboard.writeText(`https://evonext.app/post#${post.id}`)
         toast.success('Link copied to clipboard')
+    }
+
+    const gotoDetails = () => {
+        router.push('/post#' + post.id)
     }
 
     return (
@@ -86,6 +92,7 @@ export function PostCard({ post, hideAvatar = false, isOwnPost = false }: PostCa
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="border-b border-gray-200 dark:border-gray-800 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-950 transition-colors cursor-pointer"
+            onClick={() => gotoDetails()}
         >
             <div className="flex gap-3">
                 {!hideAvatar && (

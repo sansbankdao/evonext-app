@@ -47,7 +47,7 @@ function PostDetailPage() {
     useEffect(() => {
         // if (!params.id || !user) return
         /* Validate user. */
-        if (!user) return
+        // if (!user) return
 
         const loadPost = async () => {
             try {
@@ -174,10 +174,10 @@ function PostDetailPage() {
     }
 
     return (
-        <div className="py-16 min-h-screen flex">
+        <div className="min-h-screen flex">
             <Sidebar />
 
-            <main className="flex-1 border-x border-gray-200 dark:border-gray-800">
+            <main className="py-20 flex-1 border-x border-gray-200 dark:border-gray-800 h-screen overflow-y-scroll">
                 <header className="sticky top-0 z-40 bg-white/80 dark:bg-black/80 backdrop-blur-xl border-b border-gray-200 dark:border-gray-800">
                     <div className="flex items-center gap-4 px-4 py-3">
                         <button
@@ -268,4 +268,5 @@ function PostDetailPage() {
     )
 }
 
-export default withAuth(PostDetailPage)
+// export default withAuth(PostDetailPage)
+export default PostDetailPage // allow visitors to see post details
