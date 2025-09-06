@@ -50,7 +50,10 @@ class FollowService extends BaseDocumentService<FollowDocument> {
      * @param followerUserId - The identity ID of the user who is following
      * @param targetUserId - The identity ID of the user being followed
      */
-    async followUser(followerUserId: string, targetUserId: string): Promise<{ success: boolean; error?: string }> {
+    async followUser(
+        followerUserId: string,
+        targetUserId: string,
+    ): Promise<{ success: boolean; error?: string }> {
         try {
             // Check if already following
             const existing = await this.getFollow(targetUserId, followerUserId);
@@ -85,7 +88,10 @@ class FollowService extends BaseDocumentService<FollowDocument> {
      * @param followerUserId - The identity ID of the user who is unfollowing
      * @param targetUserId - The identity ID of the user being unfollowed
      */
-    async unfollowUser(followerUserId: string, targetUserId: string): Promise<{ success: boolean; error?: string }> {
+    async unfollowUser(
+        followerUserId: string,
+        targetUserId: string,
+    ): Promise<{ success: boolean; error?: string }> {
         try {
             const follow = await this.getFollow(targetUserId, followerUserId);
 
@@ -116,7 +122,10 @@ class FollowService extends BaseDocumentService<FollowDocument> {
     /**
      * Check if user A follows user B
      */
-    async isFollowing(targetUserId: string, followerUserId: string): Promise<boolean> {
+    async isFollowing(
+        targetUserId: string,
+        followerUserId: string,
+    ): Promise<boolean> {
         const follow = await this.getFollow(targetUserId, followerUserId);
 
         return follow !== null;
@@ -125,7 +134,10 @@ class FollowService extends BaseDocumentService<FollowDocument> {
     /**
      * Get follow relationship
      */
-    async getFollow(targetUserId: string, followerUserId: string): Promise<FollowDocument | null> {
+    async getFollow(
+        targetUserId: string,
+        followerUserId: string,
+    ): Promise<FollowDocument | null> {
         try {
             const result = await this.query({
                 where: [
@@ -145,7 +157,10 @@ class FollowService extends BaseDocumentService<FollowDocument> {
     /**
      * Get followers of a user
      */
-    async getFollowers(userId: string, options: QueryOptions = {}): Promise<FollowDocument[]> {
+    async getFollowers(
+        userId: string,
+        options: QueryOptions = {},
+    ): Promise<FollowDocument[]> {
         try {
             const result = await this.query({
                 where: [['followingId', '==', userId]],
@@ -165,7 +180,10 @@ class FollowService extends BaseDocumentService<FollowDocument> {
     /**
      * Get users that a user follows
      */
-    async getFollowing(userId: string, options: QueryOptions = {}): Promise<FollowDocument[]> {
+    async getFollowing(
+        userId: string,
+        options: QueryOptions = {},
+    ): Promise<FollowDocument[]> {
         try {
             const result = await this.query({
                 where: [['$ownerId', '==', userId]],
@@ -203,7 +221,10 @@ class FollowService extends BaseDocumentService<FollowDocument> {
     /**
      * Check mutual follow (both users follow each other)
      */
-    async areMutualFollowers(userId1: string, userId2: string): Promise<boolean> {
+    async areMutualFollowers(
+        userId1: string,
+        userId2: string,
+    ): Promise<boolean> {
         const [follows1to2, follows2to1] = await Promise.all([
             this.isFollowing(userId2, userId1),
             this.isFollowing(userId1, userId2)
