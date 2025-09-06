@@ -20,7 +20,10 @@ class ContractService {
     /**
      * Get the evonext contract with the specified owner ID and contract ID
      */
-    getEvoNextContract(ownerId: string, contractId: string): DataContract {
+    getEvoNextContract(
+        ownerId: string,
+        contractId: string,
+    ): DataContract {
         if (!this.evonextContract || this.contractId !== contractId) {
             // Create a copy and set the owner ID and contract ID
             this.evonextContract = {
@@ -38,7 +41,10 @@ class ContractService {
     /**
      * Get the evonext contract JSON as a string
      */
-    getEvoNextContractJson(ownerId: string, contractId: string): string {
+    getEvoNextContractJson(
+        ownerId: string,
+        contractId: string,
+    ): string {
         const contract = this.getEvoNextContract(ownerId, contractId)
         return JSON.stringify(contract)
     }
