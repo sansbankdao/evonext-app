@@ -311,6 +311,7 @@ console.log('***POST DOCUMENT', doc)
     private getDefaultUser(userId: string): User {
         return {
             id: userId,
+            docId: undefined,
             username: userId.substring(0, 8) + '...',
             displayName: 'Unknown User',
             avatar: '',
@@ -318,7 +319,8 @@ console.log('***POST DOCUMENT', doc)
             followers: 0,
             following: 0,
             verified: false,
-            joinedAt: new Date()
+            joinedAt: new Date(),
+            revision: 0,
         }
     }
 }

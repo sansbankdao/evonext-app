@@ -25,6 +25,7 @@ interface BookmarkedPost {
     content: string
     author: {
         id: string
+        docId: string
         username: string
         handle: string
         displayName: string
@@ -33,6 +34,7 @@ interface BookmarkedPost {
         following: number
         verified?: boolean
         joinedAt: Date
+        revision: number
     }
     createdAt: Date
     timestamp: string
@@ -64,13 +66,15 @@ router.push('/bootstrap')
                     content: 'Just deployed my first dApp on Dash Platform! 🚀 The future is decentralized.',
                     author: {
                         id: 'user123',
+                        docId: 'abc123',
                         username: 'user123...',
                         handle: 'user123',
                         displayName: 'User 123',
                         avatar: '',
                         followers: 0,
                         following: 0,
-                        joinedAt: new Date()
+                        joinedAt: new Date(),
+                        revision: 1,
                     },
                     createdAt: new Date(Date.now() - 1000 * 60 * 60),
                     timestamp: new Date(Date.now() - 1000 * 60 * 60).toISOString(),
@@ -85,13 +89,15 @@ router.push('/bootstrap')
                     content: 'Building decentralized social media is the future. No more centralized control over our data and conversations.',
                     author: {
                         id: 'user456',
+                        docId: 'abc456',
                         username: 'user456...',
                         handle: 'user456',
                         displayName: 'User 456',
                         avatar: '',
                         followers: 0,
                         following: 0,
-                        joinedAt: new Date()
+                        joinedAt: new Date(),
+                        revision: 1,
                     },
                     createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24),
                     timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
@@ -106,13 +112,15 @@ router.push('/bootstrap')
                     content: 'Dash Platform makes it so easy to build decentralized applications. The developer experience is amazing! #DashPlatform #Web3',
                     author: {
                         id: 'user789',
+                        docId: 'abc789',
                         username: 'user789...',
                         handle: 'user789',
                         displayName: 'User 789',
                         avatar: '',
                         followers: 0,
                         following: 0,
-                        joinedAt: new Date()
+                        joinedAt: new Date(),
+                        revision: 1,
                     },
                     createdAt: new Date(Date.now() - 1000 * 60 * 60 * 48),
                     timestamp: new Date(Date.now() - 1000 * 60 * 60 * 48).toISOString(),

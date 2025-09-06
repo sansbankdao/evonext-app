@@ -330,7 +330,7 @@ console.log('GET PROFILE', profile)
             })
 
             if (profileDoc.documents.length > 0) {
-                const docId = profileDoc.documents[0].docId
+                const docId = profileDoc.documents[0].docId!
 
                 const result = await this.update(docId, ownerId, data)
 
