@@ -5,14 +5,14 @@ import React, { createContext, useContext, useEffect, useState } from 'react'
 type Network = 'mainnet' | 'testnet' | string | null;
 
 interface NetworkContextType {
-    network: Network;
+    active: Network;
     error: string | null;
 }
 
-const NetworkContext = createContext<NetworkContextType>({ network: null, error: null })
+const NetworkContext = createContext<NetworkContextType>({ active: null, error: null })
 
 export function NetworkProvider({ children }: { children: React.ReactNode }) {
-    const [network, setNetwork] = useState<Network>(null)
+    const [active, setActiveNetwork] = useState<Network>(null)
     const [error, setError] = useState<string | null>(null)
 
     useEffect(() => {
@@ -23,14 +23,14 @@ export function NetworkProvider({ children }: { children: React.ReactNode }) {
 
                 /* Handle host. */
                 switch(host) {
-                case 'evonext.world':
-                    setNetwork('mainnet')
+                case 'evonext.app':
+                    setActiveNetwork('mainnet')
                     break
-                case 'testnet.evonext.world':
-                    setNetwork('testnet')
+                case 'testnet.evonext.app':
+                    setActiveNetwork('testnet')
                     break
                 default:
-                    setNetwork(host)
+                    setActiveNetwork(host)
                     break
                 }
             } catch (err) {
@@ -49,7 +49,7 @@ export function NetworkProvider({ children }: { children: React.ReactNode }) {
     }, [])
 
     return (
-        <NetworkContext.Provider value={{ network, error }}>
+        <NetworkContext.Provider value={{ active, error }}>
             {children}
         </NetworkContext.Provider>
     )

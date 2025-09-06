@@ -6,11 +6,21 @@ import {
     get_documents
 } from './dash-wasm/wasm_sdk'
 
+import { useNetwork } from '@/contexts/network-context'
+
 // Import the centralized WASM service
 import { wasmSdkService } from './services/wasm-sdk-service'
 import { EVONEXT_CONTRACT_ID } from './constants'
 
+type Network = 'mainnet' | 'testnet' | string | null;
+
+interface NetworkContextType {
+    active: Network;
+    error: string | null;
+}
+
 export class DashPlatformClient {
+    private network: NetworkContextType = useNetwork()
     private sdk: any = null
     private identityId: string | null = null
     private isInitializing: boolean = false
@@ -40,10 +50,10 @@ export class DashPlatformClient {
 
         try {
             // Use the centralized WASM service
-            const network = (process.env.NEXT_PUBLIC_NETWORK as 'testnet' | 'mainnet') || 'testnet'
+            const network = (this.network.active as 'mainnet' | 'testnet')  || 'testnet'
             const contractId = EVONEXT_CONTRACT_ID
 
-            console.log('DashPlatformClient: Initializing via WasmSdkService for network:', network)
+            console.log('DashPlatformClient: Initializing via WasmSdkService for network:', this.network)
 
             // Initialize the WASM SDK service if not already done
             await wasmSdkService.initialize({ network, contractId })

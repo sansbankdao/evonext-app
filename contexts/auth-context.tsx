@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { useNetwork } from '@/contexts/network-context'
 import { EVONEXT_CONTRACT_ID } from '@/lib/constants'
 
 export interface AuthUser {
@@ -28,6 +29,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+    const network = useNetwork()
     const [user, setUser] = useState<AuthUser | null>(null)
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
@@ -108,7 +110,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             // Initialize SDK if needed
             await wasmSdkService.initialize({
-                network: (process.env.NEXT_PUBLIC_NETWORK as 'testnet' | 'mainnet') || 'testnet',
+                network: (network.active as 'mainnet' | 'testnet') || 'testnet',
                 contractId: EVONEXT_CONTRACT_ID
             })
 

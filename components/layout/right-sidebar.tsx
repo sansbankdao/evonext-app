@@ -9,10 +9,12 @@ import {
 } from '@heroicons/react/24/outline'
 import { formatNumber, formatTime } from '@/lib/utils'
 import { useAuth } from '@/contexts/auth-context'
+import { useNetwork } from '@/contexts/network-context'
 import { EVONEXT_CONTRACT_ID } from '@/lib/constants'
 
 export function RightSidebar() {
     const { user } = useAuth()
+    const network = useNetwork()
 
     return (
         <div className="hidden max-w-md w-full h-screen overflow-y-auto lg:flex flex-col px-4 py-4 space-y-4">
@@ -39,7 +41,7 @@ export function RightSidebar() {
 
                     <div>
                         <p className="text-sm text-gray-500">Dash Platform Network</p>
-                        <p className="text-sm font-semibold capitalize">{process.env.NEXT_PUBLIC_NETWORK || 'testnet'}</p>
+                        <p className="text-sm font-semibold capitalize">{network.active || 'testnet'}</p>
                     </div>
 
                     {/* <div>

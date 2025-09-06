@@ -57,7 +57,7 @@ export function ComposeModal() {
                     replyToPostId: replyingTo?.id
                 })
             })
-console.log('COMPOSE RESULT', result)
+
             if (result.success) {
                 toast.success('Post created successfully!')
 
@@ -77,7 +77,7 @@ console.log('COMPOSE RESULT', result)
             console.error('Failed to create post:', error)
 
             const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-console.log('COMPOSE ERROR', errorMessage)
+
             if (errorMessage.includes('no available addresses') || errorMessage.includes('Missing response message')) {
                 toast.error('Dash Platform is temporarily unavailable. Please try again in a few moments.')
             } else if (errorMessage.includes('Network') || errorMessage.includes('connection') || errorMessage.includes('timeout')) {
@@ -120,7 +120,7 @@ console.log('COMPOSE ERROR', errorMessage)
                                 animate={{ opacity: 1, scale: 1 }}
                                 exit={{ opacity: 0, scale: 0.95 }}
                                 transition={{ duration: 0.15 }}
-                                className="fixed top-20 left-1/2 -translate-x-1/2 w-full max-w-[600px] bg-white dark:bg-black rounded-2xl shadow-xl z-50"
+                                className="fixed mx-5 top-20 lg:left-1/4 -translate-x-1/2 w-full max-w-[600px] bg-white dark:bg-black rounded-2xl shadow-xl z-50"
                             >
                                 {/* Add Dialog Title for accessibility */}
                                 <Dialog.Title className="sr-only">
@@ -133,13 +133,14 @@ console.log('COMPOSE ERROR', errorMessage)
 
                                 <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-800">
                                     <IconButton onClick={handleClose}>
-                                        <XMarkIcon className="h-5 w-5" />
+                                        <XMarkIcon className="size-6" />
                                     </IconButton>
 
                                     <Button
                                         onClick={handlePost}
                                         disabled={!content.trim() || content.length > characterLimit || isPosting}
                                         size="sm"
+                                        className="px-5 py-2 text-xl"
                                     >
                                         {isPosting ? (
                                             <span className="flex items-center gap-2">

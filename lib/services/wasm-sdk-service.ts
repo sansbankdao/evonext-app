@@ -10,7 +10,7 @@ import init, {
 import { contractService } from './contract-service'
 
 export interface WasmSdkConfig {
-    network: 'testnet' | 'mainnet';
+    network: 'mainnet' | 'testnet';
     contractId: string;
 }
 
