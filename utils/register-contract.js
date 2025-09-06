@@ -6,7 +6,7 @@ const Dash = require('dash')
 // Configuration
 const IDENTITY_ID = '5DbLwAxGBzUzo81VewMUwn4b5P4bpv9FNFybi25XB5Bk'
 const PRIVATE_KEY = 'XK6CFyvYUMvY9FVQLeYBZBFDbC4QuBLiqWMAFxBVZcMHJ5eARJtf'
-const CONTRACT_PATH = './contracts/evonext-contract-min.json'
+const CONTRACT_PATH = './contracts/evonext-contract.json'
 
 async function registerContract() {
     try {
