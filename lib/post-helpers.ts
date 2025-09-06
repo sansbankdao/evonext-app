@@ -5,15 +5,16 @@
 import { AuthUser } from '@/contexts/auth-context'
 
 export interface PostDocument {
-    authorId: Uint8Array // 32-byte identity ID
-    content: string
-    mediaUrl?: string // Optional media URL (simplified from media array)
-    replyToPostId?: Uint8Array // Optional reference to parent post
-    quotedPostId?: Uint8Array // Optional reference to quoted post
-    firstMentionId?: Uint8Array // Optional first mentioned user (simplified from mentions array)
-    primaryHashtag?: string // Optional primary hashtag (simplified from hashtags array)
-    language?: string // 2-letter language code
-    sensitive?: boolean // Whether post contains sensitive content
+    authorId: Uint8Array; // 32-byte identity ID
+    content: string;
+    remix?: string;
+    mediaUrl?: string; // Optional media URL (simplified from media array)
+    replyToPostId?: Uint8Array; // Optional reference to parent post
+    quotedPostId?: Uint8Array; // Optional reference to quoted post
+    firstMentionId?: Uint8Array; // Optional first mentioned user (simplified from mentions array)
+    primaryHashtag?: string; // Optional primary hashtag (simplified from hashtags array)
+    language?: string; // 2-letter language code
+    isSensitive?: boolean; // Whether post contains sensitive content
 }
 
 /**
@@ -37,6 +38,7 @@ export function identityIdToBytes(identityId: string): Uint8Array {
 export function createPostDocument(
     user: AuthUser,
     content: string,
+    remix?: string,
     options?: {
         mediaUrl?: string
         replyToPostId?: string
@@ -44,7 +46,7 @@ export function createPostDocument(
         firstMentionId?: string
         primaryHashtag?: string
         language?: string
-        sensitive?: boolean
+        isSensitive?: boolean
     }
 ): PostDocument {
     const post: PostDocument = {
@@ -77,8 +79,8 @@ export function createPostDocument(
         post.language = options.language
     }
 
-    if (options?.sensitive !== undefined) {
-        post.sensitive = options.sensitive
+    if (options?.isSensitive !== undefined) {
+        post.isSensitive = options.isSensitive
     }
 
     return post

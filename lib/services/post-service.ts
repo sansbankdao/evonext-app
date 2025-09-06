@@ -7,16 +7,18 @@ import { profileService } from './profile-service'
 export interface PostDocument {
     $id: string;
     $ownerId: string;
-    $createdAt: number;
-    $updatedAt?: number;
+    ownerId: string;
     content: string;
+    remix?: string;
     mediaUrl?: string;
     replyToId?: string;
     quotedPostId?: string;
     firstMentionId?: string;
     primaryHashtag?: string;
     language?: string;
-    sensitive?: boolean;
+    isSensitive?: boolean;
+    $createdAt: number;
+    $updatedAt?: number;
 }
 
 export interface PostStats {
@@ -38,10 +40,12 @@ class PostService extends BaseDocumentService<Post> {
      * Transform document to Post type
      */
     protected transformDocument(doc: PostDocument): Post {
+console.log('***POST DOCUMENT', doc)
         // Return a basic Post object - additional data will be loaded separately
         const post: Post = {
             id: doc.$id,
-            author: this.getDefaultUser(doc.$ownerId),
+            // author: this.getDefaultUser(doc.$ownerId),
+            author: this.getDefaultUser(doc.ownerId),
             content: doc.content,
             createdAt: new Date(doc.$createdAt),
             likes: 0,
@@ -70,7 +74,8 @@ class PostService extends BaseDocumentService<Post> {
     private async enrichPost(post: Post, doc: PostDocument): Promise<void> {
         try {
             // Get author information
-            const author = await profileService.getProfile(doc.$ownerId)
+            // const author = await profileService.getProfile(doc.$ownerId)
+            const author = await profileService.getProfile(doc.ownerId)
 
             if (author) {
                 post.author = author
@@ -117,6 +122,7 @@ class PostService extends BaseDocumentService<Post> {
     async createPost(
         ownerId: string,
         content: string,
+        remix?: string,
         options: {
             mediaUrl?: string;
             replyToId?: string;
@@ -124,7 +130,7 @@ class PostService extends BaseDocumentService<Post> {
             firstMentionId?: string;
             primaryHashtag?: string;
             language?: string;
-            sensitive?: boolean;
+            isSensitive?: boolean;
         } = {}
     ): Promise<Post> {
         const data: any = {
@@ -138,7 +144,7 @@ class PostService extends BaseDocumentService<Post> {
         if (options.firstMentionId) data.firstMentionId = options.firstMentionId
         if (options.primaryHashtag) data.primaryHashtag = options.primaryHashtag
         if (options.language) data.language = options.language || 'en'
-        if (options.sensitive !== undefined) data.sensitive = options.sensitive
+        if (options.isSensitive !== undefined) data.isSensitive = options.isSensitive
 
         return this.create(ownerId, data)
     }

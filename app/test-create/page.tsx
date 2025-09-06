@@ -23,8 +23,10 @@ export default function TestCreatePage() {
             const post = await postService.createPost(
                 identityId,
                 postContent,
+                undefined, // remix
                 {
-                    language: 'en'
+                    language: 'en',
+                    isSensitive: false
                 }
             )
 
@@ -45,10 +47,16 @@ export default function TestCreatePage() {
             // Store private key in session for state transitions
             sessionStorage.setItem('evonext_pk', privateKey)
 
-            const profile = await profileService.createProfile(
+            // const profile = await profileService.createProfile(
+            //     identityId,
+            //     profileName,
+            //     profileBio
+            // )
+            const profile = await profileService.updateProfile(
                 identityId,
-                profileName,
-                profileBio
+                {
+                    bio: profileBio,
+                },
             )
 
             setStatus('Profile created successfully!')
@@ -78,7 +86,7 @@ export default function TestCreatePage() {
     }
 
     return (
-        <div className="container mx-auto p-8">
+        <div className="py-20 container mx-auto p-8 h-screen overflow-y-scroll">
             <h1 className="text-3xl font-bold mb-6">Test Document Creation</h1>
 
             <div className="bg-gray-100 p-4 rounded mb-4">

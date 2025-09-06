@@ -7,19 +7,23 @@ import { cacheManager } from '../cache-manager'
 export interface ProfileDocument {
     $id: string;
     $ownerId: string;
-    $createdAt: number;
-    $updatedAt?: number;
+    ownerId?: string;
     displayName: string;
     bio?: string;
     avatarId?: string;
+    data?: any; // FIXME What is this for??
+    createdAt?: number;
+    $createdAt: number;
+    $updatedAt?: number;
 }
 
 export interface AvatarDocument {
     $id: string;
     $ownerId: string;
+    ownerId: string;
+    data: string;
     $createdAt: number;
     $updatedAt?: number;
-    data: string;
 }
 
 class ProfileService extends BaseDocumentService<User> {
@@ -123,12 +127,9 @@ class ProfileService extends BaseDocumentService<User> {
         console.log('ProfileService: transformDocument input:', doc);
 
         // Handle both $ prefixed and non-prefixed properties
-        // const ownerId = doc.$ownerId || doc.ownerId;
-        const ownerId = doc.$ownerId;
-        // const createdAt = doc.$createdAt || doc.createdAt;
-        const createdAt = doc.$createdAt;
-        // const data = doc.data || doc;
-        const data = doc;
+        const ownerId = doc.$ownerId || doc.ownerId || ''
+        const createdAt = doc.$createdAt || doc.createdAt || 0
+        const data = doc.data || doc;
 
         // Return a basic User object - additional data will be loaded separately
         const user: User = {
