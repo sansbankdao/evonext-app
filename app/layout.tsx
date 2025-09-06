@@ -29,9 +29,9 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
     metadataBase: new URL('https://evonext.world'), // FIXME Handle Testnet
-    title: 'EvoNext Free Your Inner Voice',
-    applicationName: 'EvoNext Free Your Inner Voice',
-    description: 'Discover safe and enjoyable spaces to Explore. Curate. Share YOUR TRUTH without any fear of social consequence.',
+    title: 'EvoNext: Fearless Social Media',
+    applicationName: 'EvoNext: Fearless Social Media',
+    description: 'Free Your Inner Ambitions — Discover safe and enjoyable spaces to Explore. Curate. Share YOUR TRUTH without any fear of social consequence.',
     icons: {
         icon: '/favicon.ico',
     },
@@ -45,8 +45,8 @@ export const metadata: Metadata = {
     creator: '0xShomari + Frens',
     publisher: 'Sansbank DAO',
     openGraph: {
-        title: 'EvoNext Free Your Inner Voice',
-        description: 'Discover safe and enjoyable spaces to Explore. Curate. Share YOUR TRUTH without any fear of social consequence.',
+        title: 'EvoNext: Fearless Social Media',
+        description: 'Free Your Inner Ambitions — Discover safe and enjoyable spaces to Explore. Curate. Share YOUR TRUTH without any fear of social consequence.',
         images: [
             {
                 url: '/poster.webp',
@@ -58,8 +58,8 @@ export const metadata: Metadata = {
     },
     twitter: {
         card: 'summary_large_image',
-        title: 'EvoNext Free Your Inner Voice',
-        description: 'Discover safe and enjoyable spaces to Explore. Curate. Share YOUR TRUTH without any fear of social consequence.',
+        title: 'EvoNext: Fearless Social Media',
+        description: 'Free Your Inner Ambitions — Discover safe and enjoyable spaces to Explore. Curate. Share YOUR TRUTH without any fear of social consequence.',
         images: [
             {
                 url: '/poster.webp',
