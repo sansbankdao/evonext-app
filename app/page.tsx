@@ -153,7 +153,7 @@ export default function PublicHomePage() {
         <div className="min-h-screen flex">
             <Sidebar />
 
-            <main className="py-16 w-full flex flex-col px-3 sm:px-8 h-screen overflow-y-scroll">
+            <main className="pt-16 pb-32 w-full flex flex-col px-3 sm:px-8 h-screen overflow-y-scroll">
                 {/* Hero Section */}
                 <section className="py-12 text-center">
                     <motion.div
@@ -165,7 +165,7 @@ export default function PublicHomePage() {
                             Welcome to
                         </h3>
 
-                        <h1 className="-mt-3 text-gradient text-8xl font-bold text-slate-500 tracking-widest">
+                        <h1 className="-mt-3 text-gradient text-7xl sm:text-8xl font-bold text-slate-500 tracking-widest">
                             EvoNext
                         </h1>
 
