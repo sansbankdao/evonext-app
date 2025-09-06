@@ -35,8 +35,8 @@ class BookmarkService extends BaseDocumentService<BookmarkDocument> {
             const existing = await this.getBookmark(postId, ownerId)
 
             if (existing) {
-                console.log('Post already bookmarked');
-                return true;
+                console.log('Post already bookmarked')
+                return true
             }
 
             // Use state transition service for creation
@@ -49,8 +49,8 @@ class BookmarkService extends BaseDocumentService<BookmarkDocument> {
 
             return result.success
         } catch (error) {
-            console.error('Error bookmarking post:', error);
-            return false;
+            console.error('Error bookmarking post:', error)
+            return false
         }
     }
 
@@ -84,7 +84,10 @@ class BookmarkService extends BaseDocumentService<BookmarkDocument> {
     /**
      * Check if post is bookmarked by user
      */
-    async isBookmarked(postId: string, ownerId: string): Promise<boolean> {
+    async isBookmarked(
+        postId: string,
+        ownerId: string,
+    ): Promise<boolean> {
         const bookmark = await this.getBookmark(postId, ownerId);
         return bookmark !== null;
     }
@@ -92,7 +95,10 @@ class BookmarkService extends BaseDocumentService<BookmarkDocument> {
     /**
      * Get bookmark by post and owner
      */
-    async getBookmark(postId: string, ownerId: string): Promise<BookmarkDocument | null> {
+    async getBookmark(
+        postId: string,
+        ownerId: string,
+    ): Promise<BookmarkDocument | null> {
         try {
             const result = await this.query({
                 where: [
@@ -112,7 +118,10 @@ class BookmarkService extends BaseDocumentService<BookmarkDocument> {
     /**
      * Get user's bookmarks
      */
-    async getUserBookmarks(userId: string, options: QueryOptions = {}): Promise<BookmarkDocument[]> {
+    async getUserBookmarks(
+        userId: string,
+        options: QueryOptions = {},
+    ): Promise<BookmarkDocument[]> {
         try {
             const result = await this.query({
                 where: [['$ownerId', '==', userId]],
