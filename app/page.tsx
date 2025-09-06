@@ -172,8 +172,8 @@ export default function PublicHomePage() {
                             Fearless Social Media
                         </h2>
 
-                        <p className="text-lg/7 text-slate-600 dark:text-slate-400 sm:max-w-2xl mb-8 mx-auto tracking-wider">
-                            Free Your Inner Ambitions ⛓️‍💥 Discover safe and enjoyable spaces to <span className="font-extrabold">Explore. Curate. Share YOUR TRUTH</span> without any fear of social consequences.
+                        <p className="text-lg/7 text-slate-600 dark:text-slate-400 sm:max-w-2xl mb-8 mx-auto tracking-wider text-pretty">
+                            Free Your Inner Ambitions ⛓️‍💥 Discover safe and enjoyable spaces to <span className="font-extrabold">Explore. Curate. Share YOUR TRUTH</span> without the fear of social consequence.
                         </p>
 
                         <div className="flex gap-4 justify-center">
