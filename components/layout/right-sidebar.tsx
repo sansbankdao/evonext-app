@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import {
     MagnifyingGlassIcon,
     ChartBarIcon,
@@ -135,10 +136,10 @@ export function RightSidebar() {
             )}
 
             <div className="px-4 py-2 text-xs text-gray-500 space-x-2">
-                <a href="/terms" className="hover:underline">Terms</a>
-                <a href="/privacy" className="hover:underline">Privacy</a>
-                <a href="/cookies" className="hover:underline">Cookies</a>
-                <a href="/about" className="hover:underline">About</a>
+                <Link href="/terms" className="hover:underline">Terms</Link>
+                <Link href="/privacy" className="hover:underline">Privacy</Link>
+                <Link href="/cookies" className="hover:underline">Cookies</Link>
+                <Link href="/about" className="hover:underline">About</Link>
             </div>
         </div>
     )

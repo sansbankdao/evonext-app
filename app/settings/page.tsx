@@ -415,24 +415,24 @@ function SettingsPage() {
                 </Button>
 
                 <Button variant="outline" className="w-full" asChild>
-                    <a href="https://github.com/sansbankdao/evonext-app" target="_blank" rel="noopener noreferrer">
+                    <Link href="https://github.com/sansbankdao/evonext-app" target="_blank" rel="noopener noreferrer">
                         GitHub Repository
-                    </a>
+                    </Link>
                 </Button>
 
                 <Button variant="outline" className="w-full" asChild>
-                    <a href="https://docs.evonext.app" target="_blank" rel="noopener noreferrer">
+                    <Link href="https://docs.evonext.app" target="_blank" rel="noopener noreferrer">
                         Documentation
-                    </a>
+                    </Link>
                 </Button>
             </div>
 
             <div className="pt-6 border-t border-gray-200 dark:border-gray-800">
                 <p className="text-xs text-gray-500 text-center">
                     &copy; 2025
-                    <a href="https://sansbank.org" target="_blank" className="pl-1 text-blue-400 font-medium hover:underline">
+                    <Link href="https://sansbank.org" target="_blank" className="pl-1 text-blue-400 font-medium hover:underline">
                         Sansbank DAO
-                    </a>. All rights reserved.
+                    </Link>. All rights reserved.
                 </p>
             </div>
         </div>

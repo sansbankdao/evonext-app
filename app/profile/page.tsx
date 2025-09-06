@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import { motion } from 'framer-motion'
 import {
     CameraIcon,
@@ -293,10 +294,10 @@ function ProfilePage() {
                                 )}
 
                                 {website && (
-                                    <a href={website} className="flex items-center gap-1 text-evonext-500 hover:underline">
+                                    <Link href={website} className="flex items-center gap-1 text-evonext-500 hover:underline">
                                         <LinkIcon className="h-4 w-4" />
                                         {website.replace(/^https?:\/\//, '')}
-                                    </a>
+                                    </Link>
                                 )}
 
                                 <span className="flex items-center gap-1">
