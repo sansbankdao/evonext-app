@@ -130,7 +130,7 @@ function CreateProfilePage() {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 dark:bg-black flex items-center justify-center px-4">
+        <div className="min-h-screen bg-gray-50 dark:bg-black flex items-center justify-center px-4 h-screen overflow-y-scroll">
             <div className="max-w-md w-full">
                 <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl p-8">
                     {/* Header with logout button */}

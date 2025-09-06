@@ -199,8 +199,15 @@
         "type": "object",
         "description": "A user's (primary) profile information.",
         "properties": {
-            "avatarId": {
+            "displayName": {
+                "type": "string",
                 "position": 0,
+                "maxLength": 50,
+                "minLength": 1,
+                "description": "A user's display (name shown on profile)."
+            },
+            "avatarId": {
+                "position": 1,
                 "type": "array",
                 "description": "Reference to the user's avatar (NFT) document.",
                 "maxItems": 32,
@@ -209,7 +216,7 @@
                 "contentMediaType": "application/x.dash.dpp.identifier"
             },
             "bannerId": {
-                "position": 1,
+                "position": 2,
                 "type": "array",
                 "description": "Reference to the user's banner image document.",
                 "maxItems": 32,
@@ -218,19 +225,19 @@
                 "contentMediaType": "application/x.dash.dpp.identifier"
             },
             "bio": {
-                "position": 2,
+                "position": 3,
                 "type": "string",
                 "description": "Brief biography of a user.",
                 "maxLength": 160
             },
             "location": {
-                "position": 3,
+                "position": 4,
                 "type": "string",
                 "description": "Primary location of a user.",
                 "maxLength": 50
             },
             "website": {
-                "position": 4,
+                "position": 5,
                 "type": "string",
                 "description": "Link to a user's website.",
                 "pattern": "^https?://.+$",
@@ -257,7 +264,8 @@
             }
         ],
         "required": [
-            "$createdAt"
+            "$createdAt",
+            "displayName"
         ],
         "additionalProperties": false
     }
