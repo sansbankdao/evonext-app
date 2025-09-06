@@ -8,7 +8,7 @@ export function Header() {
         <div className="absolute top-0 z-50 w-full bg-evonext-500 text-white px-4 py-2 text-sm">
             <div className="max-w-7xl mx-auto flex items-center justify-between">
                 <p className="text-center flex md:flex-col text-sm font-mono tracking-wider items-center">
-                    <a href="/" className="px-2 text-5xl font-bold inline tracking-wider">
+                    <a href="/" className="px-2 text-4xl sm:text-5xl font-bold inline tracking-wider">
                         EvoNext
                     </a>
 
