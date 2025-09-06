@@ -77,11 +77,11 @@ console.log('PASTE DETECTED')
     }
 
     return (
-        <div className="py-20 min-h-screen bg-white dark:bg-black flex items-center justify-center px-4">
+        <div className="pt-28 pb-8 bg-white dark:bg-black flex flex-col items-center px-4 h-screen overflow-y-scroll">
             <div className="max-w-md w-full space-y-8">
                 <div className="text-center">
                     <h1 className="text-4xl font-bold text-gradient mb-2">
-                        EvoNext
+                        Connect to Dash Platform
                     </h1>
 
                     <p className="text-gray-600 dark:text-gray-400">
@@ -90,20 +90,22 @@ console.log('PASTE DETECTED')
                 </div>
 
                 <form onSubmit={handleSubmit} className="mt-8 space-y-6">
-                    <div className="space-y-4">
-                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-                            {seedWords.map((word, idx) => (
-                                <input
-                                    key={idx}
-                                    placeholder={`Word #${idx + 1}`}
-                                    value={seedWords[idx]}
-                                    onChange={(e) => onInputChange(e, idx)}
-                                    onPaste={(e) => onMnemonicPaste(e, idx)}
-                                    className={`px-3 py-1 text-slate-800 font-medium border-4 border-sky-200 rounded ${idx >= 24 ? 'hidden' : ''}`}
-                                />
-                            ))}
+                    {!identityId &&
+                        <div className="space-y-4">
+                            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+                                {seedWords.map((word, idx) => (
+                                    <input
+                                        key={idx}
+                                        placeholder={`Word #${idx + 1}`}
+                                        value={seedWords[idx]}
+                                        onChange={(e) => onInputChange(e, idx)}
+                                        onPaste={(e) => onMnemonicPaste(e, idx)}
+                                        className={`px-3 py-1 text-slate-800 font-medium border-4 border-sky-200 rounded ${idx >= 24 ? 'hidden' : ''}`}
+                                    />
+                                ))}
+                            </div>
                         </div>
-                    </div>
+                    }
 
                     {!identityId &&
                         <button onClick={toggleExtWords} className="px-5 py-2 bg-sky-700 font-medium text-sky-100 rounded-xl shadow">
