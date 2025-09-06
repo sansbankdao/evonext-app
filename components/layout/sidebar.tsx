@@ -61,6 +61,7 @@ const getNavigation = (isLoggedIn: boolean) => {
         // { name: 'Messages', href: '/messages', icon: EnvelopeIcon, activeIcon: EnvelopeIconSolid },
         { name: 'Bookmarks', href: '/bookmarks', icon: BookmarkIcon, activeIcon: BookmarkIconSolid },
         { name: 'Profile', href: '/profile', icon: UserIcon, activeIcon: UserIconSolid },
+        { name: 'MYPost', href: '/post/123', icon: EnvelopeIcon, activeIcon: EnvelopeIconSolid },
     ]
 }
 
