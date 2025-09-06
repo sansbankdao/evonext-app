@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { wasmSdkService, identityService, postService } from '@/lib/services'
+import { EVONEXT_CONTRACT_ID } from '@/lib/constants'
 
 export default function TestWasmPage() {
     const [status, setStatus] = useState<string>('Not initialized')
@@ -20,7 +21,7 @@ export default function TestWasmPage() {
             // Initialize SDK
             await wasmSdkService.initialize({
                 network: 'testnet',
-                contractId: process.env.NEXT_PUBLIC_CONTRACT_ID || ''
+                contractId: process.env.NEXT_PUBLIC_CONTRACT_ID || EVONEXT_CONTRACT_ID || ''
             })
 
             setStatus('WASM SDK initialized successfully!')

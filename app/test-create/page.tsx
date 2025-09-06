@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react'
 import { wasmSdkService, postService, profileService } from '@/lib/services'
+import { EVONEXT_CONTRACT_ID } from '@/lib/constants'
 
 export default function TestCreatePage() {
     const [status, setStatus] = useState<string>('Ready')
@@ -55,6 +56,7 @@ export default function TestCreatePage() {
             const profile = await profileService.updateProfile(
                 identityId,
                 {
+                    displayName: profileName,
                     bio: profileBio,
                 },
             )
@@ -74,7 +76,7 @@ export default function TestCreatePage() {
 
             await wasmSdkService.initialize({
                 network: 'testnet',
-                contractId: process.env.NEXT_PUBLIC_CONTRACT_ID || ''
+                contractId: process.env.NEXT_PUBLIC_CONTRACT_ID || EVONEXT_CONTRACT_ID || ''
             })
 
             setStatus('SDK initialized')

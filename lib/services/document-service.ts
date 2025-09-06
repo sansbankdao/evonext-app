@@ -1,6 +1,6 @@
 /* Import modules. */
 import { getWasmSdk } from './wasm-sdk-service'
-import { get_documents, get_document } from '../dash-wasm/wasm_sdk'
+import { get_documents, get_document, get_document_with_proof_info } from '../dash-wasm/wasm_sdk'
 import { stateTransitionService } from './state-transition-service'
 import { EVONEXT_CONTRACT_ID } from '../constants'
 
@@ -122,9 +122,10 @@ export abstract class BaseDocumentService<T> {
      * Get a single document by ID
      */
     async get(documentId: string): Promise<T | null> {
+console.log('GET DOCUMENT', documentId)
         try {
             // Check cache
-            const cached = this.cache.get(documentId);
+            const cached = this.cache.get(documentId)
 
             if (cached && Date.now() - cached.timestamp < this.CACHE_TTL) {
                 return cached.data;
@@ -132,21 +133,22 @@ export abstract class BaseDocumentService<T> {
 
             const sdk = await getWasmSdk()
 
-            const response = await get_document(
+            const response = await get_document_with_proof_info(
                 sdk,
                 this.contractId,
                 this.documentType,
                 documentId
             )
+console.log('NO CACHE_WITH_PROOF (response)', response)
 
             if (!response) {
                 return null
             }
 
             // get_document returns an object directly
-            const doc = response;
-            const transformed = this.transformDocument(doc);
-
+            const doc = response
+            const transformed = this.transformDocument(doc)
+console.log('TRANSORMED', transformed)
             // Cache the result
             this.cache.set(documentId, {
                 data: transformed,
@@ -155,8 +157,8 @@ export abstract class BaseDocumentService<T> {
 
             return transformed
         } catch (error) {
-            console.error(`Error getting ${this.documentType} document:`, error);
-            return null;
+            console.error(`Error getting ${this.documentType} document:`, error)
+            return null
         }
     }
 
@@ -195,19 +197,21 @@ export abstract class BaseDocumentService<T> {
      * Update a document
      */
     async update(documentId: string, ownerId: string, data: any): Promise<T> {
+console.log('DOCUMENT UPDATE', documentId)
         try {
             const sdk = await getWasmSdk()
 
-            console.log(`Updating ${this.documentType} document ${documentId}:`, data);
+            console.log(`Updating ${this.documentType} document ${documentId}:`, data)
 
             // Get current document to find revision
-            const currentDoc = await this.get(documentId);
-
+            const currentDoc = await this.get(documentId)
+console.log('CURRENT DOC', currentDoc)
             if (!currentDoc) {
-                throw new Error('Document not found');
+                throw new Error('Document not found')
             }
 
-            const revision = (currentDoc as any).$revision || 0;
+            // const revision = (currentDoc as any).$revision || 0;
+            const revision = (currentDoc as any).revision || 0;
 
             // Use state transition service for document update
             const result = await stateTransitionService.updateDocument(

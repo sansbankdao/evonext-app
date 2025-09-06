@@ -137,7 +137,8 @@ class StateTransitionService {
             const sdk = await getWasmSdk()
             const privateKey = await this.getPrivateKey(ownerId)
 
-            console.log(`Updating ${documentType} document ${documentId}...`);
+            console.log(`Updating ${documentType} document ${documentId}...`)
+            console.log('REVISION IS', revision)
 
             // Update the document using the SDK method
             const result = await sdk.documentReplace(

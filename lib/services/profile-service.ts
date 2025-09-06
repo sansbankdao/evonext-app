@@ -6,12 +6,14 @@ import { cacheManager } from '../cache-manager'
 
 export interface ProfileDocument {
     $id: string;
+    id?: string;
     $ownerId: string;
     ownerId?: string;
     displayName: string;
     bio?: string;
     avatarId?: string;
     data?: any; // FIXME What is this for??
+    revision: number;
     createdAt?: number;
     $createdAt: number;
     $updatedAt?: number;
@@ -27,9 +29,9 @@ export interface AvatarDocument {
 }
 
 class ProfileService extends BaseDocumentService<User> {
-    private readonly AVATAR_CACHE = 'avatars';
-    private readonly USERNAME_CACHE = 'usernames';
-    private readonly PROFILE_CACHE = 'profiles';
+    private readonly AVATAR_CACHE = 'avatars'
+    private readonly USERNAME_CACHE = 'usernames'
+    private readonly PROFILE_CACHE = 'profiles'
 
     constructor() {
         super('profile')
@@ -68,7 +70,7 @@ class ProfileService extends BaseDocumentService<User> {
                 query.startAt = options.startAt;
             }
 
-            console.log(`Querying ${this.documentType} documents:`, query);
+            console.log(`Querying ${this.documentType} documents:`, query)
 
             const response = await get_documents(
                 sdk,
@@ -82,31 +84,31 @@ class ProfileService extends BaseDocumentService<User> {
             )
 
             // get_documents returns an object directly, not JSON string
-            let result = response;
+            let result = response
 
             // Handle different response formats
             if (response && typeof response.toJSON === 'function') {
-                result = response.toJSON();
+                result = response.toJSON()
             }
 
-            console.log(`${this.documentType} query result:`, result);
+            console.log(`${this.documentType} query result:`, result)
 
             // Check if result is an array (direct documents response)
             if (Array.isArray(result)) {
                 const documents = result.map((doc: any) => {
-                    return this.transformDocument(doc, { cachedUsername: this.cachedUsername });
-                });
+                    return this.transformDocument(doc, { cachedUsername: this.cachedUsername })
+                })
 
                 return {
                     documents,
                     nextCursor: undefined,
                     prevCursor: undefined
-                };
+                }
             }
 
             // Otherwise expect object with documents property
             const documents = result?.documents?.map((doc: any) => {
-                return this.transformDocument(doc, { cachedUsername: this.cachedUsername });
+                return this.transformDocument(doc, { cachedUsername: this.cachedUsername })
             }) || [];
 
             return {
@@ -115,25 +117,30 @@ class ProfileService extends BaseDocumentService<User> {
                 prevCursor: result?.prevCursor
             }
         } catch (error) {
-            console.error(`Error querying ${this.documentType} documents:`, error);
-            throw error;
+            console.error(`Error querying ${this.documentType} documents:`, error)
+            throw error
         }
     }
 
     /**
      * Transform document to User type
      */
-    protected transformDocument(doc: ProfileDocument, options?: { cachedUsername?: string }): User {
-        console.log('ProfileService: transformDocument input:', doc);
+    protected transformDocument(
+        doc: ProfileDocument,
+        options?: { cachedUsername?: string },
+    ): User {
+        console.log('ProfileService: transformDocument input:', doc)
 
         // Handle both $ prefixed and non-prefixed properties
         const ownerId = doc.$ownerId || doc.ownerId || ''
         const createdAt = doc.$createdAt || doc.createdAt || 0
-        const data = doc.data || doc;
+        const data = doc.data || doc
+        const revision = doc.data.revision
 
         // Return a basic User object - additional data will be loaded separately
         const user: User = {
             id: ownerId,
+            docId: doc.id!, // NOTE: THIS MUST ALWAYS EXIST
             username: options?.cachedUsername || (ownerId.substring(0, 8) + '...'),
             displayName: data.displayName,
             avatar: data.avatarId ? `/api/avatar/${ownerId}` : '',
@@ -142,12 +149,13 @@ class ProfileService extends BaseDocumentService<User> {
             followers: 0,
             following: 0,
             verified: false,
-            joinedAt: new Date(createdAt)
+            joinedAt: new Date(createdAt),
+            revision,
         }
 
         // Queue async operations to enrich the user
         // Skip username resolution if we already have a cached username
-        this.enrichUser(user, doc, !!options?.cachedUsername);
+        this.enrichUser(user, doc, !!options?.cachedUsername)
 
         return user
     }
@@ -276,41 +284,41 @@ class ProfileService extends BaseDocumentService<User> {
     async updateProfile(
         ownerId: string,
         updates: {
-            displayName?: string;
+            displayName: string;
             bio?: string;
             avatarData?: string;
         }
     ): Promise<User | null> {
         try {
             // Get existing profile
-            const profile = await this.getProfile(ownerId);
-
+            const profile = await this.getProfile(ownerId)
+console.log('GET PROFILE', profile)
             if (!profile) {
-                throw new Error('Profile not found');
+                throw new Error('Profile not found')
             }
 
-            const data: any = {};
+            const data: any = {}
 
             if (updates.displayName !== undefined) {
-                data.displayName = updates.displayName;
+                data.displayName = updates.displayName
             }
 
             if (updates.bio !== undefined) {
-                data.bio = updates.bio;
+                data.bio = updates.bio
             }
 
             // Handle avatar update
             if (updates.avatarData !== undefined) {
                 if (updates.avatarData) {
                     // Create or update avatar
-                    const avatarId = await this.createOrUpdateAvatar(ownerId, updates.avatarData, profile.avatarId);
-                    data.avatarId = avatarId;
+                    const avatarId = await this.createOrUpdateAvatar(ownerId, updates.avatarData, profile.avatarId)
+                    data.avatarId = avatarId
                 } else {
                     // Remove avatar
-                    data.avatarId = null;
+                    data.avatarId = null
 
                     if (profile.avatarId) {
-                        await this.deleteAvatar(profile.avatarId, ownerId);
+                        await this.deleteAvatar(profile.avatarId, ownerId)
                     }
                 }
             }
@@ -322,19 +330,20 @@ class ProfileService extends BaseDocumentService<User> {
             })
 
             if (profileDoc.documents.length > 0) {
-                const docId = profileDoc.documents[0].id;
-                const result = await this.update(docId, ownerId, data);
+                const docId = profileDoc.documents[0].docId
+
+                const result = await this.update(docId, ownerId, data)
 
                 // Invalidate cache for this user
-                cacheManager.invalidateByTag(`user:${ownerId}`);
+                cacheManager.invalidateByTag(`user:${ownerId}`)
 
-                return result;
+                return result
             }
 
-            return null;
+            return null
         } catch (error) {
-            console.error('Error updating profile:', error);
-            throw error;
+            console.error('Error updating profile:', error)
+            throw error
         }
     }
 

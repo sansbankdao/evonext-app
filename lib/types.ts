@@ -52,6 +52,7 @@ export interface Trend {
 
 export interface User {
     id: string;
+    docId: string;          // Document that stores the user's profile
     username: string;       // From DPNS - not stored in profile document
     displayName: string;
     avatar: string;         // URL for display
@@ -62,4 +63,5 @@ export interface User {
     following: number;
     verified?: boolean;
     joinedAt: Date;
+    revision: number;
 }
