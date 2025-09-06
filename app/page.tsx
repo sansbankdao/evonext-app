@@ -170,7 +170,7 @@ export default function PublicHomePage() {
                         </h1>
 
                         <h2 className="text-2xl text-sky-700 dark:text-sky-300 mb-8 max-w-2xl mx-auto font-bold tracking-widest">
-                            Free Your Inner Voice
+                            Fearless Social Media
                         </h2>
 
                         <p className="text-lg/7 text-slate-600 dark:text-slate-400 sm:max-w-2xl mb-8 mx-auto tracking-wider">
