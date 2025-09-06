@@ -68,24 +68,24 @@ export function LikesModal({ isOpen, onClose, postId }: LikesModalProps) {
                         </Dialog.Title>
 
                         <Dialog.Close asChild>
-                            <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-900 rounded-full transition-colors">
+                            <button onClick={(e) => e.stopPropagation()} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-900 rounded-full transition-colors">
                                 <XMarkIcon className="h-5 w-5" />
                             </button>
                         </Dialog.Close>
                     </div>
 
                     <div className="max-h-[500px] overflow-y-auto">
-                        {/* <LoadingState
+                        <LoadingState
                                 loading={likesState.loading}
                                 error={likesState.error}
-                                isEmpty={likesState.data.length === 0}
+                                isEmpty={likesState.data?.length === 0}
                                 onRetry={loadLikes}
                                 loadingText="Loading likes..."
                                 emptyText="No likes yet"
                                 emptyDescription="Be the first to like this post!"
                         >
                             <div className="divide-y divide-gray-200 dark:divide-gray-800">
-                                {likesState.data.map((like) => (
+                                {likesState.data?.map((like) => (
                                     <div key={like.$id} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-950 transition-colors">
                                         <div className="flex items-center justify-between">
                                             <div className="flex items-center gap-3">
@@ -108,7 +108,7 @@ export function LikesModal({ isOpen, onClose, postId }: LikesModalProps) {
                                     </div>
                                 ))}
                             </div>
-                        </LoadingState> */}
+                        </LoadingState>
                     </div>
                 </Dialog.Content>
             </Dialog.Portal>

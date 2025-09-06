@@ -51,7 +51,11 @@ export function PostCard({ post, hideAvatar = false, isOwnPost = false }: PostCa
         ? decodeAvatarFeaturesV2(post.author.avatarData)
         : generateAvatarV2(post.author.username)
 
-    const handleLike = () => {
+    const handleLike = (e: React.MouseEvent) => {
+console.log('HANDLE LIKE')
+        /* Stop propagation. */
+        e.stopPropagation()
+
         if (hideAvatar) {
             // On "Your Posts" tab, show who liked instead of liking
             setShowLikesModal(true)
@@ -62,23 +66,35 @@ export function PostCard({ post, hideAvatar = false, isOwnPost = false }: PostCa
         }
     }
 
-    const handleRepost = () => {
+    const handleRepost = (e: React.MouseEvent) => {
+console.log('HANDLE REPOST')
+        /* Stop propagation. */
+        e.stopPropagation()
+
         setReposted(!reposted)
         setReposts(reposted ? reposts - 1 : reposts + 1)
         toast.success(reposted ? 'Removed remix' : 'Remixed!')
     }
 
-    const handleBookmark = () => {
-        setBookmarked(!bookmarked)
-        toast.success(bookmarked ? 'Removed from bookmarks' : 'Added to bookmarks')
-    }
+    // const handleBookmark = () => {
+    //     setBookmarked(!bookmarked)
+    //     toast.success(bookmarked ? 'Removed from bookmarks' : 'Added to bookmarks')
+    // }
 
-    const handleReply = () => {
+    const handleReply = (e: React.MouseEvent) => {
+console.log('HANDLE REPLY')
+        /* Stop propagation. */
+        e.stopPropagation()
+
         setReplyingTo(post)
         setComposeOpen(true)
     }
 
-    const handleShare = () => {
+    const handleShare = (e: React.MouseEvent) => {
+console.log('HANDLE SHARE')
+        /* Stop propagation. */
+        e.stopPropagation()
+
         navigator.clipboard.writeText(`https://evonext.app/post#${post.id}`)
         toast.success('Link copied to clipboard')
     }
@@ -339,29 +355,6 @@ export function PostCard({ post, hideAvatar = false, isOwnPost = false }: PostCa
                                         </Tooltip.Content>
                                     </Tooltip.Portal>
                                 </Tooltip.Root>
-                                {/* <Tooltip.Root>9
-                                    <Tooltip.Trigger asChild>
-                                        <button
-                                            onClick={handleBookmark}
-                                            className="p-2 rounded-full hover:bg-evonext-50 dark:hover:bg-evonext-950 transition-colors"
-                                        >
-                                            {bookmarked ? (
-                                                <BookmarkIconSolid className="h-5 w-5 text-evonext-500" />
-                                            ) : (
-                                                <BookmarkIcon className="h-5 w-5 text-gray-500 hover:text-evonext-500 transition-colors" />
-                                            )}
-                                        </button>
-                                    </Tooltip.Trigger>
-
-                                    <Tooltip.Portal>
-                                        <Tooltip.Content
-                                            className="bg-gray-800 dark:bg-gray-700 text-white text-xs px-2 py-1 rounded"
-                                            sideOffset={5}
-                                        >
-                                            Bookmark
-                                        </Tooltip.Content>
-                                    </Tooltip.Portal>
-                                </Tooltip.Root> */}
 
                                 <Tooltip.Root>
                                     <Tooltip.Trigger asChild>
