@@ -49,7 +49,7 @@ export const metadata: Metadata = {
         description: 'Free Your Inner Ambitions — Discover safe and enjoyable spaces to Explore. Curate. Share YOUR TRUTH without the fear of social consequence.',
         images: [
             {
-                url: '/poster.webp',
+                url: 'https://evonext.app/poster.webp',
                 width: 800,
                 height: 600,
                 alt: 'EvoNext media banner',
@@ -62,7 +62,7 @@ export const metadata: Metadata = {
         description: 'Free Your Inner Ambitions — Discover safe and enjoyable spaces to Explore. Curate. Share YOUR TRUTH without the fear of social consequence.',
         images: [
             {
-                url: '/poster.webp',
+                url: 'https://evonext.app/poster.webp',
                 width: 800,
                 height: 600,
                 alt: 'EvoNext media banner',
