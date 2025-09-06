@@ -14,7 +14,7 @@ import { EVONEXT_CONTRACT_ID } from '@/lib/constants'
 
 export function RightSidebar() {
     const { user } = useAuth()
-    const network = useNetwork()
+    const { network } = useNetwork()
 
     return (
         <div className="hidden max-w-md w-full h-screen overflow-y-auto lg:flex flex-col px-4 py-4 space-y-4">
@@ -41,7 +41,7 @@ export function RightSidebar() {
 
                     <div>
                         <p className="text-sm text-gray-500">Dash Platform Network</p>
-                        <p className="text-sm font-semibold capitalize">{network.active || 'testnet'}</p>
+                        <p className="text-sm font-semibold capitalize">{network || 'testnet'}</p>
                     </div>
 
                     {/* <div>
@@ -135,10 +135,10 @@ export function RightSidebar() {
             )}
 
             <div className="px-4 py-2 text-xs text-gray-500 space-x-2">
-                <a href="javascript:;" className="hover:underline">Terms</a>
-                <a href="javascript:;" className="hover:underline">Privacy</a>
-                <a href="javascript:;" className="hover:underline">Cookies</a>
-                <a href="javascript:;" className="hover:underline">About</a>
+                <a href="/terms" className="hover:underline">Terms</a>
+                <a href="/privacy" className="hover:underline">Privacy</a>
+                <a href="/cookies" className="hover:underline">Cookies</a>
+                <a href="/about" className="hover:underline">About</a>
             </div>
         </div>
     )
