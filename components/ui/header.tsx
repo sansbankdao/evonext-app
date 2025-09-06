@@ -1,7 +1,7 @@
 'use client'
 
 import packageJson from '@/package.json'
-import { ArrowPathIcon } from '@heroicons/react/24/outline'
+import { BoltIcon } from '@heroicons/react/24/outline'
 
 export function Header() {
     return (
@@ -34,9 +34,9 @@ export function Header() {
                     className="ml-4 flex items-center gap-1 px-3 py-1 bg-white/20 hover:bg-white/30 rounded-md transition-colors"
                     title="Clear cache and reload"
                 >
-                    {/* <ArrowPathIcon className="h-4 w-4" /> */}
+                    <BoltIcon className="h-6" />
 
-                    <span className="font-mono">
+                    <span className="font-mono text-2xl">
                         Connect
                     </span>
                 </a>

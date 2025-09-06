@@ -5,9 +5,8 @@ import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import {
     ArrowTrendingUpIcon,
-    HashtagIcon,
+    SquaresPlusIcon,
     UserGroupIcon,
-    ChartBarIcon,
     SparklesIcon,
     ArrowRightIcon
 } from '@heroicons/react/24/outline'
@@ -111,9 +110,9 @@ export default function PublicHomePage() {
     ]
 
     const stats = [
-        { label: 'Active Users', value: '10K+', icon: UserGroupIcon },
-        { label: 'Posts Today', value: '50K+', icon: ChartBarIcon },
-        { label: 'Communities', value: '100+', icon: HashtagIcon },
+        { label: 'Active Users', value: '3K+', icon: UserGroupIcon },
+        { label: 'Remixes Today', value: '873', icon: SparklesIcon },
+        { label: 'Mini Apps', value: '42', icon: SquaresPlusIcon },
     ]
 
     // Show loading skeleton during hydration
@@ -174,7 +173,7 @@ export default function PublicHomePage() {
                         </h2>
 
                         <p className="text-lg/7 text-slate-600 dark:text-slate-400 sm:max-w-2xl mb-8 mx-auto tracking-wider">
-                            Discover safe and enjoyable spaces to <span className="font-extrabold">Explore. Curate. Share YOUR TRUTH</span> without any fear of social consequences.
+                            Free Your Inner Ambitions ⛓️‍💥 Discover safe and enjoyable spaces to <span className="font-extrabold">Explore. Curate. Share YOUR TRUTH</span> without any fear of social consequences.
                         </p>
 
                         <div className="flex gap-4 justify-center">
@@ -305,7 +304,7 @@ export default function PublicHomePage() {
 
                             <div className="text-center pt-8">
                                 <Button variant="outline" asChild>
-                                    <Link href="/connect">
+                                    <Link href="/connect" className="text-lg">
                                         Connect to see more
                                     </Link>
                                 </Button>
@@ -322,7 +321,7 @@ export default function PublicHomePage() {
                         Create your decentralized identity and start sharing your thoughts.
                     </p>
 
-                    <Button size="lg" asChild className="shadow-evonext-lg">
+                    <Button size="lg" asChild className="shadow-evonext-lg text-xl">
                         <Link href="/connect">
                             Create Account
                             <ArrowRightIcon className="ml-2 h-5 w-5" />
