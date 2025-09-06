@@ -25,12 +25,12 @@ function PostDetailPage() {
     const [replyContent, setReplyContent] = useState('')
     const [isReplying, setIsReplying] = useState(false)
 
-    useEffect(() => {
-        /* Initialize locals. */
-        let location: Location
-        let hash: string | undefined
-        let hashId: string | undefined
+    /* Initialize locals. */
+    let location: Location
+    let hash: string | undefined
+    let hashId: string | undefined
 
+    useEffect(() => {
         /* Request window location. */
         location = window.location
 
