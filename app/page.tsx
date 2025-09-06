@@ -32,10 +32,10 @@ export default function PublicHomePage() {
         setIsHydrated(true)
     }, [])
 
-    // Redirect authenticated users to feed
+    // Redirect authenticated users to timeline
     useEffect(() => {
         if (user) {
-            router.push('/feed')
+            router.push('/posts')
         }
     }, [user, router])
 

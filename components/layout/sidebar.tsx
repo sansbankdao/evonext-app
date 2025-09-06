@@ -53,7 +53,7 @@ const getNavigation = (isLoggedIn: boolean) => {
     }
 
     return [
-        { name: 'Home', href: '/feed', icon: HomeIcon, activeIcon: HomeIconSolid },
+        { name: 'Home', href: '/posts', icon: HomeIcon, activeIcon: HomeIconSolid },
         // { name: 'Following', href: '/following', icon: UserGroupIcon, activeIcon: UserGroupIconSolid },
         // { name: 'Followers', href: '/followers', icon: UsersIcon, activeIcon: UsersIconSolid },
         { name: 'Explore', href: '/explore', icon: MagnifyingGlassIcon, activeIcon: SearchIconSolid },

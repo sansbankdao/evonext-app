@@ -9,6 +9,7 @@ import {
     ShieldCheckIcon,
     PaintBrushIcon,
     InformationCircleIcon,
+    ArrowPathIcon,
     ArrowLeftIcon,
     ChevronRightIcon,
     MoonIcon,
@@ -26,6 +27,7 @@ import * as RadioGroup from '@radix-ui/react-radio-group'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
+import { cacheManager } from '@/lib/cache-manager'
 
 type SettingsSection = 'main' | 'account' | 'notifications' | 'privacy' | 'appearance' | 'about'
 
@@ -296,6 +298,18 @@ function SettingsPage() {
                     </div>
                 </RadioGroup.Root>
             </div>
+
+            <button
+                onClick={handleClearCache}
+                className="ml-4 flex items-center gap-1 px-3 py-1 bg-white/20 hover:bg-white/30 rounded-md transition-colors"
+                title="Clear cache and reload"
+            >
+                <ArrowPathIcon className="h-4 w-4" />
+
+                <span className="font-mono">
+                    Clear Cache
+                </span>
+            </button>
         </div>
     )
 
@@ -453,11 +467,46 @@ function SettingsPage() {
         return section?.label || 'Settings'
     }
 
+    const handleClearCache = () => {
+        // Clear application cache
+        cacheManager.clearAll()
+
+        // Clear browser storage
+        if (typeof window !== 'undefined') {
+            // Clear localStorage (except auth data)
+            const keysToKeep = ['dash_identity_id', 'dash_public_address']
+            const savedData: Record<string, string> = {}
+
+            // Save auth data
+            keysToKeep.forEach(key => {
+                const value = localStorage.getItem(key)
+
+                if (value) {
+                    savedData[key] = value
+                }
+            })
+
+            // Clear all localStorage
+            localStorage.clear()
+
+            // Restore auth data
+            Object.entries(savedData).forEach(([key, value]) => {
+                localStorage.setItem(key, value)
+            })
+
+            // Clear sessionStorage
+            sessionStorage.clear()
+
+            // Reload the page
+            window.location.reload()
+        }
+    }
+
     return (
         <div className="min-h-screen flex">
             <Sidebar />
 
-            <main className="flex-1 mr-[350px] max-w-[600px] border-x border-gray-200 dark:border-gray-800">
+            <main className="flex-1 border-x border-gray-200 dark:border-gray-800">
                 <header className="sticky top-0 z-40 bg-white/80 dark:bg-black/80 backdrop-blur-xl border-b border-gray-200 dark:border-gray-800">
                     <div className="flex items-center gap-4 px-4 py-3">
                         <button

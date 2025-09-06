@@ -184,7 +184,6 @@
                 "$createdAt",
                 "$updatedAt",
                 "content",
-                "remix",
                 "isSensitive"
             ],
             "additionalProperties": false

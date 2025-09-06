@@ -175,6 +175,9 @@ console.log('PLATFORM CLIENT (pk)', privateKeyWIF)
             // Add language (defaults to 'en' in the contract, but let's be explicit)
             postData.language = 'en'
 
+            // Add sensitive content flag
+            postData.isSensitive = false
+
             console.log('Creating post with data:', postData)
 
             // Generate entropy (32 bytes)
@@ -190,7 +193,13 @@ console.log('PLATFORM CLIENT (pk)', privateKeyWIF)
 
             // Create the document using the SDK
             let result
-
+console.log('DOCUMENT CREATE', {
+    contractId,
+    identityId,
+    postData,
+    entropyHex,
+    privateKeyWIF
+})
             try {
                 result = await this.sdk.documentCreate(
                     contractId,
