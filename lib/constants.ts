@@ -19,7 +19,7 @@ export const SANS_CONTRACT_ID_TESTNET = 'A36eJF2kyYXwxCtJGsgbR3CTAscUFaNxZN19UqU
 
 /* EVONEXT Contract IDs */
 export const EVONEXT_CONTRACT_ID_MAINNET = '' // Mainnet
-export const EVONEXT_CONTRACT_ID = 'CWU7CuvxJU5ahy5izmhkfGv2V5u1xg77mSCYcvD87GgX' // MINIMAL
+export const EVONEXT_CONTRACT_ID = 'FzbkV8yWq9XFfambiHsbeDZFD4UwHcSQBresA4q1TZVm' // MINIMAL
 
 /* YAPPR Contract IDs */
 export const YAPPR_CONTRACT_ID_MAINNET = '' // Mainnet

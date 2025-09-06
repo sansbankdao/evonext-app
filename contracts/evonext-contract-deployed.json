@@ -164,6 +164,17 @@
                 ]
             },
             {
+                "name": "language",
+                "properties": [
+                    {
+                        "language": "asc"
+                    },
+                    {
+                        "$createdAt": "asc"
+                    }
+                ]
+            },
+            {
                 "name": "sensitive",
                 "properties": [
                     {
@@ -179,6 +190,7 @@
             "$createdAt",
             "$updatedAt",
             "content",
+            "language",
             "isSensitive"
         ],
         "additionalProperties": false

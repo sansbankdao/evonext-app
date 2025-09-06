@@ -99,18 +99,18 @@
             "mediaUrl": {
                 "position": 4,
                 "type": "array",
-                "description": "IDs to media data (support for up to 3 IDs per post).",
-                "maxItems": 96,
-                "minItems": 96,
+                "description": "IDs to media data (NOTE: will support for up to 3 IDs per post).",
+                "maxItems": 32,
+                "minItems": 32,
                 "byteArray": true,
                 "contentMediaType": "application/x.dash.dpp.identifier"
             },
             "mentionIds": {
                 "position": 5,
                 "type": "array",
-                "description": "Mentioned user IDs (support for up to 3 IDs per post).",
-                "maxItems": 96,
-                "minItems": 96,
+                "description": "Mentioned user IDs (NOTE: will support for up to 3 IDs per post).",
+                "maxItems": 32,
+                "minItems": 32,
                 "byteArray": true,
                 "contentMediaType": "application/x.dash.dpp.identifier"
             },
@@ -143,7 +143,7 @@
                 "name": "remixToPost",
                 "properties": [
                     {
-                        "ownerId": "asc"
+                        "$ownerId": "asc"
                     },
                     {
                         "$updatedAt": "asc"
@@ -170,6 +170,17 @@
                 ]
             },
             {
+                "name": "language",
+                "properties": [
+                    {
+                        "language": "asc"
+                    },
+                    {
+                        "$createdAt": "asc"
+                    }
+                ]
+            },
+            {
                 "name": "sensitive",
                 "properties": [
                     {
@@ -185,7 +196,7 @@
             "$createdAt",
             "$updatedAt",
             "content",
-            "remix",
+            "language",
             "isSensitive"
         ],
         "additionalProperties": false
