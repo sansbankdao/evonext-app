@@ -183,7 +183,7 @@ function FeedPage() {
     ])
 
     return (
-        <div className="min-h-screen flex">
+        <div className="h-screen flex">
             <Sidebar />
 
             <div className="flex-1 flex justify-center">

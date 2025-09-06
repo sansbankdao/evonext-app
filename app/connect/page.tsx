@@ -77,7 +77,7 @@ console.log('PASTE DETECTED')
     }
 
     return (
-        <div className="pt-24 pb-8 min-h-screen bg-white dark:bg-black flex items-center justify-center px-4">
+        <div className="py-16 min-h-screen bg-white dark:bg-black flex items-center justify-center px-4">
             <div className="max-w-md w-full space-y-8">
                 <div className="text-center">
                     <h1 className="text-4xl font-bold text-gradient mb-2">

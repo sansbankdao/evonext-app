@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { usePathname, useRouter } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { ArrowLeftIcon } from '@heroicons/react/24/outline'
 import { Sidebar } from '@/components/layout/sidebar'
 import { RightSidebar } from '@/components/layout/right-sidebar'
@@ -17,8 +17,6 @@ interface Reply extends Post {
 }
 
 function PostDetailPage() {
-    // const params = useParams()   // NOTE: Disabled to allow (static) build.
-    const pathname = usePathname()
     const router = useRouter()
     const { user } = useAuth()
     const [post, setPost] = useState<Post | null>(null)
@@ -27,11 +25,24 @@ function PostDetailPage() {
     const [replyContent, setReplyContent] = useState('')
     const [isReplying, setIsReplying] = useState(false)
 
-console.log('PATHNAME', pathname)
-    const url = new URL(pathname, window.location.origin)
-console.log('URL', url)
-    const hashId = url.hash
-console.log('HASH ID', hashId)
+    let location: Location
+    let hash: string | undefined
+    let hashId: string | undefined
+
+    /* Request window location. */
+    location = window.location
+
+    /* Validate location. */
+    if (typeof location !== 'undefined' && location !== null) {
+        /* Set location hash. */
+        hash = window.location?.hash
+    }
+
+    /* Validate hash. */
+    if (typeof hash !== 'undefined' && hash !== null) {
+        /* Set hash ID. */
+        hashId = hash.substring(1)
+    }
 
     useEffect(() => {
         // if (!params.id || !user) return
@@ -177,7 +188,7 @@ console.log('HASH ID', hashId)
                         </button>
 
                         <h1 className="text-xl font-bold">
-                            Post ({hashId})
+                            Post
                         </h1>
                     </div>
                 </header>

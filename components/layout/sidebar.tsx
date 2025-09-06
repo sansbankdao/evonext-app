@@ -61,7 +61,6 @@ const getNavigation = (isLoggedIn: boolean) => {
         // { name: 'Messages', href: '/messages', icon: EnvelopeIcon, activeIcon: EnvelopeIconSolid },
         { name: 'Bookmarks', href: '/bookmarks', icon: BookmarkIcon, activeIcon: BookmarkIconSolid },
         { name: 'Profile', href: '/profile', icon: UserIcon, activeIcon: UserIconSolid },
-        { name: 'MYPost', href: '/post#FzbkV8yWq9XFfambiHsbeDZFD4UwHcSQBresA4q1TZVm', icon: EnvelopeIcon, activeIcon: EnvelopeIconSolid },
     ]
 }
 
@@ -92,14 +91,8 @@ export function Sidebar() {
     }
 
     return (
-        <div className="hidden h-screen max-w-sm w-full lg:flex flex-col px-2 sticky top-0">
-            <div className="pt-24 flex-1 space-y-1 py-4 overflow-y-auto scrollbar-hide">
-                {/* <Link href="/" className="flex items-center px-3 py-4 mb-2 group">
-                    <div className="text-6xl font-bold text-gradient">
-                        EvoNext
-                    </div>
-                </Link> */}
-
+        <div className="hidden h-screen max-w-sm w-full pt-16 lg:flex flex-col px-2 sticky top-0">
+            <div className="flex-1 space-y-1 py-4 overflow-y-auto scrollbar-hide">
                 <nav className="space-y-1">
                     {navigation.map((item) => {
                         const isActive = pathname === item.href

@@ -77,9 +77,9 @@ export default function RootLayout({
     children: React.ReactNode
 }) {
     return (
-        <html lang="en" className="w-screen h-screen overflow-x-hidden">
+        <html lang="en" className="w-screen h-screen overflow-x-hidden overflow-y-hidden">
             {/* <body className={`${inter.className} w-screen h-screen overflow-x-hidden`}> */}
-            <body className={`w-screen h-screen overflow-x-hidden`}>
+            <body className={`w-screen h-screen overflow-x-hidden overflow-y-hidden`}>
                 <ErrorBoundary level="app">
                     <Providers>
                         <Header />

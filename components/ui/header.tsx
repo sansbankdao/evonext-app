@@ -13,17 +13,16 @@ export function Header() {
                     </a>
 
                     <span className="hidden lg:inline-flex lg:-mt-2 text-xs">
-                        <span>is in an early development phase</span>
+                        <span>early preview release</span>
                         <span className="px-1">—</span>
                         <span className="opacity-90">
-                            latest version is {packageJson.version}
+                            latest v{packageJson.version}
                         </span>
                         <span className="px-1">—</span>
                         <span className="block opacity-90">
-                            NO need to
-                            <a href="https://github.com/sansbankdao/evonext-world/issues" target="_blank" className="px-1 text-sky-200 font-bold hover:underline">
-                                report issues
-                            </a>yet
+                            <a href="https://github.com/sansbankdao/evonext-world/issues" target="_blank" className="px-1 text-purple-100 font-bold hover:underline">
+                                report issues here
+                            </a>
                         </span>
                     </span>
                 </p>
