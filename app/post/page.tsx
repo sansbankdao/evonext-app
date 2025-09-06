@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { ArrowLeftIcon } from '@heroicons/react/24/outline'
 import { Sidebar } from '@/components/layout/sidebar'
 import { RightSidebar } from '@/components/layout/right-sidebar'
@@ -17,7 +17,8 @@ interface Reply extends Post {
 }
 
 function PostDetailPage() {
-    const params = useParams()
+    // const params = useParams()   // NOTE: Disabled to allow (static) build.
+    const pathname = usePathname()
     const router = useRouter()
     const { user } = useAuth()
     const [post, setPost] = useState<Post | null>(null)
@@ -26,8 +27,16 @@ function PostDetailPage() {
     const [replyContent, setReplyContent] = useState('')
     const [isReplying, setIsReplying] = useState(false)
 
+console.log('PATHNAME', pathname)
+    const url = new URL(pathname, window.location.origin)
+console.log('URL', url)
+    const hashId = url.hash
+console.log('HASH ID', hashId)
+
     useEffect(() => {
-        if (!params.id || !user) return
+        // if (!params.id || !user) return
+        /* Validate user. */
+        if (!user) return
 
         const loadPost = async () => {
             try {
@@ -36,7 +45,7 @@ function PostDetailPage() {
                 // In a real app, this would fetch the specific post from Dash Platform
                 // For now, we'll simulate it
                 const mockPost: Post = {
-                    id: params.id as string,
+                    id: hashId as string,
                     content: 'This is a sample post content. In a real app, this would be loaded from Dash Platform.',
                     author: {
                         id: 'user123',
@@ -72,7 +81,7 @@ function PostDetailPage() {
                         replies: 0,
                         reposts: 0,
                         views: 45,
-                        replyToId: params.id as string
+                        replyToId: hashId as string
                     },
                     {
                         id: 'reply2',
@@ -91,7 +100,7 @@ function PostDetailPage() {
                         replies: 0,
                         reposts: 1,
                         views: 89,
-                        replyToId: params.id as string
+                        replyToId: hashId as string
                     }
                 ]
 
@@ -107,7 +116,7 @@ function PostDetailPage() {
 
         loadPost()
     }, [
-        params.id,
+        hashId,
         user,
     ])
 
@@ -167,7 +176,9 @@ function PostDetailPage() {
                             <ArrowLeftIcon className="h-5 w-5" />
                         </button>
 
-                        <h1 className="text-xl font-bold">Post</h1>
+                        <h1 className="text-xl font-bold">
+                            Post ({hashId})
+                        </h1>
                     </div>
                 </header>
 
