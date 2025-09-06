@@ -81,11 +81,11 @@ console.log('PASTE DETECTED')
             <div className="max-w-md w-full space-y-8">
                 <div className="text-center">
                     <h1 className="text-4xl font-bold text-gradient mb-2">
-                        Connect to Dash Platform
+                        Connect
                     </h1>
 
                     <p className="text-gray-600 dark:text-gray-400">
-                        Get connected with your Dash Platform Identity
+                        Sign-in with your Dash Platform Identity
                     </p>
                 </div>
 
