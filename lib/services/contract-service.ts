@@ -2,7 +2,7 @@
  * Service for managing local data contracts
  */
 
-import evonextContractJson from '../../contracts/evonext-minimal.json'
+import evonextContractJson from '../../contracts/evonext-contract-min.json'
 
 export interface DataContract {
     $id?: string

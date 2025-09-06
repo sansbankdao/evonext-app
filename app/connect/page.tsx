@@ -1,6 +1,6 @@
 'use client'
 
-import { ChangeEvent, useState } from 'react'
+import { ChangeEvent, useState, ClipboardEvent } from 'react'
 import { useAuth } from '@/contexts/auth-context'
 import { Button } from '@/components/ui/button'
 import { useRouter } from 'next/navigation'
@@ -15,10 +15,39 @@ export default function LoginPage() {
     const { login } = useAuth()
     const router = useRouter()
 
-    const onMnemonicPaste = (e: ChangeEvent<HTMLInputElement>, idx: number) => {
+    const onInputChange = (e: ChangeEvent<HTMLInputElement>, idx: number) => {
         const newWords = [...seedWords]
         newWords[idx] = e.target.value
         setSeedWords(newWords)
+    }
+
+    const onMnemonicPaste = (e: ClipboardEvent, idx: number) => {
+console.log('PASTE DETECTED')
+//         const newWords = [...seedWords]
+// console.log('NEW WORDS', newWords)
+//         newWords[idx] = e.clipboardData.getData('Text')
+//         setSeedWords(newWords)
+
+        /* Set (new) clipboard. */
+        const clipboard = e.clipboardData.getData('text/plain')
+
+        /* Split seed words. */
+        const splitWords = clipboard.split(' ')
+
+        /* Wait a tick. */
+        setTimeout(() => {
+            /* Handle pasting seed words into individual fields. */
+            // for (let i = 0; i < splitWords.length; i++) {
+            //     if (splitWords[i] !== '') {
+            //         seedWords.value[i] = splitWords[i]
+            //     }
+            // }
+            /* Fill the array with the pasted words. */
+            const emptyValuesNeeded = ((splitWords.length > 12) ? 24 : 12) - splitWords.length
+            const emptyValues = Array(emptyValuesNeeded).fill('')
+            const finalWords = [ ...splitWords, ...emptyValues ]
+            setSeedWords(finalWords)
+        }, 0)
     }
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -65,10 +94,11 @@ export default function LoginPage() {
                         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
                             {seedWords.map((word, idx) => (
                                 <input
-                                    key="text"
+                                    key={idx}
                                     placeholder={`Word #${idx + 1}`}
                                     value={seedWords[idx]}
-                                    onChange={(e) => onMnemonicPaste(e, idx)}
+                                    onChange={(e) => onInputChange(e, idx)}
+                                    onPaste={(e) => onMnemonicPaste(e, idx)}
                                     className={`px-3 py-1 text-slate-800 font-medium border-4 border-sky-200 rounded ${idx >= 24 ? 'hidden' : ''}`}
                                 />
                             ))}
