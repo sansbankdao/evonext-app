@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { ChangeEvent, useState } from 'react'
 import { useAuth } from '@/contexts/auth-context'
 import { Button } from '@/components/ui/button'
 import { useRouter } from 'next/navigation'
@@ -9,9 +9,17 @@ export default function LoginPage() {
     const [identityId, setIdentityId] = useState('')
     const [privateKey, setPrivateKey] = useState('')
     const [isLoading, setIsLoading] = useState(false)
+    const [hasIdentityPrivateKey, setHasIdentityPrivateKey] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    const [seedWords, setSeedWords] = useState(Array(12).fill(''))
     const { login } = useAuth()
     const router = useRouter()
+
+    const onMnemonicPaste = (e: ChangeEvent<HTMLInputElement>, idx: number) => {
+        const newWords = [...seedWords]
+        newWords[idx] = e.target.value
+        setSeedWords(newWords)
+    }
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -28,8 +36,19 @@ export default function LoginPage() {
         }
     }
 
+    const toggleExtWords = () => {
+        const twelve = Array(12).fill('')
+        const twentyFour = Array(24).fill('')
+
+        setSeedWords(twentyFour)
+    }
+
+    const togglePrivateKey = () => {
+        setHasIdentityPrivateKey(true)
+    }
+
     return (
-        <div className="min-h-screen bg-white dark:bg-black flex items-center justify-center px-4">
+        <div className="pt-24 pb-8 min-h-screen bg-white dark:bg-black flex items-center justify-center px-4">
             <div className="max-w-md w-full space-y-8">
                 <div className="text-center">
                     <h1 className="text-4xl font-bold text-gradient mb-2">
@@ -43,6 +62,33 @@ export default function LoginPage() {
 
                 <form onSubmit={handleSubmit} className="mt-8 space-y-6">
                     <div className="space-y-4">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+                            {seedWords.map((word, idx) => (
+                                <input
+                                    key="text"
+                                    placeholder={`Word #${idx + 1}`}
+                                    value={seedWords[idx]}
+                                    onChange={(e) => onMnemonicPaste(e, idx)}
+                                    className={`px-3 py-1 text-slate-800 font-medium border-4 border-sky-200 rounded ${idx >= 24 ? 'hidden' : ''}`}
+                                />
+                            ))}
+                        </div>
+                    </div>
+
+                    {!identityId &&
+                        <button onClick={toggleExtWords} className="px-5 py-2 bg-sky-700 font-medium text-sky-100 rounded-xl shadow">
+                            switch to 24 word seed phrase
+                        </button>
+                    }
+
+                    {!identityId &&
+                        <button onClick={togglePrivateKey} className="px-5 py-2 bg-sky-700 font-medium text-sky-100 rounded-xl shadow">
+                            switch to using an Identity private key
+                            <span className="block italic">(HIGH or CRITICAL)</span>
+                        </button>
+                    }
+
+                    {hasIdentityPrivateKey && <>
                         <div>
                             <label htmlFor="identityId" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                 Identity ID
@@ -74,7 +120,7 @@ export default function LoginPage() {
                                 required
                             />
                         </div>
-                    </div>
+                    </>}
 
                     {error && (
                         <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-600 rounded-lg p-3">
@@ -86,7 +132,7 @@ export default function LoginPage() {
                         <Button
                             type="submit"
                             disabled={isLoading || !identityId || !privateKey}
-                            className="w-full shadow-evonext-lg"
+                            className="w-full shadow-evonext-lg text-3xl tracking-wider"
                             size="lg"
                         >
                             {isLoading ? (
