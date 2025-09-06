@@ -22,6 +22,7 @@ const currentUserAvatarData = encodeAvatarFeaturesV2(currentUserAvatarFeatures)
 export const useAppStore = create<AppState>((set) => ({
     currentUser: {
         id: '1',
+        docID: 'abc',
         username: 'londynnlee',
         displayName: 'Londynn Lee',
         avatar: '',
@@ -31,6 +32,7 @@ export const useAppStore = create<AppState>((set) => ({
         following: 456,
         verified: true,
         joinedAt: new Date('2024-05-05'),
+        revision: 1,
     },
     theme: 'light',
     isComposeOpen: false,
