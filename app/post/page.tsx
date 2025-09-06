@@ -57,12 +57,14 @@ function PostDetailPage() {
                     content: 'This is a sample post content. In a real app, this would be loaded from Dash Platform.',
                     author: {
                         id: 'user123',
+                        docId: 'abc123',
                         username: 'user123...',
                         displayName: 'User 123',
                         avatar: '',
                         followers: 0,
                         following: 0,
-                        joinedAt: new Date()
+                        joinedAt: new Date(),
+                        revision: 1,
                     },
                     createdAt: new Date(Date.now() - 1000 * 60 * 60),
                     likes: 42,
@@ -77,12 +79,14 @@ function PostDetailPage() {
                         content: 'Great post! Thanks for sharing.',
                         author: {
                             id: 'user456',
+                            docId: 'abc456',
                             username: 'user456...',
                             displayName: 'User 456',
                             avatar: '',
                             followers: 0,
                             following: 0,
-                            joinedAt: new Date()
+                            joinedAt: new Date(),
+                            revision: 1,
                         },
                         createdAt: new Date(Date.now() - 1000 * 60 * 30),
                         likes: 3,
@@ -96,12 +100,14 @@ function PostDetailPage() {
                         content: 'I totally agree with this perspective.',
                         author: {
                             id: 'user789',
+                            docId: 'abc789',
                             username: 'user789...',
                             displayName: 'User 789',
                             avatar: '',
                             followers: 0,
                             following: 0,
-                            joinedAt: new Date()
+                            joinedAt: new Date(),
+                            revision: 1,
                         },
                         createdAt: new Date(Date.now() - 1000 * 60 * 15),
                         likes: 7,
@@ -137,12 +143,14 @@ function PostDetailPage() {
                 content: replyContent,
                 author: {
                     id: user.identityId,
+                    docId: undefined,
                     username: user.identityId.slice(0, 8) + '...',
                     displayName: user.identityId.slice(0, 8) + '...',
                     avatar: '',
                     followers: 0,
                     following: 0,
-                    joinedAt: new Date()
+                    joinedAt: new Date(),
+                    revision: 1,
                 },
                 createdAt: new Date(),
                 likes: 0,
