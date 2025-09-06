@@ -50,8 +50,8 @@ export const metadata: Metadata = {
         images: [
             {
                 url: '/poster.webp',
-                width: 1500,
-                height: 500,
+                width: 800,
+                height: 600,
                 alt: 'EvoNext media banner',
             }
         ],
@@ -63,8 +63,8 @@ export const metadata: Metadata = {
         images: [
             {
                 url: '/poster.webp',
-                width: 1500,
-                height: 500,
+                width: 800,
+                height: 600,
                 alt: 'EvoNext media banner',
             }
         ],
