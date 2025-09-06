@@ -28,7 +28,7 @@ export interface PostStats {
 }
 
 class PostService extends BaseDocumentService<Post> {
-    private statsCache: Map<string, { data: PostStats; timestamp: number }> = new Map();
+    private statsCache: Map<string, { data: PostStats; timestamp: number }> = new Map()
 
     constructor() {
         super('post')
@@ -59,7 +59,7 @@ class PostService extends BaseDocumentService<Post> {
         }
 
         // Queue async operations to enrich the post
-        this.enrichPost(post, doc);
+        this.enrichPost(post, doc)
 
         return post
     }
@@ -70,44 +70,44 @@ class PostService extends BaseDocumentService<Post> {
     private async enrichPost(post: Post, doc: PostDocument): Promise<void> {
         try {
             // Get author information
-            const author = await profileService.getProfile(doc.$ownerId);
+            const author = await profileService.getProfile(doc.$ownerId)
 
             if (author) {
                 post.author = author
             }
 
             // Get post stats
-            const stats = await this.getPostStats(doc.$id);
-            post.likes = stats.likes;
-            post.reposts = stats.reposts;
-            post.replies = stats.replies;
-            post.views = stats.views;
+            const stats = await this.getPostStats(doc.$id)
+            post.likes = stats.likes
+            post.reposts = stats.reposts
+            post.replies = stats.replies
+            post.views = stats.views
 
             // Get interaction status for current user
-            const interactions = await this.getUserInteractions(doc.$id);
-            post.liked = interactions.liked;
-            post.reposted = interactions.reposted;
-            post.bookmarked = interactions.bookmarked;
+            const interactions = await this.getUserInteractions(doc.$id)
+            post.liked = interactions.liked
+            post.reposted = interactions.reposted
+            post.bookmarked = interactions.bookmarked
 
             // Load reply-to post if exists
             if (doc.replyToId) {
-                const replyTo = await this.get(doc.replyToId);
+                const replyTo = await this.get(doc.replyToId)
 
                 if (replyTo) {
-                    post.replyTo = replyTo;
+                    post.replyTo = replyTo
                 }
             }
 
             // Load quoted post if exists
             if (doc.quotedPostId) {
-                const quotedPost = await this.get(doc.quotedPostId);
+                const quotedPost = await this.get(doc.quotedPostId)
 
                 if (quotedPost) {
-                    post.quotedPost = quotedPost;
+                    post.quotedPost = quotedPost
                 }
             }
         } catch (error) {
-            console.error('Error enriching post:', error);
+            console.error('Error enriching post:', error)
         }
     }
 
@@ -129,18 +129,18 @@ class PostService extends BaseDocumentService<Post> {
     ): Promise<Post> {
         const data: any = {
             content
-        };
+        }
 
         // Add optional fields
-        if (options.mediaUrl) data.mediaUrl = options.mediaUrl;
-        if (options.replyToId) data.replyToId = options.replyToId;
-        if (options.quotedPostId) data.quotedPostId = options.quotedPostId;
-        if (options.firstMentionId) data.firstMentionId = options.firstMentionId;
-        if (options.primaryHashtag) data.primaryHashtag = options.primaryHashtag;
-        if (options.language) data.language = options.language || 'en';
-        if (options.sensitive !== undefined) data.sensitive = options.sensitive;
+        if (options.mediaUrl) data.mediaUrl = options.mediaUrl
+        if (options.replyToId) data.replyToId = options.replyToId
+        if (options.quotedPostId) data.quotedPostId = options.quotedPostId
+        if (options.firstMentionId) data.firstMentionId = options.firstMentionId
+        if (options.primaryHashtag) data.primaryHashtag = options.primaryHashtag
+        if (options.language) data.language = options.language || 'en'
+        if (options.sensitive !== undefined) data.sensitive = options.sensitive
 
-        return this.create(ownerId, data);
+        return this.create(ownerId, data)
     }
 
     /**
@@ -159,7 +159,10 @@ class PostService extends BaseDocumentService<Post> {
     /**
      * Get posts by user
      */
-    async getUserPosts(userId: string, options: QueryOptions = {}): Promise<DocumentResult<Post>> {
+    async getUserPosts(
+        userId: string,
+        options: QueryOptions = {},
+    ): Promise<DocumentResult<Post>> {
         const queryOptions: QueryOptions = {
             where: [['$ownerId', '==', userId]],
             orderBy: [['$createdAt', 'desc']],
@@ -173,7 +176,10 @@ class PostService extends BaseDocumentService<Post> {
     /**
      * Get replies to a post
      */
-    async getReplies(postId: string, options: QueryOptions = {}): Promise<DocumentResult<Post>> {
+    async getReplies(
+        postId: string,
+        options: QueryOptions = {},
+    ): Promise<DocumentResult<Post>> {
         const queryOptions: QueryOptions = {
             where: [['replyToId', '==', postId]],
             orderBy: [['$createdAt', 'asc']],
@@ -187,7 +193,10 @@ class PostService extends BaseDocumentService<Post> {
     /**
      * Get posts by hashtag
      */
-    async getPostsByHashtag(hashtag: string, options: QueryOptions = {}): Promise<DocumentResult<Post>> {
+    async getPostsByHashtag(
+        hashtag: string,
+        options: QueryOptions = {},
+    ): Promise<DocumentResult<Post>> {
         const queryOptions: QueryOptions = {
             where: [['primaryHashtag', '==', hashtag.replace('#', '')]],
             orderBy: [['$createdAt', 'desc']],
@@ -228,7 +237,13 @@ class PostService extends BaseDocumentService<Post> {
             return stats
         } catch (error) {
             console.error('Error getting post stats:', error)
-            return { postId, likes: 0, reposts: 0, replies: 0, views: 0 }
+            return {
+                postId,
+                likes: 0,
+                reposts: 0,
+                replies: 0,
+                views: 0,
+            }
         }
     }
 
@@ -236,18 +251,18 @@ class PostService extends BaseDocumentService<Post> {
      * Count likes for a post
      */
     private async countLikes(postId: string): Promise<number> {
-        const { likeService } = await import('./like-service');
+        const { likeService } = await import('./like-service')
 
-        return likeService.countLikes(postId);
+        return likeService.countLikes(postId)
     }
 
     /**
      * Count reposts for a post
      */
     private async countReposts(postId: string): Promise<number> {
-        const { repostService } = await import('./repost-service');
+        const { repostService } = await import('./repost-service')
 
-        return repostService.countReposts(postId);
+        return repostService.countReposts(postId)
     }
 
     /**
@@ -261,9 +276,9 @@ class PostService extends BaseDocumentService<Post> {
             })
 
             // In a real implementation, we'd get the total count from the query
-            return result.documents.length;
+            return result.documents.length
         } catch (error) {
-            return 0;
+            return 0
         }
     }
 
