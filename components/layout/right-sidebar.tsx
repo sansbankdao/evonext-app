@@ -15,7 +15,7 @@ export function RightSidebar() {
     const { user } = useAuth()
 
     return (
-        <div className="hidden max-w-md w-full lg:flex flex-col px-4 py-4 space-y-4">
+        <div className="hidden max-w-md w-full h-screen overflow-y-auto lg:flex flex-col px-4 py-4 space-y-4">
             <div className="relative">
                 <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-500" />
 
@@ -133,10 +133,10 @@ export function RightSidebar() {
             )}
 
             <div className="px-4 py-2 text-xs text-gray-500 space-x-2">
-                <a href="#" className="hover:underline">Terms</a>
-                <a href="#" className="hover:underline">Privacy</a>
-                <a href="#" className="hover:underline">Cookies</a>
-                <a href="#" className="hover:underline">About</a>
+                <a href="javascript:;" className="hover:underline">Terms</a>
+                <a href="javascript:;" className="hover:underline">Privacy</a>
+                <a href="javascript:;" className="hover:underline">Cookies</a>
+                <a href="javascript:;" className="hover:underline">About</a>
             </div>
         </div>
     )

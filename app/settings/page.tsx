@@ -415,13 +415,13 @@ function SettingsPage() {
                 </Button>
 
                 <Button variant="outline" className="w-full" asChild>
-                    <a href="https://github.com/sansbankdao/evonext-world" target="_blank" rel="noopener noreferrer">
+                    <a href="https://github.com/sansbankdao/evonext-app" target="_blank" rel="noopener noreferrer">
                         GitHub Repository
                     </a>
                 </Button>
 
                 <Button variant="outline" className="w-full" asChild>
-                    <a href="https://docs.evonext.world" target="_blank" rel="noopener noreferrer">
+                    <a href="https://docs.evonext.app" target="_blank" rel="noopener noreferrer">
                         Documentation
                     </a>
                 </Button>
@@ -506,7 +506,7 @@ function SettingsPage() {
         <div className="min-h-screen flex">
             <Sidebar />
 
-            <main className="flex-1 border-x border-gray-200 dark:border-gray-800">
+            <main className="flex-1 border-x border-gray-200 dark:border-gray-800 h-screen overflow-y-scroll">
                 <header className="sticky top-0 z-40 bg-white/80 dark:bg-black/80 backdrop-blur-xl border-b border-gray-200 dark:border-gray-800">
                     <div className="flex items-center gap-4 px-4 py-3">
                         <button

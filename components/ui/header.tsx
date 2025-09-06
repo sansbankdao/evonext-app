@@ -20,7 +20,7 @@ export function Header() {
                         </span>
                         <span className="px-1">—</span>
                         <span className="block opacity-90">
-                            <a href="https://github.com/sansbankdao/evonext-world/issues" target="_blank" className="px-1 text-purple-100 font-bold hover:underline">
+                            <a href="https://github.com/sansbankdao/evonext-app/issues" target="_blank" className="px-1 text-purple-100 font-bold hover:underline">
                                 report issues here
                             </a>
                         </span>

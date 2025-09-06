@@ -150,7 +150,7 @@ function RemixesPage() {
         <div className="min-h-screen flex">
             <Sidebar />
 
-            <main className="pt-16 flex-1 border-x border-gray-200 dark:border-gray-800">
+            <main className="pt-16 flex-1 border-x border-gray-200 dark:border-gray-800 h-screen overflow-y-scroll">
                 <header className="sticky top-0 z-40 bg-white/80 dark:bg-black/80 backdrop-blur-xl border-b border-gray-200 dark:border-gray-800">
                     <div className="flex items-center justify-between px-4 py-3">
                         <div>

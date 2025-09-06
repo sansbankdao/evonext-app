@@ -183,10 +183,10 @@ function FeedPage() {
     ])
 
     return (
-        <div className="h-screen flex">
+        <div className="min-h-screen flex">
             <Sidebar />
 
-            <div className="flex-1 flex justify-center">
+            <div className="flex-1 flex justify-center h-screen overflow-y-scroll">
                 <main className="w-full max-w-[600px] border-x border-gray-200 dark:border-gray-800">
                     <header className="sticky top-0 z-40 bg-white/80 dark:bg-black/80 backdrop-blur-xl">
                         <div className="px-4 py-3 flex items-center justify-between">
