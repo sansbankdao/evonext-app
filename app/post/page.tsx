@@ -25,12 +25,12 @@ function PostDetailPage() {
     const [replyContent, setReplyContent] = useState('')
     const [isReplying, setIsReplying] = useState(false)
 
-    /* Initialize locals. */
-    let location: Location
-    let hash: string | undefined
-    let hashId: string | undefined
-
     useEffect(() => {
+        /* Initialize locals. */
+        let location: Location
+        let hash: string | undefined
+        let hashId: string | undefined
+
         /* Request window location. */
         location = window.location
 
@@ -123,10 +123,7 @@ function PostDetailPage() {
         }
 
         loadPost()
-    }, [
-        hashId,
-        user,
-    ])
+    }, [user])
 
     const handleReply = async () => {
         if (!replyContent.trim() || !post || !user) return
