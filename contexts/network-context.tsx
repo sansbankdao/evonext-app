@@ -22,6 +22,7 @@ export function NetworkProvider({ children }: { children: React.ReactNode }) {
                 const host = window.location.host
 
                 /* Handle host. */
+// FIXME Handle mainnet for localhost and IPFS.
                 switch(host) {
                 case 'evonext.app':
                     setActiveNetwork('mainnet')

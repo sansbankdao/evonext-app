@@ -6,7 +6,7 @@ import {
     get_documents
 } from './dash-wasm/wasm_sdk'
 
-// import { useNetwork } from '@/contexts/network-context'
+import { useNetwork } from '@/contexts/network-context'
 
 // Import the centralized WASM service
 import { wasmSdkService } from './services/wasm-sdk-service'
@@ -20,8 +20,6 @@ interface NetworkContextType {
 }
 
 export class DashPlatformClient {
-    // private network: NetworkContextType = useNetwork()
-    private network: string = 'testnet'//useNetwork()
     private sdk: any = null
     private identityId: string | null = null
     private isInitializing: boolean = false
@@ -37,6 +35,25 @@ export class DashPlatformClient {
      * Initialize the SDK using the centralized WASM service
      */
     public async ensureInitialized() {
+        let network
+
+        /* Set host. */
+        const host = window.location.host
+
+        /* Handle host. */
+// FIXME Handle mainnet for localhost and IPFS.
+        switch(host) {
+        case 'evonext.app':
+            network = 'mainnet'
+            break
+        case 'testnet.evonext.app':
+            network = 'testnet'
+            break
+        default:
+            network = host
+            break
+        }
+
         if (this.sdk || this.isInitializing) {
             // Already initialized or initializing
             while (this.isInitializing) {
@@ -51,13 +68,13 @@ export class DashPlatformClient {
 
         try {
             // Use the centralized WASM service
-            const network = (this.network as 'mainnet' | 'testnet')  || 'testnet'
+            const localNetwork = (network as 'mainnet' | 'testnet')  || 'testnet'
             const contractId = EVONEXT_CONTRACT_ID
 
-            console.log('DashPlatformClient: Initializing via WasmSdkService for network:', this.network)
+            console.log('DashPlatformClient: Initializing via WasmSdkService for network:', network)
 
             // Initialize the WASM SDK service if not already done
-            await wasmSdkService.initialize({ network, contractId })
+            await wasmSdkService.initialize({ network: localNetwork, contractId })
 
             // Get the SDK instance
             this.sdk = await wasmSdkService.getSdk()
