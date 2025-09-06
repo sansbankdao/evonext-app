@@ -25,29 +25,26 @@ function PostDetailPage() {
     const [replyContent, setReplyContent] = useState('')
     const [isReplying, setIsReplying] = useState(false)
 
-    let location: Location
-    let hash: string | undefined
-    let hashId: string | undefined
-
-    /* Request window location. */
-    location = window.location
-
-    /* Validate location. */
-    if (typeof location !== 'undefined' && location !== null) {
-        /* Set location hash. */
-        hash = window.location?.hash
-    }
-
-    /* Validate hash. */
-    if (typeof hash !== 'undefined' && hash !== null) {
-        /* Set hash ID. */
-        hashId = hash.substring(1)
-    }
-
     useEffect(() => {
-        // if (!params.id || !user) return
-        /* Validate user. */
-        // if (!user) return
+        /* Initialize locals. */
+        let location: Location
+        let hash: string | undefined
+        let hashId: string | undefined
+
+        /* Request window location. */
+        location = window.location
+
+        /* Validate location. */
+        if (typeof location !== 'undefined' && location !== null) {
+            /* Set location hash. */
+            hash = window.location?.hash
+        }
+
+        /* Validate hash. */
+        if (typeof hash !== 'undefined' && hash !== null) {
+            /* Set hash ID. */
+            hashId = hash.substring(1)
+        }
 
         const loadPost = async () => {
             try {
