@@ -169,11 +169,11 @@ export default function PublicHomePage() {
                         </h1>
 
                         <h2 className="text-2xl text-sky-700 dark:text-sky-300 mb-8 max-w-2xl mx-auto font-bold tracking-widest">
-                            Fearless Social Media
+                            <span className="text-3xl font-bold text-sky-600">F</span>un -n- <span className="text-3xl font-bold text-sky-600">F</span>earless <span className="text-3xl font-bold text-sky-600">S</span>ocial
                         </h2>
 
                         <p className="text-lg/7 text-slate-600 dark:text-slate-400 sm:max-w-2xl mb-8 mx-auto tracking-wider text-pretty">
-                            Free Your Inner Ambitions ⛓️‍💥 Discover safe and enjoyable spaces to <span className="font-extrabold">Explore. Curate. Share YOUR TRUTH</span> without the fear of social consequence.
+                            Free Your Inhibitions ⛓️‍💥 Discover safe and enjoyable spaces to <span className="font-extrabold">Explore. Curate. Share YOUR TRUTH</span> without the fear of social consequence.
                         </p>
 
                         <div className="flex gap-4 justify-center">

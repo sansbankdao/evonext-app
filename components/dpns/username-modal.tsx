@@ -17,7 +17,11 @@ interface UsernameModalProps {
     customIdentityId?: string
 }
 
-export function UsernameModal({ isOpen, onClose, customIdentityId: initialIdentityId }: UsernameModalProps) {
+export function UsernameModal({
+    isOpen,
+    onClose,
+    customIdentityId: initialIdentityId,
+}: UsernameModalProps) {
     const router = useRouter()
     const { user, updateDPNSUsername } = useAuth()
     const { isReady: isSdkReady, error: sdkError } = useSdk()
@@ -33,7 +37,10 @@ export function UsernameModal({ isOpen, onClose, customIdentityId: initialIdenti
     // Debug SDK state
     useEffect(() => {
         console.log('UsernameModal: SDK ready state:', isSdkReady, 'SDK error:', sdkError)
-    }, [isSdkReady, sdkError])
+    }, [
+        isSdkReady,
+        sdkError,
+    ])
 
     const currentIdentityId = customIdentityId || initialIdentityId || user?.identityId || ''
 
@@ -108,7 +115,11 @@ export function UsernameModal({ isOpen, onClose, customIdentityId: initialIdenti
         }, 500)
 
         return () => clearTimeout(timeoutId)
-    }, [username, isSdkReady, sdkError])
+    }, [
+        username,
+        isSdkReady,
+        sdkError,
+    ])
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -137,6 +148,7 @@ export function UsernameModal({ isOpen, onClose, customIdentityId: initialIdenti
 
             const identity = await identityService.getIdentity(currentIdentityId)
 console.log('USERNAME MODAL (identity)', identity)
+
             if (!identity) {
                 throw new Error('Identity not found')
             }
@@ -173,7 +185,8 @@ console.log('USERNAME MODAL (identity)', identity)
             console.log(`Using key ${suitableKey.id} with security level ${keySecurityLevel === 1 ? 'CRITICAL' : 'HIGH'} (${keySecurityLevel})`)
 
             // Register the username
-            await dpnsService.registerUsername(username, currentIdentityId, suitableKey.id, privateKey)
+            await dpnsService.registerUsername(
+                username, currentIdentityId, suitableKey.id, privateKey)
 
             toast.success('DPNS username registered successfully!')
 

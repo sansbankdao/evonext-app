@@ -64,8 +64,6 @@ function FeedPage() {
 
         try {
             console.log('Feed: Loading posts from Dash Platform...')
-console.log('POSTS NETOWRK IS', network)
-console.log('POSTS CONTRACT ID', getContractId(network!))
             const dashClient = getDashPlatformClient(network!, getContractId(network!))
 
             // Cache key based on active tab and user
@@ -177,9 +175,11 @@ console.log('POSTS CONTRACT ID', getContractId(network!))
             setLoading(false)
         }
     }, [
-        postsState.setLoading,
-        postsState.setError,
-        postsState.setData,
+        network,
+        postsState,
+        // postsState.setLoading,
+        // postsState.setError,
+        // postsState.setData,
         activeTab,
         user?.identityId,
     ])

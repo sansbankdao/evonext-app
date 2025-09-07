@@ -2,7 +2,6 @@
 
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-// import { useNetwork } from '@/contexts/network-context'
 import {
     EVONEXT_CONTRACT_ID_MAINNET,
     EVONEXT_CONTRACT_ID_TESTNET,
@@ -68,11 +67,10 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-    // const { network } = useNetwork()
+    const router = useRouter()
     const [user, setUser] = useState<AuthUser | null>(null)
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
-    const router = useRouter()
 
     // Check for saved session on mount
     useEffect(() => {
@@ -139,7 +137,16 @@ console.log('AUTH RESTORE SESSION (contract ID)', getContractId(network!))
         restoreSession()
     }, [])
 
-    const login = useCallback(async (identityId: string, privateKey: string, skipUsernameCheck = false) => {
+    /**
+     * Login
+     *
+     * Authorize access to the platform using private credentials.
+     */
+    const login = useCallback(async (
+        identityId: string,
+        privateKey: string,
+        skipUsernameCheck = false,
+    ) => {
         setIsLoading(true)
         setError(null)
 
@@ -149,7 +156,7 @@ console.log('AUTH RESTORE SESSION (contract ID)', getContractId(network!))
         try {
             // Validate inputs
             if (!identityId || !privateKey) {
-                throw new Error('Identity ID and private key are required')
+                throw new Error('Identity ID and private key are REQUIRED!')
             }
 
             // Use the WASM SDK services
@@ -175,6 +182,8 @@ console.log('AUTH RESTORE SESSION (contract ID)', getContractId(network!))
             console.log('Fetching identity with WASM SDK...')
             const identityData = await identityService.getIdentity(identityId)
 console.log('AUTH CONTEXT (identityData)', identityData)
+
+            /* Validate identity data. */
             if (!identityData) {
                 throw new Error('Identity not found')
             }
@@ -183,6 +192,7 @@ console.log('AUTH CONTEXT (identityData)', identityData)
             const { dpnsService } = await import('@/lib/services/dpns-service')
             const dpnsUsername = await dpnsService.resolveUsername(identityData.id)
 
+            /* Build a user package. */
             const authUser: AuthUser = {
                 identityId: identityData.id,
                 balance: identityData.balance,
@@ -374,7 +384,10 @@ export function withAuth<P extends object>(
 
                 return
             }
-        }, [user, router])
+        }, [
+            user,
+            router,
+        ])
 
         if (!user) {
             return (
