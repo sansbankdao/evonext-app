@@ -13,10 +13,32 @@ import toast from 'react-hot-toast'
 import { useAuth } from '@/contexts/auth-context'
 import { AvatarCanvas } from '@/components/ui/avatar-canvas'
 import { generateAvatarV2 } from '@/lib/avatar-generator-v2'
+import { useNetwork } from '@/contexts/network-context'
+import {
+    EVONEXT_CONTRACT_ID_MAINNET,
+    EVONEXT_CONTRACT_ID_TESTNET,
+} from '@/lib/constants'
+
+type TabType = 'trending' | 'news' | 'sports' | 'entertainment'
+
+const getContractId = (_network: string) => {
+    /* Initialize locals. */
+    let contractId
+
+    /* Handle network. */
+    if (_network === 'mainnet') {
+        contractId = EVONEXT_CONTRACT_ID_MAINNET
+    } else {
+        contractId = EVONEXT_CONTRACT_ID_TESTNET
+    }
+
+    return contractId
+}
 
 export function ComposeModal() {
-    const { isComposeOpen, setComposeOpen, replyingTo, setReplyingTo } = useAppStore()
     const { user } = useAuth()
+    const { network } = useNetwork()
+    const { isComposeOpen, setComposeOpen, replyingTo, setReplyingTo } = useAppStore()
     const [content, setContent] = useState('')
     const [isPosting, setIsPosting] = useState(false)
     const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -51,11 +73,10 @@ export function ComposeModal() {
 
             // Use retry logic for post creation
             const result = await retryPostCreation(async () => {
-                const dashClient = getDashPlatformClient()
+                const dashClient = getDashPlatformClient(network!, getContractId(network!))
 
-                return await dashClient.createPost(postContent, {
-                    replyToPostId: replyingTo?.id
-                })
+                return await dashClient.createPost(
+                    postContent, { replyToPostId: replyingTo?.id })
             })
 
             if (result.success) {

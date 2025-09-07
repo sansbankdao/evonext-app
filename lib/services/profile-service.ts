@@ -33,8 +33,8 @@ class ProfileService extends BaseDocumentService<User> {
     private readonly USERNAME_CACHE = 'usernames'
     private readonly PROFILE_CACHE = 'profiles'
 
-    constructor() {
-        super('profile')
+    constructor(_network: string, _contractId: string) {
+        super(_network, _contractId, 'profile')
     }
 
     private cachedUsername?: string;
@@ -590,7 +590,7 @@ console.log('GET PROFILE', profile)
 }
 
 // Singleton instance
-export const profileService = new ProfileService()
+export const profileService = new ProfileService('', '')
 
 // Import at the bottom to avoid circular dependency
 import { getWasmSdk } from './wasm-sdk-service'

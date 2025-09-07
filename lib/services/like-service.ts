@@ -187,8 +187,6 @@ console.log('GET LIKE (response)', response)
      * Get likes for a post
      */
     async getPostLikes(
-        network: string,
-        contractId: string,
         postId: string,
         options: QueryOptions = {}
     ): Promise<LikeDocument[]> {
@@ -202,11 +200,13 @@ console.log('GET LIKE (response)', response)
             const bs58 = bs58Module.default
 
             // Get SDK instance
-            const dashClient = getDashPlatformClient(this.network, this.contractId)
+            const dashClient = getDashPlatformClient(
+                this.network, this.contractId)
 
             await dashClient.ensureInitialized()
 
-            const sdk = await import('../services/wasm-sdk-service').then(m => m.getWasmSdk())
+            const sdk = await import('../services/wasm-sdk-service')
+                .then(m => m.getWasmSdk())
 
             // Convert postId to byte array
             const postIdBytes = Array.from(bs58.decode(postId))
@@ -255,7 +255,10 @@ console.log('GET LIKE (response)', response)
     /**
      * Get user's likes
      */
-    async getUserLikes(userId: string, options: QueryOptions = {}): Promise<LikeDocument[]> {
+    async getUserLikes(
+        userId: string,
+        options: QueryOptions = {}
+    ): Promise<LikeDocument[]> {
         try {
             const result = await this.query({
                 where: [['$ownerId', '==', userId]],
@@ -275,13 +278,10 @@ console.log('GET LIKE (response)', response)
      * Count likes for a post
      */
     async countLikes(
-        network: string,
-        contractId: string,
         postId: string
     ): Promise<number> {
         // In a real implementation, this would be more efficient
-        const likes = await this
-            .getPostLikes(network, contractId, postId)
+        const likes = await this.getPostLikes(postId)
 
         return likes.length
     }

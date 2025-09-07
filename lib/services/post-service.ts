@@ -261,8 +261,7 @@ class PostService extends BaseDocumentService<Post> {
     private async countLikes(postId: string): Promise<number> {
         const { likeService } = await import('./like-service')
 
-        return likeService
-            .countLikes(this.network, this.contractId, postId)
+        return likeService.countLikes(postId)
     }
 
     /**

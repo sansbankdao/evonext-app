@@ -85,8 +85,6 @@ export class DashPlatformClient {
      * Create a post document
      */
     async createPost(
-        network: string,
-        contractId: string,
         content: string,
         options?: {
             replyToPostId?: string
@@ -209,7 +207,7 @@ export class DashPlatformClient {
             // Create the document using the SDK
             let result
 console.log('DOCUMENT CREATE', {
-    contractId,
+    contractId: this.contractId,
     identityId,
     postData,
     entropyHex,
@@ -217,7 +215,7 @@ console.log('DOCUMENT CREATE', {
 })
             try {
                 result = await this.sdk.documentCreate(
-                    contractId,
+                    this.contractId,
                     'post',
                     identityId,
                     JSON.stringify(postData),
