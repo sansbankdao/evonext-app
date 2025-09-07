@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { wasmSdkService, dpnsService } from '@/lib/services'
-import { EVONEXT_CONTRACT_ID } from '@/lib/constants'
+import { EVONEXT_CONTRACT_ID_TESTNET } from '@/lib/constants'
 
 export default function TestDpnsPage() {
     const [status, setStatus] = useState<string>('Not initialized')
@@ -28,7 +28,7 @@ export default function TestDpnsPage() {
             setStatus('Initializing WASM SDK...')
             await wasmSdkService.initialize({
                 network: 'testnet',
-                contractId: EVONEXT_CONTRACT_ID
+                contractId: EVONEXT_CONTRACT_ID_TESTNET,
             })
             setStatus('SDK initialized - DPNS ready!')
             setError(null)

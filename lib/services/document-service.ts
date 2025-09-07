@@ -2,7 +2,50 @@
 import { getWasmSdk } from './wasm-sdk-service'
 import { get_documents, get_document, get_document_with_proof_info } from '../dash-wasm/wasm_sdk'
 import { stateTransitionService } from './state-transition-service'
-import { EVONEXT_CONTRACT_ID } from '../constants'
+import {
+    EVONEXT_CONTRACT_ID_MAINNET,
+    EVONEXT_CONTRACT_ID_TESTNET,
+} from '@/lib/constants'
+
+const getNetwork = () => {
+    /* Initialize locals. */
+    let network
+
+    /* Set host. */
+    const host = window.location.host
+
+    /* Handle host. */
+// FIXME Handle mainnet for localhost and IPFS.
+    switch(host) {
+    case 'evonext.app':
+        network = 'mainnet'
+        break
+    case 'testnet.evonext.app':
+        network = 'testnet'
+        break
+    default:
+        network = host
+        break
+    }
+
+    /* Return network. */
+    return network
+}
+
+const getContractId = () => {
+    /* Initialize locals. */
+    let contractId
+
+    /* Handle network. */
+    if (getNetwork() === 'mainnet') {
+        contractId = EVONEXT_CONTRACT_ID_MAINNET
+    } else {
+        contractId = EVONEXT_CONTRACT_ID_TESTNET
+    }
+
+    /* Return contract ID. */
+    return contractId
+}
 
 export interface QueryOptions {
     where?: Array<[string, string, any]>;
@@ -25,7 +68,7 @@ export abstract class BaseDocumentService<T> {
     protected readonly CACHE_TTL = 30000; // 30 seconds cache
 
     constructor(documentType: string) {
-        this.contractId = EVONEXT_CONTRACT_ID;
+        this.contractId = getContractId();
         this.documentType = documentType;
     }
 

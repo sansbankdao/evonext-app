@@ -7,7 +7,7 @@ import {
     profileService,
     wasmSdkService,
 } from '@/lib/services'
-import { EVONEXT_CONTRACT_ID } from '@/lib/constants'
+import { EVONEXT_CONTRACT_ID_TESTNET } from '@/lib/constants'
 
 export default function TestCreatePage() {
     const [status, setStatus] = useState<string>('Ready')
@@ -103,7 +103,7 @@ export default function TestCreatePage() {
 
             await wasmSdkService.initialize({
                 network: 'testnet',
-                contractId: process.env.NEXT_PUBLIC_CONTRACT_ID || EVONEXT_CONTRACT_ID || ''
+                contractId: process.env.NEXT_PUBLIC_CONTRACT_ID || EVONEXT_CONTRACT_ID_TESTNET || '',
             })
 
             setStatus('SDK initialized')

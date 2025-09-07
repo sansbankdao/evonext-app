@@ -3,7 +3,10 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useNetwork } from '@/contexts/network-context'
-import { EVONEXT_CONTRACT_ID } from '@/lib/constants'
+import {
+    EVONEXT_CONTRACT_ID_MAINNET,
+    EVONEXT_CONTRACT_ID_TESTNET,
+} from '@/lib/constants'
 
 export interface AuthUser {
     identityId: string
@@ -108,10 +111,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const { identityService } = await import('@/lib/services/identity-service')
             const { wasmSdkService } = await import('@/lib/services/wasm-sdk-service')
 
+            /* Initialize locals. */
+            let contractId
+
+            /* Handle network. */
+            if (network === 'mainnet') {
+                contractId = EVONEXT_CONTRACT_ID_MAINNET
+            } else {
+                contractId = EVONEXT_CONTRACT_ID_TESTNET
+            }
+
             // Initialize SDK if needed
             await wasmSdkService.initialize({
                 network: (network as 'mainnet' | 'testnet') || 'testnet',
-                contractId: EVONEXT_CONTRACT_ID
+                contractId,
             })
 
             console.log('Fetching identity with WASM SDK...')
@@ -205,7 +218,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } finally {
             setIsLoading(false)
         }
-    }, [router])
+    }, [
+        network,
+        router,
+    ])
 
     const logout = useCallback(async () => {
         localStorage.removeItem('evonext_session')
@@ -227,7 +243,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         })
 
         router.push('/connect')
-    }, [router])
+    }, [
+        user?.identityId,
+        router,
+    ])
 
     const updateDPNSUsername = useCallback((username: string) => {
         if (user) {

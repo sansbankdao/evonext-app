@@ -10,13 +10,56 @@ import { useNetwork } from '@/contexts/network-context'
 
 // Import the centralized WASM service
 import { wasmSdkService } from './services/wasm-sdk-service'
-import { EVONEXT_CONTRACT_ID } from './constants'
+import {
+    EVONEXT_CONTRACT_ID_MAINNET,
+    EVONEXT_CONTRACT_ID_TESTNET,
+} from '@/lib/constants'
 
 type Network = 'mainnet' | 'testnet' | string | null;
 
 interface NetworkContextType {
     active: Network;
     error: string | null;
+}
+
+const getNetwork = () => {
+    /* Initialize locals. */
+    let network
+
+    /* Set host. */
+    const host = window.location.host
+
+    /* Handle host. */
+// FIXME Handle mainnet for localhost and IPFS.
+    switch(host) {
+    case 'evonext.app':
+        network = 'mainnet'
+        break
+    case 'testnet.evonext.app':
+        network = 'testnet'
+        break
+    default:
+        network = host
+        break
+    }
+
+    /* Return network. */
+    return network
+}
+
+const getContractId = () => {
+    /* Initialize locals. */
+    let contractId
+
+    /* Handle network. */
+    if (getNetwork() === 'mainnet') {
+        contractId = EVONEXT_CONTRACT_ID_MAINNET
+    } else {
+        contractId = EVONEXT_CONTRACT_ID_TESTNET
+    }
+
+    /* Return contract ID. */
+    return contractId
 }
 
 export class DashPlatformClient {
@@ -35,24 +78,8 @@ export class DashPlatformClient {
      * Initialize the SDK using the centralized WASM service
      */
     public async ensureInitialized() {
-        let network
-
-        /* Set host. */
-        const host = window.location.host
-
-        /* Handle host. */
-// FIXME Handle mainnet for localhost and IPFS.
-        switch(host) {
-        case 'evonext.app':
-            network = 'mainnet'
-            break
-        case 'testnet.evonext.app':
-            network = 'testnet'
-            break
-        default:
-            network = host
-            break
-        }
+        /* Request network. */
+        const network = getNetwork()
 
         if (this.sdk || this.isInitializing) {
             // Already initialized or initializing
@@ -66,10 +93,12 @@ export class DashPlatformClient {
 
         this.isInitializing = true
 
+        /* Request contract ID. */
+        const contractId = getContractId()
+
         try {
             // Use the centralized WASM service
             const localNetwork = (network as 'mainnet' | 'testnet')  || 'testnet'
-            const contractId = EVONEXT_CONTRACT_ID
 
             console.log('DashPlatformClient: Initializing via WasmSdkService for network:', network)
 
@@ -144,7 +173,7 @@ export class DashPlatformClient {
             const { getPrivateKey } = await import('./secure-storage')
 
             let privateKeyWIF = getPrivateKey(identityId)
-console.log('PLATFORM CLIENT (pk)', privateKeyWIF)
+
             // If not in memory, try biometric storage
             if (!privateKeyWIF) {
                 try {
@@ -217,7 +246,8 @@ console.log('PLATFORM CLIENT (pk)', privateKeyWIF)
                 .map(b => b.toString(16).padStart(2, '0'))
                 .join('')
 
-            const contractId = EVONEXT_CONTRACT_ID
+            /* Request contract ID. */
+            const contractId = getContractId()
 
             // Create the document using the SDK
             let result
@@ -289,7 +319,8 @@ console.log('DOCUMENT CREATE', {
                 limit: 1
             }
 
-            const contractId = EVONEXT_CONTRACT_ID
+            /* Request contract ID. */
+            const contractId = getContractId()
 
             const profileResponse = await get_documents(
                 this.sdk,
@@ -363,7 +394,8 @@ console.log('DOCUMENT CREATE', {
 
             await this.ensureInitialized()
 
-            const contractId = EVONEXT_CONTRACT_ID
+            /* Request contract ID. */
+            const contractId = getContractId()
 
             console.log('DashPlatformClient: Querying posts from contract:', contractId)
 

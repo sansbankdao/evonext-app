@@ -18,12 +18,12 @@ export const SANS_CONTRACT_ID_MAINNET = 'AxAYWyXV6mrm8Sq7vc7wEM18wtL8a8rgj64SM3S
 export const SANS_CONTRACT_ID_TESTNET = 'A36eJF2kyYXwxCtJGsgbR3CTAscUFaNxZN19UqUfM1kw' // tSANS on Testnet
 
 /* EVONEXT Contract IDs */
-export const EVONEXT_CONTRACT_ID_MAINNET = '' // Mainnet
-export const EVONEXT_CONTRACT_ID = '465jdPpFCZefhb4g2k2FpCcrKpPYhJJskDqbGFsKu6wb' // MINIMAL
+export const EVONEXT_CONTRACT_ID_MAINNET = '6fBkKSne1xQ5GCPW9fdwEkH7nk8oYPu48vYiYssWzhX8' // Mainnet
+export const EVONEXT_CONTRACT_ID_TESTNET = '465jdPpFCZefhb4g2k2FpCcrKpPYhJJskDqbGFsKu6wb' // Testnet
 
 /* YAPPR Contract IDs */
 export const YAPPR_CONTRACT_ID_MAINNET = '' // Mainnet
-export const YAPPR_CONTRACT_ID = 'AyWK6nDVfb8d1ZmkM5MmZZrThbUyWyso1aMeGuuVSfxf'
+export const YAPPR_CONTRACT_ID_TESTNET = 'AyWK6nDVfb8d1ZmkM5MmZZrThbUyWyso1aMeGuuVSfxf' // Testnet
 
 // Network configuration
 export const DEFAULT_NETWORK = 'testnet'

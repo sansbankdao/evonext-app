@@ -2,7 +2,11 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import { wasmSdkService } from '@/lib/services/wasm-sdk-service'
-import { EVONEXT_CONTRACT_ID } from '@/lib/constants'
+import { useNetwork } from './network-context'
+import {
+    EVONEXT_CONTRACT_ID_MAINNET,
+    EVONEXT_CONTRACT_ID_TESTNET,
+} from '@/lib/constants'
 
 interface SdkContextType {
     isReady: boolean
@@ -12,6 +16,7 @@ interface SdkContextType {
 const SdkContext = createContext<SdkContextType>({ isReady: false, error: null })
 
 export function SdkProvider({ children }: { children: React.ReactNode }) {
+    const { network } = useNetwork()
     const [isReady, setIsReady] = useState(false)
     const [error, setError] = useState<string | null>(null)
 
@@ -20,10 +25,20 @@ export function SdkProvider({ children }: { children: React.ReactNode }) {
             try {
                 console.log('SdkProvider: Starting WASM SDK initialization for testnet...')
 
+                /* Initialize locals. */
+                let contractId
+
+                /* Handle network. */
+                if (network === 'mainnet') {
+                    contractId = EVONEXT_CONTRACT_ID_MAINNET
+                } else {
+                    contractId = EVONEXT_CONTRACT_ID_TESTNET
+                }
+
                 // Initialize with testnet configuration
                 await wasmSdkService.initialize({
                     network: 'testnet',
-                    contractId: EVONEXT_CONTRACT_ID
+                    contractId,
                 })
 
                 setIsReady(true)
@@ -43,7 +58,7 @@ export function SdkProvider({ children }: { children: React.ReactNode }) {
         } else {
             console.log('SdkProvider: Not in browser, skipping initialization')
         }
-    }, [])
+    }, [network])
 
     return (
         <SdkContext.Provider value={{ isReady, error }}>

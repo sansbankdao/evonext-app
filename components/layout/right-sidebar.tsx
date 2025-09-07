@@ -11,11 +11,24 @@ import {
 import { formatNumber, formatTime } from '@/lib/utils'
 import { useAuth } from '@/contexts/auth-context'
 import { useNetwork } from '@/contexts/network-context'
-import { EVONEXT_CONTRACT_ID } from '@/lib/constants'
+import {
+    EVONEXT_CONTRACT_ID_MAINNET,
+    EVONEXT_CONTRACT_ID_TESTNET,
+} from '@/lib/constants'
 
 export function RightSidebar() {
     const { user } = useAuth()
     const { network } = useNetwork()
+
+    /* Initialize locals. */
+    let contractId
+
+    /* Handle network. */
+    if (network === 'mainnet') {
+        contractId = EVONEXT_CONTRACT_ID_MAINNET
+    } else {
+        contractId = EVONEXT_CONTRACT_ID_TESTNET
+    }
 
     return (
         <div className="hidden max-w-md w-full h-screen overflow-y-auto lg:flex flex-col px-4 py-4 space-y-4">
@@ -37,7 +50,7 @@ export function RightSidebar() {
                 <div className="px-4 py-3 space-y-2">
                     <div>
                         <p className="text-sm text-gray-500">Contract ID</p>
-                        <p className="text-xs font-mono break-all">{EVONEXT_CONTRACT_ID}</p>
+                        <p className="text-xs font-mono break-all">{contractId}</p>
                     </div>
 
                     <div>

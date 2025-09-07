@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import { wasmSdkService } from '@/lib/services'
 import { get_documents } from '@/lib/dash-wasm/wasm_sdk'
-import { EVONEXT_CONTRACT_ID } from '@/lib/constants'
+import { EVONEXT_CONTRACT_ID_TESTNET } from '@/lib/constants'
 
 const DPNS_CONTRACT_ID = 'GWRSAVFMjXx8HpQFaNJMqBV7MBgMK4br5UESsB4S31Ec'
 
@@ -20,7 +20,7 @@ export default function TestDpnsDebugPage() {
         try {
             await wasmSdkService.initialize({
                 network: 'testnet',
-                contractId: process.env.NEXT_PUBLIC_CONTRACT_ID || EVONEXT_CONTRACT_ID || ''
+                contractId: process.env.NEXT_PUBLIC_CONTRACT_ID || EVONEXT_CONTRACT_ID_TESTNET || '',
             })
         } catch (err) {
             console.error('Error initializing SDK:', err)
