@@ -64,7 +64,8 @@ function FeedPage() {
 
         try {
             console.log('Feed: Loading posts from Dash Platform...')
-
+console.log('NETOWRK IS', network)
+console.log('CONTRACT ID', getContractId(network!))
             const dashClient = getDashPlatformClient(network!, getContractId(network!))
 
             // Cache key based on active tab and user
