@@ -174,7 +174,7 @@ console.log('AUTH RESTORE SESSION (contract ID)', getContractId(network!))
 
             console.log('Fetching identity with WASM SDK...')
             const identityData = await identityService.getIdentity(identityId)
-
+console.log('AUTH CONTEXT (identityData)', identityData)
             if (!identityData) {
                 throw new Error('Identity not found')
             }

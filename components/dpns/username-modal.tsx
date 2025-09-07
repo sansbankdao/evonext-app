@@ -136,7 +136,7 @@ export function UsernameModal({ isOpen, onClose, customIdentityId: initialIdenti
             const { identityService } = await import('@/lib/services/identity-service')
 
             const identity = await identityService.getIdentity(currentIdentityId)
-
+console.log('USERNAME MODAL (identity)', identity)
             if (!identity) {
                 throw new Error('Identity not found')
             }

@@ -39,7 +39,7 @@ class IdentityService {
             // Fetch identity
             console.log(`Fetching identity: ${identityId}`)
             const identityResponse = await identity_fetch(sdk, identityId)
-
+console.log('IDENTITY SERVICE (identityResponse)', identityResponse)
             if (!identityResponse) {
                 console.warn(`Identity not found: ${identityId}`)
                 return null
