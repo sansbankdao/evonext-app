@@ -13,6 +13,9 @@ export class DPNSService {
     private readonly CACHE_TTL = 5 * 60 * 1000 // 5 minutes
 
     constructor(_network: string, _contractId: string) {
+console.log('DPNS CONSTRUCTING (network)', _network)
+console.log('DPNS CONSTRUCTING (contract ID)', _contractId)
+
         this.dashClient = getDashPlatformClient(_network, _contractId)
     }
 

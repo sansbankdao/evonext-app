@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { useNetwork } from '@/contexts/network-context'
+// import { useNetwork } from '@/contexts/network-context'
 import {
     EVONEXT_CONTRACT_ID_MAINNET,
     EVONEXT_CONTRACT_ID_TESTNET,
@@ -20,6 +20,28 @@ const getContractId = (_network: string) => {
     }
 
     return contractId
+}
+
+const getNetwork = () => {
+    /* Set host. */
+    const host = window.location.host
+
+    /* Initialize locals. */
+    let network
+
+    /* Handle host. */
+// FIXME Handle mainnet for localhost and IPFS.
+    switch(host) {
+    case 'evonext.app':
+        network = 'mainnet'
+        break
+    default:
+        network = 'testnet'
+        break
+    }
+
+    /* Return network. */
+    return network
 }
 
 export interface AuthUser {
@@ -46,7 +68,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-    const { network } = useNetwork()
+    // const { network } = useNetwork()
     const [user, setUser] = useState<AuthUser | null>(null)
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
@@ -54,6 +76,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Check for saved session on mount
     useEffect(() => {
+        /* Request network. */
+        const network = getNetwork()
+
         const restoreSession = async () => {
             const savedSession = localStorage.getItem('evonext_session')
 
@@ -69,6 +94,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
                     try {
                         const { getDashPlatformClient } = await import('@/lib/dash-platform-client')
+console.log('AUTH RESTORE SESSION (network)', network)
+console.log('AUTH RESTORE SESSION (contract ID)', getContractId(network!))
+
                         const dashClient = getDashPlatformClient(network!, getContractId(network!))
 
                         dashClient.setIdentity(savedUser.identityId)
@@ -114,6 +142,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const login = useCallback(async (identityId: string, privateKey: string, skipUsernameCheck = false) => {
         setIsLoading(true)
         setError(null)
+
+        /* Request network. */
+        const network = getNetwork()
 
         try {
             // Validate inputs
@@ -232,12 +263,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } finally {
             setIsLoading(false)
         }
-    }, [
-        network,
-        router,
-    ])
+    }, [router])
 
     const logout = useCallback(async () => {
+        /* Request network. */
+        const network = getNetwork()
+
         localStorage.removeItem('evonext_session')
         sessionStorage.removeItem('evonext_dpns_username')
         sessionStorage.removeItem('evonext_skip_dpns')

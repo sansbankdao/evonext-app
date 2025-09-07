@@ -12,7 +12,7 @@ interface NetworkContextType {
 const NetworkContext = createContext<NetworkContextType>({ network: null, error: null })
 
 export function NetworkProvider({ children }: { children: React.ReactNode }) {
-    const [network, setActiveNetwork] = useState<Network>(null)
+    const [network, setActiveNetwork] = useState<Network>('something-better-than-nothing')
     const [error, setError] = useState<string | null>(null)
 
     useEffect(() => {
@@ -38,6 +38,7 @@ export function NetworkProvider({ children }: { children: React.ReactNode }) {
                 console.error('NetworkProvider: Failed to initialize WASM SDK:', err)
                 setError(err instanceof Error ? err.message : 'Failed to initialize SDK')
             }
+console.log('***THIS IS WHERE WE HAVE COMPLETED NETWORK SETUP')
         }
 
         // Only initialize in browser

@@ -14,14 +14,14 @@ function BiometricPromptWrapper() {
 
 export function Providers({ children }: { children: React.ReactNode }) {
     return (
-        <SdkProvider>
-            <AuthProvider>
-                <NetworkProvider>
+        <NetworkProvider>
+            <SdkProvider>
+                <AuthProvider>
                     {children}
                     <UsernameModalProvider />
                     <BiometricPromptWrapper />
-                </NetworkProvider>
-            </AuthProvider>
-        </SdkProvider>
+                </AuthProvider>
+            </SdkProvider>
+        </NetworkProvider>
     )
 }

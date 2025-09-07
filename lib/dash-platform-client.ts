@@ -27,6 +27,8 @@ export class DashPlatformClient {
     private pendingQueries: Map<string, Promise<any[]>> = new Map() // Prevent duplicate queries
 
     constructor(_network: string, _contractId: string) {
+console.log('DPC CONSTRUCTING (network)', _network)
+console.log('DPC CONSTRUCTING (contract ID)', _contractId)
         // SDK will be initialized on first use
         this.network = _network
         this.contractId = _contractId
@@ -51,7 +53,7 @@ export class DashPlatformClient {
         try {
             // Use the centralized WASM service
             const localNetwork = (this.network as 'mainnet' | 'testnet')  || 'testnet'
-
+console.log('CONTRACT ID', this.contractId)
             console.log('DashPlatformClient: Initializing via WasmSdkService for network:', this.network)
 
             // Initialize the WASM SDK service if not already done
