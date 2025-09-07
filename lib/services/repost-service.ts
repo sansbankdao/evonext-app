@@ -10,8 +10,8 @@ export interface RepostDocument {
 }
 
 class RepostService extends BaseDocumentService<RepostDocument> {
-    constructor() {
-        super('repost')
+    constructor(_network: string, _contractId: string | undefined) {
+        super(_network, _contractId, 'repost')
     }
 
     /**
@@ -159,4 +159,4 @@ class RepostService extends BaseDocumentService<RepostDocument> {
 }
 
 // Singleton instance
-export const repostService = new RepostService()
+export const repostService = new RepostService('', undefined)

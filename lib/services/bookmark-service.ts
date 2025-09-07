@@ -10,8 +10,8 @@ export interface BookmarkDocument {
 }
 
 class BookmarkService extends BaseDocumentService<BookmarkDocument> {
-    constructor() {
-        super('bookmark')
+    constructor(_network: string, _contractId: string | undefined) {
+        super(_network, _contractId, 'bookmark')
     }
 
     /**
@@ -147,4 +147,4 @@ class BookmarkService extends BaseDocumentService<BookmarkDocument> {
 }
 
 // Singleton instance
-export const bookmarkService = new BookmarkService()
+export const bookmarkService = new BookmarkService('', undefined)

@@ -32,8 +32,8 @@ export interface PostStats {
 class PostService extends BaseDocumentService<Post> {
     private statsCache: Map<string, { data: PostStats; timestamp: number }> = new Map()
 
-    constructor() {
-        super('post')
+    constructor(_network: string, _contractId: string) {
+        super(_network, _contractId, 'post')
     }
 
     /**
@@ -70,7 +70,10 @@ class PostService extends BaseDocumentService<Post> {
     /**
      * Enrich post with async data
      */
-    private async enrichPost(post: Post, doc: PostDocument): Promise<void> {
+    private async enrichPost(
+        post: Post,
+        doc: PostDocument,
+    ): Promise<void> {
         try {
             // Get author information
             // const author = await profileService.getProfile(doc.$ownerId)
@@ -258,7 +261,8 @@ class PostService extends BaseDocumentService<Post> {
     private async countLikes(postId: string): Promise<number> {
         const { likeService } = await import('./like-service')
 
-        return likeService.countLikes(postId)
+        return likeService
+            .countLikes(this.network, this.contractId, postId)
     }
 
     /**
@@ -325,4 +329,4 @@ class PostService extends BaseDocumentService<Post> {
 }
 
 // Singleton instance
-export const postService = new PostService()
+export const postService = new PostService('', '')

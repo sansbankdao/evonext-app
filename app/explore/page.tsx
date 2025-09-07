@@ -12,11 +12,31 @@ import { Button } from '@/components/ui/button'
 import { getInitials } from '@/lib/utils'
 import * as Tabs from '@radix-ui/react-tabs'
 import { useAuth } from '@/contexts/auth-context'
+import { useNetwork } from '@/contexts/network-context'
+import {
+    EVONEXT_CONTRACT_ID_MAINNET,
+    EVONEXT_CONTRACT_ID_TESTNET,
+} from '@/lib/constants'
 
 type TabType = 'trending' | 'news' | 'sports' | 'entertainment'
 
+const getContractId = (_network: string) => {
+    /* Initialize locals. */
+    let contractId
+
+    /* Handle network. */
+    if (_network === 'mainnet') {
+        contractId = EVONEXT_CONTRACT_ID_MAINNET
+    } else {
+        contractId = EVONEXT_CONTRACT_ID_TESTNET
+    }
+
+    return contractId
+}
+
 export default function ExplorePage() {
     const { user } = useAuth()
+    const { network } = useNetwork()
     const [searchQuery, setSearchQuery] = useState('')
     const [isSearchFocused, setIsSearchFocused] = useState(false)
     const [activeTab, setActiveTab] = useState<TabType>('trending')
@@ -27,12 +47,14 @@ export default function ExplorePage() {
 
     // Load trending posts (public data, no auth required)
     useEffect(() => {
+        const contractId = getContractId(network!)
+
         const loadTrendingPosts = async () => {
             try {
                 setIsLoading(true)
 
                 const { getDashPlatformClient } = await import('@/lib/dash-platform-client')
-                const dashClient = getDashPlatformClient()
+                const dashClient = getDashPlatformClient(network!, contractId)
 
                 // Load recent posts (as trending)
                 const fetchedPosts = await dashClient.queryPosts({
@@ -76,7 +98,7 @@ export default function ExplorePage() {
         const searchPosts = async () => {
             try {
                 const { getDashPlatformClient } = await import('@/lib/dash-platform-client')
-                const dashClient = getDashPlatformClient()
+                const dashClient = getDashPlatformClient(network!, getContractId(network!))
 
                 // Simple content search - in production you'd want full-text search
                 const allPosts = await dashClient.queryPosts({ limit: 100 })

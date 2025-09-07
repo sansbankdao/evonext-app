@@ -6,14 +6,8 @@ import {
     get_documents
 } from './dash-wasm/wasm_sdk'
 
-import { useNetwork } from '@/contexts/network-context'
-
 // Import the centralized WASM service
 import { wasmSdkService } from './services/wasm-sdk-service'
-import {
-    EVONEXT_CONTRACT_ID_MAINNET,
-    EVONEXT_CONTRACT_ID_TESTNET,
-} from '@/lib/constants'
 
 type Network = 'mainnet' | 'testnet' | string | null;
 
@@ -22,65 +16,26 @@ interface NetworkContextType {
     error: string | null;
 }
 
-const getNetwork = () => {
-    /* Initialize locals. */
-    let network
-
-    /* Set host. */
-    const host = window.location.host
-
-    /* Handle host. */
-// FIXME Handle mainnet for localhost and IPFS.
-    switch(host) {
-    case 'evonext.app':
-        network = 'mainnet'
-        break
-    case 'testnet.evonext.app':
-        network = 'testnet'
-        break
-    default:
-        network = host
-        break
-    }
-
-    /* Return network. */
-    return network
-}
-
-const getContractId = () => {
-    /* Initialize locals. */
-    let contractId
-
-    /* Handle network. */
-    if (getNetwork() === 'mainnet') {
-        contractId = EVONEXT_CONTRACT_ID_MAINNET
-    } else {
-        contractId = EVONEXT_CONTRACT_ID_TESTNET
-    }
-
-    /* Return contract ID. */
-    return contractId
-}
-
 export class DashPlatformClient {
     private sdk: any = null
+    private network: string | null = null
+    private contractId: string | null = null
     private identityId: string | null = null
     private isInitializing: boolean = false
     private postsCache: Map<string, { posts: any[], timestamp: number }> = new Map()
     private readonly CACHE_TTL = 30000 // 30 seconds for posts cache
     private pendingQueries: Map<string, Promise<any[]>> = new Map() // Prevent duplicate queries
 
-    constructor() {
+    constructor(_network: string, _contractId: string) {
         // SDK will be initialized on first use
+        this.network = _network
+        this.contractId = _contractId
     }
 
     /**
      * Initialize the SDK using the centralized WASM service
      */
     public async ensureInitialized() {
-        /* Request network. */
-        const network = getNetwork()
-
         if (this.sdk || this.isInitializing) {
             // Already initialized or initializing
             while (this.isInitializing) {
@@ -93,17 +48,17 @@ export class DashPlatformClient {
 
         this.isInitializing = true
 
-        /* Request contract ID. */
-        const contractId = getContractId()
-
         try {
             // Use the centralized WASM service
-            const localNetwork = (network as 'mainnet' | 'testnet')  || 'testnet'
+            const localNetwork = (this.network as 'mainnet' | 'testnet')  || 'testnet'
 
-            console.log('DashPlatformClient: Initializing via WasmSdkService for network:', network)
+            console.log('DashPlatformClient: Initializing via WasmSdkService for network:', this.network)
 
             // Initialize the WASM SDK service if not already done
-            await wasmSdkService.initialize({ network: localNetwork, contractId })
+            await wasmSdkService.initialize({
+                network: localNetwork,
+                contractId: this.contractId!,
+            })
 
             // Get the SDK instance
             this.sdk = await wasmSdkService.getSdk()
@@ -129,11 +84,16 @@ export class DashPlatformClient {
     /**
      * Create a post document
      */
-    async createPost(content: string, options?: {
-        replyToPostId?: string
-        mediaUrl?: string
-        primaryHashtag?: string
-    }) {
+    async createPost(
+        network: string,
+        contractId: string,
+        content: string,
+        options?: {
+            replyToPostId?: string
+            mediaUrl?: string
+            primaryHashtag?: string
+        }
+    ) {
         // Get identity ID from instance or auth context
         let identityId = this.identityId
 
@@ -246,9 +206,6 @@ export class DashPlatformClient {
                 .map(b => b.toString(16).padStart(2, '0'))
                 .join('')
 
-            /* Request contract ID. */
-            const contractId = getContractId()
-
             // Create the document using the SDK
             let result
 console.log('DOCUMENT CREATE', {
@@ -305,7 +262,11 @@ console.log('DOCUMENT CREATE', {
     /**
      * Get user profile
      */
-    async getUserProfile(identityId: string) {
+    async getUserProfile(
+        network: string,
+        contractId: string,
+        identityId: string,
+    ) {
         try {
             await this.ensureInitialized()
 
@@ -318,9 +279,6 @@ console.log('DOCUMENT CREATE', {
                 ],
                 limit: 1
             }
-
-            /* Request contract ID. */
-            const contractId = getContractId()
 
             const profileResponse = await get_documents(
                 this.sdk,
@@ -362,12 +320,14 @@ console.log('DOCUMENT CREATE', {
     /**
      * Query posts with caching
      */
-    async queryPosts(options?: {
-        limit?: number
-        startAfter?: any
-        authorId?: string
-        forceRefresh?: boolean
-    }) {
+    async queryPosts(
+        options?: {
+            limit?: number
+            startAfter?: any
+            authorId?: string
+            forceRefresh?: boolean
+        }
+    ) {
         try {
             // Create cache key based on options
             const cacheKey = JSON.stringify({
@@ -394,13 +354,10 @@ console.log('DOCUMENT CREATE', {
 
             await this.ensureInitialized()
 
-            /* Request contract ID. */
-            const contractId = getContractId()
-
-            console.log('DashPlatformClient: Querying posts from contract:', contractId)
+            console.log('DashPlatformClient: Querying posts from contract:', this.contractId)
 
             // Create the query promise and store it to prevent duplicates
-            const queryPromise = this._executePostsQuery(contractId, options, cacheKey)
+            const queryPromise = this._executePostsQuery(options, cacheKey)
 
             this.pendingQueries.set(cacheKey, queryPromise)
 
@@ -421,7 +378,10 @@ console.log('DOCUMENT CREATE', {
     /**
      * Execute the actual posts query (separated to allow proper pending query management)
      */
-    private async _executePostsQuery(contractId: string, options: any, cacheKey: string): Promise<any[]> {
+    private async _executePostsQuery(
+        options: any,
+        cacheKey: string,
+    ): Promise<any[]> {
         try {
             // Build where clause
             const where: any[] = []
@@ -437,7 +397,7 @@ console.log('DOCUMENT CREATE', {
             try {
                 const postsResponse = await get_documents(
                     this.sdk,
-                    contractId,
+                    this.contractId!,
                     'post',
                     where.length > 0 ? JSON.stringify(where) : null,
                     JSON.stringify(orderBy),
@@ -548,9 +508,12 @@ console.log('DOCUMENT CREATE', {
 // Singleton instance
 let dashClient: DashPlatformClient | null = null
 
-export function getDashPlatformClient(): DashPlatformClient {
+export function getDashPlatformClient(
+    _network: string,
+    _contractId: string,
+): DashPlatformClient {
     if (!dashClient) {
-        dashClient = new DashPlatformClient()
+        dashClient = new DashPlatformClient(_network, _contractId)
     }
 
     return dashClient

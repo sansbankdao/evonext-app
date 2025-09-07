@@ -11,8 +11,8 @@ export interface LikeDocument {
 }
 
 class LikeService extends BaseDocumentService<LikeDocument> {
-    constructor() {
-        super('like')
+    constructor(_network: string, _contractId: string | undefined) {
+        super(_network, _contractId, 'like')
     }
 
     /**
@@ -30,13 +30,17 @@ class LikeService extends BaseDocumentService<LikeDocument> {
     /**
      * Like a post
      */
-    async likePost(postId: string, ownerId: string): Promise<boolean> {
+    async likePost(
+        postId: string,
+        ownerId: string,
+    ): Promise<boolean> {
         try {
             const sdk = await getWasmSdk()
 
             // Check if already liked
             const existing = await this.getLike(postId, ownerId)
 console.log('EXISTING LIKE', existing)
+
             if (existing) {
                 console.log('Post already liked')
                 return true
@@ -65,7 +69,7 @@ console.log('DEBUG DOCUMENT', {
 
             return result.success
         } catch (error) {
-            console.error('Error liking post:', error);
+            console.error('Error liking post:', error)
             return false
         }
     }
@@ -73,12 +77,16 @@ console.log('DEBUG DOCUMENT', {
     /**
      * Unlike a post
      */
-    async unlikePost(postId: string, ownerId: string): Promise<boolean> {
+    async unlikePost(
+        postId: string,
+        ownerId: string,
+    ): Promise<boolean> {
         try {
             const sdk = await getWasmSdk()
 
             const like = await this.getLike(postId, ownerId)
 console.log('EXISTING LIKE', like)
+
             if (!like) {
                 console.log('Post not liked')
                 return true;
@@ -102,16 +110,22 @@ console.log('EXISTING LIKE', like)
     /**
      * Check if post is liked by user
      */
-    async isLiked(postId: string, ownerId: string): Promise<boolean> {
-        const like = await this.getLike(postId, ownerId);
+    async isLiked(
+        postId: string,
+        ownerId: string,
+    ): Promise<boolean> {
+        const like = await this.getLike(postId, ownerId)
 
-        return like !== null;
+        return like !== null
     }
 
     /**
      * Get like by post and owner
      */
-    async getLike(postId: string, ownerId: string): Promise<LikeDocument | null> {
+    async getLike(
+        postId: string,
+        ownerId: string,
+    ): Promise<LikeDocument | null> {
         try {
             const sdk = await getWasmSdk()
 
@@ -122,7 +136,7 @@ console.log('EXISTING LIKE', like)
             const bs58 = bs58Module.default
 
             // Get SDK instance
-            const dashClient = getDashPlatformClient()
+            const dashClient = getDashPlatformClient(this.network, this.contractId)
 
             await dashClient.ensureInitialized()
 
@@ -153,11 +167,11 @@ console.log('GET LIKE (response)', response)
             let documents
 
             if (response && typeof response.toJSON === 'function') {
-                documents = response.toJSON();
+                documents = response.toJSON()
             } else if (response && response.documents) {
-                documents = response.documents;
+                documents = response.documents
             } else if (Array.isArray(response)) {
-                documents = response;
+                documents = response
             } else {
                 documents = []
             }
@@ -172,31 +186,36 @@ console.log('GET LIKE (response)', response)
     /**
      * Get likes for a post
      */
-    async getPostLikes(postId: string, options: QueryOptions = {}): Promise<LikeDocument[]> {
+    async getPostLikes(
+        network: string,
+        contractId: string,
+        postId: string,
+        options: QueryOptions = {}
+    ): Promise<LikeDocument[]> {
         try {
-            console.log('Getting likes for post:', postId);
+            console.log('Getting likes for post:', postId)
 
             // Import necessary modules
-            const { getDashPlatformClient } = await import('../dash-platform-client');
-            const { get_documents } = await import('../dash-wasm/wasm_sdk');
-            const bs58Module = await import('bs58');
-            const bs58 = bs58Module.default;
+            const { getDashPlatformClient } = await import('../dash-platform-client')
+            const { get_documents } = await import('../dash-wasm/wasm_sdk')
+            const bs58Module = await import('bs58')
+            const bs58 = bs58Module.default
 
             // Get SDK instance
-            const dashClient = getDashPlatformClient();
+            const dashClient = getDashPlatformClient(this.network, this.contractId)
 
-            await dashClient.ensureInitialized();
+            await dashClient.ensureInitialized()
 
-            const sdk = await import('../services/wasm-sdk-service').then(m => m.getWasmSdk());
+            const sdk = await import('../services/wasm-sdk-service').then(m => m.getWasmSdk())
 
             // Convert postId to byte array
-            const postIdBytes = Array.from(bs58.decode(postId));
+            const postIdBytes = Array.from(bs58.decode(postId))
 
             // Build where clause with byte array
-            const where = [['postId', '==', postIdBytes]];
-            const orderBy = [['$createdAt', 'desc']];
+            const where = [['postId', '==', postIdBytes]]
+            const orderBy = [['$createdAt', 'desc']]
 
-            console.log('Querying likes with postIdBytes:', postIdBytes);
+            console.log('Querying likes with postIdBytes:', postIdBytes)
 
             // Query directly using get_documents
             const response = await get_documents(
@@ -211,25 +230,25 @@ console.log('GET LIKE (response)', response)
             )
 
             // Convert response
-            let documents;
+            let documents
 
             if (response && typeof response.toJSON === 'function') {
-                documents = response.toJSON();
+                documents = response.toJSON()
             } else if (response && response.documents) {
-                documents = response.documents;
+                documents = response.documents
             } else if (Array.isArray(response)) {
                 documents = response;
             } else {
-                documents = [];
+                documents = []
             }
 
-            console.log(`Found ${documents.length} likes for post ${postId}`);
+            console.log(`Found ${documents.length} likes for post ${postId}`)
 
             // Transform documents
-            return documents.map((doc: any) => this.transformDocument(doc));
+            return documents.map((doc: any) => this.transformDocument(doc))
         } catch (error) {
-            console.error('Error getting post likes:', error);
-            return [];
+            console.error('Error getting post likes:', error)
+            return []
         }
     }
 
@@ -247,21 +266,26 @@ console.log('GET LIKE (response)', response)
 
             return result.documents;
         } catch (error) {
-            console.error('Error getting user likes:', error);
-            return [];
+            console.error('Error getting user likes:', error)
+            return []
         }
     }
 
     /**
      * Count likes for a post
      */
-    async countLikes(postId: string): Promise<number> {
+    async countLikes(
+        network: string,
+        contractId: string,
+        postId: string
+    ): Promise<number> {
         // In a real implementation, this would be more efficient
-        const likes = await this.getPostLikes(postId);
+        const likes = await this
+            .getPostLikes(network, contractId, postId)
 
-        return likes.length;
+        return likes.length
     }
 }
 
 // Singleton instance
-export const likeService = new LikeService()
+export const likeService = new LikeService('', undefined)

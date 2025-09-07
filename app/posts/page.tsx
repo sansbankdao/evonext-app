@@ -18,8 +18,28 @@ import { LoadingState, useAsyncState } from '@/components/ui/loading-state'
 import ErrorBoundary from '@/components/error-boundary'
 import { getDashPlatformClient } from '@/lib/dash-platform-client'
 import { cacheManager } from '@/lib/cache-manager'
+import { useNetwork } from '@/contexts/network-context'
+import {
+    EVONEXT_CONTRACT_ID_MAINNET,
+    EVONEXT_CONTRACT_ID_TESTNET,
+} from '@/lib/constants'
+
+const getContractId = (_network: string) => {
+    /* Initialize locals. */
+    let contractId
+
+    /* Handle network. */
+    if (_network === 'mainnet') {
+        contractId = EVONEXT_CONTRACT_ID_MAINNET
+    } else {
+        contractId = EVONEXT_CONTRACT_ID_TESTNET
+    }
+
+    return contractId
+}
 
 function FeedPage() {
+    const { network } = useNetwork()
     const [activeTab, setActiveTab] = useState('for-you')
     const [isHydrated, setIsHydrated] = useState(false)
     const { setComposeOpen } = useAppStore()
@@ -45,7 +65,7 @@ function FeedPage() {
         try {
             console.log('Feed: Loading posts from Dash Platform...')
 
-            const dashClient = getDashPlatformClient()
+            const dashClient = getDashPlatformClient(network!, getContractId(network!))
 
             // Cache key based on active tab and user
             const cacheKey = activeTab === 'your-posts' && user?.identityId

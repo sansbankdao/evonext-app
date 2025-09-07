@@ -8,6 +8,20 @@ import {
     EVONEXT_CONTRACT_ID_TESTNET,
 } from '@/lib/constants'
 
+const getContractId = (_network: string) => {
+    /* Initialize locals. */
+    let contractId
+
+    /* Handle network. */
+    if (_network === 'mainnet') {
+        contractId = EVONEXT_CONTRACT_ID_MAINNET
+    } else {
+        contractId = EVONEXT_CONTRACT_ID_TESTNET
+    }
+
+    return contractId
+}
+
 export interface AuthUser {
     identityId: string
     balance: number
@@ -55,7 +69,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
                     try {
                         const { getDashPlatformClient } = await import('@/lib/dash-platform-client')
-                        const dashClient = getDashPlatformClient()
+                        const dashClient = getDashPlatformClient(network!, getContractId(network!))
 
                         dashClient.setIdentity(savedUser.identityId)
                         console.log('Auth: DashPlatformClient identity restored from session')
@@ -180,7 +194,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             // Set identity in DashPlatformClient for document operations
             try {
                 const { getDashPlatformClient } = await import('@/lib/dash-platform-client')
-                const dashClient = getDashPlatformClient()
+                const dashClient = getDashPlatformClient(network!, contractId)
 
                 dashClient.setIdentity(identityId)
             } catch (err) {
@@ -238,7 +252,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         // Clear DashPlatformClient identity
         import('@/lib/dash-platform-client').then(({ getDashPlatformClient }) => {
-            const dashClient = getDashPlatformClient()
+            const dashClient = getDashPlatformClient(network!, getContractId(network!))
             dashClient.setIdentity('')
         })
 

@@ -32,9 +32,29 @@ import {
 import { AvatarCanvas } from '@/components/ui/avatar-canvas'
 import toast from 'react-hot-toast'
 import { withAuth, useAuth } from '@/contexts/auth-context'
+import { useNetwork } from '@/contexts/network-context'
+import {
+    EVONEXT_CONTRACT_ID_MAINNET,
+    EVONEXT_CONTRACT_ID_TESTNET,
+} from '@/lib/constants'
+
+const getContractId = (_network: string) => {
+    /* Initialize locals. */
+    let contractId
+
+    /* Handle network. */
+    if (_network === 'mainnet') {
+        contractId = EVONEXT_CONTRACT_ID_MAINNET
+    } else {
+        contractId = EVONEXT_CONTRACT_ID_TESTNET
+    }
+
+    return contractId
+}
 
 function ProfilePage() {
     const { user } = useAuth()
+    const { network } = useNetwork()
     const [isEditingProfile, setIsEditingProfile] = useState(false)
     const [isEditingAvatar, setIsEditingAvatar] = useState(false)
     const [userPosts, setUserPosts] = useState<any[]>([])
@@ -63,7 +83,7 @@ function ProfilePage() {
 
                 const { getDashPlatformClient } = await import('@/lib/dash-platform-client')
 
-                const dashClient = getDashPlatformClient()
+                const dashClient = getDashPlatformClient(network!, getContractId(network!))
 
                 // Query posts by author
                 const posts = await dashClient.queryPosts({
