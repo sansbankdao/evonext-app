@@ -177,9 +177,9 @@ function FeedPage() {
     }, [
         network,
         postsState,
-        // postsState.setLoading,
-        // postsState.setError,
-        // postsState.setData,
+        postsState.setLoading,
+        postsState.setError,
+        postsState.setData,
         activeTab,
         user?.identityId,
     ])

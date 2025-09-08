@@ -89,6 +89,7 @@ const transferKey = derive_key_from_seed_with_path(seedPhrase, undefined, transf
                         purpose: "AUTHENTICATION",
                         securityLevel: "MASTER",
                         privateKeyHex: masterKey.private_key_hex,
+                        privateKeyWif: authKey.private_key_wif,
                         readOnly: false
                     },
                     {
@@ -98,6 +99,7 @@ const transferKey = derive_key_from_seed_with_path(seedPhrase, undefined, transf
                         purpose: "AUTHENTICATION",
                         securityLevel: "HIGH",
                         privateKeyHex: authKey.private_key_hex,
+                        privateKeyWif: authKey.private_key_wif,
                         readOnly: false
                     },
                     {
@@ -109,6 +111,7 @@ const transferKey = derive_key_from_seed_with_path(seedPhrase, undefined, transf
                         // securityLevel: "CRITICAL",
                         securityLevel: "MEDIUM",
                         privateKeyHex: transferKey.private_key_hex,
+                        privateKeyWif: authKey.private_key_wif,
                         readOnly: false
                     }
                 ]
@@ -144,6 +147,17 @@ console.log('SIGNING (public) KEY', signingPublicKey)
                         return _pubkey.id === signingPublicKey.id
                     })
 console.log('SIGNING (private) KEY', signingPrivateKey)
+
+                    const seedPrivateKey = signingPrivateKey!.privateKeyWif
+
+                    try {
+                        await login(identityId, seedPrivateKey)
+                        // Navigation handled by auth context
+                    } catch (err) {
+                        setError(err instanceof Error ? err.message : 'Failed to login')
+                    } finally {
+                        setIsLoading(false)
+                    }
                 }
             }
         }, 0)
