@@ -137,7 +137,8 @@ export function UsernameModal({
 
         try {
             // Get the private key from session storage
-            const privateKey = sessionStorage.getItem('evonext_pk')
+            const { getPrivateKey } = await import('@/lib/secure-storage')
+            const privateKey = getPrivateKey(currentIdentityId)
 
             if (!privateKey) {
                 throw new Error('Authentication required. Please log in again.')

@@ -59,7 +59,9 @@ function CreateProfilePage() {
         }
 
         // Check if private key is in session storage
-        const storedPrivateKey = sessionStorage.getItem('evonext_pk')
+        // const storedPrivateKey = sessionStorage.getItem('evonext_pk')
+        const { getPrivateKey } = await import('@/lib/secure-storage')
+        const storedPrivateKey = getPrivateKey(user!.identityId)
 
         if (!storedPrivateKey && !privateKey) {
             setShowPrivateKeyInput(true)
@@ -69,9 +71,9 @@ function CreateProfilePage() {
         }
 
         // If private key was entered, store it
-        if (privateKey && !storedPrivateKey) {
-            sessionStorage.setItem('evonext_pk', privateKey)
-        }
+        // if (privateKey && !storedPrivateKey) {
+        //     sessionStorage.setItem('evonext_pk', privateKey)
+        // }
 
         setIsSubmitting(true)
 
@@ -259,7 +261,7 @@ function CreateProfilePage() {
                             Identity: {user?.identityId.slice(0, 8)}...
                         </p>
 
-                        {!sessionStorage.getItem('evonext_pk') && (
+                        {/* {!sessionStorage.getItem('evonext_pk') && (
                             <button
                                 type="button"
                                 onClick={() => setShowPrivateKeyInput(!showPrivateKeyInput)}
@@ -267,7 +269,7 @@ function CreateProfilePage() {
                             >
                                 {showPrivateKeyInput ? 'Hide' : 'Need to enter'} private key?
                             </button>
-                        )}
+                        )} */}
                     </div>
                 </div>
             </div>

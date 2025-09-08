@@ -59,7 +59,11 @@ interface AuthContextType {
     user: AuthUser | null
     isLoading: boolean
     error: string | null
-    login: (identityId: string, privateKey: string, skipUsernameCheck?: boolean) => Promise<void>
+    login: (
+        identityId: string,
+        privateKey: string,
+        skipUsernameCheck?: boolean,
+    ) => Promise<void>
     logout: () => void
     updateDPNSUsername: (username: string) => void
 }

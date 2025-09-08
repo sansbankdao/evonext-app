@@ -1,6 +1,10 @@
 /* Import modules. */
 import { getWasmSdk } from './wasm-sdk-service'
-import { get_documents, get_document, get_document_with_proof_info } from '../dash-wasm/wasm_sdk'
+import {
+    get_documents,
+    get_document,
+    get_document_with_proof_info,
+} from '../dash-wasm/wasm_sdk'
 import { stateTransitionService } from './state-transition-service'
 
 export interface QueryOptions {

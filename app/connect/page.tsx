@@ -2,18 +2,25 @@
 
 import { ChangeEvent, useState, ClipboardEvent } from 'react'
 import { useAuth } from '@/contexts/auth-context'
+import { useNetwork } from '@/contexts/network-context'
 import { Button } from '@/components/ui/button'
 import { useRouter } from 'next/navigation'
+import {
+    derive_key_from_seed_with_path,
+    mnemonic_to_seed,
+    validate_mnemonic,
+} from '@/lib/dash-wasm/wasm_sdk'
 
 export default function LoginPage() {
+    const router = useRouter()
+    const { login } = useAuth()
+    const { network } = useNetwork()
     const [identityId, setIdentityId] = useState('')
     const [privateKey, setPrivateKey] = useState('')
     const [isLoading, setIsLoading] = useState(false)
     const [hasIdentityPrivateKey, setHasIdentityPrivateKey] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [seedWords, setSeedWords] = useState(Array(12).fill(''))
-    const { login } = useAuth()
-    const router = useRouter()
 
     const onInputChange = (e: ChangeEvent<HTMLInputElement>, idx: number) => {
         const newWords = [...seedWords]
@@ -46,7 +53,66 @@ console.log('PASTE DETECTED')
             const emptyValuesNeeded = ((splitWords.length > 12) ? 24 : 12) - splitWords.length
             const emptyValues = Array(emptyValuesNeeded).fill('')
             const finalWords = [ ...splitWords, ...emptyValues ]
+console.log('FINAL MENMONIC', finalWords)
             setSeedWords(finalWords)
+
+            const seedPhrase = finalWords.join(' ')
+            const identityIndex = 0
+            const currentNetwork = (network === 'mainnet' ? 'mainnet' : 'testnet') as 'mainnet' | 'testnet'
+console.log('CURRENT NETWORK', currentNetwork)
+            const isValid = validate_mnemonic(seedPhrase)
+console.log('MNEMONIC VALID', isValid)
+
+            if (isValid) {
+                const seed = mnemonic_to_seed(seedPhrase)
+    console.log('MNEMONIC SEED', seed)
+
+const masterKeyPath = `m/9'/${currentNetwork === 'mainnet' ? 5 : 1}'/5'/0'/0'/${identityIndex}'/0'`;
+const masterKey = derive_key_from_seed_with_path(seedPhrase, undefined, masterKeyPath, currentNetwork);
+console.log('Master key object:', masterKey);
+console.log('Master key fields:', Object.keys(masterKey || {}));
+
+// Additional authentication key (high security)
+const authKeyPath = `m/9'/${currentNetwork === 'mainnet' ? 5 : 1}'/5'/0'/0'/${identityIndex}'/1'`;
+const authKey = derive_key_from_seed_with_path(seedPhrase, undefined, authKeyPath, currentNetwork);
+
+// Transfer key (critical security)
+const transferKeyPath = `m/9'/${currentNetwork === 'mainnet' ? 5 : 1}'/5'/0'/0'/${identityIndex}'/2'`;
+const transferKey = derive_key_from_seed_with_path(seedPhrase, undefined, transferKeyPath, currentNetwork);
+
+                const publicKeys = [
+                    {
+                        id: 0,
+                        keyType: "ECDSA_HASH160",
+                        // keyType: "ECDSA_SECP256K1",
+                        purpose: "AUTHENTICATION",
+                        securityLevel: "MASTER",
+                        privateKeyHex: masterKey.private_key_hex,
+                        readOnly: false
+                    },
+                    {
+                        id: 1,
+                        keyType: "ECDSA_HASH160",
+                        // keyType: "ECDSA_SECP256K1",
+                        purpose: "AUTHENTICATION",
+                        securityLevel: "HIGH",
+                        privateKeyHex: authKey.private_key_hex,
+                        readOnly: false
+                    },
+                    {
+                        id: 2,
+                        keyType: "ECDSA_HASH160",
+                        // keyType: "ECDSA_SECP256K1",
+                        // purpose: "TRANSFER",
+                        purpose: "ENCRYPTION",
+                        // securityLevel: "CRITICAL",
+                        securityLevel: "MEDIUM",
+                        privateKeyHex: transferKey.private_key_hex,
+                        readOnly: false
+                    }
+                ]
+console.log('CONNECT PUBLIC KEYS', publicKeys)
+            }
         }, 0)
     }
 

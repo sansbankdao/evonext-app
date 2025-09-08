@@ -1,6 +1,6 @@
 {
-  "name": "evonext",
-  "version": "25.9.5",
+  "name": "evonext-app",
+  "version": "25.9.8",
   "license": "MIT",
   "scripts": {
     "dev": "next dev",
@@ -11,6 +11,8 @@
   "dependencies": {
     "@headlessui/react": "1.7.18",
     "@heroicons/react": "2.1.1",
+    "@nexajs/crypto": "24.9.5",
+    "@nexajs/utils": "24.7.15",
     "@radix-ui/react-avatar": "1.0.4",
     "@radix-ui/react-dialog": "1.0.5",
     "@radix-ui/react-dropdown-menu": "2.0.6",

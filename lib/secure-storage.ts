@@ -138,7 +138,11 @@ if (typeof window !== 'undefined') {
 export default secureStorage
 
 // Helper functions for common use cases
-export const storePrivateKey = (identityId: string, privateKey: string, ttlMs: number = 3600000) => {
+export const storePrivateKey = (
+    identityId: string,
+    privateKey: string,
+    ttlMs: number = 3600000
+) => {
     secureStorage.set(`pk_${identityId}`, privateKey, ttlMs) // 1 hour default TTL
 }
 

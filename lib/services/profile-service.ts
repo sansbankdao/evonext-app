@@ -71,7 +71,15 @@ class ProfileService extends BaseDocumentService<User> {
             }
 
             console.log(`Querying ${this.documentType} documents:`, query)
-
+console.log('DEFAUT PROFILE', {
+    contractId: this.contractId,
+    documentType: this.documentType,
+    'query.where': query.where || null,
+    'query.orderBy': query.orderBy || null,
+    'query.limit': query.limit || 25,
+    'query.startAfter': query.startAfter || null,
+    'query.startAt': query.startAt || null,
+})
             const response = await get_documents(
                 sdk,
                 this.contractId,
