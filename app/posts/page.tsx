@@ -39,11 +39,11 @@ const getContractId = (_network: string) => {
 }
 
 function FeedPage() {
+    const { user } = useAuth()
     const { network } = useNetwork()
     const [activeTab, setActiveTab] = useState('for-you')
     const [isHydrated, setIsHydrated] = useState(false)
     const { setComposeOpen } = useAppStore()
-    const { user } = useAuth()
     const postsState = useAsyncState<any[]>([])
 
     // Prevent hydration mismatches
@@ -186,7 +186,7 @@ function FeedPage() {
 
     // Load posts on mount, tab change, and listen for new posts
     useEffect(() => {
-        loadPosts()
+        // loadPosts()
 
         // Listen for new posts created
         const handlePostCreated = () => {
