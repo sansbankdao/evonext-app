@@ -141,7 +141,7 @@ console.log('IDENTITY ID', identityId)
 
                     const regPubKeys = identity[0].publicKeys
 
-                    const signingPublicKey = regPubKeys.find(_pubkey => {
+                    const signingPublicKey = regPubKeys.find((_pubkey: any) => {
                         return _pubkey.purpose === 0 && (_pubkey.securityLevel === 1 || _pubkey.securityLevel === 2)
                     })
 console.log('SIGNING (public) KEY', signingPublicKey)
