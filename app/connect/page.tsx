@@ -5,11 +5,14 @@ import { useAuth } from '@/contexts/auth-context'
 import { useNetwork } from '@/contexts/network-context'
 import { Button } from '@/components/ui/button'
 import { useRouter } from 'next/navigation'
+import { wasmSdkService } from '@/lib/services/wasm-sdk-service'
 import {
     derive_key_from_seed_with_path,
-    mnemonic_to_seed,
+    get_identity_by_non_unique_public_key_hash,
     validate_mnemonic,
 } from '@/lib/dash-wasm/wasm_sdk'
+import { hash160 } from '@nexajs/crypto'
+import { binToHex, hexToBin } from '@nexajs/utils'
 
 export default function LoginPage() {
     const router = useRouter()
@@ -42,7 +45,7 @@ console.log('PASTE DETECTED')
         const splitWords = clipboard.split(' ')
 
         /* Wait a tick. */
-        setTimeout(() => {
+        setTimeout(async () => {
             /* Handle pasting seed words into individual fields. */
             // for (let i = 0; i < splitWords.length; i++) {
             //     if (splitWords[i] !== '') {
@@ -63,10 +66,8 @@ console.log('CURRENT NETWORK', currentNetwork)
             const isValid = validate_mnemonic(seedPhrase)
 console.log('MNEMONIC VALID', isValid)
 
+            /* Validate mnemonic. */
             if (isValid) {
-                const seed = mnemonic_to_seed(seedPhrase)
-    console.log('MNEMONIC SEED', seed)
-
 const masterKeyPath = `m/9'/${currentNetwork === 'mainnet' ? 5 : 1}'/5'/0'/0'/${identityIndex}'/0'`;
 const masterKey = derive_key_from_seed_with_path(seedPhrase, undefined, masterKeyPath, currentNetwork);
 console.log('Master key object:', masterKey);
@@ -112,6 +113,38 @@ const transferKey = derive_key_from_seed_with_path(seedPhrase, undefined, transf
                     }
                 ]
 console.log('CONNECT PUBLIC KEYS', publicKeys)
+
+                const publicKey = masterKey.public_key
+console.log('PUBLIC KEY', publicKey)
+
+                const publicKeyHash = binToHex(hash160(hexToBin(publicKey)))
+console.log('PUBLIC KEY HASH', publicKeyHash)
+
+                const sdk = await wasmSdkService.getSdk()
+                const identity = await get_identity_by_non_unique_public_key_hash(
+                    sdk,
+                    publicKeyHash,
+                    undefined
+                )
+                    .catch(err => console.error(err))
+console.log('FOUND IDENTITY (from seed)', identity)
+
+                if (identity) {
+                    const identityId = identity[0].id
+console.log('IDENTITY ID', identityId)
+
+                    const regPubKeys = identity[0].publicKeys
+
+                    const signingPublicKey = regPubKeys.find(_pubkey => {
+                        return _pubkey.purpose === 0 && (_pubkey.securityLevel === 1 || _pubkey.securityLevel === 2)
+                    })
+console.log('SIGNING (public) KEY', signingPublicKey)
+
+                    const signingPrivateKey = publicKeys.find(_pubkey => {
+                        return _pubkey.id === signingPublicKey.id
+                    })
+console.log('SIGNING (private) KEY', signingPrivateKey)
+                }
             }
         }, 0)
     }
