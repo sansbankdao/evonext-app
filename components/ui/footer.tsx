@@ -6,6 +6,7 @@ import {
     MagnifyingGlassIcon,
     RssIcon,
     SparklesIcon,
+    WalletIcon,
 } from '@heroicons/react/24/outline'
 import { useAuth } from '@/contexts/auth-context'
 
@@ -22,6 +23,13 @@ export function Footer() {
                     </span>
                 </Link>
 
+                <Link href="/remix" className="group w-full flex flex-col justify-center items-center bg-stone-700 hover:bg-stone-200">
+                    <SparklesIcon className="mt-0.5 h-5 text-fuchsia-100 font-bold text-lg tracking-wider uppercase group-hover:text-fuchsia-900" />
+                    <span className="uppercase text-xs font-medium text-fuchsia-300 tracking-wider group-hover:text-fuchsia-900">
+                        remix
+                    </span>
+                </Link>
+
                 <Link href="/explore" className="group w-full flex flex-col justify-center items-center bg-stone-700 hover:bg-stone-200">
                     <MagnifyingGlassIcon className="mt-0.5 h-5 text-fuchsia-100 font-bold text-lg tracking-wider uppercase group-hover:text-fuchsia-900" />
                     <span className="uppercase text-xs font-medium text-fuchsia-300 tracking-wider group-hover:text-fuchsia-900">
@@ -29,10 +37,10 @@ export function Footer() {
                     </span>
                 </Link>
 
-                <Link href="/remix" className="group w-full flex flex-col justify-center items-center bg-stone-700 hover:bg-stone-200">
-                    <SparklesIcon className="mt-0.5 h-5 text-fuchsia-100 font-bold text-lg tracking-wider uppercase group-hover:text-fuchsia-900" />
+                <Link href="/wallet" className="group w-full flex flex-col justify-center items-center bg-stone-700 hover:bg-stone-200">
+                    <WalletIcon className="mt-0.5 h-5 text-fuchsia-100 font-bold text-lg tracking-wider uppercase group-hover:text-fuchsia-900" />
                     <span className="uppercase text-xs font-medium text-fuchsia-300 tracking-wider group-hover:text-fuchsia-900">
-                        remix
+                        wallet
                     </span>
                 </Link>
             </footer>

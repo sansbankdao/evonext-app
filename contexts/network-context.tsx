@@ -38,7 +38,6 @@ export function NetworkProvider({ children }: { children: React.ReactNode }) {
                 console.error('NetworkProvider: Failed to initialize WASM SDK:', err)
                 setError(err instanceof Error ? err.message : 'Failed to initialize SDK')
             }
-console.log('***THIS IS WHERE WE HAVE COMPLETED NETWORK SETUP')
         }
 
         // Only initialize in browser
