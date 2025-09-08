@@ -173,7 +173,7 @@ export default function PublicHomePage() {
                         </h2>
 
                         <p className="text-lg/7 text-slate-600 dark:text-slate-400 sm:max-w-2xl mb-8 mx-auto tracking-wider text-pretty">
-                            Free Your Inhibitions ⛓️‍💥 Discover safe and enjoyable spaces to <span className="font-extrabold">Explore. Curate. Share YOUR Truth</span> Fearlessly 👼
+                            Free Your Inhibitions ⛓️‍💥 Discover safe and enjoyable spaces to <span className="font-extrabold">Explore. Curate. Share YOUR Truth</span> Fearlessly ✊
                             <span className="block">secured by Dash Platform v2 🛡️</span>
                         </p>
 
