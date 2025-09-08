@@ -11,7 +11,10 @@ import {
     get_identity_by_non_unique_public_key_hash,
     validate_mnemonic,
 } from '@/lib/dash-wasm/wasm_sdk'
+
+ // @ts-ignore
 import { hash160 } from '@nexajs/crypto'
+ // @ts-ignore
 import { binToHex, hexToBin } from '@nexajs/utils'
 
 export default function LoginPage() {
