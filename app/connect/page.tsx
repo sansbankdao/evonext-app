@@ -87,8 +87,8 @@ const transferKey = derive_key_from_seed_with_path(seedPhrase, undefined, transf
                 const publicKeys = [
                     {
                         id: 0,
-                        keyType: "ECDSA_HASH160",
-                        // keyType: "ECDSA_SECP256K1",
+                        // keyType: "ECDSA_HASH160",
+                        keyType: "ECDSA_SECP256K1",
                         purpose: "AUTHENTICATION",
                         securityLevel: "MASTER",
                         privateKeyHex: masterKey.private_key_hex,
@@ -97,8 +97,8 @@ const transferKey = derive_key_from_seed_with_path(seedPhrase, undefined, transf
                     },
                     {
                         id: 1,
-                        keyType: "ECDSA_HASH160",
-                        // keyType: "ECDSA_SECP256K1",
+                        // keyType: "ECDSA_HASH160",
+                        keyType: "ECDSA_SECP256K1",
                         purpose: "AUTHENTICATION",
                         securityLevel: "HIGH",
                         privateKeyHex: authKey.private_key_hex,
@@ -107,8 +107,8 @@ const transferKey = derive_key_from_seed_with_path(seedPhrase, undefined, transf
                     },
                     {
                         id: 2,
-                        keyType: "ECDSA_HASH160",
-                        // keyType: "ECDSA_SECP256K1",
+                        // keyType: "ECDSA_HASH160",
+                        keyType: "ECDSA_SECP256K1",
                         // purpose: "TRANSFER",
                         purpose: "ENCRYPTION",
                         // securityLevel: "CRITICAL",
