@@ -161,6 +161,8 @@ console.log('SIGNING (private) KEY', signingPrivateKey)
                     } finally {
                         setIsLoading(false)
                     }
+                } else {
+                    alert('Sorry, no Dash Platform Identity was found. Please create a NEW Identity + register your Username from our /claim page..')
                 }
             }
         }, 0)

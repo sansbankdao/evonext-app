@@ -70,7 +70,7 @@ console.log('***LOADING POSTS-1')
             const cacheKey = activeTab === 'your-posts' && user?.identityId
                 ? `feed_your_posts_${user.identityId}`
                 : `feed_${activeTab}`
-console.log('***LOADING POSTS-2')
+console.log('***LOADING POSTS-2', forceRefresh)
             // Check cache first unless force refresh
             if (!forceRefresh) {
                 const cached = cacheManager.get<any[]>('feed', cacheKey)
@@ -98,7 +98,7 @@ console.log('***LOADING POSTS-3')
                 // For "For You" and "Trending", get all posts
                 console.log('Feed: Loading all posts for:', activeTab)
             }
-
+console.log('***LOADING POSTS-4')
             const posts = await dashClient.queryPosts(queryOptions)
 
             console.log('Feed: Raw posts from platform:', posts)
