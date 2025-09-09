@@ -70,8 +70,7 @@ export function ComposeModal() {
 
             // Use retry logic for post creation
             const result = await retryPostCreation(async () => {
-                const dashClient = getDashPlatformClient(
-                    network!, getContractId(network!))
+                const dashClient = getDashPlatformClient(getContractId(network!))
 
                 return await dashClient.createPost(postContent, {
                     replyToPostId: replyingTo?.id

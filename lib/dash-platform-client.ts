@@ -16,9 +16,40 @@ interface NetworkContextType {
     error: string | null;
 }
 
+/**
+ * Get Network
+ *
+ * Returns the currently active network:
+ *   - mainnet
+ *   - testnet
+ *   - localhost (NOT YET SUPPORTED)
+ * @returns
+ */
+const getNetwork = () => {
+    /* Set host. */
+    const host = window.location.host
+
+    /* Initialize locals. */
+    let network
+
+    /* Handle host. */
+// FIXME Handle mainnet for localhost and IPFS.
+    switch(host) {
+    case 'evonext.app':
+        network = 'mainnet'
+        break
+    default:
+        network = 'testnet'
+        break
+    }
+
+    /* Return network. */
+    return network
+}
+
 export class DashPlatformClient {
     private sdk: any = null
-    private network: string | null = null
+    // private network: string | null = null
     private contractId: string | null = null
     private identityId: string | null = null
     private isInitializing: boolean = false
@@ -26,11 +57,9 @@ export class DashPlatformClient {
     private readonly CACHE_TTL = 30000 // 30 seconds for posts cache
     private pendingQueries: Map<string, Promise<any[]>> = new Map() // Prevent duplicate queries
 
-    constructor(_network: string, _contractId: string) {
-console.log('DPC CONSTRUCTING (network)', _network)
+    constructor(_contractId: string) {
 console.log('DPC CONSTRUCTING (contract ID)', _contractId)
         // SDK will be initialized on first use
-        this.network = _network
         this.contractId = _contractId
     }
 
@@ -52,9 +81,9 @@ console.log('DPC CONSTRUCTING (contract ID)', _contractId)
 
         try {
             // Use the centralized WASM service
-            const localNetwork = (this.network as 'mainnet' | 'testnet')  || 'testnet'
+            const localNetwork = (getNetwork() as 'mainnet' | 'testnet')  || 'testnet'
 console.log('CONTRACT ID', this.contractId)
-            console.log('DashPlatformClient: Initializing via WasmSdkService for network:', this.network)
+            console.log('DashPlatformClient: Initializing via WasmSdkService for network:', getNetwork())
 
             // Initialize the WASM SDK service if not already done
             await wasmSdkService.initialize({
@@ -263,7 +292,7 @@ console.log('DOCUMENT CREATE', {
      * Get user profile
      */
     async getUserProfile(
-        network: string,
+        // network: string,
         contractId: string,
         identityId: string,
     ) {
@@ -509,11 +538,11 @@ console.log('DOCUMENT CREATE', {
 let dashClient: DashPlatformClient | null = null
 
 export function getDashPlatformClient(
-    _network: string,
+    // _network: string,
     _contractId: string,
 ): DashPlatformClient {
     if (!dashClient) {
-        dashClient = new DashPlatformClient(_network, _contractId)
+        dashClient = new DashPlatformClient(_contractId)
     }
 
     return dashClient

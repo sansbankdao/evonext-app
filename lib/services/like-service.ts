@@ -11,8 +11,8 @@ export interface LikeDocument {
 }
 
 class LikeService extends BaseDocumentService<LikeDocument> {
-    constructor(_network: string, _contractId: string | undefined) {
-        super(_network, _contractId, 'like')
+    constructor(_contractId: string | undefined) {
+        super(_contractId, 'like')
     }
 
     /**
@@ -136,7 +136,7 @@ console.log('EXISTING LIKE', like)
             const bs58 = bs58Module.default
 
             // Get SDK instance
-            const dashClient = getDashPlatformClient(this.network, this.contractId)
+            const dashClient = getDashPlatformClient(this.contractId)
 
             await dashClient.ensureInitialized()
 
@@ -200,8 +200,7 @@ console.log('GET LIKE (response)', response)
             const bs58 = bs58Module.default
 
             // Get SDK instance
-            const dashClient = getDashPlatformClient(
-                this.network, this.contractId)
+            const dashClient = getDashPlatformClient(this.contractId)
 
             await dashClient.ensureInitialized()
 
@@ -288,4 +287,4 @@ console.log('GET LIKE (response)', response)
 }
 
 // Singleton instance
-export const likeService = new LikeService('', undefined)
+export const likeService = new LikeService(undefined)

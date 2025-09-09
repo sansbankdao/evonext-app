@@ -58,6 +58,7 @@ const getNetwork = () => {
     /* Return network. */
     return network
 }
+
 export interface PostDocument {
     $id: string;
     $ownerId: string;

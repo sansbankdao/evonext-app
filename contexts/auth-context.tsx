@@ -132,8 +132,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         const { getDashPlatformClient } = await import('@/lib/dash-platform-client')
 
                         /* Request Dash Platform client. */
-                        const dashClient = getDashPlatformClient(
-                            network!, getContractId(network!))
+                        const dashClient = getDashPlatformClient(getContractId(network!))
 
                         /* Set identity to saved user ID. */
                         dashClient.setIdentity(savedUser.identityId)
@@ -287,7 +286,7 @@ console.log('AUTH CONTEXT (identityData)', identityData)
             // Set identity in DashPlatformClient for document operations
             try {
                 const { getDashPlatformClient } = await import('@/lib/dash-platform-client')
-                const dashClient = getDashPlatformClient(network!, contractId)
+                const dashClient = getDashPlatformClient(contractId)
 
                 dashClient.setIdentity(identityId)
             } catch (err) {
@@ -346,7 +345,7 @@ console.log('AUTH CONTEXT (identityData)', identityData)
 
         // Clear DashPlatformClient identity
         import('@/lib/dash-platform-client').then(({ getDashPlatformClient }) => {
-            const dashClient = getDashPlatformClient(network!, getContractId(network!))
+            const dashClient = getDashPlatformClient(getContractId(network!))
             dashClient.setIdentity('')
         })
 

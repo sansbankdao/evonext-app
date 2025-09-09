@@ -24,7 +24,7 @@ import {
     EVONEXT_CONTRACT_ID_TESTNET,
 } from '@/lib/constants'
 
-const getContractId = (_network: string) => {
+const getContractId = (_network: string): any => {
     /* Initialize locals. */
     let contractId
 
@@ -64,7 +64,7 @@ console.log('***LOADING POSTS-1')
 // return
         try {
             console.log('Feed: Loading posts from Dash Platform...')
-            const dashClient = getDashPlatformClient(network!, getContractId(network!))
+            const dashClient = getDashPlatformClient(getContractId(network!))
 
             // Cache key based on active tab and user
             const cacheKey = activeTab === 'your-posts' && user?.identityId

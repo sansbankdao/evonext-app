@@ -10,8 +10,8 @@ export interface FollowDocument {
 }
 
 class FollowService extends BaseDocumentService<FollowDocument> {
-    constructor(_network: string, _contractId: string | undefined) {
-        super(_network, _contractId, 'follow')
+    constructor(_contractId: string | undefined) {
+        super(_contractId, 'follow')
     }
 
     /**
@@ -235,4 +235,4 @@ class FollowService extends BaseDocumentService<FollowDocument> {
 }
 
 // Singleton instance
-export const followService = new FollowService('', undefined)
+export const followService = new FollowService(undefined)
