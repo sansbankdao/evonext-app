@@ -191,7 +191,7 @@ console.log('***LOADING POSTS-4')
         // Listen for new posts created
         const handlePostCreated = () => {
 console.log('***LOADING POSTS-CREATE-REMOVE')
-            loadPosts(true) // Force refresh when new post is created
+            // loadPosts(true) // Force refresh when new post is created
         }
 
         window.addEventListener('post-created', handlePostCreated)

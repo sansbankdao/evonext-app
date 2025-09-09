@@ -15,6 +15,30 @@ import { generateAvatarV2 } from '@/lib/avatar-generator-v2'
 import { Button } from '@/components/ui/button'
 import { formatNumber } from '@/lib/utils'
 import { AlsoKnownAs } from '@/components/ui/also-known-as'
+import {
+    EVONEXT_CONTRACT_ID_MAINNET,
+    EVONEXT_CONTRACT_ID_TESTNET,
+} from '@/lib/constants'
+
+/**
+ * Get Contract ID
+ *
+ * @param _network
+ * @returns
+ */
+const getContractId = (_network: string) => {
+    /* Initialize locals. */
+    let contractId
+
+    /* Handle network. */
+    if (_network === 'mainnet') {
+        contractId = EVONEXT_CONTRACT_ID_MAINNET
+    } else {
+        contractId = EVONEXT_CONTRACT_ID_TESTNET
+    }
+
+    return contractId
+}
 
 interface Follower {
     id: string
@@ -111,8 +135,9 @@ function FollowersPage() {
                     }
                 })),
 
+                const ps = new profileService(getContractId(network!))
                 // Fetch EvoNext profiles
-                profileService.getProfilesByIdentityIds(identityIds)
+                profileService.ps(identityIds)
             ])
 
             // Check if we follow them back
