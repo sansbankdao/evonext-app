@@ -12,8 +12,8 @@ export class DPNSService {
     private cache: Map<string, { value: any; timestamp: number }> = new Map()
     private readonly CACHE_TTL = 5 * 60 * 1000 // 5 minutes
 
-    constructor(_network: string, _contractId: string) {
-        this.dashClient = getDashPlatformClient(_network, _contractId)
+    constructor(_contractId: string) {
+        this.dashClient = getDashPlatformClient(_contractId)
     }
 
     /**
@@ -415,12 +415,9 @@ export class DPNSService {
 // Singleton instance
 let dpnsService: DPNSService | null = null
 
-export function getDPNSService(
-    _network: string,
-    _contract: string,
-): DPNSService {
+export function getDPNSService(_contract: string): DPNSService {
     if (!dpnsService) {
-        dpnsService = new DPNSService(_network, _contract)
+        dpnsService = new DPNSService(_contract)
     }
 
     return dpnsService
