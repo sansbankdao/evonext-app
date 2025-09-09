@@ -309,7 +309,8 @@ console.log('AUTH CONTEXT (identityData)', identityData)
             // Then check if user has a profile
             console.log('Checking for user profile...')
             const { profileService } = await import('@/lib/services/profile-service')
-            const profile = await profileService.getProfile(identityId, authUser.dpnsUsername)
+            const ps = new profileService(getContractId(network!))
+            const profile = await ps.getProfile(identityId, authUser.dpnsUsername)
 
             if (profile) {
                 console.log('Profile found, redirecting to home...')

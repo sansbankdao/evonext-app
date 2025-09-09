@@ -6,12 +6,38 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { withAuth, useAuth } from '@/contexts/auth-context'
+import { useNetwork } from '@/contexts/network-context'
 import toast from 'react-hot-toast'
 import { Loader2 } from 'lucide-react'
+import {
+    EVONEXT_CONTRACT_ID_MAINNET,
+    EVONEXT_CONTRACT_ID_TESTNET,
+} from '@/lib/constants'
+
+/**
+ * Get Contract ID
+ *
+ * @param _network
+ * @returns
+ */
+const getContractId = (_network: string) => {
+    /* Initialize locals. */
+    let contractId
+
+    /* Handle network. */
+    if (_network === 'mainnet') {
+        contractId = EVONEXT_CONTRACT_ID_MAINNET
+    } else {
+        contractId = EVONEXT_CONTRACT_ID_TESTNET
+    }
+
+    return contractId
+}
 
 function CreateProfilePage() {
     const router = useRouter()
     const { user, logout } = useAuth()
+    const { network } = useNetwork()
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [showPrivateKeyInput, setShowPrivateKeyInput] = useState(false)
     const [privateKey, setPrivateKey] = useState('')
@@ -31,7 +57,8 @@ function CreateProfilePage() {
 
             try {
                 const { profileService } = await import('@/lib/services/profile-service')
-                const existingProfile = await profileService.getProfile(user.identityId)
+                const ps = new profileService(getContractId(network!))
+                const existingProfile = await ps.getProfile(user.identityId)
 
                 if (existingProfile) {
                     toast.success('You already have a profile!')
@@ -88,7 +115,8 @@ function CreateProfilePage() {
             console.log('Creating profile with data:', formData)
 
             // Create the profile
-            await profileService.createProfile(
+            const ps = new profileService(getContractId(network!))
+            await ps.createProfile(
                 user.identityId,
                 formData.displayName,
                 formData.bio,

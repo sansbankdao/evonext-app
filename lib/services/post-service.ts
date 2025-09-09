@@ -32,8 +32,8 @@ export interface PostStats {
 class PostService extends BaseDocumentService<Post> {
     private statsCache: Map<string, { data: PostStats; timestamp: number }> = new Map()
 
-    constructor(_network: string, _contractId: string) {
-        super(_network, _contractId, 'post')
+    constructor(_contractId: string) {
+        super(_contractId, 'post')
     }
 
     /**
@@ -77,7 +77,8 @@ class PostService extends BaseDocumentService<Post> {
         try {
             // Get author information
             // const author = await profileService.getProfile(doc.$ownerId)
-            const author = await profileService.getProfile(doc.ownerId)
+            const ps = new profileService('')
+            const author = await ps.getProfile(doc.ownerId)
 
             if (author) {
                 post.author = author
@@ -328,4 +329,4 @@ class PostService extends BaseDocumentService<Post> {
 }
 
 // Singleton instance
-export const postService = new PostService('', '')
+export const postService = new PostService('')

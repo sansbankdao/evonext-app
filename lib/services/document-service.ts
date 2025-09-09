@@ -22,14 +22,18 @@ export interface DocumentResult<T> {
 }
 
 export abstract class BaseDocumentService<T> {
-    protected readonly network: string;
+    // protected readonly network: string;
     protected readonly contractId: string;
     protected readonly documentType: string;
     protected cache: Map<string, { data: T; timestamp: number }> = new Map();
     protected readonly CACHE_TTL = 30000; // 30 seconds cache
 
-    constructor(_network: string, _contractId: string | undefined, _documentType: string) {
-        this.network = _network!;
+    constructor(
+        // _network: string,
+        _contractId: string | undefined,
+        _documentType: string,
+    ) {
+        // this.network = _network!;
         this.contractId = _contractId!;
         this.documentType = _documentType;
     }
@@ -37,7 +41,9 @@ export abstract class BaseDocumentService<T> {
     /**
      * Query documents
      */
-    async query(options: QueryOptions = {}): Promise<DocumentResult<T>> {
+    async query(
+        options: QueryOptions = {}
+    ): Promise<DocumentResult<T>> {
         try {
             const sdk = await getWasmSdk()
 

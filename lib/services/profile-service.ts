@@ -1,5 +1,9 @@
 /* Import modules. */
-import { BaseDocumentService, QueryOptions, DocumentResult } from './document-service'
+import {
+    BaseDocumentService,
+    QueryOptions,
+    DocumentResult,
+} from './document-service'
 import { User } from '../types'
 import { dpnsService } from './dpns-service'
 import { cacheManager } from '../cache-manager'
@@ -33,10 +37,9 @@ class ProfileService extends BaseDocumentService<User> {
     private readonly USERNAME_CACHE = 'usernames'
     private readonly PROFILE_CACHE = 'profiles'
 
-    constructor(_network: string, _contractId: string) {
-console.log('CONTRUCT PROFILE SERVICE (network)', _network)
+    constructor(_contractId: string) {
 console.log('CONTRUCT PROFILE SERVICE (contractId)', _contractId)
-        super(_network, _contractId, 'profile')
+        super(_contractId, 'profile')
     }
 
     private cachedUsername?: string;
@@ -44,7 +47,9 @@ console.log('CONTRUCT PROFILE SERVICE (contractId)', _contractId)
     /**
      * Override query to handle cached username
      */
-    async query(options: QueryOptions = {}): Promise<DocumentResult<User>> {
+    async query(
+        options: QueryOptions = {}
+    ): Promise<DocumentResult<User>> {
         try {
             const sdk = await getWasmSdk()
 
@@ -173,7 +178,11 @@ console.log('DEFAUT PROFILE', {
     /**
      * Enrich user with async data
      */
-    private async enrichUser(user: User, doc: ProfileDocument, skipUsernameResolution?: boolean): Promise<void> {
+    private async enrichUser(
+        user: User,
+        doc: ProfileDocument,
+        skipUsernameResolution?: boolean,
+    ): Promise<void> {
         try {
             // Get username from DPNS if not already set and not skipped
 
@@ -206,7 +215,10 @@ console.log('DEFAUT PROFILE', {
     /**
      * Get profile by owner ID
      */
-    async getProfile(ownerId: string, cachedUsername?: string): Promise<User | null> {
+    async getProfile(
+        ownerId: string,
+        cachedUsername?: string,
+    ): Promise<User | null> {
         try {
             console.log('ProfileService: Getting profile for owner ID:', ownerId);
 
@@ -600,7 +612,8 @@ console.log('GET PROFILE', profile)
 }
 
 // Singleton instance
-export const profileService = new ProfileService('', '')
+// export const profileService = new ProfileService('', '')
+export const profileService = ProfileService
 
 // Import at the bottom to avoid circular dependency
 import { getWasmSdk } from './wasm-sdk-service'

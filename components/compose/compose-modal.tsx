@@ -88,9 +88,9 @@ export function ComposeModal() {
                 setReplyingTo(null)
 
                 // Trigger feed refresh if possible
-                window.dispatchEvent(new CustomEvent('post-created', {
-                    detail: { post: result.data }
-                }))
+                // window.dispatchEvent(new CustomEvent('post-created', {
+                //     detail: { post: result.data }
+                // }))
             } else {
                 throw result.error || new Error('Post creation failed')
             }
