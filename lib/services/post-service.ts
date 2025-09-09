@@ -3,7 +3,61 @@ import { BaseDocumentService, QueryOptions, DocumentResult } from './document-se
 import { Post, User } from '../types'
 import { identityService } from './identity-service'
 import { profileService } from './profile-service'
+import {
+    EVONEXT_CONTRACT_ID_MAINNET,
+    EVONEXT_CONTRACT_ID_TESTNET,
+} from '@/lib/constants'
 
+/**
+ * Get Contract ID
+ *
+ * @param _network
+ * @returns
+ */
+const getContractId = (_network: string) => {
+    /* Initialize locals. */
+    let contractId
+
+    /* Handle network. */
+    if (_network === 'mainnet') {
+        contractId = EVONEXT_CONTRACT_ID_MAINNET
+    } else {
+        contractId = EVONEXT_CONTRACT_ID_TESTNET
+    }
+
+    return contractId
+}
+
+/**
+ * Get Network
+ *
+ * Returns the currently active network:
+ *   - mainnet
+ *   - testnet
+ *   - localhost (NOT YET SUPPORTED)
+ * @returns
+ */
+const getNetwork = () => {
+    /* Set host. */
+    const host = window.location.host
+
+    /* Initialize locals. */
+    let network
+
+    /* Handle host. */
+// FIXME Handle mainnet for localhost and IPFS.
+    switch(host) {
+    case 'evonext.app':
+        network = 'mainnet'
+        break
+    default:
+        network = 'testnet'
+        break
+    }
+
+    /* Return network. */
+    return network
+}
 export interface PostDocument {
     $id: string;
     $ownerId: string;
@@ -77,7 +131,7 @@ class PostService extends BaseDocumentService<Post> {
         try {
             // Get author information
             // const author = await profileService.getProfile(doc.$ownerId)
-            const ps = new profileService('')
+            const ps = new profileService(getContractId(getNetwork()))
             const author = await ps.getProfile(doc.ownerId)
 
             if (author) {

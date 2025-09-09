@@ -80,7 +80,8 @@ export default function TestCreatePage() {
             //     profileName,
             //     profileBio
             // )
-            const profile = await profileService.updateProfile(
+            const ps = new profileService(EVONEXT_CONTRACT_ID_TESTNET)
+            const profile = await ps.updateProfile(
                 identityId,
                 {
                     displayName: profileName,

@@ -59,9 +59,9 @@ function FeedPage() {
         // Use the setter functions directly, not the whole postsState object
         const { setLoading, setError, setData } = postsState
 console.log('***LOADING POSTS-1')
-        setLoading(true)
-        setError(null)
-
+        // setLoading(true)
+        // setError(null)
+// return
         try {
             console.log('Feed: Loading posts from Dash Platform...')
             const dashClient = getDashPlatformClient(network!, getContractId(network!))
@@ -74,11 +74,11 @@ console.log('***LOADING POSTS-2', forceRefresh)
             // Check cache first unless force refresh
             if (!forceRefresh) {
                 const cached = cacheManager.get<any[]>('feed', cacheKey)
-
+console.log('***CACHED', cached)
                 if (cached) {
                     console.log('Feed: Using cached data')
-                    setData(cached)
-                    setLoading(false)
+                    // setData(cached)
+                    // setLoading(false)
 
                     return
                 }
@@ -99,8 +99,8 @@ console.log('***LOADING POSTS-3')
                 console.log('Feed: Loading all posts for:', activeTab)
             }
 console.log('***LOADING POSTS-4')
-            const posts = await dashClient.queryPosts(queryOptions)
 
+            const posts = await dashClient.queryPosts(queryOptions)
             console.log('Feed: Raw posts from platform:', posts)
 
             // Transform posts to match our UI format
@@ -140,11 +140,11 @@ console.log('***LOADING POSTS-4')
 
                 return dateB - dateA // Newest first
             })
-
+console.log('SORTED POSTS', sortedPosts)
             // If no posts found, show helpful message but don't error
             if (sortedPosts.length === 0) {
                 console.log('Feed: No posts found on platform')
-                setData([])
+                // setData([])
             } else {
                 // Cache the results
                 const cacheKey = activeTab === 'your-posts' && user?.identityId
@@ -164,7 +164,7 @@ console.log('***LOADING POSTS-4')
             console.log('Feed: Falling back to empty state due to error:', errorMessage)
 
             // Set empty data instead of showing error to user
-            setData([])
+            // setData([])
 
             // Only show error to user if it's a critical issue
             if (errorMessage.includes('Contract ID not configured') ||
@@ -172,14 +172,14 @@ console.log('***LOADING POSTS-4')
                 setError(errorMessage)
             }
         } finally {
-            setLoading(false)
+            // setLoading(false)
         }
     }, [
         network,
         postsState,
-        postsState.setLoading,
-        postsState.setError,
-        postsState.setData,
+        // postsState.setLoading,
+        // postsState.setError,
+        // postsState.setData,
         activeTab,
         user?.identityId,
     ])
@@ -296,7 +296,7 @@ console.log('***LOADING POSTS-CREATE-REMOVE')
                             loading={postsState.loading}
                             error={postsState.error}
                             isEmpty={!postsState.loading && postsState.data?.length === 0}
-                            onRetry={loadPosts}
+                            // onRetry={loadPosts}
                             loadingText="Loading posts..."
                             emptyText="No posts yet"
                             emptyDescription="Be the first to share something! Note: Dash Platform testnet may be temporarily unavailable."
