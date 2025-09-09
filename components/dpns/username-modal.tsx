@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useAuth } from '@/contexts/auth-context'
+import { useNetwork } from '@/contexts/network-context'
 import { useSdk } from '@/contexts/sdk-context'
 import { dpnsService } from '@/lib/services/dpns-service'
 import toast from 'react-hot-toast'
@@ -23,8 +24,11 @@ export function UsernameModal({
     customIdentityId: initialIdentityId,
 }: UsernameModalProps) {
     const router = useRouter()
+
     const { user, updateDPNSUsername } = useAuth()
+    const { network } = useNetwork()
     const { isReady: isSdkReady, error: sdkError } = useSdk()
+
     const [username, setUsername] = useState('')
     const [isChecking, setIsChecking] = useState(false)
     const [isAvailable, setIsAvailable] = useState<boolean | null>(null)
@@ -288,7 +292,8 @@ console.log('USERNAME MODAL (identity)', identity)
 
                 // Redirect to home or profile creation
                 const { profileService } = await import('@/lib/services/profile-service')
-                const profile = await profileService.getProfile(currentIdentityId, existingUsername)
+                const ps = new profileService(network!)
+                const profile = await ps.getProfile(currentIdentityId, existingUsername)
 
                 if (profile) {
                     router.push('/')
