@@ -82,10 +82,9 @@ function ProfilePage() {
                 setIsLoadingPosts(true)
 
                 const { getDashPlatformClient } = await import('@/lib/dash-platform-client')
-console.log('PROFILE NETOWRK IS', network)
 console.log('PROFILE CONTRACT ID', getContractId(network!))
 
-                const dashClient = getDashPlatformClient(network!, getContractId(network!))
+                const dashClient = getDashPlatformClient(getContractId(network!))
 
                 // Query posts by author
                 const posts = await dashClient.queryPosts({

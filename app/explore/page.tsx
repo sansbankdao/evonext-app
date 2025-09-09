@@ -54,9 +54,8 @@ export default function ExplorePage() {
                 setIsLoading(true)
 
                 const { getDashPlatformClient } = await import('@/lib/dash-platform-client')
-console.log('EXPLORE NETOWRK IS', network)
 console.log('EXPLORE CONTRACT ID', getContractId(network!))
-                const dashClient = getDashPlatformClient(network!, contractId)
+                const dashClient = getDashPlatformClient(contractId)
 
                 // Load recent posts (as trending)
                 const fetchedPosts = await dashClient.queryPosts({
@@ -100,7 +99,7 @@ console.log('EXPLORE CONTRACT ID', getContractId(network!))
         const searchPosts = async () => {
             try {
                 const { getDashPlatformClient } = await import('@/lib/dash-platform-client')
-                const dashClient = getDashPlatformClient(network!, getContractId(network!))
+                const dashClient = getDashPlatformClient(getContractId(network!))
 
                 // Simple content search - in production you'd want full-text search
                 const allPosts = await dashClient.queryPosts({ limit: 100 })
