@@ -135,7 +135,7 @@ console.log('PUBLIC KEY HASH', publicKeyHash)
                     .catch(err => console.error(err))
 console.log('FOUND IDENTITY (from seed)', identity)
 
-                if (identity) {
+                if (identity && identity.length > 0) {
                     const identityId = identity[0].id
 console.log('IDENTITY ID', identityId)
 
