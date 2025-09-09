@@ -34,6 +34,8 @@ class ProfileService extends BaseDocumentService<User> {
     private readonly PROFILE_CACHE = 'profiles'
 
     constructor(_network: string, _contractId: string) {
+console.log('CONTRUCT PROFILE SERVICE (network)', _network)
+console.log('CONTRUCT PROFILE SERVICE (contractId)', _contractId)
         super(_network, _contractId, 'profile')
     }
 
