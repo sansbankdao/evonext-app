@@ -1,12 +1,24 @@
 'use client'
 
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react'
+import React, {
+    createContext,
+    useContext,
+    useState,
+    useCallback,
+    useEffect,
+} from 'react'
 import { useRouter } from 'next/navigation'
 import {
     EVONEXT_CONTRACT_ID_MAINNET,
     EVONEXT_CONTRACT_ID_TESTNET,
 } from '@/lib/constants'
 
+/**
+ * Get Contract ID
+ *
+ * @param _network
+ * @returns
+ */
 const getContractId = (_network: string) => {
     /* Initialize locals. */
     let contractId
@@ -21,6 +33,15 @@ const getContractId = (_network: string) => {
     return contractId
 }
 
+/**
+ * Get Network
+ *
+ * Returns the currently active network:
+ *   - mainnet
+ *   - testnet
+ *   - localhost (NOT YET SUPPORTED)
+ * @returns
+ */
 const getNetwork = () => {
     /* Set host. */
     const host = window.location.host
@@ -72,6 +93,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
     const router = useRouter()
+
     const [user, setUser] = useState<AuthUser | null>(null)
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
@@ -81,26 +103,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         /* Request network. */
         const network = getNetwork()
 
+        /**
+         * Restore Session
+         *
+         * TBD
+         */
         const restoreSession = async () => {
+            /* Request (saved) session. */
             const savedSession = localStorage.getItem('evonext_session')
 
+            /* Validate (saved) session. */
             if (savedSession) {
                 try {
+                    /* Parse session data. */
                     const sessionData = JSON.parse(savedSession)
+
+                    /* Set saved user. */
                     const savedUser = sessionData.user
 
-                    // Set user immediately with cached data
+
+                    /* Save user (to store). */
                     setUser(savedUser)
 
                     // Set identity in DashPlatformClient for document operations
 
                     try {
+                        /* Import Dash Platform client. */
                         const { getDashPlatformClient } = await import('@/lib/dash-platform-client')
-console.log('AUTH RESTORE SESSION (network)', network)
-console.log('AUTH RESTORE SESSION (contract ID)', getContractId(network!))
 
-                        const dashClient = getDashPlatformClient(network!, getContractId(network!))
+                        /* Request Dash Platform client. */
+                        const dashClient = getDashPlatformClient(
+                            network!, getContractId(network!))
 
+                        /* Set identity to saved user ID. */
                         dashClient.setIdentity(savedUser.identityId)
                         console.log('Auth: DashPlatformClient identity restored from session')
                     } catch (err) {
@@ -111,25 +146,38 @@ console.log('AUTH RESTORE SESSION (contract ID)', getContractId(network!))
                     if (savedUser && !savedUser.dpnsUsername) {
                         console.log('Auth: Fetching DPNS username in background...')
 
+                        /* Import DPNS service. */
                         // Don't await - let it happen in background
-                        import('@/lib/services/dpns-service').then(async ({ dpnsService }) => {
-                            try {
-                                const dpnsUsername = await dpnsService.resolveUsername(savedUser.identityId)
+                        import('@/lib/services/dpns-service')
+                            .then(async ({ dpnsService }) => {
+                                try {
+                                    /* Resolve DPNS username from ID. */
+                                    const dpnsUsername = await dpnsService
+                                        .resolveUsername(savedUser.identityId)
 
-                                if (dpnsUsername) {
-                                    console.log('Auth: Found DPNS username:', dpnsUsername)
-                                    // Update user state
+                                    /* Validate DPNS username. */
+                                    if (dpnsUsername) {
+                                        console.log('Auth: Found DPNS username:', dpnsUsername)
 
-                                    setUser(prev => prev ? { ...prev, dpnsUsername } : prev)
-                                    // Update saved session
+                                        /* Save username to state. */
+                                        setUser(prev => prev ? { ...prev, dpnsUsername } : prev)
 
-                                    const updatedSession = { ...sessionData, user: { ...savedUser, dpnsUsername } }
-                                    localStorage.setItem('evonext_session', JSON.stringify(updatedSession))
+                                        /* Build update session package. */
+                                        const updatedSession = {
+                                            ...sessionData,
+                                            user: {
+                                                ...savedUser,
+                                                dpnsUsername,
+                                            },
+                                        }
+
+                                        /* Update saved session. */
+                                        localStorage.setItem('evonext_session', JSON.stringify(updatedSession))
+                                    }
+                                } catch (e) {
+                                    console.error('Auth: Background DPNS fetch failed:', e)
                                 }
-                            } catch (e) {
-                                console.error('Auth: Background DPNS fetch failed:', e)
-                            }
-                        })
+                            })
                     }
                 } catch (e) {
                     console.error('Failed to restore session:', e)
