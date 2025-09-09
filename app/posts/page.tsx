@@ -58,7 +58,7 @@ function FeedPage() {
     const loadPosts = useCallback(async (forceRefresh: boolean = false) => {
         // Use the setter functions directly, not the whole postsState object
         const { setLoading, setError, setData } = postsState
-
+console.log('***LOADING POSTS-1')
         setLoading(true)
         setError(null)
 
@@ -70,7 +70,7 @@ function FeedPage() {
             const cacheKey = activeTab === 'your-posts' && user?.identityId
                 ? `feed_your_posts_${user.identityId}`
                 : `feed_${activeTab}`
-
+console.log('***LOADING POSTS-2')
             // Check cache first unless force refresh
             if (!forceRefresh) {
                 const cached = cacheManager.get<any[]>('feed', cacheKey)
@@ -83,7 +83,7 @@ function FeedPage() {
                     return
                 }
             }
-
+console.log('***LOADING POSTS-3')
             // Query posts from the platform
             const queryOptions: any = {
                 limit: 20,
@@ -186,10 +186,11 @@ function FeedPage() {
 
     // Load posts on mount, tab change, and listen for new posts
     useEffect(() => {
-        // loadPosts()
+        loadPosts()
 
         // Listen for new posts created
         const handlePostCreated = () => {
+console.log('***LOADING POSTS-3')
             loadPosts(true) // Force refresh when new post is created
         }
 
