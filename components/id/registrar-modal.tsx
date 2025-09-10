@@ -194,9 +194,9 @@ console.log('USERNAME MODAL (identity)', identity)
 
             // Find a suitable key (CRITICAL or HIGH security level)
             // Security levels: MASTER=0, CRITICAL=1, HIGH=2, MEDIUM=3
-            console.log('Identity publicKeys:', JSON.stringify(identity.publicKeys, null, 2))
+            console.log('Identity publicKeys:', JSON.stringify(identity!.publicKeys, null, 2))
 
-            const suitableKey = identity.publicKeys.find((key: any) => {
+            const suitableKey = identity!.publicKeys.find((key: any) => {
                 // Check if key has the expected structure
                 const keySecurityLevel = key.securityLevel
                 const keyDisabledAt = key.disabledAt
@@ -209,7 +209,7 @@ console.log('USERNAME MODAL (identity)', identity)
 
             if (!suitableKey) {
                 // Log available keys for debugging
-                console.log('Available keys:', identity.publicKeys.map((k: any) => ({
+                console.log('Available keys:', identity!.publicKeys.map((k: any) => ({
                     id: k.id,
                     securityLevel: k.securityLevel,
                     disabledAt: k.disabledAt,
