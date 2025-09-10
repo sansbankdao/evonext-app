@@ -1,192 +1,171 @@
 'use client'
 
 import { useState } from 'react'
-import { ArrowLeftIcon, DocumentDuplicateIcon, CheckIcon, CodeBracketIcon } from '@heroicons/react/24/outline'
+import {
+    ArrowLeftIcon,
+    DocumentDuplicateIcon,
+    CheckIcon,
+    CodeBracketIcon,
+} from '@heroicons/react/24/outline'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import dataContract from '@/contracts/evonext-contract.json'
 import toast from 'react-hot-toast'
 
-export default function ContractPage() {
-    const [copied, setCopied] = useState(false)
-    const contractString = JSON.stringify(dataContract, null, 2)
-
-    const handleCopy = async () => {
-        try {
-            await navigator.clipboard.writeText(contractString)
-            setCopied(true)
-            toast.success('Contract copied to clipboard')
-            setTimeout(() => setCopied(false), 2000)
-        } catch (error) {
-            toast.error('Failed to copy contract')
+export default function WalletPage() {
+    const [displayBalance, setDisplayBalance] = useState(0)
+    const [displayBalanceUsd, setDisplayBalanceUsd] = useState(0)
+    const [tokensBalanceUsd, setTokensBalanceUsd] = useState(0)
+    const [tokens, setTokens] = useState({})
+    const [Identity, setIdentity] = useState({
+        asset: {
+            iconUrl: 'icon-url',
+            ticker: 'sample-ticker',
         }
+    })
+    // const contractString = JSON.stringify(dataContract, null, 2)
+
+    // const handleCopy = async () => {
+    //     try {
+    //         await navigator.clipboard.writeText(contractString)
+    //         setCopied(true)
+    //         toast.success('Contract copied to clipboard')
+    //         setTimeout(() => setCopied(false), 2000)
+    //     } catch (error) {
+    //         toast.error('Failed to copy contract')
+    //     }
+    // }
+
+    // const documentCount = Object.keys(dataContract.documents).length
+    // const totalIndices = Object.values(dataContract.documents).reduce((acc, doc: any) =>
+    //     acc + (doc.indices?.length || 0), 0
+    // )
+
+    const setTab = (_tab: string) => {
+        console.log('CHANGE TAB', _tab)
     }
 
-    const documentCount = Object.keys(dataContract.documents).length
-    const totalIndices = Object.values(dataContract.documents).reduce((acc, doc: any) =>
-        acc + (doc.indices?.length || 0), 0
-    )
-
     return (
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-            <div className="max-w-7xl mx-auto px-4 py-8">
-                <div className="mb-8">
-                    <Link
-                        href="/"
-                        className="inline-flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
-                    >
-                        <ArrowLeftIcon className="h-4 w-4" />
-                        Back to EvoNext
-                    </Link>
+        <main className="grid grid-cols-1 gap-8">
+            <div className="col-span-4">
+                <button onClick={() => setTab('assets')} className="cursor-pointer group px-5 py-3 bg-gradient-to-b from-sky-100 to-sky-50 border-t border-x border-sky-400 rounded-x-lg shadow-md hover:bg-sky-100">
+                    <div className="flex flex-row w-full justify-between items-center mb-1 {[ isShowingAssets ? 'visible' : 'hidden' ]}">
+                        <h3 className="text-base tracking-tight uppercase text-sky-600 font-medium text-center opacity-40 group-hover:opacity-100 group-hover:scale-105 duration-300 ease-in-out">
+                            My Identity Dashboard
+                        </h3>
+
+                        <img src={Identity.asset?.iconUrl} className="-mt-3 -mr-2 p-2 h-10 w-auto opacity-40 group-hover:opacity-100 group-hover:h-11 duration-300 ease-in-out" />
+                    </div>
+
+                    <div className="flex flex-col items-end">
+                        <h3 className="text-xs tracking-widest text-sky-700 font-medium uppercase">
+                            Spendable ${Identity.asset?.ticker}
+                        </h3>
+
+                        <h2 className="text-3xl text-gray-600 font-medium">
+                            {displayBalance}
+                        </h2>
+
+                        <h3 className="text-xl text-gray-500 font-medium">
+                            {displayBalanceUsd}
+                        </h3>
+                    </div>
+
+                    <section className="{[ isShowingAssets ? 'visible' : 'hidden' ]}">
+                        <div className="my-2 border-t border-sky-500" />
+
+                        <div className="grid grid-cols-2 gap-4 text-center">
+                            <div>
+                                <h3 className="text-xs tracking-widest text-sky-700 font-medium uppercase">
+                                    Tokens
+                                </h3>
+
+                                <h2 v-if="tokens" className="text-base text-gray-600 font-medium">
+                                    {tokensBalanceUsd} <small className="text-sky-400">x{Object.keys(tokens).length}</small>
+                                </h2>
+                                <h2 v-else className="text-base text-gray-600 font-medium">
+                                    none
+                                </h2>
+                            </div>
+
+                            <div>
+                                <h3 className="text-xs tracking-widest text-sky-700 font-medium uppercase">
+                                    Collectibles
+                                </h3>
+
+                                <h2 className="text-base text-gray-600 font-medium">
+                                    none
+                                </h2>
+                            </div>
+                        </div>
+                    </section>
+                </button>
+
+                <div className="block">
+                    <nav className="isolate grid grid-cols-4 divide-x divide-gray-200 rounded-x-lg rounded-b-lg shadow" aria-label="Tabs">
+                        <div onClick={() => setTab('deposit')} className="cursor-pointer bg-gray-700 rounded-bl-lg group relative min-w-0 flex flex-row justify-center items-center gap-1 overflow-hidden py-2 px-2 text-sm font-medium hover:bg-gray-50 hover:text-gray-600 focus:z-10 {[ isShowingSend ? 'text-gray-100' : 'text-gray-400' ]}" aria-current="page">
+                            <svg className="w-4 h-auto" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"></path>
+                            </svg>
+                            <span className="text-xs sm:text-sm">Deposit</span>
+                            <span aria-hidden="true" className="absolute inset-x-0 bottom-0 h-0.5 {[ isShowingSend ? 'bg-sky-500' : 'bg-transparent' ]}"></span>
+                        </div>
+
+                        <div onClick={() => setTab('send')} className="cursor-pointer bg-gray-700 text-gray-400 group relative min-w-0 flex flex-row justify-center items-center gap-1 overflow-hidden py-2 px-2 text-center text-sm font-medium hover:bg-gray-50 hover:text-gray-600 focus:z-10">
+                            <svg className="w-4 h-auto" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"></path>
+                            </svg>
+                            <span className="text-xs sm:text-sm">Send</span>
+                            <span aria-hidden="true" className="bg-transparent absolute inset-x-0 bottom-0 h-0.5"></span>
+                        </div>
+
+                        <div onClick={() => setTab('history')} className="cursor-pointer bg-gray-700 text-gray-400 group relative min-w-0 flex flex-row justify-center items-center gap-1 overflow-hidden py-2 px-2 text-center text-sm font-medium hover:bg-gray-50 hover:text-gray-600 focus:z-10">
+                            <svg className="w-5 h-auto" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"></path>
+                            </svg>
+                            <span className="text-xs sm:text-sm">History</span>
+                            <span aria-hidden="true" className="bg-transparent absolute inset-x-0 bottom-0 h-0.5"></span>
+                        </div>
+
+                        <div onClick={() => setTab('assistant')} className="cursor-pointer bg-gray-700 text-gray-400 group relative min-w-0 flex flex-row justify-center items-center gap-1 overflow-hidden py-2 px-2 text-center text-sm font-medium hover:bg-gray-50 hover:text-gray-600 focus:z-10">
+                            <svg className="w-5 h-auto" data-slot="icon" fill="none" stroke-width="1.5" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456ZM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.423 1.423l1.183.394-1.183.394a2.25 2.25 0 0 0-1.423 1.423Z"></path>
+                            </svg>
+                            <span className="text-xs sm:text-sm">Assistant</span>
+                            <span aria-hidden="true" className="bg-transparent absolute inset-x-0 bottom-0 h-0.5"></span>
+                        </div>
+                    </nav>
                 </div>
 
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="bg-white dark:bg-black rounded-2xl shadow-lg overflow-hidden"
-                >
-                    <div className="bg-gradient-evonext p-8 text-white">
-                        <div className="flex items-center gap-3 mb-4">
-                            <CodeBracketIcon className="h-8 w-8" />
+                {/* <div className="my-5">
+                    <IdentityAssets
+                        v-if="isShowingAssets"
+                        :isFullScreen="isFullScreen"
+                    />
 
-                            <h1 className="text-3xl font-bold">
-                                EvoNext Wallet
-                            </h1>
-                        </div>
+                    <IdentitySend
+                        v-if="isShowingSend"
+                        :isFullScreen="isFullScreen"
+                    />
 
-                        <p className="text-lg opacity-90 mb-6">
-                            Dash Platform data contract for the EvoNext social media platform
-                        </p>
+                    <IdentityDeposit
+                        v-if="isShowingDeposit"
+                        :isFullScreen="isFullScreen"
+                    />
 
-                        <div className="flex gap-6 text-sm">
-                            <div>
-                                <span className="opacity-75">Version:</span>
-                                {dataContract.version}
-                            </div>
+                    <IdentityHistory
+                        v-if="isShowingHistory"
+                        :isFullScreen="isFullScreen"
+                    />
 
-                            <div>
-                                <span className="opacity-75">Documents:</span>
-                                {documentCount}
-                            </div>
-
-                            <div>
-                                <span className="opacity-75">Indices:</span>
-                                {totalIndices}
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="p-8">
-                        <div className="flex items-center justify-between mb-6">
-                            <h2 className="text-xl font-semibold">
-                                Contract Definition
-                            </h2>
-
-                            <button
-                                onClick={handleCopy}
-                                className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-900 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-lg transition-colors"
-                            >
-                                {copied ? (
-                                    <>
-                                        <CheckIcon className="h-4 w-4 text-green-500" />
-                                        <span className="text-green-500">
-                                            Copied!
-                                        </span>
-                                    </>
-                                ) : (
-                                    <>
-                                        <DocumentDuplicateIcon className="h-4 w-4" />
-                                        <span>Copy Contract</span>
-                                    </>
-                                )}
-                            </button>
-                        </div>
-
-                        <div className="bg-gray-900 rounded-lg p-4 overflow-x-auto">
-                            <pre className="text-sm text-gray-300 font-mono whitespace-pre">
-                                <code>{contractString}</code>
-                            </pre>
-                        </div>
-
-                        <div className="mt-8 grid md:grid-cols-2 gap-6">
-                            <div className="bg-gray-50 dark:bg-gray-950 rounded-lg p-6">
-                                <h3 className="text-xl font-semibold mb-4">
-                                    Document Types
-                                </h3>
-
-                                <ul className="space-y-2 text-sm">
-                                    {Object.keys(dataContract.documents).map((_docType) => (
-                                        <li key={_docType} className="flex items-center gap-2">
-                                            <div className="h-2 w-2 bg-evonext-500 rounded-full" />
-
-                                            <span className="font-mono text-lg">
-                                                {_docType}
-                                            </span>
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
-
-                            <div className="bg-gray-50 dark:bg-gray-950 rounded-lg p-6">
-                                <h3 className="text-xl font-semibold mb-4">
-                                    Key Features
-                                </h3>
-
-                                <ul className="space-y-2 text-lg font-mono">
-                                    <li className="flex items-center gap-2">
-                                        <div className="h-2 w-2 bg-green-500 rounded-full" />
-                                        <span>500 character posts</span>
-                                    </li>
-
-                                    <li className="flex items-center gap-2">
-                                        <div className="h-2 w-2 bg-green-500 rounded-full" />
-                                        <span>Media attachments</span>
-                                    </li>
-
-                                    <li className="flex items-center gap-2">
-                                        <div className="h-2 w-2 bg-green-500 rounded-full" />
-                                        <span>Encrypted DMs</span>
-                                    </li>
-
-                                    <li className="flex items-center gap-2">
-                                        <div className="h-2 w-2 bg-green-500 rounded-full" />
-                                        <span>User verification</span>
-                                    </li>
-
-                                    <li className="flex items-center gap-2">
-                                        <div className="h-2 w-2 bg-green-500 rounded-full" />
-                                        <span>Lists & bookmarks</span>
-                                    </li>
-                                </ul>
-                            </div>
-                        </div>
-
-                        <div className="mt-8 p-6 bg-evonext-50 dark:bg-evonext-950 rounded-lg">
-                            <h3 className="text-xl font-semibold mb-2">
-                                Deployment Instructions
-                            </h3>
-
-                            <ol className="space-y-2 text-lg list-decimal list-inside">
-                                <li>
-                                    Update the <code className="bg-white dark:bg-black px-2 py-1 rounded">ownerId</code> field with your Dash identity ID
-                                </li>
-
-                                <li>
-                                    Use the Dash SDK to register the contract on Platform
-                                </li>
-
-                                <li>
-                                    Fund the contract with credits for storage operations
-                                </li>
-
-                                <li>
-                                    Start building your decentralized social network!
-                                </li>
-                            </ol>
-                        </div>
-                    </div>
-                </motion.div>
+                    <IdentityAssistant
+                        v-if="isShowingAssistant"
+                        :isFullScreen="isFullScreen"
+                    />
+                </div> */}
             </div>
-        </div>
+
+            {/* <Bootstrap className="col-span-4" /> */}
+        </main>
     )
 }
