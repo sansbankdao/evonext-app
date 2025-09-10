@@ -4,33 +4,35 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import {
+    ArrowRightOnRectangleIcon,
+    BellIcon,
+    BookmarkIcon,
+    Cog6ToothIcon,
+    EllipsisHorizontalIcon,
+    EnvelopeIcon,
+    HashtagIcon,
     HomeIcon,
     MagnifyingGlassIcon,
-    BellIcon,
-    EnvelopeIcon,
-    BookmarkIcon,
-    UserIcon,
-    EllipsisHorizontalIcon,
     PencilSquareIcon,
-    Cog6ToothIcon,
-    ArrowRightOnRectangleIcon,
+    SparklesIcon,
+    UserIcon,
     UserGroupIcon,
     UsersIcon,
-    HashtagIcon,
-    SparklesIcon,
+    WalletIcon,
 } from '@heroicons/react/24/outline'
 
 import {
+    BellIcon as BellIconSolid,
+    BookmarkIcon as BookmarkIconSolid,
+    EnvelopeIcon as EnvelopeIconSolid,
+    HashtagIcon as HashtagIconSolid,
     HomeIcon as HomeIconSolid,
     MagnifyingGlassIcon as SearchIconSolid,
-    BellIcon as BellIconSolid,
-    EnvelopeIcon as EnvelopeIconSolid,
-    BookmarkIcon as BookmarkIconSolid,
+    SparklesIcon as SparklesIconSolid,
     UserIcon as UserIconSolid,
     UserGroupIcon as UserGroupIconSolid,
     UsersIcon as UsersIconSolid,
-    HashtagIcon as HashtagIconSolid,
-    SparklesIcon as SparklesIconSolid,
+    WalletIcon as WalletIconSolid,
 } from '@heroicons/react/24/solid'
 
 import { cn } from '@/lib/utils'
@@ -60,6 +62,7 @@ const getNavigation = (isLoggedIn: boolean) => {
         { name: 'Remix', href: '/remix', icon: SparklesIcon, activeIcon: SparklesIconSolid },
         // { name: 'Messages', href: '/messages', icon: EnvelopeIcon, activeIcon: EnvelopeIconSolid },
         { name: 'Bookmarks', href: '/bookmarks', icon: BookmarkIcon, activeIcon: BookmarkIconSolid },
+        { name: 'Wallet', href: '/wallet', icon: WalletIcon, activeIcon: WalletIconSolid },
         { name: 'Profile', href: '/profile', icon: UserIcon, activeIcon: UserIconSolid },
     ]
 }
