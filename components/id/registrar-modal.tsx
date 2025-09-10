@@ -11,7 +11,7 @@ import { dpnsService } from '@/lib/services/dpns-service'
 import toast from 'react-hot-toast'
 import { CheckCircle2, XCircle, Loader2, RefreshCw, X, Edit2 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
-
+// @ts-ignore
 import QRCode from 'qrcode'
 
 interface RegistrarModalProps {
