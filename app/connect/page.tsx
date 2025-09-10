@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation'
 import { wasmSdkService } from '@/lib/services/wasm-sdk-service'
 import {
     derive_key_from_seed_with_path,
+    get_identity_by_public_key_hash,
     get_identity_by_non_unique_public_key_hash,
     validate_mnemonic,
 } from '@/lib/dash-wasm/wasm_sdk'
@@ -126,21 +127,48 @@ console.log('PUBLIC KEY', publicKey)
                 const publicKeyHash = binToHex(hash160(hexToBin(publicKey)))
 console.log('PUBLIC KEY HASH', publicKeyHash)
 
+                /* Initialize SDK. */
                 const sdk = await wasmSdkService.getSdk()
-                const identity = await get_identity_by_non_unique_public_key_hash(
+
+                /* Request Identity. */
+                const identityOfHash160 = await get_identity_by_non_unique_public_key_hash(
                     sdk,
                     publicKeyHash,
                     undefined
-                )
-                    .catch(err => console.error(err))
-console.log('FOUND IDENTITY (from seed)', identity)
+                ).catch(err => console.error(err))
+console.log('FOUND IDENTITY (from HASH160)', identityOfHash160)
 
-                if (identity && identity.length > 0) {
-                    const identityId = identity[0].id
+                const identityOfSecp256k1 = await get_identity_by_public_key_hash(
+                    sdk,
+                    publicKeyHash
+                ).catch(err => console.error(err))
+console.log('FOUND IDENTITY (from SECP256K1)', identityOfSecp256k1!.toJSON())
+
+                let identityId
+                let regPubKeys
+
+                /* Handle ECDSA_HASH160 signature scheme. */
+                if (identityOfHash160 && typeof identityOfHash160 === 'object') {
+                    /* Set Identity ID. */
+                    identityId = identityOfHash160[0].id
+
+                    /* Set registered public keys. */
+                    regPubKeys = identityOfHash160[0].publicKeys
+                }
+
+                /* Handle ECDSA_SECP256k1 signature scheme. */
+                if (identityOfSecp256k1 && identityOfSecp256k1.toJSON()) {
+                    /* Set Identity ID. */
+                    identityId = identityOfSecp256k1.toJSON().id
+
+                    /* Set registered public keys. */
+                    regPubKeys = identityOfSecp256k1.toJSON().publicKeys
+                }
 console.log('IDENTITY ID', identityId)
+console.log('REGISTERED PUBLIC KEYS', regPubKeys)
 
-                    const regPubKeys = identity[0].publicKeys
-
+                /* Validate Identity ID and public keys. */
+                if (identityId && regPubKeys) {
                     const signingPublicKey = regPubKeys.find((_pubkey: any) => {
                         return _pubkey.purpose === 0 && (_pubkey.securityLevel === 1 || _pubkey.securityLevel === 2)
                     })
