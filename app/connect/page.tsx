@@ -63,27 +63,30 @@ console.log('PASTE DETECTED')
 console.log('FINAL MENMONIC', finalWords)
             setSeedWords(finalWords)
 
-            const seedPhrase = finalWords.join(' ')
+            const mnemonic = finalWords.join(' ')
             const identityIndex = 0
             const currentNetwork = (network === 'mainnet' ? 'mainnet' : 'testnet') as 'mainnet' | 'testnet'
 console.log('CURRENT NETWORK', currentNetwork)
-            const isValid = validate_mnemonic(seedPhrase)
+            const isValid = validate_mnemonic(mnemonic)
 console.log('MNEMONIC VALID', isValid)
 
             /* Validate mnemonic. */
             if (isValid) {
-const masterKeyPath = `m/9'/${currentNetwork === 'mainnet' ? 5 : 1}'/5'/0'/0'/${identityIndex}'/0'`;
-const masterKey = derive_key_from_seed_with_path(seedPhrase, undefined, masterKeyPath, currentNetwork);
-console.log('Master key object:', masterKey);
-console.log('Master key fields:', Object.keys(masterKey || {}));
+                const { storeMnemonic } = await import('@/lib/secure-storage')
+                storeMnemonic(mnemonic)
+
+const masterKeyPath = `m/9'/${currentNetwork === 'mainnet' ? 5 : 1}'/5'/0'/0'/${identityIndex}'/0'`
+const masterKey = derive_key_from_seed_with_path(mnemonic, undefined, masterKeyPath, currentNetwork)
+console.log('Master key object:', masterKey)
+console.log('Master key fields:', Object.keys(masterKey || {}))
 
 // Additional authentication key (high security)
-const authKeyPath = `m/9'/${currentNetwork === 'mainnet' ? 5 : 1}'/5'/0'/0'/${identityIndex}'/1'`;
-const authKey = derive_key_from_seed_with_path(seedPhrase, undefined, authKeyPath, currentNetwork);
+const authKeyPath = `m/9'/${currentNetwork === 'mainnet' ? 5 : 1}'/5'/0'/0'/${identityIndex}'/1'`
+const authKey = derive_key_from_seed_with_path(mnemonic, undefined, authKeyPath, currentNetwork)
 
 // Transfer key (critical security)
-const transferKeyPath = `m/9'/${currentNetwork === 'mainnet' ? 5 : 1}'/5'/0'/0'/${identityIndex}'/2'`;
-const transferKey = derive_key_from_seed_with_path(seedPhrase, undefined, transferKeyPath, currentNetwork);
+const transferKeyPath = `m/9'/${currentNetwork === 'mainnet' ? 5 : 1}'/5'/0'/0'/${identityIndex}'/2'`
+const transferKey = derive_key_from_seed_with_path(mnemonic, undefined, transferKeyPath, currentNetwork)
 
                 const publicKeys = [
                     {

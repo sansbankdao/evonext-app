@@ -141,7 +141,7 @@ export default secureStorage
 export const storePrivateKey = (
     identityId: string,
     privateKey: string,
-    ttlMs: number = 3600000
+    ttlMs: number = 3600000,
 ) => {
     secureStorage.set(`pk_${identityId}`, privateKey, ttlMs) // 1 hour default TTL
 }
@@ -160,4 +160,18 @@ export const clearAllPrivateKeys = (): void => {
     keys.filter(key => key.startsWith('pk_')).forEach(key => {
         secureStorage.delete(key)
     })
+
+    clearMnemonic()
+}
+
+export const storeMnemonic = (mnemonic: string) => {
+    secureStorage.set('mnemonic', mnemonic)
+}
+
+export const getMnemonic = (): string | null => {
+    return secureStorage.get('mnemonic') || null
+}
+
+export const clearMnemonic = (): boolean => {
+    return secureStorage.delete('mnemonic')
 }

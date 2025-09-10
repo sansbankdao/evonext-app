@@ -13,6 +13,12 @@ import { CheckCircle2, XCircle, Loader2, RefreshCw, X, Edit2 } from 'lucide-reac
 import { motion, AnimatePresence } from 'framer-motion'
 // @ts-ignore
 import QRCode from 'qrcode'
+import {
+    derive_key_from_seed_with_path,
+    get_identity_by_public_key_hash,
+    get_identity_by_non_unique_public_key_hash,
+    validate_mnemonic,
+} from '@/lib/dash-wasm/wasm_sdk'
 
 interface RegistrarModalProps {
     isOpen: boolean
@@ -52,6 +58,7 @@ export function RegistrarModal({
         sdkError,
     ])
 
+    /* Set current Identity ID. */
     const currentIdentityId = customIdentityId || initialIdentityId || user?.identityId || ''
 
     // Check username availability with debounce
@@ -144,6 +151,31 @@ export function RegistrarModal({
 
 // setIsShowingPayment(true)
 setIsSubmitting(true)
+
+const { getMnemonic } = await import('@/lib/secure-storage')
+const mnemonic = getMnemonic()
+console.log('MNEMONIC', mnemonic)
+const currentNetwork = (network === 'mainnet' ? 'mainnet' : 'testnet') as 'mainnet' | 'testnet'
+console.log('CURRENT NETWORK', currentNetwork)
+const identityIndex = 0
+const masterKeyPath = `m/9'/${currentNetwork === 'mainnet' ? 5 : 1}'/5'/0'/0'/${identityIndex}'/0'`
+const masterKey = derive_key_from_seed_with_path(mnemonic!, undefined, masterKeyPath, currentNetwork)
+console.log('Master key object:', masterKey)
+console.log('Master key (public_key):', masterKey.public_key)
+
+const body = JSON.stringify({
+    masterKey: 'hopefully-this-shows-UP',
+    username,
+    emailAddr: email,
+})
+console.log('ORDER (body)', body)
+
+        const orderResponse = await fetch('https://evonext.app/v1/registrar/order', {
+            method: 'POST',
+            body,
+        }).catch(err => console.error(err))
+        const orderConfirm = await orderResponse!.json()
+console.log('ORDER CONFIRM', orderConfirm)
 
 const paymentWin = document.getElementById('payment-win')
 const canvas = document.getElementById('qrcode')
