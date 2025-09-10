@@ -21,7 +21,7 @@ export default function DPNSRegisterPage() {
     const handleClose = () => {
         setIsModalOpen(false)
         // Navigate to profile creation without username
-        router.push('/profile/create')
+        // router.push('/profile/create')
     }
 
     // If not authenticated, show login prompt
@@ -104,7 +104,7 @@ export default function DPNSRegisterPage() {
             </div>
 
             {/* Username modal */}
-            <UsernameModal isOpen={isModalOpen} onClose={handleClose} />
+            <RegistrarModal isOpen={isModalOpen} onClose={handleClose} />
         </>
     )
 }
