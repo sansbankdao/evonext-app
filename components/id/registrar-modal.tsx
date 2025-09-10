@@ -12,6 +12,8 @@ import toast from 'react-hot-toast'
 import { CheckCircle2, XCircle, Loader2, RefreshCw, X, Edit2 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
+import QRCode from 'qrcode'
+
 interface RegistrarModalProps {
     isOpen: boolean
     onClose: () => void
@@ -37,7 +39,10 @@ export function RegistrarModal({
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [isCheckingExisting, setIsCheckingExisting] = useState(false)
     const [isEditingIdentity, setIsEditingIdentity] = useState(false)
+    const [isShowingPayment, setIsShowingPayment] = useState(false)
     const [customIdentityId, setCustomIdentityId] = useState(initialIdentityId || '')
+
+    const [paymentAddress, setPaymentAddress] = useState('XhQgiG46PSDytpaSTG6jeQmczCDNSLX2M7')
 
     // Debug SDK state
     useEffect(() => {
@@ -128,8 +133,34 @@ export function RegistrarModal({
         sdkError,
     ])
 
+    const handlePayment = () => {
+        alert('lets make that payment')
+        const dashUri = `dash:${paymentAddress}?amount=1000000`
+        window.location.href = dashUri
+    }
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
+
+// setIsShowingPayment(true)
+setIsSubmitting(true)
+
+const paymentWin = document.getElementById('payment-win')
+const canvas = document.getElementById('qrcode')
+const dataUrl = await QRCode.toDataURL('I am a pony!')
+    .catch((err: any) => console.error(err))
+console.log('DATA URL', dataUrl)
+// canvas!.innerHTML = dataUrl
+
+const imgEl = document.createElement('img')
+imgEl.src = dataUrl
+imgEl.width = 600
+imgEl.height = 600
+
+canvas!.appendChild(imgEl)
+paymentWin!.style.display = 'flex'
+
+return
 
         if (!username || !isAvailable || validationError || !currentIdentityId) {
             return
@@ -361,7 +392,7 @@ console.log('USERNAME MODAL (identity)', identity)
                         className="fixed inset-0 flex items-center justify-center z-50 px-4"
                         onClick={(e) => e.stopPropagation()}
                     >
-                        <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl p-8 max-w-md w-full relative">
+                        <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl p-8 max-w-md w-full relative h-full overflow-y-auto">
                             {/* Close button */}
                             <button
                                 onClick={onClose}
@@ -378,7 +409,30 @@ console.log('USERNAME MODAL (identity)', identity)
                                 Choose a NEW &amp; Unique Username for your Dash Platform Identity
                             </p>
 
+{/* DISPLAY PAYMENT INFORMATION HERE */}
+<section id="payment-win" style={{ display: 'none' }} className="w-full mb-5 flex flex-col items-center justify-center border border-evonext-700 shadow">
+    <div id="qrcode" onClick={() => handlePayment()} />
 
+    <div className="px-3 py-5 flex flex-col gap-5 rounded-t-lg border-t-2 border-evonext-700 bg-evonext-50">
+        <h2 className="font-medium text-2xl text-evonext-800 text-center">
+            One Final Step to Complete Your Username Registration
+        </h2>
+
+        <h3 className="font-medium text-xl text-evonext-800 text-center">
+            Send <button className="text-2xl font-bold text-evonext-600">0.1 DASH</button> to the payment address shown below -OR- click the QRCode shown above
+        </h3>
+
+        <button onClick={() => handlePayment()} className="font-bold text-md text-evonext-600 text-center tracking-tighter">
+            {paymentAddress}
+        </button>
+
+        <p className="font-base text-sm text-evonext-800">
+            <span className="block font-medium text-md tracking-wider">PLEASE NOTE:</span>
+            You <span className="font-bold">DO NOT</span> have to keep this window open.
+            You will receive an email as soon as your NEW Username registration is complete.
+        </p>
+    </div>
+</section>
 
                             <form onSubmit={handleSubmit} className="space-y-6">
                                 <div>
@@ -403,9 +457,9 @@ console.log('USERNAME MODAL (identity)', identity)
                                         </div>
                                     </div>
 
-                                    <p className="pl-1 pt-1 tracking-wider">
+                                    <div className="pl-1 pt-1 tracking-wider">
                                         {getStatusMessage()}
-                                    </p>
+                                    </div>
 
                                     <div className="pl-1 mt-4 space-y-2 text-xs text-gray-500">
                                         <h3 className="font-bold">
@@ -467,58 +521,20 @@ console.log('USERNAME MODAL (identity)', identity)
 
                                 <Button
                                     type="submit"
-                                    className="w-full"
-                                    disabled={!username || !isAvailable || !!validationError || isChecking || isSubmitting || !currentIdentityId}
+                                    className="w-full text-xl"
+                                    // disabled={!username || !isAvailable || !!validationError || isChecking || isSubmitting || !currentIdentityId}
+                                    disabled={!username || !isAvailable || !!validationError || isChecking || isSubmitting}
                                 >
                                     {isSubmitting ? (
                                         <>
                                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                            Registering Registrar...
+                                            Waiting for Payment...
                                         </>
                                     ) : (
-                                        'Register Registrar'
+                                        'Continue Registration'
                                     )}
                                 </Button>
                             </form>
-
-                            {/* <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
-                                <p className="text-sm text-gray-600 dark:text-gray-400 text-center mb-3">
-                                    Already registered your username elsewhere?
-                                </p>
-
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    className="w-full"
-                                    onClick={handleCheckExistingRegistrar}
-                                    disabled={isCheckingExisting || !currentIdentityId}
-                                >
-                                    {isCheckingExisting ? (
-                                        <>
-                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                            Checking for existing username...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <RefreshCw className="mr-2 h-4 w-4" />
-                                            I just registered my username
-                                        </>
-                                    )}
-                                </Button>
-
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        // Mark that user chose to skip DPNS registration
-                                        sessionStorage.setItem('evonext_skip_dpns', 'true')
-                                        onClose()
-                                        router.push('/profile/create')
-                                    }}
-                                    className="w-full mt-3 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
-                                >
-                                    Skip for now
-                                </button>
-                            </div> */}
                         </div>
                     </motion.div>
                 </>
