@@ -13,6 +13,7 @@ import {
     get_identity_by_non_unique_public_key_hash,
     validate_mnemonic,
 } from '@/lib/dash-wasm/wasm_sdk'
+import toast from 'react-hot-toast'
 
  // @ts-ignore
 import { hash160 } from '@nexajs/crypto'
@@ -53,23 +54,26 @@ export default function LoginPage() {
     }
 
     const handleMnemonic = async (_mnemonic: any) => {
-        /* Handle pasting seed words into individual fields. */
-        // for (let i = 0; i < splitWords.length; i++) {
-        //     if (splitWords[i] !== '') {
-        //         mnemonic.value[i] = splitWords[i]
-        //     }
-        // }
+        /* Set the mnemonic (store). */
         setMnemonic(_mnemonic)
 
+        /* Join an array of seed words. */
         const mnemonic = _mnemonic.join(' ')
+
+        /* Set identity index. */
         const identityIndex = 0
+
+        /* Set current network. */
         const currentNetwork = (network === 'mainnet' ? 'mainnet' : 'testnet') as 'mainnet' | 'testnet'
-console.log('CURRENT NETWORK', currentNetwork)
+
+        /* Validate mnemonic. */
         const isValid = validate_mnemonic(mnemonic)
 console.log('MNEMONIC VALID', isValid)
 
         /* Validate mnemonic. */
-        if (isValid) {
+        if (!isValid) {
+            toast.error(`Oops! Those seed words are INVALID!`)
+        } else {
             const { storeMnemonic } = await import('@/lib/secure-storage')
             storeMnemonic(mnemonic)
 
@@ -206,6 +210,8 @@ console.log('SIGNING (private) KEY', signingPrivateKey)
 
     const onMnemonicPaste = (e: ClipboardEvent) => {
 console.log('PASTE DETECTED')
+        setError(null)
+        setIsLoading(true)
 
         /* Wait a tick. */
         setTimeout(async () => {
@@ -222,7 +228,10 @@ console.log('PASTE DETECTED')
 console.log('PASTED MENMONIC', pastedWords)
 
             /* Handle mnemonic. */
-            handleMnemonic(pastedWords)
+            await handleMnemonic(pastedWords)
+
+            /* Set loading flag. */
+            setIsLoading(false)
         }, 0)
     }
 
@@ -230,8 +239,10 @@ console.log('PASTED MENMONIC', pastedWords)
         e.preventDefault()
         setError(null)
         setIsLoading(true)
+
 console.log('HAS MNEMONIC ', typeof hasMnemonic(), hasMnemonic())
 console.log('MNEMONIC', typeof mnemonic, mnemonic)
+
         try {
             if (mnemonic) {
                 await handleMnemonic(mnemonic)
