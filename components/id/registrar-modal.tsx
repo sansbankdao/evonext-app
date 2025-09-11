@@ -48,7 +48,7 @@ export function RegistrarModal({
     const [isShowingPayment, setIsShowingPayment] = useState(false)
     const [customIdentityId, setCustomIdentityId] = useState(initialIdentityId || '')
 
-    const [paymentAddress, setPaymentAddress] = useState('XhQgiG46PSDytpaSTG6jeQmczCDNSLX2M7')
+    const [paymentAddress, setPaymentAddress] = useState(null)
 
     // Debug SDK state
     useEffect(() => {
@@ -158,17 +158,48 @@ console.log('MNEMONIC', mnemonic)
 const currentNetwork = (network === 'mainnet' ? 'mainnet' : 'testnet') as 'mainnet' | 'testnet'
 console.log('CURRENT NETWORK', currentNetwork)
 const identityIndex = 0
+
 const masterKeyPath = `m/9'/${currentNetwork === 'mainnet' ? 5 : 1}'/5'/0'/0'/${identityIndex}'/0'`
 const masterKey = derive_key_from_seed_with_path(mnemonic!, undefined, masterKeyPath, currentNetwork)
 console.log('Master key object:', masterKey)
 console.log('Master key (public_key):', masterKey.public_key)
 
+// Additional authentication key (critical security)
+const authCriticalPath = `m/9'/${currentNetwork === 'mainnet' ? 5 : 1}'/5'/0'/0'/${identityIndex}'/1'`
+const authCritical = derive_key_from_seed_with_path(mnemonic!, undefined, authCriticalPath, currentNetwork)
+
+// Additional authentication key (high security)
+const authHighPath = `m/9'/${currentNetwork === 'mainnet' ? 5 : 1}'/5'/0'/0'/${identityIndex}'/2'`
+const authHigh = derive_key_from_seed_with_path(mnemonic!, undefined, authHighPath, currentNetwork)
+
+// Transfer key (critical security)
+const transferKeyPath = `m/9'/${currentNetwork === 'mainnet' ? 5 : 1}'/5'/0'/0'/${identityIndex}'/3'`
+const transferKey = derive_key_from_seed_with_path(mnemonic!, undefined, transferKeyPath, currentNetwork)
+
+// Transfer key (critical security)
+const encryptionKeyPath = `m/9'/${currentNetwork === 'mainnet' ? 5 : 1}'/5'/0'/0'/${identityIndex}'/4'`
+const encryptionKey = derive_key_from_seed_with_path(mnemonic!, undefined, encryptionKeyPath, currentNetwork)
+
 const body = JSON.stringify({
-    masterKey: 'hopefully-this-shows-UP',
+    masterKey: masterKey.public_key,
+    authCritical: authCritical.public_key,
+    authHigh: authHigh.public_key,
+    transferKey: transferKey.public_key,
+    encryptionKey: encryptionKey.public_key,
     username,
     emailAddr: email,
 })
 console.log('ORDER (body)', body)
+
+        const addressResponse = await fetch('https://evonext.app/v1/registrar/address', {
+            method: 'POST',
+            body,
+        }).catch(err => console.error(err))
+        const json = await addressResponse!.json()
+console.log('PAYMENT ADDRESS', json)
+
+        const paymentAddress = json?.registrar?.dashAddr
+        setPaymentAddress(paymentAddress)
 
         const orderResponse = await fetch('https://evonext.app/v1/registrar/order', {
             method: 'POST',
@@ -179,7 +210,7 @@ console.log('ORDER CONFIRM', orderConfirm)
 
 const paymentWin = document.getElementById('payment-win')
 const canvas = document.getElementById('qrcode')
-const dataUrl = await QRCode.toDataURL('I am a pony!')
+const dataUrl = await QRCode.toDataURL(paymentAddress)
     .catch((err: any) => console.error(err))
 console.log('DATA URL', dataUrl)
 // canvas!.innerHTML = dataUrl
@@ -191,102 +222,6 @@ imgEl.height = 600
 
 canvas!.appendChild(imgEl)
 paymentWin!.style.display = 'flex'
-
-return
-
-        if (!username || !isAvailable || validationError || !currentIdentityId) {
-            return
-        }
-
-        if (!isSdkReady) {
-            toast.error('Service is initializing. Please try again in a moment.')
-            return
-        }
-
-        setIsSubmitting(true)
-
-        try {
-            // Get the private key from session storage
-            const { getPrivateKey } = await import('@/lib/secure-storage')
-            const privateKey = getPrivateKey(currentIdentityId)
-
-            if (!privateKey) {
-                throw new Error('Authentication required. Please log in again.')
-            }
-
-            // Get the identity to find a suitable key
-            const { identityService } = await import('@/lib/services/identity-service')
-
-            const identity = await identityService.getIdentity(currentIdentityId)
-console.log('USERNAME MODAL (identity)', identity)
-
-            if (!identity) {
-                throw new Error('Identity not found')
-            }
-
-            // Find a suitable key (CRITICAL or HIGH security level)
-            // Security levels: MASTER=0, CRITICAL=1, HIGH=2, MEDIUM=3
-            console.log('Identity publicKeys:', JSON.stringify(identity!.publicKeys, null, 2))
-
-            const suitableKey = identity!.publicKeys.find((key: any) => {
-                // Check if key has the expected structure
-                const keySecurityLevel = key.securityLevel
-                const keyDisabledAt = key.disabledAt
-
-                console.log(`Key ${key.id}: securityLevel=${keySecurityLevel}, disabledAt=${keyDisabledAt}`)
-
-                // Only accept CRITICAL (1) or HIGH (2) security levels
-                return !keyDisabledAt && (keySecurityLevel === 1 || keySecurityLevel === 2)
-            })
-
-            if (!suitableKey) {
-                // Log available keys for debugging
-                console.log('Available keys:', identity!.publicKeys.map((k: any) => ({
-                    id: k.id,
-                    securityLevel: k.securityLevel,
-                    disabledAt: k.disabledAt,
-                    type: k.type,
-                    purpose: k.purpose
-                })))
-
-                throw new Error('No suitable keys found. DPNS requires CRITICAL (security level 1) or HIGH (security level 2) key.')
-            }
-
-            const keySecurityLevel = suitableKey.security_level ?? suitableKey.securityLevel
-            console.log(`Using key ${suitableKey.id} with security level ${keySecurityLevel === 1 ? 'CRITICAL' : 'HIGH'} (${keySecurityLevel})`)
-
-            // Register the username
-            // await dpnsService.registerRegistrar(
-            //     username, currentIdentityId, suitableKey.id, privateKey)
-
-            toast.success('DPNS username registered successfully!')
-
-            // Update user in auth context if it's the current user
-            // if (currentIdentityId === user?.identityId) {
-            //     updateDPNSRegistrar(username)
-            // }
-
-            onClose()
-
-            // Redirect to profile creation
-            router.push('/profile/create')
-        } catch (error: any) {
-            console.error('Failed to register username:', error)
-            const errorMessage = error.message || 'Failed to register username'
-
-            // Provide more specific error messages
-            if (errorMessage.includes('already taken')) {
-                toast.error('This username is already taken. Please choose another.')
-            } else if (errorMessage.includes('Invalid username')) {
-                toast.error('Invalid username format. Please check the requirements.')
-            } else if (errorMessage.includes('SDK')) {
-                toast.error('Service initialization failed. Please try again.')
-            } else {
-                toast.error(errorMessage)
-            }
-        } finally {
-            setIsSubmitting(false)
-        }
     }
 
     const getStatusIcon = () => {
@@ -481,7 +416,7 @@ console.log('USERNAME MODAL (identity)', identity)
                                             placeholder="JohnDoe1999"
                                             className="pr-10"
                                             autoComplete="off"
-                                            maxLength={20}
+                                            maxLength={63}
                                         />
 
                                         <div className="absolute inset-y-0 right-0 flex items-center pr-3">
