@@ -188,7 +188,7 @@ const body = JSON.stringify({
     encryptionKey: encryptionKey.public_key,
     username,
     emailAddr: email,
-    isMainnet: currentNetwork === 'mainnet' ? 1 : 0
+    isMainnet: currentNetwork === 'mainnet' ? true : false
 })
 console.log('ORDER (body)', body)
 
