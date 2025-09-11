@@ -29,7 +29,22 @@ export default function LoginPage() {
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [hasIdentityPrivateKey, setHasIdentityPrivateKey] = useState(false)
     const [error, setError] = useState<string | null>(null)
-    const [seedWords, setSeedWords] = useState(Array(12).fill(''))
+    const [mnemonic, setMnemonic] = useState(Array(12).fill(''))
+
+    const hasMnemonic = () => {
+        /* Search for empty seed words. */
+        const found = mnemonic.find(_word => {
+            return _word === ''
+        })
+
+        /* Validate (empty) words. */
+        if (typeof found === 'string') {
+            return false
+        } else {
+            // FIXME WE SHOULD DO VERIFICATION HERE TOO
+            return true
+        }
+    }
 
     const handleClose = () => {
         setIsModalOpen(false)
@@ -37,51 +52,26 @@ export default function LoginPage() {
         // router.push('/profile/create')
     }
 
-    const onInputChange = (e: ChangeEvent<HTMLInputElement>, idx: number) => {
-        const newWords = [...seedWords]
-        newWords[idx] = e.target.value
-        setSeedWords(newWords)
-    }
+    const handleMnemonic = async (_mnemonic: any) => {
+        /* Handle pasting seed words into individual fields. */
+        // for (let i = 0; i < splitWords.length; i++) {
+        //     if (splitWords[i] !== '') {
+        //         mnemonic.value[i] = splitWords[i]
+        //     }
+        // }
+        setMnemonic(_mnemonic)
 
-    const onMnemonicPaste = (e: ClipboardEvent, idx: number) => {
-console.log('PASTE DETECTED')
-//         const newWords = [...seedWords]
-// console.log('NEW WORDS', newWords)
-//         newWords[idx] = e.clipboardData.getData('Text')
-//         setSeedWords(newWords)
-
-        /* Set (new) clipboard. */
-        const clipboard = e.clipboardData.getData('text/plain')
-
-        /* Split seed words. */
-        const splitWords = clipboard.split(' ')
-
-        /* Wait a tick. */
-        setTimeout(async () => {
-            /* Handle pasting seed words into individual fields. */
-            // for (let i = 0; i < splitWords.length; i++) {
-            //     if (splitWords[i] !== '') {
-            //         seedWords.value[i] = splitWords[i]
-            //     }
-            // }
-            /* Fill the array with the pasted words. */
-            const emptyValuesNeeded = ((splitWords.length > 12) ? 24 : 12) - splitWords.length
-            const emptyValues = Array(emptyValuesNeeded).fill('')
-            const finalWords = [ ...splitWords, ...emptyValues ]
-console.log('FINAL MENMONIC', finalWords)
-            setSeedWords(finalWords)
-
-            const mnemonic = finalWords.join(' ')
-            const identityIndex = 0
-            const currentNetwork = (network === 'mainnet' ? 'mainnet' : 'testnet') as 'mainnet' | 'testnet'
+        const mnemonic = _mnemonic.join(' ')
+        const identityIndex = 0
+        const currentNetwork = (network === 'mainnet' ? 'mainnet' : 'testnet') as 'mainnet' | 'testnet'
 console.log('CURRENT NETWORK', currentNetwork)
-            const isValid = validate_mnemonic(mnemonic)
+        const isValid = validate_mnemonic(mnemonic)
 console.log('MNEMONIC VALID', isValid)
 
-            /* Validate mnemonic. */
-            if (isValid) {
-                const { storeMnemonic } = await import('@/lib/secure-storage')
-                storeMnemonic(mnemonic)
+        /* Validate mnemonic. */
+        if (isValid) {
+            const { storeMnemonic } = await import('@/lib/secure-storage')
+            storeMnemonic(mnemonic)
 
 const masterKeyPath = `m/9'/${currentNetwork === 'mainnet' ? 5 : 1}'/5'/0'/0'/${identityIndex}'/0'`
 const masterKey = derive_key_from_seed_with_path(mnemonic, undefined, masterKeyPath, currentNetwork)
@@ -96,116 +86,143 @@ const authKey = derive_key_from_seed_with_path(mnemonic, undefined, authKeyPath,
 const transferKeyPath = `m/9'/${currentNetwork === 'mainnet' ? 5 : 1}'/5'/0'/0'/${identityIndex}'/2'`
 const transferKey = derive_key_from_seed_with_path(mnemonic, undefined, transferKeyPath, currentNetwork)
 
-                const publicKeys = [
-                    {
-                        id: 0,
-                        // keyType: "ECDSA_HASH160",
-                        keyType: "ECDSA_SECP256K1",
-                        purpose: "AUTHENTICATION",
-                        securityLevel: "MASTER",
-                        privateKeyHex: masterKey.private_key_hex,
-                        privateKeyWif: authKey.private_key_wif,
-                        readOnly: false
-                    },
-                    {
-                        id: 1,
-                        // keyType: "ECDSA_HASH160",
-                        keyType: "ECDSA_SECP256K1",
-                        purpose: "AUTHENTICATION",
-                        securityLevel: "HIGH",
-                        privateKeyHex: authKey.private_key_hex,
-                        privateKeyWif: authKey.private_key_wif,
-                        readOnly: false
-                    },
-                    {
-                        id: 2,
-                        // keyType: "ECDSA_HASH160",
-                        keyType: "ECDSA_SECP256K1",
-                        // purpose: "TRANSFER",
-                        purpose: "ENCRYPTION",
-                        // securityLevel: "CRITICAL",
-                        securityLevel: "MEDIUM",
-                        privateKeyHex: transferKey.private_key_hex,
-                        privateKeyWif: authKey.private_key_wif,
-                        readOnly: false
-                    }
-                ]
+            const publicKeys = [
+                {
+                    id: 0,
+                    // keyType: "ECDSA_HASH160",
+                    keyType: "ECDSA_SECP256K1",
+                    purpose: "AUTHENTICATION",
+                    securityLevel: "MASTER",
+                    privateKeyHex: masterKey.private_key_hex,
+                    privateKeyWif: authKey.private_key_wif,
+                    readOnly: false
+                },
+                {
+                    id: 1,
+                    // keyType: "ECDSA_HASH160",
+                    keyType: "ECDSA_SECP256K1",
+                    purpose: "AUTHENTICATION",
+                    securityLevel: "HIGH",
+                    privateKeyHex: authKey.private_key_hex,
+                    privateKeyWif: authKey.private_key_wif,
+                    readOnly: false
+                },
+                {
+                    id: 2,
+                    // keyType: "ECDSA_HASH160",
+                    keyType: "ECDSA_SECP256K1",
+                    // purpose: "TRANSFER",
+                    purpose: "ENCRYPTION",
+                    // securityLevel: "CRITICAL",
+                    securityLevel: "MEDIUM",
+                    privateKeyHex: transferKey.private_key_hex,
+                    privateKeyWif: authKey.private_key_wif,
+                    readOnly: false
+                }
+            ]
 console.log('CONNECT PUBLIC KEYS', publicKeys)
 
-                const publicKey = masterKey.public_key
+            const publicKey = masterKey.public_key
 console.log('PUBLIC KEY', publicKey)
 
-                const publicKeyHash = binToHex(hash160(hexToBin(publicKey)))
+            const publicKeyHash = binToHex(hash160(hexToBin(publicKey)))
 console.log('PUBLIC KEY HASH', publicKeyHash)
 
-                /* Initialize SDK. */
-                const sdk = await wasmSdkService.getSdk()
+            /* Initialize SDK. */
+            const sdk = await wasmSdkService.getSdk()
 
-                /* Request Identity. */
-                const identityOfHash160 = await get_identity_by_non_unique_public_key_hash(
-                    sdk,
-                    publicKeyHash,
-                    undefined
-                ).catch(err => console.error(err))
+            /* Request Identity. */
+            const identityOfHash160 = await get_identity_by_non_unique_public_key_hash(
+                sdk,
+                publicKeyHash,
+                undefined
+            ).catch(err => console.error(err))
 console.log('FOUND IDENTITY (from HASH160)', identityOfHash160)
 
-                const identityOfSecp256k1 = await get_identity_by_public_key_hash(
-                    sdk,
-                    publicKeyHash
-                ).catch(err => console.error(err))
+            const identityOfSecp256k1 = await get_identity_by_public_key_hash(
+                sdk,
+                publicKeyHash
+            ).catch(err => console.error(err))
 console.log('FOUND IDENTITY (from SECP256K1)', identityOfSecp256k1?.toJSON())
 
-                let identityId
-                let regPubKeys
+            let identityId
+            let regPubKeys
 
-                /* Handle ECDSA_HASH160 signature scheme. */
-                if (identityOfHash160 && identityOfHash160.length > 0 && typeof identityOfHash160 === 'object') {
-                    /* Set Identity ID. */
-                    identityId = identityOfHash160[0].id
+            /* Handle ECDSA_HASH160 signature scheme. */
+            if (identityOfHash160 && identityOfHash160.length > 0 && typeof identityOfHash160 === 'object') {
+                /* Set Identity ID. */
+                identityId = identityOfHash160[0].id
 
-                    /* Set registered public keys. */
-                    regPubKeys = identityOfHash160[0].publicKeys
-                }
+                /* Set registered public keys. */
+                regPubKeys = identityOfHash160[0].publicKeys
+            }
 
-                /* Handle ECDSA_SECP256k1 signature scheme. */
-                if (identityOfSecp256k1 && identityOfSecp256k1.toJSON()) {
-                    /* Set Identity ID. */
-                    identityId = identityOfSecp256k1.toJSON().id
+            /* Handle ECDSA_SECP256k1 signature scheme. */
+            if (identityOfSecp256k1 && identityOfSecp256k1.toJSON()) {
+                /* Set Identity ID. */
+                identityId = identityOfSecp256k1.toJSON().id
 
-                    /* Set registered public keys. */
-                    regPubKeys = identityOfSecp256k1.toJSON().publicKeys
-                }
+                /* Set registered public keys. */
+                regPubKeys = identityOfSecp256k1.toJSON().publicKeys
+            }
 console.log('IDENTITY ID', identityId)
 console.log('REGISTERED PUBLIC KEYS', regPubKeys)
 
-                /* Validate Identity ID and public keys. */
-                if (identityId && regPubKeys) {
-                    const signingPublicKey = regPubKeys.find((_pubkey: any) => {
-                        return _pubkey.purpose === 0 && (_pubkey.securityLevel === 1 || _pubkey.securityLevel === 2)
-                    })
+            /* Validate Identity ID and public keys. */
+            if (identityId && regPubKeys) {
+                const signingPublicKey = regPubKeys.find((_pubkey: any) => {
+                    return _pubkey.purpose === 0 && (_pubkey.securityLevel === 1 || _pubkey.securityLevel === 2)
+                })
 console.log('SIGNING (public) KEY', signingPublicKey)
 
-                    const signingPrivateKey = publicKeys.find(_pubkey => {
-                        return _pubkey.id === signingPublicKey.id
-                    })
+                const signingPrivateKey = publicKeys.find(_pubkey => {
+                    return _pubkey.id === signingPublicKey.id
+                })
 console.log('SIGNING (private) KEY', signingPrivateKey)
 
-                    const seedPrivateKey = signingPrivateKey!.privateKeyWif
+                const seedPrivateKey = signingPrivateKey!.privateKeyWif
 
-                    try {
-                        await login(identityId, seedPrivateKey)
-                        // Navigation handled by auth context
-                    } catch (err) {
-                        setError(err instanceof Error ? err.message : 'Failed to login')
-                    } finally {
-                        setIsLoading(false)
-                    }
-                } else {
-                    if (confirm(`OH NO!\n\nWe COULD NOT find an Identity for you on the Dash Platform. Would you like to create a NEW Identity and register a NEW Username now?\n\nIt should ONLY take about 2 minutes..\nDon't MISS OUT, let's GO!`)) {
-                        setIsModalOpen(true)
-                    }
+                try {
+                    await login(identityId, seedPrivateKey)
+                    // Navigation handled by auth context
+                } catch (err) {
+                    setError(err instanceof Error ? err.message : 'Failed to login')
+                } finally {
+                    setIsLoading(false)
+                }
+            } else {
+                if (confirm(`OH NO!\n\nWe COULD NOT find an Identity for you on the Dash Platform. Would you like to create a NEW Identity and register a NEW Username now?\n\nIt should ONLY take about 2 minutes..\nDon't MISS OUT, let's GO!`)) {
+                    setIsModalOpen(true)
                 }
             }
+        }
+    }
+
+    const onInputChange = (e: ChangeEvent<HTMLInputElement>, idx: number) => {
+        const newMnemonic = [...mnemonic]
+        newMnemonic[idx] = e.target.value
+        setMnemonic(newMnemonic)
+    }
+
+    const onMnemonicPaste = (e: ClipboardEvent) => {
+console.log('PASTE DETECTED')
+
+        /* Wait a tick. */
+        setTimeout(async () => {
+            /* Set (new) clipboard. */
+            const clipboard = e.clipboardData.getData('text/plain')
+
+            /* Split seed words. */
+            const splitWords = clipboard.split(' ')
+
+            /* Fill the array with the pasted words. */
+            const emptyValuesNeeded = ((splitWords.length > 12) ? 24 : 12) - splitWords.length
+            const emptyValues = Array(emptyValuesNeeded).fill('')
+            const pastedWords = [ ...splitWords, ...emptyValues ]
+console.log('PASTED MENMONIC', pastedWords)
+
+            /* Handle mnemonic. */
+            handleMnemonic(pastedWords)
         }, 0)
     }
 
@@ -213,10 +230,15 @@ console.log('SIGNING (private) KEY', signingPrivateKey)
         e.preventDefault()
         setError(null)
         setIsLoading(true)
-
+console.log('HAS MNEMONIC ', typeof hasMnemonic(), hasMnemonic())
+console.log('MNEMONIC', typeof mnemonic, mnemonic)
         try {
-            await login(identityId, privateKey)
-            // Navigation handled by auth context
+            if (mnemonic) {
+                await handleMnemonic(mnemonic)
+            } else {
+                await login(identityId, privateKey)
+                // Navigation handled by auth context
+            }
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to login')
         } finally {
@@ -228,7 +250,7 @@ console.log('SIGNING (private) KEY', signingPrivateKey)
         const twelve = Array(12).fill('')
         const twentyFour = Array(24).fill('')
 
-        setSeedWords(twentyFour)
+        setMnemonic(twentyFour)
     }
 
     const togglePrivateKey = () => {
@@ -252,13 +274,13 @@ console.log('SIGNING (private) KEY', signingPrivateKey)
                         {!identityId &&
                             <div className="space-y-4">
                                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-                                    {seedWords.map((word, idx) => (
+                                    {mnemonic.map((word, idx) => (
                                         <input
                                             key={idx}
                                             placeholder={`Word #${idx + 1}`}
-                                            value={seedWords[idx]}
+                                            value={mnemonic[idx]}
                                             onChange={(e) => onInputChange(e, idx)}
-                                            onPaste={(e) => onMnemonicPaste(e, idx)}
+                                            onPaste={(e) => onMnemonicPaste(e)}
                                             className={`px-3 py-1 text-slate-800 font-medium border-4 border-sky-200 rounded ${idx >= 24 ? 'hidden' : ''}`}
                                         />
                                     ))}
@@ -322,7 +344,7 @@ console.log('SIGNING (private) KEY', signingPrivateKey)
                         <div className="space-y-3">
                             <Button
                                 type="submit"
-                                disabled={isLoading || !identityId || !privateKey}
+                                disabled={isLoading || (!identityId && !privateKey && !hasMnemonic())}
                                 className="w-full shadow-evonext-lg text-3xl tracking-wider"
                                 size="lg"
                             >
