@@ -1,29 +1,30 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+    output: 'export',
     eslint: {
         ignoreDuringBuilds: true,
     },
     reactStrictMode: true,
-    images: {
-        // remotePatterns: [ // NOTE: Avail after v15.3.0
-        //     new URL('https://images.unsplash.com/**'),
-        //     new URL('https://api.dicebear.com/**'),
-        // ],
-        remotePatterns: [
-            {
-                protocol: 'https',
-                hostname: 'images.unsplash.com',
-                port: '',
-                pathname: '/**',
-            },
-            {
-                protocol: 'https',
-                hostname: 'api.dicebear.com',
-                port: '',
-                pathname: '/**',
-            },
-        ]
-    },
+    // images: {
+    //     // remotePatterns: [ // NOTE: Avail after v15.3.0
+    //     //     new URL('https://images.unsplash.com/**'),
+    //     //     new URL('https://api.dicebear.com/**'),
+    //     // ],
+    //     remotePatterns: [
+    //         {
+    //             protocol: 'https',
+    //             hostname: 'images.unsplash.com',
+    //             port: '',
+    //             pathname: '/**',
+    //         },
+    //         {
+    //             protocol: 'https',
+    //             hostname: 'api.dicebear.com',
+    //             port: '',
+    //             pathname: '/**',
+    //         },
+    //     ]
+    // },
     webpack: (config, { isServer }) => {
         // Optimize Dash SDK bundle size
         if (!isServer) {
