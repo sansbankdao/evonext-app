@@ -182,8 +182,8 @@ const encryptionKey = derive_key_from_seed_with_path(mnemonic!, undefined, encry
 
 const body = JSON.stringify({
     masterKey: masterKey.public_key,
-    authCritical: authCritical.public_key,
-    authHigh: authHigh.public_key,
+    authCriticalKey: authCritical.public_key,
+    authHighKey: authHigh.public_key,
     transferKey: transferKey.public_key,
     encryptionKey: encryptionKey.public_key,
     username,

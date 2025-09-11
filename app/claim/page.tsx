@@ -9,7 +9,7 @@ import Link from 'next/link'
 export default function DPNSRegisterPage() {
     const router = useRouter()
     const { user, logout } = useAuth()
-    const [isModalOpen, setIsModalOpen] = useState(true)
+    const [isModalOpen, setIsModalOpen] = useState(false)
 
     useEffect(() => {
         // Only open modal if user is authenticated
