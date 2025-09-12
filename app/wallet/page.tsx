@@ -10,6 +10,7 @@ import {
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import dataContract from '@/contracts/evonext-contract.json'
+import { WalletAssets } from '@/components/wallet/assets'
 import toast from 'react-hot-toast'
 
 export default function WalletPage() {
@@ -17,6 +18,10 @@ export default function WalletPage() {
     const [displayBalanceUsd, setDisplayBalanceUsd] = useState(0)
     const [tokensBalanceUsd, setTokensBalanceUsd] = useState(0)
     const [tokens, setTokens] = useState({})
+
+    const [isFullScreen, setIsFullScreen] = useState(false)
+    const [isShowingAssets, setIsShowingAssets] = useState(true)
+
     const [Identity, setIdentity] = useState({
         asset: {
             iconUrl: 'icon-url',
@@ -137,35 +142,32 @@ export default function WalletPage() {
                     </nav>
                 </div>
 
-                {/* <div className="my-5">
-                    <IdentityAssets
-                        v-if="isShowingAssets"
-                        :isFullScreen="isFullScreen"
-                    />
+                <div className="my-5">
+                    {isShowingAssets && <WalletAssets
+                        isFullScreen={isFullScreen}
+                    />}
 
-                    <IdentitySend
+                    {/* <WalletSend
                         v-if="isShowingSend"
                         :isFullScreen="isFullScreen"
-                    />
+                    /> */}
 
-                    <IdentityDeposit
+                    {/* <WalletDeposit
                         v-if="isShowingDeposit"
                         :isFullScreen="isFullScreen"
-                    />
+                    /> */}
 
-                    <IdentityHistory
+                    {/* <WalletHistory
                         v-if="isShowingHistory"
                         :isFullScreen="isFullScreen"
-                    />
+                    /> */}
 
-                    <IdentityAssistant
+                    {/* <WalletAssistant
                         v-if="isShowingAssistant"
                         :isFullScreen="isFullScreen"
-                    />
-                </div> */}
+                    /> */}
+                </div>
             </div>
-
-            {/* <Bootstrap className="col-span-4" /> */}
         </main>
     )
 }
