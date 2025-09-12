@@ -13,10 +13,6 @@ interface WalletAssetProps {
     isFullScreen: boolean;
 }
 
-interface Identity {
-    setAsset: (token: Token) => void;
-}
-
 export function WalletAssets({ isFullScreen }: WalletAssetProps) {
     const { user } =  useAuth()
     const [activeTab, setActiveTab] = useState('assets')

@@ -10,8 +10,13 @@ import {
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import dataContract from '@/contracts/evonext-contract.json'
-import { WalletAssets } from '@/components/wallet/assets'
 import toast from 'react-hot-toast'
+
+import { WalletAssets } from '@/components/wallet/assets'
+import { WalletAssistant } from '@/components/wallet/assistant'
+import { WalletDeposit } from '@/components/wallet/deposit'
+import { WalletHistory } from '@/components/wallet/history'
+import { WalletSend } from '@/components/wallet/send'
 
 export default function WalletPage() {
     const [displayBalance, setDisplayBalance] = useState(0)
@@ -19,6 +24,7 @@ export default function WalletPage() {
     const [tokensBalanceUsd, setTokensBalanceUsd] = useState(0)
     const [tokens, setTokens] = useState({})
 
+    const [activeTab, setActiveTab] = useState('assets')
     const [isFullScreen, setIsFullScreen] = useState(false)
     const [isShowingAssets, setIsShowingAssets] = useState(true)
 
@@ -46,14 +52,10 @@ export default function WalletPage() {
     //     acc + (doc.indices?.length || 0), 0
     // )
 
-    const setTab = (_tab: string) => {
-        console.log('CHANGE TAB', _tab)
-    }
-
     return (
         <main className="grid grid-cols-1 gap-8">
             <div className="col-span-4">
-                <button onClick={() => setTab('assets')} className="cursor-pointer group px-5 py-3 bg-gradient-to-b from-sky-100 to-sky-50 border-t border-x border-sky-400 rounded-x-lg shadow-md hover:bg-sky-100">
+                <button onClick={() => setActiveTab('assets')} className="cursor-pointer group px-5 py-3 bg-gradient-to-b from-sky-100 to-sky-50 border-t border-x border-sky-400 rounded-x-lg shadow-md hover:bg-sky-100">
                     <div className="flex flex-row w-full justify-between items-center mb-1 {[ isShowingAssets ? 'visible' : 'hidden' ]}">
                         <h3 className="text-base tracking-tight uppercase text-sky-600 font-medium text-center opacity-40 group-hover:opacity-100 group-hover:scale-105 duration-300 ease-in-out">
                             My Identity Dashboard
@@ -108,7 +110,7 @@ export default function WalletPage() {
 
                 <div className="block">
                     <nav className="isolate grid grid-cols-4 divide-x divide-gray-200 rounded-x-lg rounded-b-lg shadow" aria-label="Tabs">
-                        <div onClick={() => setTab('deposit')} className="cursor-pointer bg-gray-700 rounded-bl-lg group relative min-w-0 flex flex-row justify-center items-center gap-1 overflow-hidden py-2 px-2 text-sm font-medium hover:bg-gray-50 hover:text-gray-600 focus:z-10 {[ isShowingSend ? 'text-gray-100' : 'text-gray-400' ]}" aria-current="page">
+                        <div onClick={() => setActiveTab('deposit')} className="cursor-pointer bg-gray-700 rounded-bl-lg group relative min-w-0 flex flex-row justify-center items-center gap-1 overflow-hidden py-2 px-2 text-sm font-medium hover:bg-gray-50 hover:text-gray-600 focus:z-10 {[ isShowingSend ? 'text-gray-100' : 'text-gray-400' ]}" aria-current="page">
                             <svg className="w-4 h-auto" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"></path>
                             </svg>
@@ -116,7 +118,7 @@ export default function WalletPage() {
                             <span aria-hidden="true" className="absolute inset-x-0 bottom-0 h-0.5 {[ isShowingSend ? 'bg-sky-500' : 'bg-transparent' ]}"></span>
                         </div>
 
-                        <div onClick={() => setTab('send')} className="cursor-pointer bg-gray-700 text-gray-400 group relative min-w-0 flex flex-row justify-center items-center gap-1 overflow-hidden py-2 px-2 text-center text-sm font-medium hover:bg-gray-50 hover:text-gray-600 focus:z-10">
+                        <div onClick={() => setActiveTab('send')} className="cursor-pointer bg-gray-700 text-gray-400 group relative min-w-0 flex flex-row justify-center items-center gap-1 overflow-hidden py-2 px-2 text-center text-sm font-medium hover:bg-gray-50 hover:text-gray-600 focus:z-10">
                             <svg className="w-4 h-auto" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"></path>
                             </svg>
@@ -124,7 +126,7 @@ export default function WalletPage() {
                             <span aria-hidden="true" className="bg-transparent absolute inset-x-0 bottom-0 h-0.5"></span>
                         </div>
 
-                        <div onClick={() => setTab('history')} className="cursor-pointer bg-gray-700 text-gray-400 group relative min-w-0 flex flex-row justify-center items-center gap-1 overflow-hidden py-2 px-2 text-center text-sm font-medium hover:bg-gray-50 hover:text-gray-600 focus:z-10">
+                        <div onClick={() => setActiveTab('history')} className="cursor-pointer bg-gray-700 text-gray-400 group relative min-w-0 flex flex-row justify-center items-center gap-1 overflow-hidden py-2 px-2 text-center text-sm font-medium hover:bg-gray-50 hover:text-gray-600 focus:z-10">
                             <svg className="w-5 h-auto" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"></path>
                             </svg>
@@ -132,7 +134,7 @@ export default function WalletPage() {
                             <span aria-hidden="true" className="bg-transparent absolute inset-x-0 bottom-0 h-0.5"></span>
                         </div>
 
-                        <div onClick={() => setTab('assistant')} className="cursor-pointer bg-gray-700 text-gray-400 group relative min-w-0 flex flex-row justify-center items-center gap-1 overflow-hidden py-2 px-2 text-center text-sm font-medium hover:bg-gray-50 hover:text-gray-600 focus:z-10">
+                        <div onClick={() => setActiveTab('assistant')} className="cursor-pointer bg-gray-700 text-gray-400 group relative min-w-0 flex flex-row justify-center items-center gap-1 overflow-hidden py-2 px-2 text-center text-sm font-medium hover:bg-gray-50 hover:text-gray-600 focus:z-10">
                             <svg className="w-5 h-auto" data-slot="icon" fill="none" stroke-width="1.5" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456ZM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.423 1.423l1.183.394-1.183.394a2.25 2.25 0 0 0-1.423 1.423Z"></path>
                             </svg>
@@ -143,29 +145,25 @@ export default function WalletPage() {
                 </div>
 
                 <div className="my-5">
-                    {isShowingAssets && <WalletAssets
+                    {activeTab === 'assets' && <WalletAssets
                         isFullScreen={isFullScreen}
                     />}
 
-                    {/* <WalletSend
-                        v-if="isShowingSend"
-                        :isFullScreen="isFullScreen"
-                    /> */}
+                    {activeTab === 'send' && <WalletSend
+                        isFullScreen={isFullScreen}
+                    />}
 
-                    {/* <WalletDeposit
-                        v-if="isShowingDeposit"
-                        :isFullScreen="isFullScreen"
-                    /> */}
+                    {activeTab === 'deposit' && <WalletDeposit
+                        isFullScreen={isFullScreen}
+                    />}
 
-                    {/* <WalletHistory
-                        v-if="isShowingHistory"
-                        :isFullScreen="isFullScreen"
-                    /> */}
+                    {activeTab === 'history' && <WalletHistory
+                        isFullScreen={isFullScreen}
+                    />}
 
-                    {/* <WalletAssistant
-                        v-if="isShowingAssistant"
-                        :isFullScreen="isFullScreen"
-                    /> */}
+                    {activeTab === 'assistant' && <WalletAssistant
+                        isFullScreen={isFullScreen}
+                    />}
                 </div>
             </div>
         </main>
