@@ -213,11 +213,12 @@ console.log('PASTE DETECTED')
         setError(null)
         setIsLoading(true)
 
+        /* Set (new) clipboard. */
+        const clipboard = e.clipboardData.getData('text/plain')
+console.log('CLIPBOARD', clipboard)
+
         /* Wait a tick. */
         setTimeout(async () => {
-            /* Set (new) clipboard. */
-            const clipboard = e.clipboardData.getData('text/plain')
-
             /* Split seed words. */
             const splitWords = clipboard.split(' ')
 
