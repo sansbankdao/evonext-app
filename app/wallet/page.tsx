@@ -54,8 +54,8 @@ export default function WalletPage() {
     // )
 
     return (
-        <main className="pt-16 py-10 w-full grid grid-cols-1 gap-8 h-screen">
-            <div className="lg:mt-2 w-full overflow-y-scroll">
+        <main className="pt-14 py-10 w-full grid grid-cols-1 gap-8 h-screen">
+            <div className="sm:mt-2 lg:mt-4 w-full overflow-y-scroll">
                 <button
                     onClick={() => setActiveTab('assets')}
                     className="cursor-pointer group w-full px-5 py-3 bg-gradient-to-b from-sky-100 to-sky-50 border-t border-x border-sky-400 rounded-x-lg shadow-md hover:bg-sky-100"
