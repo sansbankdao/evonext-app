@@ -7,6 +7,7 @@ import {
     CheckIcon,
     CodeBracketIcon,
 } from '@heroicons/react/24/outline'
+import Image from 'next/image'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import dataContract from '@/contracts/evonext-contract.json'
@@ -30,8 +31,8 @@ export default function WalletPage() {
 
     const [Identity, setIdentity] = useState({
         asset: {
-            iconUrl: 'icon-url',
-            ticker: 'sample-ticker',
+            iconUrl: '/icons/dash.svg',
+            ticker: 'Dash Credits',
         }
     })
     // const contractString = JSON.stringify(dataContract, null, 2)
@@ -53,15 +54,24 @@ export default function WalletPage() {
     // )
 
     return (
-        <main className="grid grid-cols-1 gap-8">
-            <div className="col-span-4">
-                <button onClick={() => setActiveTab('assets')} className="cursor-pointer group px-5 py-3 bg-gradient-to-b from-sky-100 to-sky-50 border-t border-x border-sky-400 rounded-x-lg shadow-md hover:bg-sky-100">
+        <main className="pt-16 w-full grid grid-cols-1 gap-8">
+            <div className="mt-2 w-full">
+                <button
+                    onClick={() => setActiveTab('assets')}
+                    className="cursor-pointer group w-full px-5 py-3 bg-gradient-to-b from-sky-100 to-sky-50 border-t border-x border-sky-400 rounded-x-lg shadow-md hover:bg-sky-100"
+                >
                     <div className="flex flex-row w-full justify-between items-center mb-1 {[ isShowingAssets ? 'visible' : 'hidden' ]}">
                         <h3 className="text-base tracking-tight uppercase text-sky-600 font-medium text-center opacity-40 group-hover:opacity-100 group-hover:scale-105 duration-300 ease-in-out">
                             My Identity Dashboard
                         </h3>
 
-                        <img src={Identity.asset?.iconUrl} className="-mt-3 -mr-2 p-2 h-10 w-auto opacity-40 group-hover:opacity-100 group-hover:h-11 duration-300 ease-in-out" />
+                        <Image
+                            src={Identity.asset?.iconUrl}
+                            className="-mt-3 -mr-2 p-2 h-16 w-auto opacity-40 group-hover:opacity-100 group-hover:h-11 duration-300 ease-in-out"
+                            alt=""
+                            width={0}
+                            height={0}
+                        />
                     </div>
 
                     <div className="flex flex-col items-end">
