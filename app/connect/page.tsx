@@ -245,7 +245,7 @@ console.log('HAS MNEMONIC ', typeof hasMnemonic(), hasMnemonic())
 console.log('MNEMONIC', typeof mnemonic, mnemonic)
 
         try {
-            if (mnemonic) {
+            if (hasMnemonic()) {
                 await handleMnemonic(mnemonic)
             } else {
                 await login(identityId, privateKey)
