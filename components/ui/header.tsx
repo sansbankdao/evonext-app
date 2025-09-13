@@ -19,11 +19,11 @@ export function Header() {
 
                         {network !== 'mainnet' && <>
                             <span className="w-fit flex ml-40 sm:ml-52 lg:ml-52 -mt-7 sm:-mt-9 lg:-mt-9">
-                                <h3 className="-rotate-90 tracking-tighter text-xs sm:text-sm uppercase text-sky-300 font-bold animate-pulse">
+                                <h3 className="-rotate-90 tracking-tighter text-xs sm:text-sm uppercase text-yellow-100 font-bold animate-pulse">
                                     Testnet
                                 </h3>
 
-                                <h3 className="hidden sm:inline-flex -ml-8 rotate-90 tracking-tighter text-xs sm:text-sm uppercase text-sky-300 font-bold animate-pulse">
+                                <h3 className="hidden sm:inline-flex -ml-8 rotate-90 tracking-tighter text-xs sm:text-sm uppercase text-yellow-100 font-bold animate-pulse">
                                     Testnet
                                 </h3>
                             </span>
