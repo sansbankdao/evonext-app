@@ -56,7 +56,7 @@ export default function PublicHomePage() {
                         timestamp: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
                         likes: 342,
                         replies: 45,
-                        reposts: '0.01',
+                        remixes: '0.01',
                         views: 5234
                     },
                     {
@@ -70,7 +70,7 @@ export default function PublicHomePage() {
                         timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
                         likes: 567,
                         replies: 78,
-                        reposts: '0.05',
+                        remixes: '0.05',
                         views: 8901
                     },
                     {
@@ -84,7 +84,7 @@ export default function PublicHomePage() {
                         timestamp: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(),
                         likes: 891,
                         replies: 156,
-                        reposts: '0.02',
+                        remixes: '0.02',
                         views: 12567
                     }
                 ]

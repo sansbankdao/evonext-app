@@ -38,7 +38,7 @@ Due to platform limitations with object arrays, we temporarily simplified:
 2. **avatar** - Avatar customization data
 3. **post** - Social media posts
 4. **like** - Post likes
-5. **repost** - Post reposts/retweets
+5. **remix** - Post remixes
 6. **follow** - Follow relationships
 7. **bookmark** - Bookmarked posts
 8. **list** - User-created lists

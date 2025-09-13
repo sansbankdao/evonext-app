@@ -64,7 +64,7 @@ Complete integration of the Dash Platform WASM SDK into the EvoNext social media
    - Implement hashtag and mention handling
 
 9. **Social Action Services**
-   - Create services for: likes, reposts, follows, bookmarks
+   - Create services for: likes, remixes, follows, bookmarks
    - Implement proper unique constraint handling
    - Add optimistic updates with rollback
    - Handle deletion for unlike/unfollow actions
@@ -95,7 +95,7 @@ Complete integration of the Dash Platform WASM SDK into the EvoNext social media
 
 14. **Profile Queries**
     - Fetch user posts
-    - Get user likes/reposts
+    - Get user likes/remixes
     - Implement follower/following lists
     - Add activity aggregation
 

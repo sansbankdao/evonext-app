@@ -69,7 +69,7 @@ function PostDetailPage() {
                     createdAt: new Date(Date.now() - 1000 * 60 * 60),
                     likes: 42,
                     replies: 5,
-                    reposts: 12,
+                    remixes: 12,
                     views: 234
                 }
 
@@ -91,7 +91,7 @@ function PostDetailPage() {
                         createdAt: new Date(Date.now() - 1000 * 60 * 30),
                         likes: 3,
                         replies: 0,
-                        reposts: 0,
+                        remixes: 0,
                         views: 45,
                         replyToId: hashId as string
                     },
@@ -112,7 +112,7 @@ function PostDetailPage() {
                         createdAt: new Date(Date.now() - 1000 * 60 * 15),
                         likes: 7,
                         replies: 0,
-                        reposts: 1,
+                        remixes: 1,
                         views: 89,
                         replyToId: hashId as string
                     }
@@ -155,7 +155,7 @@ function PostDetailPage() {
                 createdAt: new Date(),
                 likes: 0,
                 replies: 0,
-                reposts: 0,
+                remixes: 0,
                 views: 0,
                 replyToId: post.id
             }

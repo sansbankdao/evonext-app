@@ -145,7 +145,7 @@ await followService.followUser(targetUserId, identityId);
 The WASM SDK integration is now production-ready for:
 - ✅ User authentication
 - ✅ Content creation (posts, profiles)
-- ✅ Social interactions (likes, follows, reposts)
+- ✅ Social interactions (likes, follows, remixes)
 - ✅ Content discovery (queries, search)
 - ✅ Username resolution (identity ↔ username lookup)
 - ✅ Username search and availability checking

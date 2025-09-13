@@ -39,7 +39,7 @@ interface BookmarkedPost {
     timestamp: string
     likes: number
     replies: number
-    reposts: number
+    remixes: number
     views: number
     bookmarkedAt: Date
 }
@@ -75,7 +75,7 @@ function RemixesPage() {
                     timestamp: new Date(Date.now() - 1000 * 60 * 60).toISOString(),
                     likes: 42,
                     replies: 5,
-                    reposts: 12,
+                    remixes: 12,
                     views: 234,
                     bookmarkedAt: new Date(Date.now() - 1000 * 60 * 30)
                 },
@@ -98,7 +98,7 @@ function RemixesPage() {
                     timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
                     likes: 128,
                     replies: 23,
-                    reposts: 45,
+                    remixes: 45,
                     views: 1234,
                     bookmarkedAt: new Date(Date.now() - 1000 * 60 * 60 * 2)
                 },
@@ -121,7 +121,7 @@ function RemixesPage() {
                     timestamp: new Date(Date.now() - 1000 * 60 * 60 * 48).toISOString(),
                     likes: 89,
                     replies: 17,
-                    reposts: 28,
+                    remixes: 28,
                     views: 567,
                     bookmarkedAt: new Date(Date.now() - 1000 * 60 * 60 * 24)
                 }

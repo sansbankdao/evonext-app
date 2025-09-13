@@ -74,7 +74,7 @@ console.log('EXPLORE CONTRACT ID', getContractId(network!))
                     timestamp: new Date(post.$createdAt).toISOString(),
                     likes: 0,
                     replies: 0,
-                    reposts: 0,
+                    remixes: 0,
                     views: 0
                 }))
 
@@ -117,7 +117,7 @@ console.log('EXPLORE CONTRACT ID', getContractId(network!))
                     timestamp: new Date(post.$createdAt).toISOString(),
                     likes: 0,
                     replies: 0,
-                    reposts: 0,
+                    remixes: 0,
                     views: 0
                 }))
 

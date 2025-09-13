@@ -48,7 +48,7 @@ function SettingsPage() {
     // Notification settings
     const [notificationSettings, setNotificationSettings] = useState({
         likes: true,
-        reposts: true,
+        remixes: true,
         replies: true,
         follows: true,
         mentions: true,
@@ -173,7 +173,7 @@ function SettingsPage() {
 
                                 <p className="text-sm text-gray-500">
                                     {key === 'likes' && 'When someone likes your posts'}
-                                    {key === 'reposts' && 'When someone reposts your content'}
+                                    {key === 'remixes' && 'When someone remixes your content'}
                                     {key === 'replies' && 'When someone replies to you'}
                                     {key === 'follows' && 'When someone follows you'}
                                     {key === 'mentions' && 'When someone mentions you'}

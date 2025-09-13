@@ -124,7 +124,7 @@ console.log('***LOADING POSTS-4')
                     createdAt: doc.createdAt ? new Date(doc.createdAt).toISOString() : new Date().toISOString(),
                     likes: Math.floor(Math.random() * 50), // Placeholder until we implement likes
                     replies: Math.floor(Math.random() * 20), // Placeholder until we implement replies
-                    reposts: Math.floor(Math.random() * 10), // Placeholder until we implement reposts
+                    remixes: Math.floor(Math.random() * 10), // Placeholder until we implement remixes
                     liked: false,
                     remixed: false,
                     bookmarked: false

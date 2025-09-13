@@ -8,7 +8,7 @@ The EvoNext data contract defines all the document types and schemas needed for 
 
 - User profiles with verification
 - Posts with media attachments
-- Likes, reposts, and bookmarks
+- Likes, remixes, and bookmarks
 - Following/follower relationships
 - Direct messages (encrypted)
 - Lists for organizing users
@@ -45,7 +45,7 @@ Records when a user likes a post.
 - Indexed for fast queries by user or post
 
 ### 4. **repost**
-Records when a user reposts/retweets content.
+Records when a user remixes/retweets content.
 
 **Key Features:**
 - Similar to likes with unique constraints

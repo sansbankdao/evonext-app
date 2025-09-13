@@ -60,7 +60,7 @@ EvoNext is a decentralized social media platform built with Next.js 14 and Dash 
 The social platform uses 12 document types. The actual registered contract is in `contracts/evonext-contract.json`:
 - User profiles and avatars (separate documents for flexibility)
 - Posts with 500 character limit and optional media (NO authorId field - uses $ownerId system field)
-- Social interactions (likes, reposts, follows) - use $ownerId not userId
+- Social interactions (likes, remixes, follows) - use $ownerId not userId
 - Private features (bookmarks, lists, blocks, mutes)
 - Direct messages and notifications
 
