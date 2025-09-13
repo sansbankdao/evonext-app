@@ -1,10 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useAuth } from '@/contexts/auth-context'
 import { BoltIcon, UserIcon } from '@heroicons/react/24/outline'
+import { QRCodeSVG } from 'qrcode.react'
 
 interface Token {
     id: string;
@@ -16,12 +17,16 @@ interface WalletDepositProps {
 
 export function WalletDeposit({ isFullScreen }: WalletDepositProps) {
     const { user } =  useAuth()
-    const [displayLog, setDisplayLog] = useState(null)
+    const [identity, setIdentity] = useState('')
+
+    useEffect(() => {
+        setIdentity('NewMoneyHoney69.dash')
+    }, [])
 
     const Identity = {
         setAsset: (tokenid: string) => {},
-        abbr: 'Asset Abbr',
-        address: 'Asset Address',
+        abbr: 'NewMoneyHoney69.dash',
+        address: '34vkjdeUTP2z798SiXqoB6EAuobh51kXYURqVa9xkujf',
     }
 
     const dataUrl = ''
@@ -44,13 +49,23 @@ export function WalletDeposit({ isFullScreen }: WalletDepositProps) {
                         {Identity.abbr}
                     </h3>
 
+                    <h3
+                        className="flex justify-center text-lg text-amber-900 font-medium truncate"
+                    >
+                        {Identity.address}
+                    </h3>
+
                     <div className="flex justify-center">
-                        <Image
+                        {/* <Image
                             src={dataUrl}
                             className="my-5 w-full h-auto border-2 border-amber-900 rounded-lg shadow-md"
                             alt=""
                             width={32}
                             height={32}
+                        /> */}
+                        <QRCodeSVG
+                            value={identity}
+                            size={290}
                         />
                     </div>
 

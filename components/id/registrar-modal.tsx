@@ -13,6 +13,7 @@ import { CheckCircle2, XCircle, Loader2, RefreshCw, X, Edit2 } from 'lucide-reac
 import { motion, AnimatePresence } from 'framer-motion'
 // @ts-ignore
 import QRCode from 'qrcode'
+import { QRCodeSVG } from 'qrcode.react'
 import {
     derive_key_from_seed_with_path,
     get_identity_by_public_key_hash,

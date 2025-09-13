@@ -1,6 +1,6 @@
 {
   "name": "evonext-app",
-  "version": "25.9.12",
+  "version": "25.9.13",
   "license": "MIT",
   "scripts": {
     "dev": "next dev",
@@ -35,6 +35,7 @@
     "numeral": "2.0.6",
     "pshenmic-dpp": "1.0.26",
     "qrcode": "1.5.4",
+    "qrcode.react": "4.2.0",
     "react": "18.2.0",
     "react-dom": "18.2.0",
     "react-hot-toast": "2.4.1",
