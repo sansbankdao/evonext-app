@@ -1,7 +1,14 @@
 'use client'
 
 import { useState } from 'react'
-import { ArrowLeftIcon, DocumentDuplicateIcon, CheckIcon, CodeBracketIcon } from '@heroicons/react/24/outline'
+import {
+    ArrowLeftIcon,
+    DocumentDuplicateIcon,
+    CheckIcon,
+    CodeBracketIcon,
+    ComputerDesktopIcon,
+    Squares2X2Icon,
+} from '@heroicons/react/24/outline'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import dataContract from '@/contracts/evonext-contract.json'
@@ -28,15 +35,23 @@ export default function StudioPage() {
     )
 
     return (
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-            <div className="max-w-7xl mx-auto px-4 py-8">
-                <div className="mb-8">
+        <div className="pt-14 min-h-screen bg-gray-50 dark:bg-gray-950 h-screen">
+            <div className="sm:mt-2 lg:mt-4 max-w-7xl mx-auto px-4 py-8 overflow-y-scroll">
+                <div className="w-full flex justify-between mb-8">
                     <Link
                         href="/"
                         className="inline-flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
                     >
-                        <ArrowLeftIcon className="h-4 w-4" />
+                        <ArrowLeftIcon className="h-6" />
                         Back to EvoNext
+                    </Link>
+
+                    <Link
+                        href="/apps"
+                        className="px-5 py-1 inline-flex items-center gap-2 text-gray-600 dark:text-sky-400 hover:text-sky-100 dark:hover:text-sky-100 transition-colors border-2 border-sky-500 bg-sky-50 hover:bg-sky-700 rounded-xl"
+                    >
+                        Apps Gallery
+                        <Squares2X2Icon className="h-5" />
                     </Link>
                 </div>
 
@@ -47,10 +62,10 @@ export default function StudioPage() {
                 >
                     <div className="bg-gradient-evonext p-8 text-white">
                         <div className="flex items-center gap-3 mb-4">
-                            <CodeBracketIcon className="h-8 w-8" />
+                            <ComputerDesktopIcon className="h-8 w-8" />
 
                             <h1 className="text-3xl font-bold">
-                                EvoNext Data Contract
+                                Evo Builder Studio
                             </h1>
                         </div>
 
@@ -104,7 +119,7 @@ export default function StudioPage() {
 
                         <div className="bg-gray-900 rounded-lg p-4 overflow-x-auto">
                             <pre className="text-sm text-gray-300 font-mono whitespace-pre">
-                                <code>{contractString}</code>
+                                {/* <code>{contractString}</code> */}
                             </pre>
                         </div>
 

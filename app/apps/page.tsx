@@ -1,7 +1,13 @@
 'use client'
 
 import { useState } from 'react'
-import { ArrowLeftIcon, DocumentDuplicateIcon, CheckIcon, CodeBracketIcon } from '@heroicons/react/24/outline'
+import {
+    ArrowLeftIcon,
+    CheckIcon,
+    CodeBracketIcon,
+    ComputerDesktopIcon,
+    DocumentDuplicateIcon,
+} from '@heroicons/react/24/outline'
 import Image from 'next/image'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
@@ -29,23 +35,23 @@ export default function AppsPage() {
     )
 
     return (
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-            <div className="max-w-7xl mx-auto px-4 py-8">
-                <div className="mb-8">
+        <div className="pt-14 min-h-screen bg-gray-50 dark:bg-gray-950 h-screen">
+            <div className="sm:mt-2 lg:mt-4 max-w-7xl mx-auto px-4 py-8 overflow-y-scroll">
+                <div className="w-full flex justify-between mb-8">
                     <Link
                         href="/"
                         className="inline-flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
                     >
-                        <ArrowLeftIcon className="h-4 w-4" />
+                        <ArrowLeftIcon className="h-6" />
                         Back to EvoNext
                     </Link>
 
                     <Link
                         href="/studio"
-                        className="inline-flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
+                        className="px-5 py-1 inline-flex items-center gap-2 text-gray-600 dark:text-sky-400 hover:text-sky-100 dark:hover:text-sky-100 transition-colors border-2 border-sky-500 bg-sky-50 hover:bg-sky-700 rounded-xl"
                     >
-                        <ArrowLeftIcon className="h-4 w-4" />
-                        Open Builder Studio
+                        Builder Studio
+                        <ComputerDesktopIcon className="h-5" />
                     </Link>
                 </div>
 
