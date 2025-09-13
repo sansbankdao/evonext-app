@@ -20,7 +20,7 @@ import { AvatarCanvas } from '@/components/ui/avatar-canvas'
 import { generateAvatarV2 } from '@/lib/avatar-generator-v2'
 import Link from 'next/link'
 
-type NotificationType = 'like' | 'repost' | 'reply' | 'follow' | 'mention'
+type NotificationType = 'like' | 'remix' | 'reply' | 'follow' | 'mention'
 
 interface Notification {
     id: string;
@@ -63,8 +63,8 @@ function NotificationsPage() {
                 },
                 {
                     id: '3',
-                    type: 'repost',
-                    message: 'reposted your post',
+                    type: 'remix',
+                    message: 'remixed your post',
                     timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2), // 2 hours ago
                     read: true,
                     actorId: 'user789',

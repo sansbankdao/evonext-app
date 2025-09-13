@@ -113,7 +113,7 @@ class RemixService extends BaseDocumentService<RemixDocument> {
     /**
      * Get remixes for a post
      */
-    async getPostRemixs(postId: string, options: QueryOptions = {}): Promise<RemixDocument[]> {
+    async getPostRemixes(postId: string, options: QueryOptions = {}): Promise<RemixDocument[]> {
         try {
             const result = await this.query({
                 where: [['postId', '==', postId]],
@@ -132,7 +132,7 @@ class RemixService extends BaseDocumentService<RemixDocument> {
     /**
      * Get user's remixes
      */
-    async getUserRemixs(userId: string, options: QueryOptions = {}): Promise<RemixDocument[]> {
+    async getUserRemixes(userId: string, options: QueryOptions = {}): Promise<RemixDocument[]> {
         try {
             const result = await this.query({
                 where: [['$ownerId', '==', userId]],
@@ -151,8 +151,8 @@ class RemixService extends BaseDocumentService<RemixDocument> {
     /**
      * Count remixes for a post
      */
-    async countRemixs(postId: string): Promise<number> {
-        const remixes = await this.getPostRemixs(postId);
+    async countRemixes(postId: string): Promise<number> {
+        const remixes = await this.getPostRemixes(postId);
 
         return remixes.length;
     }

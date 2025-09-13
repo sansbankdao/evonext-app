@@ -41,8 +41,8 @@ export function PostCard({ post, hideAvatar = false, isOwnPost = false }: PostCa
     const router = useRouter()
     const [liked, setLiked] = useState(post.liked || false)
     const [likes, setLikes] = useState(post.likes)
-    const [reposted, setReposted] = useState(post.reposted || false)
-    const [reposts, setReposts] = useState(post.reposts)
+    const [remixed, setRemixed] = useState(post.remixed || false)
+    const [remixes, setRemixes] = useState(post.remixes)
     const [bookmarked, setBookmarked] = useState(post.bookmarked || false)
     const [showLikesModal, setShowLikesModal] = useState(false)
     const { setReplyingTo, setComposeOpen } = useAppStore()
@@ -71,9 +71,9 @@ console.log('HANDLE REPOST')
         /* Stop propagation. */
         e.stopPropagation()
 
-        setReposted(!reposted)
-        setReposts(reposted ? reposts - 1 : reposts + 1)
-        toast.success(reposted ? 'Removed remix' : 'Remixed!')
+        setRemixed(!remixed)
+        setRemixes(remixed ? remixes - 1 : remixes + 1)
+        toast.success(remixed ? 'Removed remix' : 'Remixed!')
     }
 
     // const handleBookmark = () => {
@@ -327,21 +327,21 @@ console.log('HANDLE SHARE')
                                             onClick={handleRepost}
                                             className={cn(
                                                 'group flex items-center gap-1 p-2 rounded-full transition-colors',
-                                                reposted
+                                                remixed
                                                 ? 'text-green-500 hover:bg-green-50 dark:hover:bg-green-950'
                                                 : 'hover:bg-green-50 dark:hover:bg-green-950'
                                             )}
                                         >
                                             <SparklesIcon className={cn(
                                                 'h-5 w-5 transition-colors',
-                                                reposted ? 'text-green-500' : 'text-gray-500 group-hover:text-green-500'
+                                                remixed ? 'text-green-500' : 'text-gray-500 group-hover:text-green-500'
                                             )} />
 
                                             <span className={cn(
                                                 'text-sm transition-colors',
-                                                reposted ? 'text-green-500' : 'text-gray-500 group-hover:text-green-500'
+                                                remixed ? 'text-green-500' : 'text-gray-500 group-hover:text-green-500'
                                             )}>
-                                                {reposts > 0 && formatNumber(reposts)}
+                                                {remixes > 0 && formatNumber(remixes)}
                                             </span>
                                         </button>
                                     </Tooltip.Trigger>

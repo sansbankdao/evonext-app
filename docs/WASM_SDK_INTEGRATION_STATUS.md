@@ -16,7 +16,7 @@
 5. **Identity & Authentication**
    - `identity-service.ts` - Identity fetching and balance checking
    - `auth-context.tsx` - Updated to use WASM SDK services
-   
+
 6. **Profile Management**
    - `profile-service.ts` - Profile CRUD operations
    - `dpns-service.ts` - DPNS resolution (placeholder - not yet in WASM SDK)
@@ -24,7 +24,7 @@
 7. **Content Services**
    - `post-service.ts` - Post creation and querying
    - `like-service.ts` - Like/unlike functionality
-   - `repost-service.ts` - Repost functionality
+   - `remix-service.ts` - Remix (posts) functionality
    - `follow-service.ts` - Follow/unfollow users
    - `bookmark-service.ts` - Bookmark posts
 

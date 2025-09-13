@@ -1,3 +1,14 @@
+export interface App {
+    id: string;
+    type: 'blog' | 'game' | null | undefined;
+    engine: 'p5' | 'phaser' | 'godot' | null | undefined;
+    creator: User;
+    content: string;
+    createdAt: Date;
+    likes: number;
+    postId: string;
+}
+
 export interface Comment {
     id: string;
     author: User;
@@ -33,11 +44,11 @@ export interface Post {
     content: string;
     createdAt: Date;
     likes: number;
-    reposts: number;
+    remixes: number;
     replies: number;
     views: number;
     liked?: boolean;
-    reposted?: boolean;
+    remixed?: boolean;
     bookmarked?: boolean;
     media?: Media[];
     replyTo?: Post;
@@ -52,7 +63,7 @@ export interface Trend {
 
 export interface User {
     id: string;
-    docId?: string;          // Document that stores the user's profile
+    docId?: string;         // Document that stores the user's profile
     username: string;       // From DPNS - not stored in profile document
     displayName: string;
     avatar: string;         // URL for display

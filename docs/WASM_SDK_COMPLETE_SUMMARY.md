@@ -9,18 +9,18 @@ Thanks to your insight about checking the index.html file, I discovered that doc
 ### 1. Complete Service Architecture
 ```
 /lib/services/
-├── wasm-sdk-service.ts      # SDK initialization and lifecycle
-├── state-transition-service.ts # Document create/update/delete operations
-├── identity-service.ts       # Identity and balance management
-├── document-service.ts       # Base class for all document types
-├── profile-service.ts        # User profiles and avatars
-├── post-service.ts          # Posts with stats and interactions
-├── like-service.ts          # Like/unlike functionality
-├── follow-service.ts        # Follow/unfollow users
-├── repost-service.ts        # Repost functionality
-├── bookmark-service.ts      # Bookmark posts
-├── dpns-service.ts          # DPNS (placeholder - not in SDK yet)
-└── index.ts                 # Unified exports
+├── wasm-sdk-service.ts          # SDK initialization and lifecycle
+├── state-transition-service.ts  # Document create/update/delete operations
+├── identity-service.ts          # Identity and balance management
+├── document-service.ts          # Base class for all document types
+├── profile-service.ts           # User profiles and avatars
+├── post-service.ts              # Posts with stats and interactions
+├── like-service.ts              # Like/unlike functionality
+├── follow-service.ts            # Follow/unfollow users
+├── remix-service.ts             # Remix (posts) functionality
+├── bookmark-service.ts          # Bookmark posts
+├── dpns-service.ts              # DPNS (placeholder - not in SDK yet)
+└── index.ts                     # Unified exports
 ```
 
 ### 2. Working Features ✅

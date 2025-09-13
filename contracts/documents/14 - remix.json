@@ -1,12 +1,12 @@
 {
-    "repost": {
+    "remix": {
         "type": "object",
-        "description": "A repost/retweet of a post.",
+        "description": "A remix of a post.",
         "properties": {
             "postId": {
                 "position": 0,
                 "type": "array",
-                "description": "ID of the reposted post",
+                "description": "ID of the remixed post",
                 "maxItems": 32,
                 "minItems": 32,
                 "byteArray": true,

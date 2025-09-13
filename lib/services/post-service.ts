@@ -79,7 +79,7 @@ export interface PostDocument {
 export interface PostStats {
     postId: string;
     likes: number;
-    reposts: number;
+    remixes: number;
     replies: number;
     views: number;
 }
@@ -103,11 +103,11 @@ class PostService extends BaseDocumentService<Post> {
             content: doc.content,
             createdAt: new Date(doc.$createdAt),
             likes: 0,
-            reposts: 0,
+            remixes: 0,
             replies: 0,
             views: 0,
             liked: false,
-            reposted: false,
+            remixed: false,
             bookmarked: false,
             media: doc.mediaUrl ? [{
                 id: doc.$id + '-media',
@@ -142,14 +142,14 @@ class PostService extends BaseDocumentService<Post> {
             // Get post stats
             const stats = await this.getPostStats(doc.$id)
             post.likes = stats.likes
-            post.reposts = stats.reposts
+            post.remixes = stats.remixes
             post.replies = stats.replies
             post.views = stats.views
 
             // Get interaction status for current user
             const interactions = await this.getUserInteractions(doc.$id)
             post.liked = interactions.liked
-            post.reposted = interactions.reposted
+            post.remixed = interactions.remixed
             post.bookmarked = interactions.bookmarked
 
             // Load reply-to post if exists
@@ -272,7 +272,7 @@ class PostService extends BaseDocumentService<Post> {
     }
 
     /**
-     * Get post statistics (likes, reposts, replies)
+     * Get post statistics (likes, remixes, replies)
      */
     private async getPostStats(postId: string): Promise<PostStats> {
         // Check cache
@@ -287,7 +287,7 @@ class PostService extends BaseDocumentService<Post> {
             const stats: PostStats = {
                 postId,
                 likes: await this.countLikes(postId),
-                reposts: await this.countReposts(postId),
+                remixes: await this.countRemixes(postId),
                 replies: await this.countReplies(postId),
                 views: 0 // Views would need a separate tracking mechanism
             }
@@ -304,7 +304,7 @@ class PostService extends BaseDocumentService<Post> {
             return {
                 postId,
                 likes: 0,
-                reposts: 0,
+                remixes: 0,
                 replies: 0,
                 views: 0,
             }
@@ -321,12 +321,12 @@ class PostService extends BaseDocumentService<Post> {
     }
 
     /**
-     * Count reposts for a post
+     * Count remixes for a post
      */
-    private async countReposts(postId: string): Promise<number> {
-        const { repostService } = await import('./repost-service')
+    private async countRemixes(postId: string): Promise<number> {
+        const { remixService } = await import('./remix-service')
 
-        return repostService.countReposts(postId)
+        return remixService.countRemixes(postId)
     }
 
     /**
@@ -351,14 +351,14 @@ class PostService extends BaseDocumentService<Post> {
      */
     private async getUserInteractions(postId: string): Promise<{
         liked: boolean;
-        reposted: boolean;
+        remixed: boolean;
         bookmarked: boolean;
     }> {
-        // This would check if the current user has liked/reposted/bookmarked
+        // This would check if the current user has liked/remixed/bookmarked
         // For now, return false for all
         return {
             liked: false,
-            reposted: false,
+            remixed: false,
             bookmarked: false
         }
     }

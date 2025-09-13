@@ -126,7 +126,7 @@ console.log('***LOADING POSTS-4')
                     replies: Math.floor(Math.random() * 20), // Placeholder until we implement replies
                     reposts: Math.floor(Math.random() * 10), // Placeholder until we implement reposts
                     liked: false,
-                    reposted: false,
+                    remixed: false,
                     bookmarked: false
                 }
             }))
