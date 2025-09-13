@@ -31,10 +31,10 @@ export function Header() {
                     </span>
                 </Link>
 
-                {user && <>
-                    <Link
+                <div className="-mt-0 sm:mt-1 -mr-7 sm:-mr-4 lg:mr-0 lg:mt-2 flex px-3 py-1 bg-white/20 hover:bg-white/30 rounded-md transition-colors">
+                    {user && <Link
                         href="/profile"
-                        className="-mt-0 sm:mt-1 lg:mt-2 flex items-center gap-1 px-3 py-1 bg-white/20 hover:bg-white/30 rounded-md transition-colors"
+                        className="flex items-center gap-1"
                         title="Clear cache and reload"
                     >
                         <UserIcon className="h-6" />
@@ -42,13 +42,11 @@ export function Header() {
                         <span className="font-mono text-2xl">
                             Profile
                         </span>
-                    </Link>
-                </>}
+                    </Link>}
 
-                {!user && <>
-                    <Link
+                    {!user && <Link
                         href="/connect"
-                        className="-mt-0 sm:mt-1 lg:mt-2 flex items-center gap-1 px-3 py-1 bg-white/20 hover:bg-white/30 rounded-md transition-colors"
+                        className="flex items-center gap-1"
                         title="Clear cache and reload"
                     >
                         <BoltIcon className="h-6" />
@@ -56,8 +54,8 @@ export function Header() {
                         <span className="font-mono text-2xl">
                             Connect
                         </span>
-                    </Link>
-                </>}
+                    </Link>}
+                </div>
             </div>
         </div>
     )
