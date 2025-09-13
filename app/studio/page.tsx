@@ -35,8 +35,8 @@ export default function StudioPage() {
     )
 
     return (
-        <div className="pt-14 min-h-screen bg-gray-50 dark:bg-gray-950 h-screen">
-            <div className="sm:mt-2 lg:mt-4 max-w-7xl mx-auto px-4 py-8 overflow-y-scroll">
+        <div className="pt-14 py-10 min-h-screen bg-gray-50 dark:bg-gray-950 h-screen">
+            <div className="sm:mt-2 lg:mt-4 max-w-7xl mx-auto px-4 py-8 h-full overflow-y-scroll">
                 <div className="w-full flex justify-between mb-8">
                     <Link
                         href="/"

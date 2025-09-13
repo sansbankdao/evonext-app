@@ -35,8 +35,8 @@ export default function AppsPage() {
     )
 
     return (
-        <div className="pt-14 min-h-screen bg-gray-50 dark:bg-gray-950 h-screen">
-            <div className="sm:mt-2 lg:mt-4 max-w-7xl mx-auto px-4 py-8 overflow-y-scroll">
+        <div className="pt-14 py-10 min-h-screen bg-gray-50 dark:bg-gray-950 h-screen">
+            <div className="sm:mt-2 lg:mt-4 max-w-7xl mx-auto px-4 py-8 h-full overflow-y-scroll">
                 <div className="w-full flex justify-between mb-8">
                     <Link
                         href="/"
@@ -87,7 +87,57 @@ export default function AppsPage() {
                             </div>
                         </div>
 
-                        {/* App 1 */}
+                        {/* App 2 */}
+                        <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+                            <Image
+                                src="https://images.unsplash.com/photo-1570129477492-45c003edd2be?q=80"
+                                alt="Home Hunter"
+                                className="w-full h-48 object-cover"
+                                width={0}
+                                height={0}
+                            />
+
+                            <div className="p-4">
+                                <h2 className="text-xl font-semibold mb-2">
+                                    Home Hunter
+                                </h2>
+
+                                <p className="text-slate-700">
+                                    An app that helps users find their dream homes with personalized recommendations and virtual tours.
+                                </p>
+
+                                <Link href="#" className="mt-4 inline-block bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                                    View App
+                                </Link>
+                            </div>
+                        </div>
+
+                        {/* App 3 */}
+                        <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+                            <Image
+                                src="https://images.unsplash.com/photo-1735964366700-9eedefcf0065?q=80"
+                                alt="Tech Tools"
+                                className="w-full h-48 object-cover"
+                                width={0}
+                                height={0}
+                            />
+
+                            <div className="p-4">
+                                <h2 className="text-xl font-semibold mb-2">
+                                    Tech Tools
+                                </h2>
+
+                                <p className="text-slate-700">
+                                    A comprehensive suite of tools for developers, including code snippets, API documentation, and project management features.
+                                </p>
+
+                                <Link href="#" className="mt-4 inline-block bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                                    View App
+                                </Link>
+                            </div>
+                        </div>
+
+                        {/* App 4 */}
                         <div className="bg-white rounded-lg shadow-lg overflow-hidden">
                             <Image
                                 src="https://images.unsplash.com/photo-1570129477492-45c003edd2be?q=80"
