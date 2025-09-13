@@ -33,7 +33,7 @@
                 "byteArray": true,
                 "contentMediaType": "application/x.dash.dpp.identifier"
             },
-            "mediaUrl": {
+            "mediaId": {
                 "position": 4,
                 "type": "array",
                 "description": "IDs to media data (NOTE: will support for up to 3 IDs per post).",
@@ -42,7 +42,7 @@
                 "byteArray": true,
                 "contentMediaType": "application/x.dash.dpp.identifier"
             },
-            "mentionIds": {
+            "mentionId": {
                 "position": 5,
                 "type": "array",
                 "description": "Mentioned user IDs (NOTE: will support for up to 3 IDs per post).",
