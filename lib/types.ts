@@ -31,7 +31,7 @@ export interface Media {
 
 export interface Notification {
     id: string;
-    type: 'like' | 'repost' | 'follow' | 'reply' | 'mention';
+    type: 'like' | 'remix' | 'follow' | 'reply' | 'mention';
     from: User;
     post?: Post;
     createdAt: Date;

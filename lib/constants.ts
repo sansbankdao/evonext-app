@@ -43,7 +43,7 @@ export const DOCUMENT_TYPES = {
     NOTIFICATION: 'notification',
     POST: 'post',
     PROFILE: 'profile',
-    REPOST: 'repost',
+    REMIX: 'remix',
     SOCIAL: 'social',
 } as const
 

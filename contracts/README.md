@@ -44,12 +44,12 @@ Records when a user likes a post.
 - Unique constraint prevents duplicate likes
 - Indexed for fast queries by user or post
 
-### 4. **repost**
-Records when a user remixes/retweets content.
+### 4. **remix**
+Records when a user remixes content.
 
 **Key Features:**
 - Similar to likes with unique constraints
-- Enables repost timelines
+- Enables remix timelines
 
 ### 5. **follow**
 Manages follower/following relationships between users.
@@ -113,7 +113,7 @@ The contract includes carefully designed indices for optimal query performance:
 - **Username lookups** - Fast unique username checks
 - **Timeline queries** - Efficient chronological feeds
 - **Relationship queries** - Quick follower/following lookups
-- **Interaction queries** - Fast like/repost counts
+- **Interaction queries** - Fast like/remix counts
 - **Thread queries** - Efficient reply chain loading
 
 ## Security Considerations

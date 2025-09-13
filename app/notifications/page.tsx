@@ -89,7 +89,7 @@ function NotificationsPage() {
         switch (type) {
         case 'like':
             return <HeartIconSolid className="h-5 w-5 text-red-500" />
-        case 'repost':
+        case 'remix':
             return <ArrowPathRoundedSquareIcon className="h-5 w-5 text-green-500" />
         case 'reply':
             return <ChatBubbleLeftIcon className="h-5 w-5 text-blue-500" />
@@ -138,7 +138,7 @@ function NotificationsPage() {
                     </div>
 
                     <div className="flex border-b border-gray-200 dark:border-gray-800">
-                        {['all', 'like', 'repost', 'reply', 'follow'].map((filterType) => (
+                        {['all', 'like', 'remix', 'reply', 'follow'].map((filterType) => (
                             <button
                                 key={filterType}
                                 onClick={() => setFilter(filterType as any)}
@@ -148,7 +148,7 @@ function NotificationsPage() {
                                     : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
                                 }`}
                             >
-                                {filterType === 'all' ? 'All' : filterType === 'repost' ? 'Reposts' : filterType + 's'}
+                                {filterType === 'all' ? 'All' : filterType === 'remix' ? 'Reposts' : filterType + 's'}
 
                                 {filter === filterType && (
                                     <motion.div

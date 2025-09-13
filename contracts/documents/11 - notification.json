@@ -9,7 +9,7 @@
                 "description": "Type of notification",
                 "enum": [
                     "like",
-                    "repost",
+                    "remix",
                     "follow",
                     "reply",
                     "mention",
