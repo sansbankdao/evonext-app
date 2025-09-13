@@ -8,6 +8,7 @@ export { postService } from './post-service'
 export { profileService } from './profile-service'
 export { repostService } from './repost-service'
 export { stateTransitionService } from './state-transition-service'
+export { walletService } from './wallet-service'
 export { wasmSdkService, getWasmSdk } from './wasm-sdk-service'
 
 // Export types

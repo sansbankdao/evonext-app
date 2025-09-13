@@ -2,22 +2,22 @@
 import { BaseDocumentService, QueryOptions } from './document-service'
 import { stateTransitionService } from './state-transition-service'
 
-export interface RepostDocument {
+export interface RemixDocument {
     $id: string;
     $ownerId: string;
     $createdAt: number;
     postId: string;
 }
 
-class RepostService extends BaseDocumentService<RepostDocument> {
+class RemixService extends BaseDocumentService<RemixDocument> {
     constructor(_contractId: string | undefined) {
-        super(_contractId, 'repost')
+        super(_contractId, 'remix')
     }
 
     /**
      * Transform document
      */
-    protected transformDocument(doc: any): RepostDocument {
+    protected transformDocument(doc: any): RemixDocument {
         return {
             $id: doc.$id,
             $ownerId: doc.$ownerId,
@@ -27,15 +27,15 @@ class RepostService extends BaseDocumentService<RepostDocument> {
     }
 
     /**
-     * Repost a post
+     * Remix a post
      */
-    async repostPost(postId: string, ownerId: string): Promise<boolean> {
+    async remixPost(postId: string, ownerId: string): Promise<boolean> {
         try {
-            // Check if already reposted
-            const existing = await this.getRepost(postId, ownerId);
+            // Check if already remixed
+            const existing = await this.getRemix(postId, ownerId);
 
             if (existing) {
-                console.log('Post already reposted');
+                console.log('Post already remixed');
                 return true;
             }
 
@@ -49,20 +49,20 @@ class RepostService extends BaseDocumentService<RepostDocument> {
 
             return result.success;
         } catch (error) {
-            console.error('Error reposting:', error);
+            console.error('Error remixing:', error);
             return false;
         }
     }
 
     /**
-     * Remove repost
+     * Remove remix
      */
-    async removeRepost(postId: string, ownerId: string): Promise<boolean> {
+    async removeRemix(postId: string, ownerId: string): Promise<boolean> {
         try {
-            const repost = await this.getRepost(postId, ownerId);
+            const remix = await this.getRemix(postId, ownerId);
 
-            if (!repost) {
-                console.log('Post not reposted');
+            if (!remix) {
+                console.log('Post not remixed');
                 return true;
             }
 
@@ -70,30 +70,30 @@ class RepostService extends BaseDocumentService<RepostDocument> {
             const result = await stateTransitionService.deleteDocument(
                 this.contractId,
                 this.documentType,
-                repost.$id,
+                remix.$id,
                 ownerId
             )
 
             return result.success
         } catch (error) {
-            console.error('Error removing repost:', error);
+            console.error('Error removing remix:', error);
             return false;
         }
     }
 
     /**
-     * Check if post is reposted by user
+     * Check if post is remixed by user
      */
-    async isReposted(postId: string, ownerId: string): Promise<boolean> {
-        const repost = await this.getRepost(postId, ownerId)
+    async isRemixed(postId: string, ownerId: string): Promise<boolean> {
+        const remix = await this.getRemix(postId, ownerId)
 
-        return repost !== null
+        return remix !== null
     }
 
     /**
-     * Get repost by post and owner
+     * Get remix by post and owner
      */
-    async getRepost(postId: string, ownerId: string): Promise<RepostDocument | null> {
+    async getRemix(postId: string, ownerId: string): Promise<RemixDocument | null> {
         try {
             const result = await this.query({
                 where: [
@@ -105,15 +105,15 @@ class RepostService extends BaseDocumentService<RepostDocument> {
 
             return result.documents.length > 0 ? result.documents[0] : null;
         } catch (error) {
-            console.error('Error getting repost:', error);
+            console.error('Error getting remix:', error);
             return null;
         }
     }
 
     /**
-     * Get reposts for a post
+     * Get remixes for a post
      */
-    async getPostReposts(postId: string, options: QueryOptions = {}): Promise<RepostDocument[]> {
+    async getPostRemixs(postId: string, options: QueryOptions = {}): Promise<RemixDocument[]> {
         try {
             const result = await this.query({
                 where: [['postId', '==', postId]],
@@ -124,15 +124,15 @@ class RepostService extends BaseDocumentService<RepostDocument> {
 
             return result.documents
         } catch (error) {
-            console.error('Error getting post reposts:', error);
+            console.error('Error getting post remixes:', error);
             return [];
         }
     }
 
     /**
-     * Get user's reposts
+     * Get user's remixes
      */
-    async getUserReposts(userId: string, options: QueryOptions = {}): Promise<RepostDocument[]> {
+    async getUserRemixs(userId: string, options: QueryOptions = {}): Promise<RemixDocument[]> {
         try {
             const result = await this.query({
                 where: [['$ownerId', '==', userId]],
@@ -143,20 +143,20 @@ class RepostService extends BaseDocumentService<RepostDocument> {
 
             return result.documents;
         } catch (error) {
-            console.error('Error getting user reposts:', error);
+            console.error('Error getting user remixes:', error);
             return [];
         }
     }
 
     /**
-     * Count reposts for a post
+     * Count remixes for a post
      */
-    async countReposts(postId: string): Promise<number> {
-        const reposts = await this.getPostReposts(postId);
+    async countRemixs(postId: string): Promise<number> {
+        const remixes = await this.getPostRemixs(postId);
 
-        return reposts.length;
+        return remixes.length;
     }
 }
 
 // Singleton instance
-export const repostService = new RepostService(undefined)
+export const remixService = new RemixService(undefined)
