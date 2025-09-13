@@ -37,18 +37,10 @@ export default function StudioPage() {
     return (
         <div className="pt-14 py-10 min-h-screen bg-gray-50 dark:bg-gray-950 h-screen">
             <div className="sm:mt-2 lg:mt-4 max-w-7xl mx-auto px-4 py-8 h-full overflow-y-scroll">
-                <div className="w-full flex justify-between mb-8">
-                    <Link
-                        href="/"
-                        className="inline-flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
-                    >
-                        <ArrowLeftIcon className="h-6" />
-                        Back to EvoNext
-                    </Link>
-
+                <div className="w-full flex justify-end mb-8">
                     <Link
                         href="/apps"
-                        className="px-5 py-1 inline-flex items-center gap-2 text-gray-600 dark:text-sky-400 hover:text-sky-100 dark:hover:text-sky-100 transition-colors border-2 border-sky-500 bg-sky-50 hover:bg-sky-700 rounded-xl"
+                        className="px-5 py-1 inline-flex items-center gap-2 text-gray-600 dark:text-sky-400 hover:text-sky-100 dark:hover:text-sky-100 transition-colors border border-sky-500 bg-sky-50 hover:bg-sky-700 rounded-xl"
                     >
                         Apps Gallery
                         <Squares2X2Icon className="h-5" />
