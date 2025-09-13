@@ -148,8 +148,7 @@ class StateTransitionService {
                 ownerId,
                 JSON.stringify(documentData),
                 BigInt(revision),
-                privateKey,
-                0 // key_id - using 0 as default (matches index.html)
+                privateKey
             )
 
             return {
@@ -188,8 +187,7 @@ class StateTransitionService {
                 documentType,
                 documentId,
                 ownerId,
-                privateKey,
-                0 // key_id - using 0 as default
+                privateKey
             )
 
             return {
