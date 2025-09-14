@@ -76,8 +76,8 @@ export default function AppsPage() {
                         href="/studio"
                         className="px-5 py-1 inline-flex items-center gap-2 text-gray-600 dark:text-sky-400 hover:text-sky-100 dark:hover:text-sky-100 transition-colors border border-sky-500 bg-sky-50 hover:bg-sky-700 rounded-xl"
                     >
-                        Builder Studio
                         <ComputerDesktopIcon className="h-5" />
+                        Builder Studio
                     </Link>
                 </div>
 
