@@ -38,19 +38,19 @@ export function WalletDeposit({ isFullScreen }: WalletDepositProps) {
     return (
         <main className="{props.isFullScreen === true ? 'grid lg:grid-cols-2 gap-8' : ''}">
             <Link href={Identity.address}>
-                <section className="w-full px-3 py-2 my-5 bg-amber-500 border-2 border-amber-700 rounded-lg shadow">
-                    <h2 className="text-lg sm:text-xl text-amber-700 font-medium text-center uppercase">
+                <section className="w-full px-3 py-2 my-5 bg-sky-500 border-2 border-sky-700 rounded-lg shadow">
+                    <h2 className="text-lg sm:text-xl text-sky-700 font-medium text-center uppercase">
                         Your Deposit Address
                     </h2>
 
                     <h3
-                        className="flex justify-center text-lg text-amber-900 font-medium truncate"
+                        className="flex justify-center text-lg text-sky-900 font-medium truncate"
                     >
                         {Identity.abbr}
                     </h3>
 
                     <h3
-                        className="flex justify-center text-lg text-amber-900 font-medium truncate"
+                        className="flex justify-center text-lg text-sky-900 font-medium truncate"
                     >
                         {Identity.address}
                     </h3>
@@ -58,7 +58,7 @@ export function WalletDeposit({ isFullScreen }: WalletDepositProps) {
                     <div className="flex justify-center">
                         {/* <Image
                             src={dataUrl}
-                            className="my-5 w-full h-auto border-2 border-amber-900 rounded-lg shadow-md"
+                            className="my-5 w-full h-auto border-2 border-sky-900 rounded-lg shadow-md"
                             alt=""
                             width={32}
                             height={32}
@@ -69,7 +69,7 @@ export function WalletDeposit({ isFullScreen }: WalletDepositProps) {
                         />
                     </div>
 
-                    <p className="px-0 sm:px-5 text-sm text-amber-900 text-center">
+                    <p className="px-0 sm:px-5 text-sm text-sky-900 text-center">
                         Scan the QR code shown above or click the image to open your preferred wallet.
                     </p>
                 </section>
@@ -152,7 +152,7 @@ export function WalletDeposit({ isFullScreen }: WalletDepositProps) {
                 </div>
 
                 <input
-                    className="w-full my-3 px-3 py-1 text-xl sm:text-2xl bg-yellow-200 border-2 border-yellow-400 rounded-md shadow"
+                    className="w-full my-3 px-3 py-1 text-xl sm:text-2xl bg-cyan-200 border-2 border-cyan-400 rounded-md shadow"
                     type="number"
                     v-model="depositAmount"
                     placeholder="Enter a (USD) amount"

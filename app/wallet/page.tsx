@@ -78,7 +78,7 @@ export default function WalletPage() {
 
                     <div className="flex flex-col items-end">
                         <h3 className="text-xs tracking-widest text-sky-700 font-medium uppercase">
-                            Spendable ${Identity.asset?.ticker}
+                            Spendable {Identity.asset?.ticker}
                         </h3>
 
                         <h2 className="text-3xl text-gray-600 font-medium">
@@ -174,7 +174,7 @@ export default function WalletPage() {
                     </nav>
                 </div>
 
-                <div className="my-5">
+                <div className="my-5 px-2">
                     {activeTab === 'assets' && <WalletAssets
                         isFullScreen={isFullScreen}
                     />}

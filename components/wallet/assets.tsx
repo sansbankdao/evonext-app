@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Image from 'next/image'
 import Link from 'next/link'
 import { useAuth } from '@/contexts/auth-context'
 import { BoltIcon, UserIcon } from '@heroicons/react/24/outline'
@@ -73,26 +74,32 @@ export function WalletAssets({ isFullScreen }: WalletAssetProps) {
                     <div
                         key={token.id}
                         onClick={() => Identity.setAsset(token.id)}
-                        className="flex flex-row justify-between items-end pl-1 pr-3 pt-2 pb-1 sm:py-3 bg-gradient-to-b from-amber-100 to-amber-50 border border-amber-300 rounded-lg shadow hover:bg-amber-200 cursor-pointer"
+                        className="flex flex-row justify-between items-end pl-1 pr-3 pt-2 pb-1 sm:py-3 bg-gradient-to-b from-sky-100 to-sky-50 border border-sky-300 rounded-lg shadow hover:bg-sky-200 cursor-pointer"
                     >
                         <div className="w-1/2 flex flex-row items-start">
-                            <img src={displayIcon(token)} className="-mt-0.5 mr-1 h-12 w-auto p-2 opacity-80" />
+                            <Image
+                                src={displayIcon(token)}
+                                className="-mt-0.5 mr-1 h-12 w-auto p-2 opacity-80"
+                                alt="Asset icon"
+                                width={0}
+                                height={0}
+                            />
 
                             <div className="flex flex-col">
-                                <h3 className="text-base text-amber-800 font-medium uppercase truncate">
+                                <h3 className="text-base text-sky-800 font-medium uppercase truncate">
                                     {displayTokenName(token.id)}
                                 </h3>
 
-                                <span className="sm:hidden text-lg font-medium text-amber-600">
+                                <span className="sm:hidden text-lg font-medium text-sky-600">
                                     {displayDecimalAmount(token)}
                                 </span>
-                                <span className="hidden sm:flex text-xl font-medium text-amber-600">
+                                <span className="hidden sm:flex text-xl font-medium text-sky-600">
                                     {displayDecimalAmount(token)}
                                 </span>
                             </div>
                         </div>
 
-                        <h3 className="w-1/2 flex flex-col items-end font-medium text-amber-700">
+                        <h3 className="w-1/2 flex flex-col items-end font-medium text-sky-700">
                             <sup className="text-xs">
                                 USD
                             </sup>
@@ -113,26 +120,26 @@ export function WalletAssets({ isFullScreen }: WalletAssetProps) {
                     <div
                         key={token.id}
                         onClick={() => Identity.setAsset(token.id)}
-                        className="flex flex-row justify-between items-end pl-1 pr-3 pt-2 pb-1 sm:py-3 bg-gradient-to-b from-amber-100 to-amber-50 border border-amber-300 rounded-lg shadow hover:bg-amber-200 cursor-pointer"
+                        className="flex flex-row justify-between items-end pl-1 pr-3 pt-2 pb-1 sm:py-3 bg-gradient-to-b from-sky-100 to-sky-50 border border-sky-300 rounded-lg shadow hover:bg-sky-200 cursor-pointer"
                     >
                         <div className="w-1/2 flex flex-row items-start">
                             <img src={displayIcon(token)} className="-mt-0.5 mr-1 h-12 w-auto p-2 opacity-80" />
 
                             <div className="flex flex-col">
-                                <h3 className="text-base text-amber-800 font-medium uppercase truncate">
+                                <h3 className="text-base text-sky-800 font-medium uppercase truncate">
                                     {displayTokenName(token.id)}
                                 </h3>
 
-                                <span className="sm:hidden text-lg font-medium text-amber-600">
+                                <span className="sm:hidden text-lg font-medium text-sky-600">
                                     {displayDecimalAmount(token)}
                                 </span>
-                                <span className="hidden sm:flex text-xl font-medium text-amber-600">
+                                <span className="hidden sm:flex text-xl font-medium text-sky-600">
                                     {displayDecimalAmount(token)}
                                 </span>
                             </div>
                         </div>
 
-                        <h3 className="w-1/2 flex flex-col items-end font-medium text-amber-700">
+                        <h3 className="w-1/2 flex flex-col items-end font-medium text-sky-700">
                             <sup className="text-xs">
                                 USD
                             </sup>

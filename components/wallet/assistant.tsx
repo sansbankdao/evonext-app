@@ -44,11 +44,11 @@ export function WalletAssistant({ isFullScreen }: WalletAssistantProps) {
                 className="px-5 py-3 text-3xl text-slate-900 bg-sky-50 border rounded-xl shadow"
             /> */}
 
-            <button onClick={search} id="btn-find-id" className="w-full sm:w-fit flex text-2xl font-bold tracking-wider bg-amber-200">
+            <button onClick={search} id="btn-find-id" className="w-full sm:w-fit flex text-2xl font-bold tracking-wider bg-sky-200">
                 Find
             </button>
 
-            <button onClick={Identity.destroy} id="btn-find-id" className="w-full sm:w-fit flex text-2xl font-bold tracking-wider bg-amber-200">
+            <button onClick={Identity.destroy} id="btn-find-id" className="w-full sm:w-fit flex text-2xl font-bold tracking-wider bg-sky-200">
                 LOGOUT
             </button>
         </main>

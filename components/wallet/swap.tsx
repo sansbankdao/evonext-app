@@ -90,7 +90,7 @@ export function WalletSwap({ isFullScreen }: WalletSwapProps) {
     }
 
     return (
-        <main className="px-2 flex flex-col gap-4">
+        <main className="flex flex-col gap-4">
             <section className="grid grid-cols-2 gap-3">
                 <h2 className="col-span-2 text-2xl font-medium">
                     I Want to Receive ↴
@@ -145,13 +145,13 @@ export function WalletSwap({ isFullScreen }: WalletSwapProps) {
                         </div>
                     </div>
 
-                    <div onClick={() => { setIsShowingSans(false); setIsShowingDash(true) }} className="cursor-pointer flex-1 h-20 sm:h-24 flex justify-center items-center border border-yellow-500 rounded-lg shadow bg-gradient-to-b from-yellow-400 to-yellow-200">
+                    <div onClick={() => { setIsShowingSans(false); setIsShowingDash(true) }} className="cursor-pointer flex-1 h-20 sm:h-24 flex justify-center items-center border border-cyan-500 rounded-lg shadow bg-gradient-to-b from-cyan-400 to-cyan-200">
                         <div className="flex flex-col items-center">
-                            <h2 className="text-sm sm:text-lg text-yellow-900 font-medium whitespace-nowrap">
+                            <h2 className="text-sm sm:text-lg text-cyan-900 font-medium whitespace-nowrap">
                                 Sansnote
                             </h2>
 
-                            <h3 className="text-xs sm:text-sm text-yellow-700 font-medium">
+                            <h3 className="text-xs sm:text-sm text-cyan-700 font-medium">
                                 SANS
                             </h3>
                         </div>
