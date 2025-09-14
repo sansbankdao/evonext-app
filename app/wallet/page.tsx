@@ -17,6 +17,7 @@ import toast from 'react-hot-toast'
 import { WalletAssets } from '@/components/wallet/assets'
 import { WalletAssistant } from '@/components/wallet/assistant'
 import { WalletDeposit } from '@/components/wallet/deposit'
+import { WalletSwap } from '@/components/wallet/swap'
 import { WalletHistory } from '@/components/wallet/history'
 import { WalletSend } from '@/components/wallet/send'
 
@@ -183,6 +184,10 @@ export default function WalletPage() {
                     />}
 
                     {activeTab === 'deposit' && <WalletDeposit
+                        isFullScreen={isFullScreen}
+                    />}
+
+                    {activeTab === 'swap' && <WalletSwap
                         isFullScreen={isFullScreen}
                     />}
 
