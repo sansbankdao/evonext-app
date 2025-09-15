@@ -15,6 +15,221 @@ interface WalletDepositProps {
     isFullScreen: boolean;
 }
 
+
+// const amount = ref(null)
+// const receiver = ref(null)
+// const currency = ref(null)
+// const satoshis = ref(null)
+// const txidem = ref(null)
+// const errorMsgs = ref(null)
+
+// const addressBalance = ref(null)
+// const addressFirstUse = ref(null)
+// const firstTx = ref(null)
+// const consolidation = ref(null)
+
+// const video = ref(null)
+// const scanner = ref(null)
+// const cameraError = ref(null)
+
+// const isShowingVideoPreview = ref('hidden')
+
+// const getAddressBalance = async (_address) => {
+//     return 123
+// }
+
+// const getAddressFirstUse = async (_address) => {
+//     return 'just a while ago'
+// }
+
+// const getTransaction = async (_txid) => {
+//     return 'kewl stuff happened'
+// }
+
+// watch(() => amount.value, (_amount) => {
+//     /* Clear errors. */
+//     clearErrors()
+
+//     console.log('ADJUST SATOSHIS', Identity.asset.decimal_places)
+
+//     /* Convert to satoshis. */
+//     satoshis.value = parseInt(_amount * 10**Identity.asset.decimal_places)
+// })
+
+// const openScanner = () => {
+//     /* Clear errors. */
+//     clearErrors()
+
+//     /* Start scanner. */
+//     startScanner()
+// }
+
+// const setReceiver = (_result) => {
+//     /* Set (local) receiver. */
+//     receiver.value = _result
+
+//     /* Hide video preview. */
+//     isShowingVideoPreview.value = 'hidden'
+
+//     /* Validate scanner. */
+//     if (scanner.value) {
+//         /* Cleanup scanner. */
+//         scanner.value.destroy()
+//         scanner.value = null
+//     }
+// }
+
+// /**
+//  * Start Scanner
+//  *
+//  * NOTE: This DOES NOT work on any of the Android devices tested.
+//  *       However, it DOES work well on all iOS devices tested.
+//  */
+// const startScanner = async () => {
+//     if (scanner.value) {
+//         scanner.value.destroy()
+//         scanner.value = null
+
+//         isShowingVideoPreview.value = 'hidden'
+
+//         return
+//     }
+
+//     try {
+//         navigator.getUserMedia =
+//             navigator.getUserMedia ||
+//             navigator.webkitGetUserMedia ||
+//             navigator.mozGetUserMedia ||
+//             navigator.msGetUserMedia
+
+//         if (!navigator.mediaDevices.getUserMedia && !navigator.getUserMedia) {
+//             cameraError.value = true
+//         } else {
+//             /* Initialize video element. */
+//             video.value = document.getElementById('video-display')
+
+//             /* Enable video display. */
+//             isShowingVideoPreview.value = 'flex w-full mt-5 bg-gray-100 border-4 border-gray-300 p-2 rounded-xl z-10'
+
+//             /* Start scanner. */
+//             scanner.value = new QrScanner(video.value, (_data) => {
+//                 // console.log('SCANNER DATA', _data)
+
+//                 // FIXME: Build a new link parser
+//                 const result = _data
+//                 // const result = parseLink(_data)
+
+//                 /* Validate (scanner) result. */
+//                 if (result) {
+//                     setReceiver(result)
+//                 }
+//             })
+
+//             /* Start scanner. */
+//             await scanner.value.start()
+//         }
+//     } catch (err) {
+//         console.error(err) // eslint-disable-line no-console
+
+//         cameraError.value = true
+
+//         /* Bugsnag alert. */
+//         throw new Error(err)
+//     }
+// }
+
+// const send = async () => {
+//     /* Initialize locals. */
+//     let error
+//     let response
+
+//     if (!receiver.value) {
+//         return alert('Enter a destination address.')
+//     }
+
+//     if (!satoshis.value) {
+//         return alert('Enter an amount to send.')
+//     }
+
+//     if (confirm(`Are you sure you want to send ${numeral(amount.value).format('0,0.00')} ${Identity.asset?.ticker} to ${receiver.value}?`)) {
+//         console.log(`Starting transfer of ${amount.value} ${Identity.asset?.ticker} to ${receiver.value}...`)
+
+//         response = await Identity
+//             .transfer(receiver.value, BigInt(satoshis.value))
+//             .catch(err => {
+//                 console.error(err)
+//                 error = err
+//             })
+//         console.log('RESPONSE', response)
+
+//         /* Validate error. */
+//         if (error) {
+//             console.error('DISPLAY ERROR MESSAGE', error.message)
+//             /* Set error. */
+//             errorMsgs.value = error?.message || JSON.stringify(error)
+//             return
+//         }
+
+//         /* Validate transaction idem. */
+//         if (response?.txidem) {
+//             /* Reset user inputs. */
+//             amount.value = null
+//             receiver.value = null
+
+//             /* Set transaction idem. */
+//             txidem.value = response.txidem
+//         } else if (response?.error) {
+//             /* Set error. */
+//             errorMsgs.value = response?.error?.message || JSON.stringify(response?.error)
+//         }
+//     }
+// }
+
+// const consolidate = async () => {
+//     if (confirm(`Are you sure you want to consolidate ${consolidation.value.coins} coin inputs to ${Identity.address}?`)) {
+//         /* Start wallet consolidation. */
+//         const response = await Identity.consolidate()
+//         // console.log('RESPONSE', response)
+
+//         /* Validate transaction idem. */
+//         if (response?.result) {
+//             /* Reset user inputs. */
+//             amount.value = null
+//             receiver.value = null
+
+//             /* Set transaction idem. */
+//             txidem.value = response.result
+//         } else if (response?.error) {
+//             /* Set error. */
+//             errorMsgs.value = response?.error?.message || JSON.stringify(response?.error)
+//         }
+//     }
+// }
+
+// const updateAddressDetails = async () => {
+//     console.log('RECEIVER', receiver.value)
+
+//     /* Clear errors. */
+//     clearErrors()
+
+//     addressBalance.value = await getAddressBalance(receiver.value)
+//         .catch(err => console.error(err))
+//     // console.log('ADDRESS BALANCE', addressBalance.value)
+
+//     addressFirstUse.value = await getAddressFirstUse(receiver.value)
+//         .catch(err => console.error(err))
+//     // console.log('ADDRESS FIRST USE', addressFirstUse.value)
+
+//     firstTx.value = await getTransaction(addressFirstUse.value.tx_hash)
+//         .catch(err => console.error(err))
+//     // console.log('FIRST TX', firstTx.value)
+// }
+
+// const clearErrors = () => {
+//     errorMsgs.value = null
+// }
+
+
 export function WalletDeposit({ isFullScreen }: WalletDepositProps) {
     const { user } =  useAuth()
     const [identity, setIdentity] = useState('')
@@ -56,13 +271,6 @@ export function WalletDeposit({ isFullScreen }: WalletDepositProps) {
                     </h3>
 
                     <div className="flex justify-center">
-                        {/* <Image
-                            src={dataUrl}
-                            className="my-5 w-full h-auto border-2 border-sky-900 rounded-lg shadow-md"
-                            alt=""
-                            width={32}
-                            height={32}
-                        /> */}
                         <QRCodeSVG
                             value={identity}
                             size={290}

@@ -18,6 +18,7 @@ interface WalletSendProps {
 export function WalletSend({ isFullScreen }: WalletSendProps) {
     const { user } =  useAuth()
     const [addressFirstUse, setAddressFirstUse] = useState('')
+    const [receiver, setReceiver] = useState<string | undefined>()
     const [txid, setTxid] = useState(null)
     const [errorMsgs, setErrorMsgs] = useState({})
     const [isShowingVideoPreview, setIsShowingVideoPreview] = useState('hidden')
@@ -55,6 +56,10 @@ export function WalletSend({ isFullScreen }: WalletSendProps) {
 
     const send = async () => {
         console.log('SEND ASSETS')
+    }
+
+    const updateAddressDetails = (_receiver: string) => {
+        setReceiver(_receiver)
     }
 
 
@@ -278,6 +283,8 @@ export function WalletSend({ isFullScreen }: WalletSendProps) {
                     <input
                         className="w-full px-3 py-1 text-xl sm:text-2xl bg-cyan-100 border-2 border-cyan-300 rounded-md shadow"
                         type="text"
+                        value={receiver}
+                        onChange={(e) => updateAddressDetails(e.target.value)}
                         // v-model="receiver"
                         // v-on:keyup="updateAddressDetails"
                         placeholder="Enter a Username or Address"

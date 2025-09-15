@@ -12,7 +12,6 @@ import toast from 'react-hot-toast'
 import { CheckCircle2, XCircle, Loader2, RefreshCw, X, Edit2 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 // @ts-ignore
-import QRCode from 'qrcode'
 import { QRCodeSVG } from 'qrcode.react'
 import {
     derive_key_from_seed_with_path,
@@ -20,6 +19,9 @@ import {
     get_identity_by_non_unique_public_key_hash,
     validate_mnemonic,
 } from '@/lib/dash-wasm/wasm_sdk'
+
+/* Initialize constants. */
+const MAX_USERNAME_LENGTH = 63 // Maximum length - 63 characters
 
 interface RegistrarModalProps {
     isOpen: boolean
@@ -79,29 +81,29 @@ export function RegistrarModal({
             return
         }
 
-        // if (username.length > 20) {
-        //     setValidationError('Username must be 20 characters or less')
-        //     setIsAvailable(false)
-
-        //     return
-        // }
-
-        if (!/^[a-zA-Z0-9_]+$/.test(username)) {
-            setValidationError('Username can only contain letters, numbers, and underscores')
+        if (username.length > MAX_USERNAME_LENGTH) {
+            setValidationError('Username must be 63 characters or less')
             setIsAvailable(false)
 
             return
         }
 
-        if (username.startsWith('_') || username.endsWith('_')) {
-            setValidationError('Username cannot start or end with underscore')
+        if (!/^[a-zA-Z0-9-]+$/.test(username)) {
+            setValidationError('Username can only contain letters, numbers, and hyphens')
             setIsAvailable(false)
 
             return
         }
 
-        if (username.includes('__')) {
-            setValidationError('Username cannot contain consecutive underscores')
+        if (username.startsWith('-') || username.endsWith('-')) {
+            setValidationError('Username cannot start or end with hyphen')
+            setIsAvailable(false)
+
+            return
+        }
+
+        if (username.includes('--')) {
+            setValidationError('Username cannot contain consecutive hyphens')
             setIsAvailable(false)
 
             return
@@ -142,7 +144,7 @@ export function RegistrarModal({
     ])
 
     const handlePayment = () => {
-        alert('lets make that payment')
+        // alert('lets make that payment')
         const dashUri = `dash:${paymentAddress}?amount=1000000`
         window.location.href = dashUri
     }
@@ -209,21 +211,6 @@ console.log('PAYMENT ADDRESS', json)
         }).catch(err => console.error(err))
         const orderConfirm = await orderResponse!.json()
 console.log('ORDER CONFIRM', orderConfirm)
-
-const paymentWin = document.getElementById('payment-win')
-const canvas = document.getElementById('qrcode')
-const dataUrl = await QRCode.toDataURL(paymentAddress)
-    .catch((err: any) => console.error(err))
-console.log('DATA URL', dataUrl)
-// canvas!.innerHTML = dataUrl
-
-const imgEl = document.createElement('img')
-imgEl.src = dataUrl
-imgEl.width = 600
-imgEl.height = 600
-
-canvas!.appendChild(imgEl)
-paymentWin!.style.display = 'flex'
     }
 
     const getStatusIcon = () => {
@@ -378,31 +365,45 @@ paymentWin!.style.display = 'flex'
                                 Choose a NEW &amp; Unique Username for your Dash Platform Identity
                             </p>
 
-{/* DISPLAY PAYMENT INFORMATION HERE */}
-<section id="payment-win" style={{ display: 'none' }} className="w-full mb-5 flex flex-col items-center justify-center border border-evonext-700 shadow">
-    <div id="qrcode" onClick={() => handlePayment()} />
+{/* BEGIN PAYMENT INFORMATION HERE */}
+{paymentAddress &&
+    <section className="w-full mb-5 flex flex-col items-center justify-center border border-evonext-700 shadow">
+        <QRCodeSVG
+            value={paymentAddress || ''}
+            size={360}
+            onClick={() => handlePayment()}
+            className="cursor-pointer"
+        />
 
-    <div className="px-3 py-5 flex flex-col gap-5 rounded-t-lg border-t-2 border-evonext-700 bg-evonext-50">
-        <h2 className="font-medium text-2xl text-evonext-800 text-center">
-            One Final Step to Complete Your Username Registration
-        </h2>
+        <div className="px-3 py-5 flex flex-col gap-5 rounded-t-lg border-t-2 border-evonext-700 bg-evonext-50">
+            <h2 className="font-medium text-2xl text-evonext-800 text-center">
+                One Final Step to Complete Your Username Registration
+            </h2>
 
-        <h3 className="font-medium text-xl text-evonext-800 text-center">
-            Send <button className="text-2xl font-bold text-evonext-600">0.1 DASH</button> to the payment address shown below -OR- click the QRCode shown above
-        </h3>
+            <h3 className="font-medium text-xl text-evonext-800 text-center">
+                Send
+                <button
+                    className="px-1 text-2xl font-bold text-evonext-600"
+                    onClick={() => handlePayment()}
+                >
+                    0.1 DASH
+                </button>
+                to the payment address shown below -OR- click the QRCode shown above
+            </h3>
 
-        <button onClick={() => handlePayment()} className="font-bold text-md text-evonext-600 text-center tracking-tighter">
-            {paymentAddress}
-        </button>
+            <button onClick={() => handlePayment()} className="font-bold text-md text-evonext-600 text-center tracking-tighter">
+                {paymentAddress}
+            </button>
 
-        <p className="font-base text-sm text-evonext-800">
-            <span className="block font-medium text-md tracking-wider">PLEASE NOTE:</span>
-            You <span className="font-bold">DO NOT</span> have to keep this window open.
-            You will receive an email as soon as your NEW Username registration is complete.
-        </p>
-    </div>
-</section>
-
+            <p className="font-base text-sm text-evonext-800">
+                <span className="block font-medium text-md tracking-wider">PLEASE NOTE:</span>
+                You <span className="font-bold">DO NOT</span> have to keep this window open.
+                You will receive an email as soon as your NEW Username registration is complete.
+            </p>
+        </div>
+    </section>
+}
+{/* END PAYMENT INFORMATION HERE */}
                             <form onSubmit={handleSubmit} className="space-y-6">
                                 <div>
                                     <label htmlFor="username" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -437,9 +438,9 @@ paymentWin!.style.display = 'flex'
 
                                         <ul className="list-disc list-inside space-y-1 ml-2">
                                             <li>At least 3 characters long</li>
-                                            <li>Letters, numbers, and underscores only</li>
-                                            <li>Cannot start or end with underscore</li>
-                                            <li>No consecutive underscores</li>
+                                            <li>Letters, numbers, and hyphens only</li>
+                                            <li>Cannot start or end with a hyphen</li>
+                                            <li>No consecutive hyphens</li>
                                         </ul>
                                     </div>
 
