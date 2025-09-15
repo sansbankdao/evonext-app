@@ -425,8 +425,8 @@ console.log('USERNAME MODAL (identity)', identity)
                                             id="username"
                                             type="text"
                                             value={username}
-                                            onChange={(e) => setUsername(e.target.value.toLowerCase())}
-                                            placeholder="johndoe"
+                                            onChange={(e) => setUsername(e.target.value)}
+                                            placeholder="JohnDoe1999"
                                             className="pr-10"
                                             autoComplete="off"
                                             maxLength={63}
