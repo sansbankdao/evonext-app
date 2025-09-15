@@ -29,6 +29,7 @@ export default function LoginPage() {
     const [identityId, setIdentityId] = useState('')
     const [privateKey, setPrivateKey] = useState('')
     const [isLoading, setIsLoading] = useState(false)
+    const [isResuming, setIsResuming] = useState(false)
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [hasIdentityPrivateKey, setHasIdentityPrivateKey] = useState(false)
     const [error, setError] = useState<string | null>(null)
@@ -220,7 +221,10 @@ console.log('WIF', typeof wif, wif)
             /* Validate registration credentials. */
             if (typeof proof !== 'undefined' && proof !== null && typeof wif !== 'undefined' && wif !== null) {
                 /* Request user permission to resume registration. */
-                if (confirm(`Hey, welcome back!\n\nYou have a pending Identity + Username registration. Are you ready complete it now? It should ONLY take about 2 minutes..\n\n!! IMPORTANT NOTICE !!\nAfter you click to resume, DO NOT interrupt the process until it's 100% completed.\n\nOkay, let's GO!`)) {
+                if (confirm(`Hey, welcome nback!\n\nYou have a pending Identity + Username registration. Are you ready complete it now? It should ONLY take about 2 minutes..\n\n!! IMPORTANT NOTICE !!\nAfter you click to resume, DO NOT interrupt the process until it's 100% completed.\n\nOkay, let's GO!`)) {
+                    setIsLoading(false)
+                    setIsResuming(true)
+
                     /* Initialize SDK. */
                     const sdk = await wasmSdkService.getSdk()
 
@@ -300,11 +304,7 @@ console.log('USERNAME (REG) RESULT', usernameResult)
                     return
                 }
             }
-
-// SHOULD BE STOP HERE??
-            // return
         }
-
 
         const publicKeyHash = binToHex(hash160(hexToBin(publicKey)))
 console.log('PUBLIC KEY HASH', publicKeyHash)
@@ -370,6 +370,7 @@ console.log('SIGNING (private) KEY', signingPrivateKey)
                 setError(err instanceof Error ? err.message : 'Failed to login')
             } finally {
                 setIsLoading(false)
+                setIsResuming(false)
             }
         } else {
             if (confirm(`OH NO!\n\nWe COULD NOT find an Identity for you on the Dash Platform. Would you like to create a NEW Identity and register a NEW Username now?\n\nIt should ONLY take about 2 minutes..\nDon't MISS OUT, let's GO!`)) {
@@ -532,11 +533,19 @@ console.log('MNEMONIC', typeof mnemonic, mnemonic)
                         <div className="space-y-3">
                             <Button
                                 type="submit"
-                                disabled={isLoading || (!identityId && !privateKey && !hasMnemonic())}
+                                disabled={isResuming || isLoading || (!identityId && !privateKey && !hasMnemonic())}
                                 className="w-full shadow-evonext-lg text-3xl tracking-wider"
                                 size="lg"
                             >
-                                {isLoading ? (
+                                {isResuming ? (
+                                    <span className="flex items-center justify-center">
+                                        <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                        </svg>
+                                        Resuming, please wait...
+                                    </span>
+                                ) : isLoading ? (
                                     <span className="flex items-center justify-center">
                                         <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
