@@ -43,7 +43,7 @@ export function RegistrarModal({
     const { isReady: isSdkReady, error: sdkError } = useSdk()
 
     const [email, setEmail] = useState('')
-    const [username, setRegistrar] = useState('')
+    const [username, setUsername] = useState('')
     const [isChecking, setIsChecking] = useState(false)
     const [isAvailable, setIsAvailable] = useState<boolean | null>(null)
     const [validationError, setValidationError] = useState<string | null>(null)
@@ -418,7 +418,7 @@ console.log('ORDER CONFIRM', orderConfirm)
                                             id="username"
                                             type="text"
                                             value={username}
-                                            onChange={(e) => setRegistrar(e.target.value)}
+                                            onChange={(e) => setUsername(e.target.value)}
                                             placeholder="JohnDoe1999"
                                             className="pr-10"
                                             autoComplete="off"
@@ -436,7 +436,7 @@ console.log('ORDER CONFIRM', orderConfirm)
 
                                     <div className="pl-1 mt-4 space-y-2 text-xs text-gray-500">
                                         <h3 className="font-bold">
-                                            Registrar Requirements:
+                                            Username Requirements:
                                         </h3>
 
                                         <ul className="list-disc list-inside space-y-1 ml-2">

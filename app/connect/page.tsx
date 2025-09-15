@@ -221,7 +221,7 @@ console.log('WIF', typeof wif, wif)
             /* Validate registration credentials. */
             if (typeof proof !== 'undefined' && proof !== null && typeof wif !== 'undefined' && wif !== null) {
                 /* Request user permission to resume registration. */
-                if (confirm(`Hey, welcome nback!\n\nYou have a pending Identity + Username registration. Are you ready complete it now? It'll ONLY take a few seconds..\n\n!! IMPORTANT NOTICE !!\nAfter you click to resume, DO NOT interrupt the process until it's 100% completed.\n\nOkay, let's GO!`)) {
+                if (confirm(`Hey, welcome back!\n\nYou have a pending Identity + Username registration. Are you ready complete it now? It'll ONLY take a few seconds..\n\n!! IMPORTANT NOTICE !!\nAfter you click to resume, DO NOT interrupt the process until it's 100% completed.\n\nOkay, let's GO!`)) {
                     setIsLoading(false)
                     setIsResuming(true)
 

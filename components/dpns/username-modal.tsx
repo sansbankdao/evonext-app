@@ -12,6 +12,11 @@ import toast from 'react-hot-toast'
 import { CheckCircle2, XCircle, Loader2, RefreshCw, X, Edit2 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
+/* Initialize constants. */
+const MAX_USERNAME_LENGTH = 63 // Maximum length - 63 characters
+const NON_CONTESTED_REG_FEE = 1000000 // 0.1 DASH
+const CONTESTED_REG_FEE = 3000000 // 0.3 DASH
+
 interface UsernameModalProps {
     isOpen: boolean
     onClose: () => void
@@ -65,29 +70,29 @@ export function UsernameModal({
             return
         }
 
-        if (username.length > 20) {
-            setValidationError('Username must be 20 characters or less')
+        if (username.length > MAX_USERNAME_LENGTH) {
+            setValidationError('Username must be 63 characters or less')
             setIsAvailable(false)
 
             return
         }
 
-        if (!/^[a-zA-Z0-9_]+$/.test(username)) {
-            setValidationError('Username can only contain letters, numbers, and underscores')
+        if (!/^[a-zA-Z0-9-]+$/.test(username)) {
+            setValidationError('Username can only contain letters, numbers, and hyphens')
             setIsAvailable(false)
 
             return
         }
 
-        if (username.startsWith('_') || username.endsWith('_')) {
-            setValidationError('Username cannot start or end with underscore')
+        if (username.startsWith('-') || username.endsWith('-')) {
+            setValidationError('Username cannot start or end with hyphen')
             setIsAvailable(false)
 
             return
         }
 
-        if (username.includes('__')) {
-            setValidationError('Username cannot contain consecutive underscores')
+        if (username.includes('--')) {
+            setValidationError('Username cannot contain consecutive hyphens')
             setIsAvailable(false)
 
             return
@@ -424,7 +429,7 @@ console.log('USERNAME MODAL (identity)', identity)
                                             placeholder="johndoe"
                                             className="pr-10"
                                             autoComplete="off"
-                                            maxLength={20}
+                                            maxLength={63}
                                         />
 
                                         <div className="absolute inset-y-0 right-0 flex items-center pr-3">
@@ -435,13 +440,13 @@ console.log('USERNAME MODAL (identity)', identity)
                                     {getStatusMessage()}
 
                                     <div className="mt-4 space-y-2 text-xs text-gray-500">
-                                        <p>Username requirements:</p>
+                                        <p>Username Requirements:</p>
 
                                         <ul className="list-disc list-inside space-y-1 ml-2">
-                                            <li>3-20 characters long</li>
-                                            <li>Letters, numbers, and underscores only</li>
-                                            <li>Cannot start or end with underscore</li>
-                                            <li>No consecutive underscores</li>
+                                            <li>At least 3 characters long</li>
+                                            <li>Letters, numbers, and hyphens only</li>
+                                            <li>Cannot start or end with a hyphen</li>
+                                            <li>No consecutive hyphens</li>
                                         </ul>
                                     </div>
                                 </div>
