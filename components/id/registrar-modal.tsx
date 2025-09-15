@@ -22,6 +22,8 @@ import {
 
 /* Initialize constants. */
 const MAX_USERNAME_LENGTH = 63 // Maximum length - 63 characters
+const NON_CONTESTED_REG_FEE = 1000000 // 0.1 DASH
+const CONTESTED_REG_FEE = 3000000 // 0.3 DASH
 
 interface RegistrarModalProps {
     isOpen: boolean
@@ -145,7 +147,8 @@ export function RegistrarModal({
 
     const handlePayment = () => {
         // alert('lets make that payment')
-        const dashUri = `dash:${paymentAddress}?amount=1000000`
+// FIXME ADJUST AMOUNT BASED ON CONTESTED/NON-CONTESTED
+        const dashUri = `dash:${paymentAddress}?amount=${NON_CONTESTED_REG_FEE}`
         window.location.href = dashUri
     }
 

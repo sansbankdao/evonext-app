@@ -72,135 +72,212 @@ console.log('MNEMONIC VALID', isValid)
 
         /* Validate mnemonic. */
         if (!isValid) {
-            toast.error(`Oops! Those seed words are INVALID!`)
-        } else {
-            const { storeMnemonic } = await import('@/lib/secure-storage')
-            storeMnemonic(mnemonic)
+            return toast.error(`Oops! Those seed words are INVALID!`)
+        }
 
+        const { storeMnemonic } = await import('@/lib/secure-storage')
+        storeMnemonic(mnemonic)
+
+// const masterKeyPath = `m/9'/${currentNetwork === 'mainnet' ? 5 : 1}'/5'/0'/0'/${identityIndex}'/0'`
+// const masterKey = derive_key_from_seed_with_path(mnemonic, undefined, masterKeyPath, currentNetwork)
+// console.log('Master key object:', masterKey)
+// console.log('Master key fields:', Object.keys(masterKey || {}))
+
+// // Additional authentication key (high security)
+// const authKeyPath = `m/9'/${currentNetwork === 'mainnet' ? 5 : 1}'/5'/0'/0'/${identityIndex}'/1'`
+// const authKey = derive_key_from_seed_with_path(mnemonic, undefined, authKeyPath, currentNetwork)
+
+// // Transfer key (critical security)
+// const transferKeyPath = `m/9'/${currentNetwork === 'mainnet' ? 5 : 1}'/5'/0'/0'/${identityIndex}'/2'`
+// const transferKey = derive_key_from_seed_with_path(mnemonic, undefined, transferKeyPath, currentNetwork)
 const masterKeyPath = `m/9'/${currentNetwork === 'mainnet' ? 5 : 1}'/5'/0'/0'/${identityIndex}'/0'`
-const masterKey = derive_key_from_seed_with_path(mnemonic, undefined, masterKeyPath, currentNetwork)
+const masterKey = derive_key_from_seed_with_path(mnemonic!, undefined, masterKeyPath, currentNetwork)
 console.log('Master key object:', masterKey)
-console.log('Master key fields:', Object.keys(masterKey || {}))
+console.log('Master key (public_key):', masterKey.public_key)
+
+// Additional authentication key (critical security)
+const authCriticalPath = `m/9'/${currentNetwork === 'mainnet' ? 5 : 1}'/5'/0'/0'/${identityIndex}'/1'`
+const authCritical = derive_key_from_seed_with_path(mnemonic!, undefined, authCriticalPath, currentNetwork)
 
 // Additional authentication key (high security)
-const authKeyPath = `m/9'/${currentNetwork === 'mainnet' ? 5 : 1}'/5'/0'/0'/${identityIndex}'/1'`
-const authKey = derive_key_from_seed_with_path(mnemonic, undefined, authKeyPath, currentNetwork)
+const authHighPath = `m/9'/${currentNetwork === 'mainnet' ? 5 : 1}'/5'/0'/0'/${identityIndex}'/2'`
+const authHigh = derive_key_from_seed_with_path(mnemonic!, undefined, authHighPath, currentNetwork)
 
 // Transfer key (critical security)
-const transferKeyPath = `m/9'/${currentNetwork === 'mainnet' ? 5 : 1}'/5'/0'/0'/${identityIndex}'/2'`
-const transferKey = derive_key_from_seed_with_path(mnemonic, undefined, transferKeyPath, currentNetwork)
+const transferKeyPath = `m/9'/${currentNetwork === 'mainnet' ? 5 : 1}'/5'/0'/0'/${identityIndex}'/3'`
+const transferKey = derive_key_from_seed_with_path(mnemonic!, undefined, transferKeyPath, currentNetwork)
 
-            const publicKeys = [
-                {
-                    id: 0,
-                    // keyType: "ECDSA_HASH160",
-                    keyType: "ECDSA_SECP256K1",
-                    purpose: "AUTHENTICATION",
-                    securityLevel: "MASTER",
-                    privateKeyHex: masterKey.private_key_hex,
-                    privateKeyWif: authKey.private_key_wif,
-                    readOnly: false
-                },
-                {
-                    id: 1,
-                    // keyType: "ECDSA_HASH160",
-                    keyType: "ECDSA_SECP256K1",
-                    purpose: "AUTHENTICATION",
-                    securityLevel: "HIGH",
-                    privateKeyHex: authKey.private_key_hex,
-                    privateKeyWif: authKey.private_key_wif,
-                    readOnly: false
-                },
-                {
-                    id: 2,
-                    // keyType: "ECDSA_HASH160",
-                    keyType: "ECDSA_SECP256K1",
-                    // purpose: "TRANSFER",
-                    purpose: "ENCRYPTION",
-                    // securityLevel: "CRITICAL",
-                    securityLevel: "MEDIUM",
-                    privateKeyHex: transferKey.private_key_hex,
-                    privateKeyWif: authKey.private_key_wif,
-                    readOnly: false
-                }
-            ]
+// Transfer key (critical security)
+const encryptionKeyPath = `m/9'/${currentNetwork === 'mainnet' ? 5 : 1}'/5'/0'/0'/${identityIndex}'/4'`
+const encryptionKey = derive_key_from_seed_with_path(mnemonic!, undefined, encryptionKeyPath, currentNetwork)
+
+        const publicKeys = [
+            {
+                id: 0,
+                keyType: "ECDSA_HASH160",
+                purpose: "AUTHENTICATION",
+                securityLevel: "MASTER",
+                privateKeyHex: masterKey.private_key_hex,
+                privateKeyWif: masterKey.private_key_wif,
+                readOnly: false
+            },
+            {
+                id: 1,
+                keyType: "ECDSA_HASH160",
+                purpose: "AUTHENTICATION",
+                securityLevel: "CRITICAL",
+                privateKeyHex: authCritical.private_key_hex,
+                privateKeyWif: authCritical.private_key_wif,
+                readOnly: false
+            },
+            {
+                id: 2,
+                keyType: "ECDSA_HASH160",
+                purpose: "AUTHENTICATION",
+                securityLevel: "HIGH",
+                privateKeyHex: authHigh.private_key_hex,
+                privateKeyWif: authHigh.private_key_wif,
+                readOnly: false
+            },
+            {
+                id: 3,
+                keyType: "ECDSA_HASH160",
+                purpose: "TRANSFER",
+                securityLevel: "CRITICAL",
+                privateKeyHex: transferKey.private_key_hex,
+                privateKeyWif: transferKey.private_key_wif,
+                readOnly: false
+            },
+            {
+                id: 4,
+                keyType: "ECDSA_SECP256K1",
+                purpose: "ENCRYPTION",
+                securityLevel: "MEDIUM",
+                privateKeyHex: encryptionKey.private_key_hex,
+                privateKeyWif: encryptionKey.private_key_wif,
+                readOnly: false
+            },
+        ]
 console.log('CONNECT PUBLIC KEYS', publicKeys)
 
-            const publicKey = masterKey.public_key
+        const publicKey = masterKey.public_key
 console.log('PUBLIC KEY', publicKey)
 
-            const publicKeyHash = binToHex(hash160(hexToBin(publicKey)))
+
+/**
+ * CHECK FOR EXISTING (PENDING) ORDER
+ *
+ * ATTEMPT TO AUTO-COMPLETE THE REGISTRATION PROCESS
+ */
+const headers = {
+'Authorization': `Bearer ${publicKey}`
+}
+const statusResponse = await fetch('https://evonext.app/v1/registrar/status', {
+method: 'GET',
+headers,
+}).catch(err => console.error(err))
+const status = await statusResponse!.json()
+console.log('ORDER STATUS CHECK', status)
+
+        if (typeof status !== 'undefined' && status !== null) {
+            /* Set proof. */
+            const proof = status?.results[0]?.proof
+console.log('PROOF', proof)
+
+            /* Set WIF. */
+            const wif = status?.results[0]?.wif
+console.log('WIF', wif)
+
+// FIXME VERIFY CREDENTIALS ARE VALID
+
+            if (confirm(`Hey, welcome back!\n\nYou have a pending Identity + Username registration. Are you ready complete it now?\n\nIt should ONLY take about 2 minutes..\nDon't WAIT, let's GO!`)) {
+                /* Initialize SDK. */
+                const sdk = await wasmSdkService.getSdk()
+
+                // setIsModalOpen(true)
+                const result = await sdk.identityCreate(
+                    proof,
+                    wif,
+                    JSON.stringify(publicKeys)
+                ).catch(err => console.error(err))
+console.log('WASM REGISTRATION RESULT', result)
+            }
+
+            return
+        }
+
+
+        const publicKeyHash = binToHex(hash160(hexToBin(publicKey)))
 console.log('PUBLIC KEY HASH', publicKeyHash)
 
-            /* Initialize SDK. */
-            const sdk = await wasmSdkService.getSdk()
+        /* Initialize SDK. */
+        const sdk = await wasmSdkService.getSdk()
 
-            /* Request Identity. */
-            const identityOfHash160 = await get_identity_by_non_unique_public_key_hash(
-                sdk,
-                publicKeyHash,
-                undefined
-            ).catch(err => console.error(err))
+        /* Request Identity. */
+        const identityOfHash160 = await get_identity_by_non_unique_public_key_hash(
+            sdk,
+            publicKeyHash,
+            undefined
+        ).catch(err => console.error(err))
 console.log('FOUND IDENTITY (from HASH160)', identityOfHash160)
 
-            const identityOfSecp256k1 = await get_identity_by_public_key_hash(
-                sdk,
-                publicKeyHash
-            ).catch(err => console.error(err))
+        const identityOfSecp256k1 = await get_identity_by_public_key_hash(
+            sdk,
+            publicKeyHash
+        ).catch(err => console.error(err))
 console.log('FOUND IDENTITY (from SECP256K1)', identityOfSecp256k1?.toJSON())
 
-            let identityId
-            let regPubKeys
+        let identityId
+        let regPubKeys
 
-            /* Handle ECDSA_HASH160 signature scheme. */
-            if (identityOfHash160 && identityOfHash160.length > 0 && typeof identityOfHash160 === 'object') {
-                /* Set Identity ID. */
-                identityId = identityOfHash160[0].id
+        /* Handle ECDSA_HASH160 signature scheme. */
+        if (identityOfHash160 && identityOfHash160.length > 0 && typeof identityOfHash160 === 'object') {
+            /* Set Identity ID. */
+            identityId = identityOfHash160[0].id
 
-                /* Set registered public keys. */
-                regPubKeys = identityOfHash160[0].publicKeys
-            }
+            /* Set registered public keys. */
+            regPubKeys = identityOfHash160[0].publicKeys
+        }
 
-            /* Handle ECDSA_SECP256k1 signature scheme. */
-            if (identityOfSecp256k1 && identityOfSecp256k1.toJSON()) {
-                /* Set Identity ID. */
-                identityId = identityOfSecp256k1.toJSON().id
+        /* Handle ECDSA_SECP256k1 signature scheme. */
+        if (identityOfSecp256k1 && identityOfSecp256k1.toJSON()) {
+            /* Set Identity ID. */
+            identityId = identityOfSecp256k1.toJSON().id
 
-                /* Set registered public keys. */
-                regPubKeys = identityOfSecp256k1.toJSON().publicKeys
-            }
+            /* Set registered public keys. */
+            regPubKeys = identityOfSecp256k1.toJSON().publicKeys
+        }
 console.log('IDENTITY ID', identityId)
 console.log('REGISTERED PUBLIC KEYS', regPubKeys)
 
-            /* Validate Identity ID and public keys. */
-            if (identityId && regPubKeys) {
-                const signingPublicKey = regPubKeys.find((_pubkey: any) => {
-                    return _pubkey.purpose === 0 && (_pubkey.securityLevel === 1 || _pubkey.securityLevel === 2)
-                })
+        /* Validate Identity ID and public keys. */
+        if (identityId && regPubKeys) {
+            const signingPublicKey = regPubKeys.find((_pubkey: any) => {
+                return _pubkey.purpose === 0 && (_pubkey.securityLevel === 1 || _pubkey.securityLevel === 2)
+            })
 console.log('SIGNING (public) KEY', signingPublicKey)
 
-                const signingPrivateKey = publicKeys.find(_pubkey => {
-                    return _pubkey.id === signingPublicKey.id
-                })
+            const signingPrivateKey = publicKeys.find(_pubkey => {
+                return _pubkey.id === signingPublicKey.id
+            })
 console.log('SIGNING (private) KEY', signingPrivateKey)
 
-                const seedPrivateKey = signingPrivateKey!.privateKeyWif
+            const seedPrivateKey = signingPrivateKey!.privateKeyWif
 
-                try {
-                    await login(identityId, seedPrivateKey)
-                    // Navigation handled by auth context
-                } catch (err) {
-                    setError(err instanceof Error ? err.message : 'Failed to login')
-                } finally {
-                    setIsLoading(false)
-                }
-            } else {
-                if (confirm(`OH NO!\n\nWe COULD NOT find an Identity for you on the Dash Platform. Would you like to create a NEW Identity and register a NEW Username now?\n\nIt should ONLY take about 2 minutes..\nDon't MISS OUT, let's GO!`)) {
-                    setIsModalOpen(true)
-                }
+            try {
+                await login(identityId, seedPrivateKey)
+                // Navigation handled by auth context
+            } catch (err) {
+                setError(err instanceof Error ? err.message : 'Failed to login')
+            } finally {
+                setIsLoading(false)
+            }
+        } else {
+            if (confirm(`OH NO!\n\nWe COULD NOT find an Identity for you on the Dash Platform. Would you like to create a NEW Identity and register a NEW Username now?\n\nIt should ONLY take about 2 minutes..\nDon't MISS OUT, let's GO!`)) {
+                setIsModalOpen(true)
             }
         }
-    }
+    } // END -- HANDLE MNEMONIC
 
     const onInputChange = (e: ChangeEvent<HTMLInputElement>, idx: number) => {
         const newMnemonic = [...mnemonic]
