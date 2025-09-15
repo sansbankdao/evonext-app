@@ -293,6 +293,11 @@ console.log('USERNAME (REG) RESULT', usernameResult)
                         const completion = await completionResponse!.json()
                         console.log('REGISTRATON COMPLETION', completion)
                     }
+                } else {
+                    /* User has rejected the request to RESUME registration. */
+                    //NOTE: WE DO NOT WANT TO CONTINUE THRU THE STANDARD PROCESS
+                    //      UNTIL REGISTRATION IS 100% COMPLETED
+                    return
                 }
             }
 
