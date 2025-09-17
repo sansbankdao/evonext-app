@@ -194,118 +194,6 @@ console.log('CONNECT PUBLIC KEYS', publicKeys)
         const publicKey = masterKey.public_key
 console.log('PUBLIC KEY', publicKey)
 
-
-        /* Check (pending) status. */
-        const status = await checkPendingStatus(publicKey)
-            .catch(err => console.error(err))
-console.log('PENDING STATUS', status)
-
-        /* Validate (pending) status. */
-        if (
-            typeof status !== 'undefined' &&
-            status !== null &&
-            status.results.length > 0
-        ) {
-            /* Set username. */
-            const username = status?.results[0]?.username
-console.log('USERNAME', username)
-
-            /* Set proof. */
-            const proof = status?.results[0]?.proof
-console.log('PROOF', typeof proof, proof)
-
-            /* Set WIF. */
-            const wif = status?.results[0]?.wif
-console.log('WIF', typeof wif, wif)
-
-            /* Validate registration credentials. */
-            if (typeof proof !== 'undefined' && proof !== null && typeof wif !== 'undefined' && wif !== null) {
-                /* Request user permission to resume registration. */
-                if (confirm(`Hey, welcome back!\n\nYou have a pending Identity + Username registration. Are you ready complete it now? It'll ONLY take a few seconds..\n\n!! IMPORTANT NOTICE !!\nAfter you click to resume, DO NOT interrupt the process until it's 100% completed.\n\nOkay, let's GO!`)) {
-                    setIsLoading(false)
-                    setIsResuming(true)
-
-                    /* Initialize SDK. */
-                    const sdk = await wasmSdkService.getSdk()
-
-                    // setIsModalOpen(true)
-                    const result = await sdk.identityCreate(
-                        proof,
-                        wif,
-                        JSON.stringify(publicKeys)
-                    ).catch(err => console.error(err))
-console.log('WASM REGISTRATION RESULT', result)
-
-                    /* Validate result. */
-                    if (typeof result !== 'undefined' && result !== null) {
-                        const creationStatus = result.status
-                        const creationIdentity = result.identityId
-
-                        const keyId = 1 // AUTHENTICATION (CRITICAL)
-                        const actualPrivateKey = authCritical.private_key_wif
-
-                        const usernameResult = await dpns_register_name(
-                            sdk,
-                            dpns_convert_to_homograph_safe(username),
-                            creationIdentity,       // Use the identity ID from authentication
-                            keyId,            // Use the determined key ID
-                            actualPrivateKey, // Use the actual private key (without :keyId suffix)
-                            // Callback for preorder success
-                            (preorderInfo: any) => {
-console.log('PRE-ORDER SUCCESSFUL', preorderInfo)
-                                // updateStatus('Preorder successful! Now submitting domain document...', 'info');
-
-                                // Show preorder info in a temporary notification
-                                const preorderMsg = `Preorder Document ID: ${preorderInfo.get('documentId')}`;
-console.log('PRE-ORDER MESSAGE', preorderMsg)
-                                // const notification = document.createElement('div');
-                                // notification.className = 'preorder-notification';
-                                // notification.style.cssText = 'background: #4CAF50; color: white; padding: 10px; margin: 10px 0; border-radius: 4px;';
-                                // notification.textContent = preorderMsg;
-
-                                // const resultsSection = document.getElementById('results');
-
-                                // if (resultsSection) {
-                                //     resultsSection.insertBefore(notification, resultsSection.firstChild);
-                                //     // Remove notification after 5 seconds
-                                //     setTimeout(() => notification.remove(), 5000);
-                                // }
-                            }
-                        )
-console.log('USERNAME (REG) RESULT', usernameResult)
-
-
-                        /* Set (request) headers. */
-                        const headers = {
-                            'Authorization': `Bearer ${publicKey}`
-                        }
-
-                        /* Prepare submission body. */
-                        const body = JSON.stringify({
-                            action: 'completeReg',
-                            platformid: creationIdentity,
-                            masterKey: publicKey,
-                            isMainnet: network === 'mainnet' ? true : false,
-                        })
-
-                        /* Make completion request. */
-                        const completionResponse = await fetch('https://evonext.app/v1/registrar/proof', {
-                            method: 'POST',
-                            headers,
-                            body,
-                        }).catch(err => console.error(err))
-                        const completion = await completionResponse!.json()
-                        console.log('REGISTRATON COMPLETION', completion)
-                    }
-                } else {
-                    /* User has rejected the request to RESUME registration. */
-                    //NOTE: WE DO NOT WANT TO CONTINUE THRU THE STANDARD PROCESS
-                    //      UNTIL REGISTRATION IS 100% COMPLETED
-                    return
-                }
-            }
-        }
-
         const publicKeyHash = binToHex(hash160(hexToBin(publicKey)))
 console.log('PUBLIC KEY HASH', publicKeyHash)
 
@@ -373,6 +261,119 @@ console.log('SIGNING (private) KEY', signingPrivateKey)
                 setIsResuming(false)
             }
         } else {
+// BEGIN NO IDENTITY FOUND
+            /* Check (pending) status. */
+            const status = await checkPendingStatus(publicKey)
+                .catch(err => console.error(err))
+console.log('PENDING STATUS', status)
+
+            /* Validate (pending) status. */
+            if (
+                typeof status !== 'undefined' &&
+                status !== null &&
+                status.results.length > 0
+            ) {
+                /* Set username. */
+                const username = status?.results[0]?.username
+console.log('USERNAME', username)
+
+                /* Set proof. */
+                const proof = status?.results[0]?.proof
+console.log('PROOF', typeof proof, proof)
+
+                /* Set WIF. */
+                const wif = status?.results[0]?.wif
+console.log('WIF', typeof wif, wif)
+
+                /* Validate registration credentials. */
+                if (typeof proof !== 'undefined' && proof !== null && typeof wif !== 'undefined' && wif !== null) {
+                    /* Request user permission to resume registration. */
+                    if (confirm(`Hey, welcome back!\n\nYou have a pending Identity + Username registration. Are you ready complete it now? It'll ONLY take a few seconds..\n\n!! IMPORTANT NOTICE !!\nAfter you click to resume, DO NOT interrupt the process until it's 100% completed.\n\nOkay, let's GO!`)) {
+                        setIsLoading(false)
+                        setIsResuming(true)
+
+                        /* Initialize SDK. */
+                        const sdk = await wasmSdkService.getSdk()
+
+                        // setIsModalOpen(true)
+                        const result = await sdk.identityCreate(
+                            proof,
+                            wif,
+                            JSON.stringify(publicKeys)
+                        ).catch(err => console.error(err))
+console.log('WASM REGISTRATION RESULT', result)
+
+                        /* Validate result. */
+                        if (typeof result !== 'undefined' && result !== null) {
+                            const creationStatus = result.status
+                            const creationIdentity = result.identityId
+
+                            const keyId = 1 // AUTHENTICATION (CRITICAL)
+                            const actualPrivateKey = authCritical.private_key_wif
+
+                            const usernameResult = await dpns_register_name(
+                                sdk,
+                                dpns_convert_to_homograph_safe(username),
+                                creationIdentity,       // Use the identity ID from authentication
+                                keyId,            // Use the determined key ID
+                                actualPrivateKey, // Use the actual private key (without :keyId suffix)
+                                // Callback for preorder success
+                                (preorderInfo: any) => {
+console.log('PRE-ORDER SUCCESSFUL', preorderInfo)
+                                    // updateStatus('Preorder successful! Now submitting domain document...', 'info');
+
+                                    // Show preorder info in a temporary notification
+                                    const preorderMsg = `Preorder Document ID: ${preorderInfo.get('documentId')}`;
+console.log('PRE-ORDER MESSAGE', preorderMsg)
+                                    // const notification = document.createElement('div');
+                                    // notification.className = 'preorder-notification';
+                                    // notification.style.cssText = 'background: #4CAF50; color: white; padding: 10px; margin: 10px 0; border-radius: 4px;';
+                                    // notification.textContent = preorderMsg;
+
+                                    // const resultsSection = document.getElementById('results');
+
+                                    // if (resultsSection) {
+                                    //     resultsSection.insertBefore(notification, resultsSection.firstChild);
+                                    //     // Remove notification after 5 seconds
+                                    //     setTimeout(() => notification.remove(), 5000);
+                                    // }
+                                }
+                            )
+console.log('USERNAME (REG) RESULT', usernameResult)
+
+
+                            /* Set (request) headers. */
+                            const headers = {
+                                'Authorization': `Bearer ${publicKey}`
+                            }
+
+                            /* Prepare submission body. */
+                            const body = JSON.stringify({
+                                action: 'completeReg',
+                                platformid: creationIdentity,
+                                masterKey: publicKey,
+                                isMainnet: network === 'mainnet' ? true : false,
+                            })
+
+                            /* Make completion request. */
+                            const completionResponse = await fetch('https://evonext.app/v1/registrar/proof', {
+                                method: 'POST',
+                                headers,
+                                body,
+                            }).catch(err => console.error(err))
+                            const completion = await completionResponse!.json()
+                            console.log('REGISTRATON COMPLETION', completion)
+                        }
+                    } else {
+                        /* User has rejected the request to RESUME registration. */
+                        //NOTE: WE DO NOT WANT TO CONTINUE THRU THE STANDARD PROCESS
+                        //      UNTIL REGISTRATION IS 100% COMPLETED
+                        return
+                    }
+                }
+            }
+// END NO IDENTITY FOUND
+
             if (confirm(`OH NO!\n\nWe COULD NOT find an Identity for you on the Dash Platform. Would you like to create a NEW Identity and register a NEW Username now?\n\nIt should ONLY take about 2 minutes..\nDon't MISS OUT, let's GO!`)) {
                 setIsModalOpen(true)
             }
