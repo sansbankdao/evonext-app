@@ -67,7 +67,7 @@ export function BiometricPrompt({ isOpen, onClose }: BiometricPromptProps) {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50"
+                        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
                         onClick={onClose}
                     />
 
@@ -77,7 +77,7 @@ export function BiometricPrompt({ isOpen, onClose }: BiometricPromptProps) {
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, scale: 0.9 }}
                         transition={{ type: 'spring', damping: 20 }}
-                        className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50"
+                        className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-40"
                     >
                         <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl p-8 max-w-sm mx-auto">
                             <div className="text-center space-y-4">

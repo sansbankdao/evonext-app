@@ -202,7 +202,7 @@ export function Sidebar() {
 
                         <DropdownMenu.Portal>
                             <DropdownMenu.Content
-                                className="min-w-[200px] bg-white dark:bg-black rounded-xl shadow-lg border border-gray-200 dark:border-gray-800 py-2 z-50"
+                                className="min-w-[200px] bg-white dark:bg-black rounded-xl shadow-lg border border-gray-200 dark:border-gray-800 py-2 z-40"
                                 sideOffset={5}
                             >
                                 <DropdownMenu.Item

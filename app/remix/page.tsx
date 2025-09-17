@@ -159,7 +159,7 @@ function RemixesPage() {
             <Sidebar />
 
             <main className="pt-16 flex-1 border-x border-gray-200 dark:border-gray-800 h-screen overflow-y-scroll">
-                <header className="sticky top-0 z-40 bg-white/80 dark:bg-black/80 backdrop-blur-xl border-b border-gray-200 dark:border-gray-800">
+                <header className="sticky top-0 z-30 bg-white/80 dark:bg-black/80 backdrop-blur-xl border-b border-gray-200 dark:border-gray-800">
                     <div className="flex items-center justify-between px-4 py-3">
                         <div>
                             <h1 className="text-xl font-bold">
@@ -180,7 +180,7 @@ function RemixesPage() {
 
                             <DropdownMenu.Portal>
                                 <DropdownMenu.Content
-                                    className="min-w-[200px] bg-white dark:bg-black rounded-xl shadow-lg border border-gray-200 dark:border-gray-800 py-2 z-50"
+                                    className="min-w-[200px] bg-white dark:bg-black rounded-xl shadow-lg border border-gray-200 dark:border-gray-800 py-2 z-40"
                                     sideOffset={5}
                                 >
                                     <DropdownMenu.Item
@@ -267,7 +267,7 @@ function RemixesPage() {
 
                                         <DropdownMenu.Portal>
                                             <DropdownMenu.Content
-                                                className="min-w-[180px] bg-white dark:bg-black rounded-xl shadow-lg border border-gray-200 dark:border-gray-800 py-2 z-50"
+                                                className="min-w-[180px] bg-white dark:bg-black rounded-xl shadow-lg border border-gray-200 dark:border-gray-800 py-2 z-40"
                                                 sideOffset={5}
                                             >
                                                 <DropdownMenu.Item

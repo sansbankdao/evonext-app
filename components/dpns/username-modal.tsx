@@ -350,7 +350,7 @@ console.log('USERNAME MODAL (identity)', identity)
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         onClick={onClose}
-                        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50"
+                        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
                     />
 
                     {/* Modal */}
@@ -359,7 +359,7 @@ console.log('USERNAME MODAL (identity)', identity)
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, scale: 0.95 }}
                         transition={{ duration: 0.2 }}
-                        className="fixed inset-0 flex items-center justify-center z-50 px-4"
+                        className="fixed inset-0 flex items-center justify-center z-40 px-4"
                         onClick={(e) => e.stopPropagation()}
                     >
                         <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl p-8 max-w-md w-full relative">

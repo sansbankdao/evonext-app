@@ -164,7 +164,7 @@ console.log('PROFILE CONTRACT ID', getContractId(network!))
 
             <main className="flex-1 border-x border-gray-200 dark:border-gray-800 h-screen overflow-y-scroll">
                 {/* Header */}
-                <header className="sticky top-0 z-40 bg-white/80 dark:bg-black/80 backdrop-blur-xl">
+                <header className="sticky top-0 z-30 bg-white/80 dark:bg-black/80 backdrop-blur-xl">
                     <div className="flex items-center gap-4 px-4 py-3">
                         <button className="p-2 -ml-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-900">
                             <ArrowLeftIcon className="h-5 w-5" />
@@ -406,9 +406,9 @@ console.log('PROFILE CONTRACT ID', getContractId(network!))
             {/* Avatar Customization Modal */}
             <Dialog.Root open={isEditingAvatar} onOpenChange={setIsEditingAvatar}>
                 <Dialog.Portal>
-                    <Dialog.Overlay className="fixed inset-0 bg-black/50 z-50" />
+                    <Dialog.Overlay className="fixed inset-0 bg-black/50 z-40" />
 
-                    <Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-5xl max-h-[90vh] bg-white dark:bg-black rounded-2xl shadow-xl z-50 overflow-hidden">
+                    <Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-5xl max-h-[90vh] bg-white dark:bg-black rounded-2xl shadow-xl z-40 overflow-hidden">
                         <div className="flex h-full">
                         {/* Fixed Preview Side */}
                             <div className="w-1/3 bg-gray-50 dark:bg-gray-950 p-8 flex flex-col items-center justify-center sticky top-0">

@@ -59,9 +59,9 @@ export function LikesModal({ isOpen, onClose, postId }: LikesModalProps) {
     return (
         <Dialog.Root open={isOpen} onOpenChange={onClose}>
             <Dialog.Portal>
-                <Dialog.Overlay className="fixed inset-0 bg-black/50 z-50" />
+                <Dialog.Overlay className="fixed inset-0 bg-black/50 z-40" />
 
-                <Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white dark:bg-black rounded-2xl p-0 w-[500px] max-h-[600px] shadow-xl z-50">
+                <Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white dark:bg-black rounded-2xl p-0 w-[500px] max-h-[600px] shadow-xl z-40">
                     <div className="sticky top-0 bg-white dark:bg-black border-b border-gray-200 dark:border-gray-800 px-4 py-3 flex items-center justify-between">
                         <Dialog.Title className="text-xl font-bold">
                             Liked by

@@ -180,7 +180,7 @@ function PostDetailPage() {
             <Sidebar />
 
             <main className="py-20 flex-1 border-x border-gray-200 dark:border-gray-800 h-screen overflow-y-scroll">
-                <header className="sticky top-0 z-40 bg-white/80 dark:bg-black/80 backdrop-blur-xl border-b border-gray-200 dark:border-gray-800">
+                <header className="sticky top-0 z-30 bg-white/80 dark:bg-black/80 backdrop-blur-xl border-b border-gray-200 dark:border-gray-800">
                     <div className="flex items-center gap-4 px-4 py-3">
                         <button
                             onClick={() => router.back()}

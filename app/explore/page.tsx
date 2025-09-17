@@ -163,7 +163,7 @@ console.log('EXPLORE CONTRACT ID', getContractId(network!))
 
             <div className="py-20 flex-1 flex justify-center h-screen overflow-y-scroll">
                 <main className="w-full max-w-[600px] border-x border-gray-200 dark:border-gray-800">
-                    <header className="sticky top-0 z-40 bg-white/80 dark:bg-black/80 backdrop-blur-xl">
+                    <header className="sticky top-0 z-30 bg-white/80 dark:bg-black/80 backdrop-blur-xl">
                         <div className="flex items-center gap-4 p-4">
                             {isSearchFocused && (
                                 <button

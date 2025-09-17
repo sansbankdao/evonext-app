@@ -131,7 +131,7 @@ export function ComposeModal() {
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
                                 exit={{ opacity: 0 }}
-                                className="fixed inset-0 bg-black/50 z-50"
+                                className="fixed inset-0 bg-black/50 z-40"
                             />
                         </Dialog.Overlay>
 
@@ -141,7 +141,7 @@ export function ComposeModal() {
                                 animate={{ opacity: 1, scale: 1 }}
                                 exit={{ opacity: 0, scale: 0.95 }}
                                 transition={{ duration: 0.15 }}
-                                className="fixed mx-5 top-20 lg:left-1/4 -translate-x-1/2 w-full max-w-[600px] bg-white dark:bg-black rounded-2xl shadow-xl z-50"
+                                className="fixed mx-5 top-20 lg:left-1/4 -translate-x-1/2 w-full max-w-[600px] bg-white dark:bg-black rounded-2xl shadow-xl z-40"
                             >
                                 {/* Add Dialog Title for accessibility */}
                                 <Dialog.Title className="sr-only">
@@ -154,7 +154,7 @@ export function ComposeModal() {
 
                                 <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-800">
                                     <IconButton onClick={handleClose}>
-                                        <XMarkIcon className="size-6" />
+                                        <XMarkIcon className="height-8" />
                                     </IconButton>
 
                                     <Button

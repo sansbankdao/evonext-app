@@ -163,7 +163,7 @@ function MessagesPage() {
             <main className="flex-1 max-w-[1000px] border-x border-gray-200 dark:border-gray-800 flex">
                 {/* Conversations List */}
                 <div className="w-[400px] border-r border-gray-200 dark:border-gray-800 flex flex-col">
-                    <header className="sticky top-0 z-40 bg-white/80 dark:bg-black/80 backdrop-blur-xl border-b border-gray-200 dark:border-gray-800">
+                    <header className="sticky top-0 z-30 bg-white/80 dark:bg-black/80 backdrop-blur-xl border-b border-gray-200 dark:border-gray-800">
                         <div className="flex items-center justify-between px-4 py-3">
                             <h1 className="text-xl font-bold">Messages</h1>
 
@@ -245,7 +245,7 @@ function MessagesPage() {
                 {/* Message Thread */}
                 {selectedConversation ? (
                     <div className="flex-1 flex flex-col">
-                        <header className="sticky top-0 z-40 bg-white/80 dark:bg-black/80 backdrop-blur-xl border-b border-gray-200 dark:border-gray-800 px-4 py-3">
+                        <header className="sticky top-0 z-30 bg-white/80 dark:bg-black/80 backdrop-blur-xl border-b border-gray-200 dark:border-gray-800 px-4 py-3">
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-3">
                                     <div className="h-10 w-10 rounded-full overflow-hidden bg-gray-100">

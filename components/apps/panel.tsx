@@ -24,15 +24,15 @@ export default function AppsPanel() {
     useEffect(() => { setOpen(true) }, [])
 
     return (
-        <div className="z-50">
-            <button
+        <div>
+            {/* <button
                 onClick={() => setOpen(true)}
                 className="rounded-md bg-gray-950/5 px-2.5 py-1.5 text-sm font-semibold text-gray-900 hover:bg-gray-950/10 dark:bg-white/10 dark:text-white dark:ring-1 dark:ring-inset dark:ring-white/5 dark:hover:bg-white/20"
             >
                 Open drawer
-            </button>
+            </button> */}
 
-            <Dialog open={open} onClose={setOpen} id={dialogId} className="relative z-10">
+            <Dialog open={open} onClose={setOpen} id={dialogId} className="relative z-50">
                 <div className="fixed inset-0" />
 
                 <div className="fixed inset-0 overflow-hidden">
@@ -42,8 +42,8 @@ export default function AppsPanel() {
                                 <div className="relative flex h-full flex-col overflow-y-auto bg-white shadow-xl dark:bg-gray-800 dark:after:absolute dark:after:inset-y-0 dark:after:left-0 dark:after:w-px dark:after:bg-white/10">
                                     <div className="px-4 py-6 sm:px-6">
                                         <div className="flex items-start justify-between">
-                                            <h2 id="slide-over-heading" className="text-base font-semibold text-gray-900 dark:text-white">
-                                                EvoApp Window
+                                            <h2 id="slide-over-heading" className="text-xl tracking-wider font-semibold text-slate-900/20 dark:text-white/20 uppercase">
+                                                EvoApp Viewer
                                             </h2>
 
                                             <div className="ml-3 flex h-7 items-center">
@@ -54,7 +54,7 @@ export default function AppsPanel() {
                                                 >
                                                     <span className="absolute -inset-2.5" />
                                                     <span className="sr-only">Close panel</span>
-                                                    <XMarkIcon aria-hidden="true" className="size-6" />
+                                                    <XMarkIcon aria-hidden="true" className="h-8" />
                                                 </button>
                                             </div>
                                         </div>
@@ -83,7 +83,7 @@ export default function AppsPanel() {
                                                                     Rock, Paper, Scissors, Lizard, Spock
                                                                 </h3>
 
-                                                                <span className="ml-2.5 inline-block size-2 shrink-0 rounded-full bg-green-400">
+                                                                <span className="ml-2.5 inline-block height-2 shrink-0 rounded-full bg-green-400">
                                                                     <span className="sr-only">Online</span>
                                                                 </span>
                                                             </div>
@@ -113,12 +113,12 @@ export default function AppsPanel() {
                                                                     <MenuButton className="relative inline-flex items-center rounded-md bg-white p-2 text-gray-400 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 dark:bg-white/10 dark:text-gray-100 dark:shadow-none dark:ring-white/5 dark:hover:bg-white/20">
                                                                         <span className="absolute -inset-1" />
                                                                         <span className="sr-only">Open options menu</span>
-                                                                        <EllipsisVerticalIcon aria-hidden="true" className="size-5" />
+                                                                        <EllipsisVerticalIcon aria-hidden="true" className="height-5" />
                                                                     </MenuButton>
 
                                                                     <MenuItems
                                                                         transition
-                                                                        className="absolute right-0 z-10 mt-2 w-48 origin-top-right rounded-md bg-white shadow-lg outline outline-1 outline-black/5 transition data-[closed]:scale-95 data-[closed]:transform data-[closed]:opacity-0 data-[enter]:duration-100 data-[leave]:duration-75 data-[enter]:ease-out data-[leave]:ease-in dark:bg-gray-800 dark:-outline-offset-1 dark:outline-white/10"
+                                                                        className="absolute right-0 z-50 mt-2 w-48 origin-top-right rounded-md bg-white shadow-lg outline outline-1 outline-black/5 transition data-[closed]:scale-95 data-[closed]:transform data-[closed]:opacity-0 data-[enter]:duration-100 data-[leave]:duration-75 data-[enter]:ease-out data-[leave]:ease-in dark:bg-gray-800 dark:-outline-offset-1 dark:outline-white/10"
                                                                     >
                                                                         <div className="py-1">
                                                                             <MenuItem>

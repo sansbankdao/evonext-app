@@ -167,7 +167,7 @@ console.log('HANDLE SHARE')
 
                             <DropdownMenu.Portal>
                                 <DropdownMenu.Content
-                                    className="min-w-[200px] bg-white dark:bg-black rounded-xl shadow-lg border border-gray-200 dark:border-gray-800 py-2 z-50"
+                                    className="min-w-[200px] bg-white dark:bg-black rounded-xl shadow-lg border border-gray-200 dark:border-gray-800 py-2 z-40"
                                     sideOffset={5}
                                 >
                                     <DropdownMenu.Item className="px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-900 cursor-pointer outline-none">
