@@ -18,12 +18,13 @@ import {
     get_identity_by_public_key_hash,
     get_identity_by_non_unique_public_key_hash,
     validate_mnemonic,
+    dpns_is_contested_username,
 } from '@/lib/dash-wasm/wasm_sdk'
 
 /* Initialize constants. */
 const MAX_USERNAME_LENGTH = 63 // Maximum length - 63 characters
-const NON_CONTESTED_REG_FEE = 1000000 // 0.1 DASH
-const CONTESTED_REG_FEE = 3000000 // 0.3 DASH
+const NON_CONTESTED_REG_FEE = 0.1 // BIP-21 requires DASH values (not duff)
+const CONTESTED_REG_FEE = 0.3 // BIP-21 requires DASH values (not duff)
 
 interface RegistrarModalProps {
     isOpen: boolean
@@ -53,7 +54,7 @@ export function RegistrarModal({
     const [isShowingPayment, setIsShowingPayment] = useState(false)
     const [customIdentityId, setCustomIdentityId] = useState(initialIdentityId || '')
 
-    const [paymentAddress, setPaymentAddress] = useState(null)
+    const [paymentAddress, setPaymentAddress] = useState<string | undefined>()
 
     // Debug SDK state
     useEffect(() => {
@@ -146,25 +147,36 @@ export function RegistrarModal({
     ])
 
     const handlePayment = () => {
-        // alert('lets make that payment')
-// FIXME ADJUST AMOUNT BASED ON CONTESTED/NON-CONTESTED
-        const dashUri = `dash:${paymentAddress}?amount=${NON_CONTESTED_REG_FEE}`
-        window.location.href = dashUri
+        /* Handle contested usernames. */
+        if (dpns_is_contested_username(username)) {
+            const dashUri = `dash:${paymentAddress}?amount=${CONTESTED_REG_FEE}`
+            window.location.href = dashUri
+        } else {
+            const dashUri = `dash:${paymentAddress}?amount=${NON_CONTESTED_REG_FEE}`
+            window.location.href = dashUri
+        }
     }
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
 
-// setIsShowingPayment(true)
-setIsSubmitting(true)
+        // setIsShowingPayment(true)
+        setIsSubmitting(true)
 
-const { getMnemonic } = await import('@/lib/secure-storage')
-const mnemonic = getMnemonic()
+        /* Request mnemonic. */
+        const { getMnemonic } = await import('@/lib/secure-storage')
+        const mnemonic = getMnemonic()
 console.log('MNEMONIC', mnemonic)
-const currentNetwork = (network === 'mainnet' ? 'mainnet' : 'testnet') as 'mainnet' | 'testnet'
-console.log('CURRENT NETWORK', currentNetwork)
-const identityIndex = 0
 
+        /* Set network. */
+        const currentNetwork = (network === 'mainnet' ? 'mainnet' : 'testnet') as 'mainnet' | 'testnet'
+console.log('CURRENT NETWORK', currentNetwork)
+
+        /* Set identity index. */
+// FIXME ALLOW SUPPORT FOR MULTIPLE IDENTITIES
+        const identityIndex = 0
+
+/* Initialize master (authentication) path. */
 const masterKeyPath = `m/9'/${currentNetwork === 'mainnet' ? 5 : 1}'/5'/0'/0'/${identityIndex}'/0'`
 const masterKey = derive_key_from_seed_with_path(mnemonic!, undefined, masterKeyPath, currentNetwork)
 console.log('Master key object:', masterKey)
@@ -186,18 +198,20 @@ const transferKey = derive_key_from_seed_with_path(mnemonic!, undefined, transfe
 const encryptionKeyPath = `m/9'/${currentNetwork === 'mainnet' ? 5 : 1}'/5'/0'/0'/${identityIndex}'/4'`
 const encryptionKey = derive_key_from_seed_with_path(mnemonic!, undefined, encryptionKeyPath, currentNetwork)
 
-const body = JSON.stringify({
-    masterKey: masterKey.public_key,
-    authCriticalKey: authCritical.public_key,
-    authHighKey: authHigh.public_key,
-    transferKey: transferKey.public_key,
-    encryptionKey: encryptionKey.public_key,
-    username,
-    emailAddr: email,
-    isMainnet: currentNetwork === 'mainnet' ? true : false
-})
+        /* Prepare order package. */
+        const body = JSON.stringify({
+            masterKey: masterKey.public_key,
+            authCriticalKey: authCritical.public_key,
+            authHighKey: authHigh.public_key,
+            transferKey: transferKey.public_key,
+            encryptionKey: encryptionKey.public_key,
+            username,
+            emailAddr: email,
+            isMainnet: currentNetwork === 'mainnet' ? true : false
+        })
 console.log('ORDER (body)', body)
 
+        /* Request a payment address. */
         const addressResponse = await fetch('https://evonext.app/v1/registrar/address', {
             method: 'POST',
             body,
@@ -205,15 +219,31 @@ console.log('ORDER (body)', body)
         const json = await addressResponse!.json()
 console.log('PAYMENT ADDRESS', json)
 
+        /* Set payment address. */
         const paymentAddress = json?.registrar?.dashAddr
-        setPaymentAddress(paymentAddress)
 
+        /* Handle contested username. */
+        // NOTE: We add BIP-21 encoding for user convenience.
+        if (dpns_is_contested_username(username)) {
+            setPaymentAddress(`dash:${paymentAddress}?amount=${CONTESTED_REG_FEE}`)
+        } else {
+            setPaymentAddress(`dash:${paymentAddress}?amount=${NON_CONTESTED_REG_FEE}`)
+        }
+
+        /* Submit a new order. */
         const orderResponse = await fetch('https://evonext.app/v1/registrar/order', {
             method: 'POST',
             body,
         }).catch(err => console.error(err))
-        const orderConfirm = await orderResponse!.json()
+
+        /* Validate order submission. */
+        if (typeof orderResponse !== 'undefined' && orderResponse !== null) {
+            /* Handle order response. */
+            // NOTE: This is NOT strictly required, but consider offering
+            //       user feedback, if an error is recognized.
+            const orderConfirm = await orderResponse!.json()
 console.log('ORDER CONFIRM', orderConfirm)
+        }
     }
 
     const getStatusIcon = () => {
@@ -238,19 +268,38 @@ console.log('ORDER CONFIRM', orderConfirm)
 
     const getStatusMessage = () => {
         if (validationError) {
-            return <p className="text-sm text-red-600 mt-1">{validationError}</p>
+            return <p className="text-sm text-red-600 mt-1">
+                {validationError}
+            </p>
         }
 
         if (isChecking) {
-            return <p className="text-sm text-gray-500 mt-1">Checking availability...</p>
+            return <p className="text-sm text-gray-500 mt-1">
+                Checking availability...
+            </p>
         }
 
         if (isAvailable === true) {
-            return <p className="text-sm text-green-600 mt-1">Username is available!</p>
+            /* Validate (contested) username. */
+            if (dpns_is_contested_username(username)) {
+                return <p className="text-sm text-amber-600 mt-1">
+                    Username is available, <span className="font-bold uppercase">but contested!</span>
+
+                    <small className="mt-1 block text-xs text-rose-600">
+                        It&apos;s <span className="font-bold uppercase">HIGHLY</span> recommended to choose an uncontested username for your <span className="font-bold uppercase">1st Identity registration.</span>
+                    </small>
+                </p>
+            } else {
+                return <p className="text-sm text-green-600 mt-1">
+                    Username is <span className="font-bold uppercase">available!</span>
+                </p>
+            }
         }
 
         if (isAvailable === false) {
-            return <p className="text-sm text-red-600 mt-1">Username is already taken</p>
+            return <p className="text-sm text-red-600 mt-1">
+                Username is already taken
+            </p>
         }
 
         return null
@@ -368,45 +417,47 @@ console.log('ORDER CONFIRM', orderConfirm)
                                 Choose a NEW &amp; Unique Username for your Dash Platform Identity
                             </p>
 
-{/* BEGIN PAYMENT INFORMATION HERE */}
-{paymentAddress &&
-    <section className="w-full mb-5 flex flex-col items-center justify-center border border-evonext-700 shadow">
-        <QRCodeSVG
-            value={paymentAddress || ''}
-            size={360}
-            onClick={() => handlePayment()}
-            className="cursor-pointer"
-        />
+                            {/* BEGIN PAYMENT INFORMATION HERE */}
+                            {paymentAddress &&
+                                <section className="w-full mb-5 flex flex-col items-center justify-center border border-evonext-700 shadow">
+                                    <QRCodeSVG
+                                        value={paymentAddress || ''}
+                                        size={360}
+                                        onClick={() => handlePayment()}
+                                        className="cursor-pointer"
+                                    />
 
-        <div className="px-3 py-5 flex flex-col gap-5 rounded-t-lg border-t-2 border-evonext-700 bg-evonext-50">
-            <h2 className="font-medium text-2xl text-evonext-800 text-center">
-                One Final Step to Complete Your Username Registration
-            </h2>
+                                    <div className="px-3 py-5 flex flex-col gap-5 rounded-t-lg border-t-2 border-evonext-700 bg-evonext-50">
+                                        <h2 className="font-medium text-2xl text-evonext-800 text-center">
+                                            One Final Step to Complete Your Username Registration
+                                        </h2>
 
-            <h3 className="font-medium text-xl text-evonext-800 text-center">
-                Send
-                <button
-                    className="px-1 text-2xl font-bold text-evonext-600"
-                    onClick={() => handlePayment()}
-                >
-                    0.1 DASH
-                </button>
-                to the payment address shown below -OR- click the QRCode shown above
-            </h3>
+                                        <h3 className="font-medium text-xl text-evonext-800 text-center">
+                                            Send
+                                            <button
+                                                className="px-1 text-2xl font-bold text-evonext-600"
+                                                onClick={() => handlePayment()}
+                                            >
+                                                {dpns_is_contested_username(username) && <>${CONTESTED_REG_FEE} DASH</>}
+                                                {!dpns_is_contested_username(username) && <>${NON_CONTESTED_REG_FEE} DASH</>}
+                                            </button>
+                                            to the payment address shown below -OR- click the QRCode shown above
+                                        </h3>
 
-            <button onClick={() => handlePayment()} className="font-bold text-md text-evonext-600 text-center tracking-tighter">
-                {paymentAddress}
-            </button>
+                                        <button onClick={() => handlePayment()} className="font-bold text-md text-evonext-600 text-center tracking-tighter">
+                                            {paymentAddress}
+                                        </button>
 
-            <p className="font-base text-sm text-evonext-800">
-                <span className="block font-medium text-md tracking-wider">PLEASE NOTE:</span>
-                You <span className="font-bold">DO NOT</span> have to keep this window open.
-                You will receive an email as soon as your NEW Username registration is complete.
-            </p>
-        </div>
-    </section>
-}
-{/* END PAYMENT INFORMATION HERE */}
+                                        <p className="font-base text-sm text-evonext-800">
+                                            <span className="block font-medium text-md tracking-wider">PLEASE NOTE:</span>
+                                            You <span className="font-bold">DO NOT</span> have to keep this window open.
+                                            You will receive an email as soon as your NEW Username registration is complete.
+                                        </p>
+                                    </div>
+                                </section>
+                            }
+                            {/* END PAYMENT INFORMATION HERE */}
+
                             <form onSubmit={handleSubmit} className="space-y-6">
                                 <div>
                                     <label htmlFor="username" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -453,11 +504,11 @@ console.log('ORDER CONFIRM', orderConfirm)
                                         </h3>
 
                                         <p>
-                                            Any username that is under 20 characters in length -OR- ONLY contains the numbers 0 and 1, will required approval by the Master Node Operators that guard against abuses of the network.
+                                            ANY username that is under 20 characters in length -OR- ONLY contains the numbers 0 and 1, will require approval by the Master Node Operators that guard against abuses of the network.
                                         </p>
 
                                         <p>
-                                            This voting period takes <span className="font-bold">TWO (2) WEEKS</span> to complete, and is completely out of the control of EvoNext.
+                                            This voting period takes <span className="font-bold text-rose-600">TWO (2) WEEKS</span> to complete, and is completely out of the control of EvoNext.
                                         </p>
                                     </div>
                                 </div>
