@@ -418,10 +418,8 @@ console.log('PASTED MENMONIC', pastedWords)
         setError(null)
         setIsLoading(true)
 
-console.log('HAS MNEMONIC ', typeof hasMnemonic(), hasMnemonic())
-console.log('MNEMONIC', typeof mnemonic, mnemonic)
-
         try {
+            /* Validate mnemonic. */
             if (hasMnemonic()) {
                 await handleMnemonic(mnemonic)
             } else {
@@ -436,10 +434,18 @@ console.log('MNEMONIC', typeof mnemonic, mnemonic)
     }
 
     const toggleExtWords = () => {
+        /* Initialize twelve (12) word mnemonic. */
         const twelve = Array(12).fill('')
+
+        /* Initialize twenty-four (24) word mnemonic. */
         const twentyFour = Array(24).fill('')
 
-        setMnemonic(twentyFour)
+        /* Handle mnemonic length. */
+        if (mnemonic.length === 12) {
+            setMnemonic(twentyFour)
+        } else {
+            setMnemonic(twelve)
+        }
     }
 
     const togglePrivateKey = () => {
@@ -479,7 +485,8 @@ console.log('MNEMONIC', typeof mnemonic, mnemonic)
 
                         {!identityId &&
                             <button onClick={toggleExtWords} className="px-5 py-2 bg-sky-700 font-medium text-sky-100 rounded-xl shadow">
-                                switch to 24 word seed phrase
+                                {(mnemonic.length === 12) && <>switch to 24 word seed phrase</>}
+                                {(mnemonic.length === 24) && <>switch to 12 word seed phrase</>}
                             </button>
                         }
 
