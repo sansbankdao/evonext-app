@@ -11,6 +11,9 @@ import './globals.css'
 /* Import (3rd-party) modules. */
 import { Toaster } from 'react-hot-toast'
 
+/* Imoprt EvoApp window. */
+import AppsPanel from '@/components/apps/panel'
+
 /* Import (local) modules. */
 import { Providers } from '@/components/providers'
 import ErrorBoundary from '@/components/error-boundary'
@@ -91,6 +94,8 @@ export default function RootLayout({
                         <Footer />
                     </Providers>
                 </ErrorBoundary>
+
+                <AppsPanel />
 
                 <Toaster
                     position="bottom-center"
