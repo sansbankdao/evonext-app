@@ -419,7 +419,7 @@ console.log('ORDER CONFIRM', orderConfirm)
 
                             {/* BEGIN PAYMENT INFORMATION HERE */}
                             {paymentAddress &&
-                                <section className="w-full mb-5 flex flex-col items-center justify-center border border-evonext-700 shadow">
+                                <section className="w-full mb-5 flex flex-col items-center justify-center shadow">
                                     <QRCodeSVG
                                         value={paymentAddress || ''}
                                         size={360}
@@ -427,9 +427,9 @@ console.log('ORDER CONFIRM', orderConfirm)
                                         className="cursor-pointer"
                                     />
 
-                                    <div className="px-3 py-5 flex flex-col gap-5 rounded-t-lg border-t-2 border-evonext-700 bg-evonext-50">
+                                    <div className="mt-5 px-3 py-5 flex flex-col gap-5 rounded-lg border border-evonext-700 bg-evonext-50">
                                         <h2 className="font-medium text-2xl text-evonext-800 text-center">
-                                            One Final Step to Complete Your Username Registration
+                                            Just One FINAL Step to Complete Your NEW Identity + Username Registration
                                         </h2>
 
                                         <h3 className="font-medium text-xl text-evonext-800 text-center">
@@ -438,14 +438,14 @@ console.log('ORDER CONFIRM', orderConfirm)
                                                 className="px-1 text-2xl font-bold text-evonext-600"
                                                 onClick={() => handlePayment()}
                                             >
-                                                {dpns_is_contested_username(username) && <>${CONTESTED_REG_FEE} DASH</>}
-                                                {!dpns_is_contested_username(username) && <>${NON_CONTESTED_REG_FEE} DASH</>}
+                                                {dpns_is_contested_username(username) && <>{CONTESTED_REG_FEE} DASH</>}
+                                                {!dpns_is_contested_username(username) && <>{NON_CONTESTED_REG_FEE} DASH</>}
                                             </button>
                                             to the payment address shown below -OR- click the QRCode shown above
                                         </h3>
 
                                         <button onClick={() => handlePayment()} className="font-bold text-md text-evonext-600 text-center tracking-tighter">
-                                            {paymentAddress}
+                                            {paymentAddress ? paymentAddress.slice(5, -11) : 'loading...'}
                                         </button>
 
                                         <p className="font-base text-sm text-evonext-800">
@@ -508,7 +508,7 @@ console.log('ORDER CONFIRM', orderConfirm)
                                         </p>
 
                                         <p>
-                                            This voting period takes <span className="font-bold text-rose-600">TWO (2) WEEKS</span> to complete, and is completely out of the control of EvoNext.
+                                            This voting period takes <span className="font-bold text-rose-600">TWO (2) WEEKS</span> to complete, and is completely out of the control of the EvoNext Registrar.
                                         </p>
                                     </div>
                                 </div>
