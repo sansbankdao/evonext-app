@@ -154,7 +154,7 @@ export function ComposeModal() {
 
                                 <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-800">
                                     <IconButton onClick={handleClose}>
-                                        <XMarkIcon className="height-8" />
+                                        <XMarkIcon className="h-8" />
                                     </IconButton>
 
                                     <Button

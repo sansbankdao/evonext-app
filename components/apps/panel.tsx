@@ -83,7 +83,7 @@ export default function AppsPanel() {
                                                                     Rock, Paper, Scissors, Lizard, Spock
                                                                 </h3>
 
-                                                                <span className="ml-2.5 inline-block height-2 shrink-0 rounded-full bg-green-400">
+                                                                <span className="ml-2.5 inline-block h-2 shrink-0 rounded-full bg-green-400">
                                                                     <span className="sr-only">Online</span>
                                                                 </span>
                                                             </div>
@@ -113,7 +113,7 @@ export default function AppsPanel() {
                                                                     <MenuButton className="relative inline-flex items-center rounded-md bg-white p-2 text-gray-400 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 dark:bg-white/10 dark:text-gray-100 dark:shadow-none dark:ring-white/5 dark:hover:bg-white/20">
                                                                         <span className="absolute -inset-1" />
                                                                         <span className="sr-only">Open options menu</span>
-                                                                        <EllipsisVerticalIcon aria-hidden="true" className="height-5" />
+                                                                        <EllipsisVerticalIcon aria-hidden="true" className="h-5" />
                                                                     </MenuButton>
 
                                                                     <MenuItems
