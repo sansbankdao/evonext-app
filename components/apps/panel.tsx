@@ -21,7 +21,7 @@ export default function AppsPanel() {
     const menuId = useId()
 
     // FIXME FOR DEV PURPOSES ONLY
-    useEffect(() => { setOpen(true) }, [])
+    // useEffect(() => { setOpen(true) }, [])
 
     return (
         <div>
@@ -43,7 +43,7 @@ export default function AppsPanel() {
                                     <div className="px-4 py-6 sm:px-6">
                                         <div className="flex items-start justify-between">
                                             <h2 id="slide-over-heading" className="text-xl tracking-wider font-semibold text-slate-900/20 dark:text-white/20 uppercase">
-                                                EvoApp Viewer
+                                                EvoApp Window
                                             </h2>
 
                                             <div className="ml-3 flex h-7 items-center">
@@ -79,7 +79,7 @@ export default function AppsPanel() {
                                                     <div className="sm:flex-1">
                                                         <div>
                                                             <div className="flex items-center">
-                                                                <h3 className="text-xl font-bold text-gray-900 sm:text-2xl dark:text-white">
+                                                                <h3 className="text-pretty text-xl font-bold text-gray-900 sm:text-2xl dark:text-white">
                                                                     Rock, Paper, Scissors, Lizard, Spock
                                                                 </h3>
 
