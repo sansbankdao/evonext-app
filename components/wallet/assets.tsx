@@ -40,9 +40,9 @@ export function WalletAssets({ isFullScreen }: WalletAssetProps) {
     const { network } = useNetwork()
 
     const [activeTab, setActiveTab] = useState('assets')
-    const [token, setToken] = useState<Token>(DEFAULT_TOKEN)
-    const [assets, setAssets] = useState<Token[]>([DEFAULT_TOKEN])
-    const [collections, setCollections] = useState<Token[]>([DEFAULT_TOKEN])
+    const [token, setToken] = useState<Token>()
+    const [assets, setAssets] = useState<Token[]>()
+    const [collections, setCollections] = useState<Token[]>()
 
     const [displayDusdBalance, setDisplayDusdBalance] = useState(0)
     const [displayDusdBalanceUsd, setDisplayDusdBalanceUsd] = useState(0)
@@ -50,49 +50,31 @@ export function WalletAssets({ isFullScreen }: WalletAssetProps) {
     const [displaySansBalanceUsd, setDisplaySansBalanceUsd] = useState(0)
 
     const displayIcon = (_token: Token) => {
-        /* Initialize locals. */
-        let parentid
-        let tokenid
-console.log('ICON (_token)', _token)
-        return '/icons/sans.svg'
-
-        // /* Validate token. */
-        // if (!_token) {
-        //     return null
-        // }
-
-        // /* Validate token ID. */
-        // if (_token.token_id_hex) {
-        //     /* Set parent id. */
-        //     parentid = _token.token_id_hex.slice(0, 64)
-
-        //     /* Set token id. */
-        //     tokenid = _token.token_id_hex
-        // }
-
-        // /* Handle icon URL. */
-        // if (!_token.iconUrl || _token.iconUrl === '') {
-        //     /* Validate Studio Time + Collection. */
-        //     if (parentid === '9732745682001b06e332b6a4a0dd0fffc4837c707567f8cbfe0f6a9b12080000') {
-        //         return `https://nexa.garden/token/${tokenid}/public` // Nexa Garden
-        //     }
-
-        //     /* Validate NiftyArt. */
-        //     if (parentid === 'cacf3d958161a925c28a970d3c40deec1a3fe06796fe1b4a7b68f377cdb90000') {
-        //         return `https://niftyart.cash/nftyc/${tokenid}/cardf.jpeg` // NiftyArt
-        //         // return `https://niftyart.cash/nftyc/${tokenid}/public.jpeg` // NiftyArt
-        //     }
-
-        //     /* Return null. */
-        //     return null
-        // }
-
-        // /* Return icon URL. */
-        // return _token.iconUrl || null
+        /* Handle token ID. */
+        switch(_token.id) {
+        case DUSD:
+        case tDUSD:
+            return '/icons/dusd.svg'
+        case SANS:
+        case tSANS:
+            return '/icons/sans.svg'
+        default:
+            return '/icon.svg'
+        }
     }
 
-    const displayTokenName = (_token: string) => {
-        return 'No Name'
+    const displayTokenName = (_tokenid: string) => {
+        /* Handle token ID. */
+        switch(_tokenid) {
+        case DUSD:
+        case tDUSD:
+            return 'Dash USD'
+        case SANS:
+        case tSANS:
+            return 'Sansnote'
+        default:
+            return 'Unknown token'
+        }
     }
 
     const displayDecimalAmount = (_token: Token) => {
@@ -115,12 +97,14 @@ console.log('ICON (_token)', _token)
                 // get_identities_token_infos_with_proof_info,
             } = await import('../../lib/dash-wasm/wasm_sdk')
 
+            /* Initialize SDK. */
             const sdk = await getWasmSdk()
-console.log('USER', user)
+
             if (typeof user !== 'undefined' && user !== null) {
                 const identityId = user.identityId
 
                 // const identityIds = [identityId]
+// FIXME FOR DEV PURPOSES ONLY
                 const identityIds = ['34vkjdeUTP2z798SiXqoB6EAuobh51kXYURqVa9xkujf'] // NewMoneyHoney69
 
                 let dusdContractId
@@ -164,7 +148,10 @@ console.log('SANS BALANCE', sansBalance)
 
         /* Fetch (async) data. */
         fetchData()
-    }, [user])
+    }, [
+        network,
+        user,
+    ])
 
     return (
         <main className="flex flex-col gap-5">
@@ -195,7 +182,7 @@ console.log('SANS BALANCE', sansBalance)
             </div>
 
             <div v-if="activeTab === 'assets'" className="px-1.5 flex flex-col gap-5">
-                {assets.map((token) => (
+                {assets && assets.map((token) => (
                     <div
                         key={token.id}
                         onClick={() => Identity.setAsset(token.id)}
@@ -241,7 +228,7 @@ console.log('SANS BALANCE', sansBalance)
             </div>
 
             <div v-else className="flex flex-col gap-5">
-                {collections.map((token) => (
+                {collections && collections.map((token) => (
                     <div
                         key={token.id}
                         onClick={() => Identity.setAsset(token.id)}

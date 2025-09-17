@@ -76,8 +76,11 @@ export default function WalletPage() {
                 // get_identities_token_infos_with_proof_info,
             } = await import('../../lib/dash-wasm/wasm_sdk')
 
+            /* Initiallize SDK. */
             const sdk = await getWasmSdk()
+
 console.log('USER', user)
+            /* Validate user. */
             if (typeof user !== 'undefined' && user !== null) {
                 const identityId = user.identityId
 
@@ -88,9 +91,6 @@ console.log('USER', user)
                 const balanceUsd = numeral((user?.balance / 10 ** 11) * DASH_USD_VALUE).format('$0,0.00[00]')
 
                 setDisplayBalanceUsd(balanceUsd)
-
-                // const identityIds = [identityId]
-                const identityIds = ['34vkjdeUTP2z798SiXqoB6EAuobh51kXYURqVa9xkujf'] // NewMoneyHoney69
             }
         }
 
