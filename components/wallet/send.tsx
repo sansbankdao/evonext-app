@@ -1,9 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useAuth } from '@/contexts/auth-context'
+import { useNetwork } from '@/contexts/network-context'
 import { BoltIcon, UserIcon } from '@heroicons/react/24/outline'
+
+import { getMnemonic } from '@/lib/secure-storage'
 
 import moment from 'moment'
 
@@ -17,16 +20,33 @@ interface WalletSendProps {
 
 export function WalletSend({ isFullScreen }: WalletSendProps) {
     const { user } =  useAuth()
+    const { network } =  useNetwork()
+
+    const [mnemonic, setMnemonic] = useState<string | undefined>()
     const [addressFirstUse, setAddressFirstUse] = useState('')
     const [receiver, setReceiver] = useState<string | undefined>()
     const [txid, setTxid] = useState(null)
     const [errorMsgs, setErrorMsgs] = useState({})
     const [isShowingVideoPreview, setIsShowingVideoPreview] = useState('hidden')
 
+    useEffect(() => {
+        /* Request mnemonic. */
+        const mnemonic = getMnemonic()
+console.log('MNEMONIC', mnemonic)
+
+        /* Handle mnemonic. */
+        if (typeof mnemonic !== 'undefined' && mnemonic !== null) {
+            /* Set mnemonic. */
+            setMnemonic(mnemonic)
+        }
+    }, [mnemonic])
+
+// FIXME REMOVE THIS -- NOT USED HERE
     const consolidate = () => {
         console.log('BEGIN CONSOLIDATION')
     }
 
+// FIXME REMOVE THIS -- NOT USED HERE
     const consolidation = {
         coins: '',
         tokens: '',
