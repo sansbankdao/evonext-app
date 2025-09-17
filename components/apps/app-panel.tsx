@@ -78,7 +78,7 @@ export function AppPanel({
                                                 <div className="relative h-40 sm:h-56">
                                                     <Image
                                                         alt="dApp cover photo"
-                                                        src="/apps/rpsls.webp"
+                                                        src="/apps/rpsls-wide.webp"
                                                         className="object-cover"
                                                         fill
                                                         priority={true}
