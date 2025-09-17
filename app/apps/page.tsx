@@ -37,8 +37,8 @@ export default function AppsPage() {
     }
 
     const launchApp = async () => {
-        const { useAppModal } = await import('@/hooks/use-app-modal')
-        useAppModal.getState().open('sample-identity-id')
+        const { useAppPanel } = await import('@/hooks/use-app-panel')
+        useAppPanel.getState().open('sample-identity-id')
     }
 
     const documentCount = Object.keys(dataContract.documents).length
