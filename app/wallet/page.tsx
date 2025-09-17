@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
     ArrowDownTrayIcon,
     ArrowPathIcon,
@@ -13,6 +13,13 @@ import Link from 'next/link'
 import { motion } from 'framer-motion'
 import dataContract from '@/contracts/evonext-contract.json'
 import toast from 'react-hot-toast'
+// @ts-ignore
+import numeral from 'numeral'
+
+import { getWasmSdk } from '../../lib/services/wasm-sdk-service'
+
+import { useAuth } from '@/contexts/auth-context'
+import { useNetwork } from '@/contexts/network-context'
 
 import { WalletAssets } from '@/components/wallet/assets'
 import { WalletAssistant } from '@/components/wallet/assistant'
@@ -21,7 +28,13 @@ import { WalletSwap } from '@/components/wallet/swap'
 import { WalletHistory } from '@/components/wallet/history'
 import { WalletSend } from '@/components/wallet/send'
 
+/* Initialize constants. */
+const DASH_USD_VALUE = 25.0
+
 export default function WalletPage() {
+    const { user } = useAuth()
+    const { network } = useNetwork()
+
     const [displayBalance, setDisplayBalance] = useState(0)
     const [displayBalanceUsd, setDisplayBalanceUsd] = useState(0)
     const [tokensBalanceUsd, setTokensBalanceUsd] = useState(0)
@@ -54,6 +67,36 @@ export default function WalletPage() {
     // const totalIndices = Object.values(dataContract.documents).reduce((acc, doc: any) =>
     //     acc + (doc.indices?.length || 0), 0
     // )
+
+    useEffect(() => {
+        async function fetchData() {
+            const {
+                // get_identity_balance_with_proof_info,
+                get_identities_token_balances_with_proof_info,
+                // get_identities_token_infos_with_proof_info,
+            } = await import('../../lib/dash-wasm/wasm_sdk')
+
+            const sdk = await getWasmSdk()
+console.log('USER', user)
+            if (typeof user !== 'undefined' && user !== null) {
+                const identityId = user.identityId
+
+                const balance = numeral(user?.balance / 10 ** 11).format('0,0.0000[0000]')
+
+                setDisplayBalance(balance)
+
+                const balanceUsd = numeral((user?.balance / 10 ** 11) * DASH_USD_VALUE).format('$0,0.00[00]')
+
+                setDisplayBalanceUsd(balanceUsd)
+
+                // const identityIds = [identityId]
+                const identityIds = ['34vkjdeUTP2z798SiXqoB6EAuobh51kXYURqVa9xkujf'] // NewMoneyHoney69
+            }
+        }
+
+        /* Fetch (async) data. */
+        fetchData()
+    }, [user])
 
     return (
         <main className="pt-14 py-10 w-full grid grid-cols-1 gap-8 h-screen">
