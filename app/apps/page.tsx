@@ -36,6 +36,11 @@ export default function AppsPage() {
         }
     }
 
+    const launchApp = async () => {
+        const { useAppModal } = await import('@/hooks/use-app-modal')
+        useAppModal.getState().open('sample-identity-id')
+    }
+
     const documentCount = Object.keys(dataContract.documents).length
     const totalIndices = Object.values(dataContract.documents).reduce((acc, doc: any) =>
         acc + (doc.indices?.length || 0), 0
@@ -106,12 +111,12 @@ export default function AppsPage() {
                                         {app.description}
                                     </p>
 
-                                    <Link
-                                        href="#"
+                                    <button
+                                        onClick={launchApp}
                                         className="mt-4 inline-block bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
                                     >
                                         Launch App
-                                    </Link>
+                                    </button>
                                 </div>
                             </div>
                         ))}

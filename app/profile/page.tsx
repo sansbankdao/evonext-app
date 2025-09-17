@@ -493,7 +493,7 @@ console.log('PROFILE CONTRACT ID', getContractId(network!))
                                                                     <Slider.Range className="absolute bg-evonext-500 rounded-full h-full" />
                                                                 </Slider.Track>
 
-                                                                <Slider.Thumb className="block w-5 h-5 bg-white dark:bg-gray-200 shadow-lg rounded-full hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-evonext-500 cursor-grab active:cursor-grabbing" />
+                                                                <Slider.Thumb className="block w-8 h-8 bg-white dark:bg-gray-200 shadow-lg rounded-full hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-evonext-500 cursor-grab active:cursor-grabbing" />
                                                             </Slider.Root>
                                                         </div>
                                                     )

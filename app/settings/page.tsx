@@ -190,7 +190,7 @@ function SettingsPage() {
                                     value ? 'bg-evonext-500' : 'bg-gray-200 dark:bg-gray-800'
                                 }`}
                             >
-                                <Switch.Thumb className="block w-5 h-5 bg-white rounded-full transition-transform data-[state=checked]:translate-x-5 translate-x-0.5" />
+                                <Switch.Thumb className="block w-8 h-8 bg-white rounded-full transition-transform data-[state=checked]:translate-x-5 translate-x-0.5" />
                             </Switch.Root>
                         </div>
                     ))}
@@ -220,7 +220,7 @@ function SettingsPage() {
                                 privacySettings.publicProfile ? 'bg-evonext-500' : 'bg-gray-200 dark:bg-gray-800'
                             }`}
                         >
-                            <Switch.Thumb className="block w-5 h-5 bg-white rounded-full transition-transform data-[state=checked]:translate-x-5 translate-x-0.5" />
+                            <Switch.Thumb className="block w-8 h-8 bg-white rounded-full transition-transform data-[state=checked]:translate-x-5 translate-x-0.5" />
                         </Switch.Root>
                     </div>
 
@@ -239,7 +239,7 @@ function SettingsPage() {
                                 privacySettings.showActivity ? 'bg-evonext-500' : 'bg-gray-200 dark:bg-gray-800'
                             }`}
                         >
-                            <Switch.Thumb className="block w-5 h-5 bg-white rounded-full transition-transform data-[state=checked]:translate-x-5 translate-x-0.5" />
+                            <Switch.Thumb className="block w-8 h-8 bg-white rounded-full transition-transform data-[state=checked]:translate-x-5 translate-x-0.5" />
                         </Switch.Root>
                     </div>
                 </div>
@@ -258,7 +258,7 @@ function SettingsPage() {
                     <div className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-950">
                         <RadioGroup.Item
                             value="everyone"
-                            className="w-5 h-5 rounded-full border-2 border-gray-300 dark:border-gray-700 data-[state=checked]:border-evonext-500"
+                            className="w-8 h-8 rounded-full border-2 border-gray-300 dark:border-gray-700 data-[state=checked]:border-evonext-500"
                         >
                             <RadioGroup.Indicator className="flex items-center justify-center w-full h-full after:block after:w-2.5 after:h-2.5 after:rounded-full after:bg-evonext-500" />
                         </RadioGroup.Item>
@@ -272,7 +272,7 @@ function SettingsPage() {
                     <div className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-950">
                         <RadioGroup.Item
                             value="followers"
-                            className="w-5 h-5 rounded-full border-2 border-gray-300 dark:border-gray-700 data-[state=checked]:border-evonext-500"
+                            className="w-8 h-8 rounded-full border-2 border-gray-300 dark:border-gray-700 data-[state=checked]:border-evonext-500"
                         >
                             <RadioGroup.Indicator className="flex items-center justify-center w-full h-full after:block after:w-2.5 after:h-2.5 after:rounded-full after:bg-evonext-500" />
                         </RadioGroup.Item>
@@ -286,7 +286,7 @@ function SettingsPage() {
                     <div className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-950">
                         <RadioGroup.Item
                             value="none"
-                            className="w-5 h-5 rounded-full border-2 border-gray-300 dark:border-gray-700 data-[state=checked]:border-evonext-500"
+                            className="w-8 h-8 rounded-full border-2 border-gray-300 dark:border-gray-700 data-[state=checked]:border-evonext-500"
                         >
                             <RadioGroup.Indicator className="flex items-center justify-center w-full h-full after:block after:w-2.5 after:h-2.5 after:rounded-full after:bg-evonext-500" />
                         </RadioGroup.Item>

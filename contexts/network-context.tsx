@@ -12,7 +12,7 @@ interface NetworkContextType {
 const NetworkContext = createContext<NetworkContextType>({ network: null, error: null })
 
 export function NetworkProvider({ children }: { children: React.ReactNode }) {
-    const [network, setActiveNetwork] = useState<Network>('something-better-than-nothing')
+    const [network, setActiveNetwork] = useState<Network>('testnet')
     const [error, setError] = useState<string | null>(null)
 
     useEffect(() => {

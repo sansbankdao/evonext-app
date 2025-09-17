@@ -248,19 +248,19 @@ console.log('ORDER CONFIRM', orderConfirm)
 
     const getStatusIcon = () => {
         if (isChecking) {
-            return <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
+            return <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
         }
 
         if (validationError) {
-            return <XCircle className="w-5 h-5 text-red-500" />
+            return <XCircle className="w-8 h-8 text-red-500" />
         }
 
         if (isAvailable === true) {
-            return <CheckCircle2 className="w-5 h-5 text-green-500" />
+            return <CheckCircle2 className="w-8 h-8 text-green-500" />
         }
 
         if (isAvailable === false) {
-            return <XCircle className="w-5 h-5 text-red-500" />
+            return <XCircle className="w-8 h-8 text-red-500" />
         }
 
         return null
@@ -406,7 +406,7 @@ console.log('ORDER CONFIRM', orderConfirm)
                                 onClick={onClose}
                                 className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
                             >
-                                <X className="w-5 h-5" />
+                                <X className="w-8 h-8" />
                             </button>
 
                             <h1 className="text-3xl font-bold text-center mb-2">

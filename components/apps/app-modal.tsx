@@ -17,24 +17,24 @@ const MAX_USERNAME_LENGTH = 63 // Maximum length - 63 characters
 const NON_CONTESTED_REG_FEE = 1000000 // 0.1 DASH
 const CONTESTED_REG_FEE = 3000000 // 0.3 DASH
 
-interface UsernameModalProps {
+interface AppModalProps {
     isOpen: boolean
     onClose: () => void
     customIdentityId?: string
 }
 
-export function UsernameModal({
+export function AppModal({
     isOpen,
     onClose,
     customIdentityId: initialIdentityId,
-}: UsernameModalProps) {
+}: AppModalProps) {
     const router = useRouter()
 
     const { user, updateDPNSUsername } = useAuth()
     const { network } = useNetwork()
     const { isReady: isSdkReady, error: sdkError } = useSdk()
 
-    const [username, setUsername] = useState('')
+    const [username, setApp] = useState('')
     const [isChecking, setIsChecking] = useState(false)
     const [isAvailable, setIsAvailable] = useState<boolean | null>(null)
     const [validationError, setValidationError] = useState<string | null>(null)
@@ -45,7 +45,7 @@ export function UsernameModal({
 
     // Debug SDK state
     useEffect(() => {
-        console.log('UsernameModal: SDK ready state:', isSdkReady, 'SDK error:', sdkError)
+        console.log('AppModal: SDK ready state:', isSdkReady, 'SDK error:', sdkError)
     }, [
         isSdkReady,
         sdkError,
@@ -64,35 +64,35 @@ export function UsernameModal({
 
         // Do basic validation first (without WASM)
         if (username.length < 3) {
-            setValidationError('Username must be at least 3 characters long')
+            setValidationError('App must be at least 3 characters long')
             setIsAvailable(false)
 
             return
         }
 
         if (username.length > MAX_USERNAME_LENGTH) {
-            setValidationError('Username must be 63 characters or less')
+            setValidationError('App must be 63 characters or less')
             setIsAvailable(false)
 
             return
         }
 
         if (!/^[a-zA-Z0-9-]+$/.test(username)) {
-            setValidationError('Username can only contain letters, numbers, and hyphens')
+            setValidationError('App can only contain letters, numbers, and hyphens')
             setIsAvailable(false)
 
             return
         }
 
         if (username.startsWith('-') || username.endsWith('-')) {
-            setValidationError('Username cannot start or end with hyphen')
+            setValidationError('App cannot start or end with hyphen')
             setIsAvailable(false)
 
             return
         }
 
         if (username.includes('--')) {
-            setValidationError('Username cannot contain consecutive hyphens')
+            setValidationError('App cannot contain consecutive hyphens')
             setIsAvailable(false)
 
             return
@@ -258,17 +258,17 @@ console.log('USERNAME MODAL (identity)', identity)
         }
 
         if (isAvailable === true) {
-            return <p className="text-sm text-green-600 mt-1">Username is available!</p>
+            return <p className="text-sm text-green-600 mt-1">App is available!</p>
         }
 
         if (isAvailable === false) {
-            return <p className="text-sm text-red-600 mt-1">Username is already taken</p>
+            return <p className="text-sm text-red-600 mt-1">App is already taken</p>
         }
 
         return null
     }
 
-    const handleCheckExistingUsername = async () => {
+    const handleCheckExistingApp = async () => {
         if (!currentIdentityId) return
 
         if (!isSdkReady) {
@@ -283,14 +283,14 @@ console.log('USERNAME MODAL (identity)', identity)
             dpnsService.clearCache(undefined, currentIdentityId)
 
             // Try to resolve the username
-            const existingUsername = await dpnsService.resolveUsername(currentIdentityId)
+            const existingApp = await dpnsService.resolveUsername(currentIdentityId)
 
-            if (existingUsername) {
-                toast.success(`Found username: ${existingUsername}!`)
+            if (existingApp) {
+                toast.success(`Found username: ${existingApp}!`)
 
                 // Update the auth context with the username if it's the current user
                 if (currentIdentityId === user?.identityId) {
-                    updateDPNSUsername(existingUsername)
+                    updateDPNSUsername(existingApp)
                 }
 
                 onClose()
@@ -298,7 +298,7 @@ console.log('USERNAME MODAL (identity)', identity)
                 // Redirect to home or profile creation
                 const { profileService } = await import('@/lib/services/profile-service')
                 const ps = new profileService(network!)
-                const profile = await ps.getProfile(currentIdentityId, existingUsername)
+                const profile = await ps.getProfile(currentIdentityId, existingApp)
 
                 if (profile) {
                     router.push('/')
@@ -372,7 +372,7 @@ console.log('USERNAME MODAL (identity)', identity)
                             </button>
 
                             <h1 className="text-3xl font-bold text-center mb-2">
-                                Choose Your Username
+                                Choose Your Evo (Mini) App
                             </h1>
 
                             <p className="text-gray-600 dark:text-gray-400 text-center mb-6">
@@ -417,7 +417,7 @@ console.log('USERNAME MODAL (identity)', identity)
                             <form onSubmit={handleSubmit} className="space-y-6">
                                 <div>
                                     <label htmlFor="username" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                        DPNS Username
+                                        DPNS App
                                     </label>
 
                                     <div className="relative">
@@ -425,7 +425,7 @@ console.log('USERNAME MODAL (identity)', identity)
                                             id="username"
                                             type="text"
                                             value={username}
-                                            onChange={(e) => setUsername(e.target.value)}
+                                            onChange={(e) => setApp(e.target.value)}
                                             placeholder="JohnDoe1999"
                                             className="pr-10"
                                             autoComplete="off"
@@ -440,7 +440,7 @@ console.log('USERNAME MODAL (identity)', identity)
                                     {getStatusMessage()}
 
                                     <div className="mt-4 space-y-2 text-xs text-gray-500">
-                                        <p>Username Requirements:</p>
+                                        <p>App Requirements:</p>
 
                                         <ul className="list-disc list-inside space-y-1 ml-2">
                                             <li>At least 3 characters long</li>
@@ -459,10 +459,10 @@ console.log('USERNAME MODAL (identity)', identity)
                                     {isSubmitting ? (
                                         <>
                                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                            Registering Username...
+                                            Registering App...
                                         </>
                                     ) : (
-                                        'Register Username'
+                                        'Register App'
                                     )}
                                 </Button>
                             </form>
@@ -476,7 +476,7 @@ console.log('USERNAME MODAL (identity)', identity)
                                     type="button"
                                     variant="outline"
                                     className="w-full"
-                                    onClick={handleCheckExistingUsername}
+                                    onClick={handleCheckExistingApp}
                                     disabled={isCheckingExisting || !currentIdentityId}
                                 >
                                     {isCheckingExisting ? (

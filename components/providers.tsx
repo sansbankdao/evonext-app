@@ -1,5 +1,6 @@
 'use client'
 
+import { AppModalProvider } from '@/components/apps/app-modal-provider'
 import { AuthProvider } from '@/contexts/auth-context'
 import { NetworkProvider } from '@/contexts/network-context'
 import { SdkProvider } from '@/contexts/sdk-context'
@@ -18,7 +19,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
             <SdkProvider>
                 <AuthProvider>
                     {children}
+
+                    <AppModalProvider />
                     <UsernameModalProvider />
+
                     <BiometricPromptWrapper />
                 </AuthProvider>
             </SdkProvider>
