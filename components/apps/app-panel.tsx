@@ -13,8 +13,19 @@ import {
 import { XMarkIcon } from '@heroicons/react/24/outline'
 import { EllipsisVerticalIcon } from '@heroicons/react/20/solid'
 
-export default function AppsPanel() {
-    const [open, setOpen] = useState(false)
+interface AppPanelProps {
+    isOpen: boolean
+    onClose: () => void
+    customIdentityId?: string
+}
+
+export function AppPanel({
+    isOpen,
+    onClose,
+    customIdentityId: initialIdentityId,
+}: AppPanelProps) {
+// export default function AppsPanel() {
+    // const [open, setOpen] = useState(false)
 
     /* Initialize panel ID. */
     const dialogId = useId()
@@ -32,7 +43,7 @@ export default function AppsPanel() {
                 Open drawer
             </button> */}
 
-            <Dialog open={open} onClose={setOpen} id={dialogId} className="relative z-50">
+            <Dialog open={isOpen} onClose={onClose} id={dialogId} className="relative z-50">
                 <div className="fixed inset-0" />
 
                 <div className="fixed inset-0 overflow-hidden">
@@ -49,7 +60,7 @@ export default function AppsPanel() {
                                             <div className="ml-3 flex h-7 items-center">
                                                 <button
                                                     type="button"
-                                                    onClick={() => setOpen(false)}
+                                                    onClick={onClose}
                                                     className="relative rounded-md text-gray-400 hover:text-gray-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:hover:text-white dark:focus-visible:outline-indigo-500"
                                                 >
                                                     <span className="absolute -inset-2.5" />
