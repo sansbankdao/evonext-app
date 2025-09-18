@@ -1,6 +1,6 @@
 /* Import modules. */
-import { getMnemonic } from '@/lib/secure-storage'
-import { derive_key_from_seed_with_path } from '@/lib/dash-wasm/wasm_sdk'
+import { getMnemonic } from './secure-storage'
+import { derive_key_from_seed_with_path } from './dash-wasm/wasm_sdk'
 
 /* Set constants. */
 const identityIndex = 1

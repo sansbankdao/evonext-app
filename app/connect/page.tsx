@@ -7,16 +7,20 @@ import { Button } from '@/components/ui/button'
 import { RegistrarModal } from '@/components/id/registrar-modal'
 import { useRouter } from 'next/navigation'
 import { wasmSdkService } from '@/lib/services/wasm-sdk-service'
+import toast from 'react-hot-toast'
 import {
     derive_key_from_seed_with_path,
     dpns_convert_to_homograph_safe,
+    dpns_is_contested_username,
     dpns_register_name,
     get_identity_by_public_key_hash,
     get_identity_by_non_unique_public_key_hash,
     validate_mnemonic,
 } from '@/lib/dash-wasm/wasm_sdk'
-import toast from 'react-hot-toast'
-
+import {
+    checkPendingStatus,
+    registerIdentityAndUsername,
+} from '@/lib/registrar-manager'
  // @ts-ignore
 import { hash160 } from '@nexajs/crypto'
  // @ts-ignore
@@ -50,29 +54,7 @@ export default function LoginPage() {
         }
     }
 
-    const checkPendingStatus = async (_masterKey: string) => {
-        /**
-         * CHECK FOR EXISTING (PENDING) ORDER
-         *
-         * ATTEMPT TO AUTO-COMPLETE THE REGISTRATION PROCESS
-         */
 
-        /* Set (request) headers. */
-        const headers = {
-            'Authorization': `Bearer ${_masterKey}`
-        }
-
-        /* Make status request. */
-        const statusResponse = await fetch('https://evonext.app/v1/registrar/status', {
-            method: 'GET',
-            headers,
-        }).catch(err => console.error(err))
-        const status = await statusResponse!.json()
-        console.log('ORDER STATUS CHECK', status)
-
-        /* Return status. */
-        return status
-    }
 
     const completeRegistration = async () => {
 
@@ -109,38 +91,26 @@ console.log('MNEMONIC VALID', isValid)
         const { storeMnemonic } = await import('@/lib/secure-storage')
         storeMnemonic(mnemonic)
 
-// const masterKeyPath = `m/9'/${currentNetwork === 'mainnet' ? 5 : 1}'/5'/0'/0'/${identityIndex}'/0'`
-// const masterKey = derive_key_from_seed_with_path(mnemonic, undefined, masterKeyPath, currentNetwork)
-// console.log('Master key object:', masterKey)
-// console.log('Master key fields:', Object.keys(masterKey || {}))
+        const masterKeyPath = `m/9'/${currentNetwork === 'mainnet' ? 5 : 1}'/5'/0'/0'/${identityIndex}'/0'`
+        const masterKey = derive_key_from_seed_with_path(mnemonic!, undefined, masterKeyPath, currentNetwork)
+        console.log('Master key object:', masterKey)
+        console.log('Master key (public_key):', masterKey.public_key)
 
-// // Additional authentication key (high security)
-// const authKeyPath = `m/9'/${currentNetwork === 'mainnet' ? 5 : 1}'/5'/0'/0'/${identityIndex}'/1'`
-// const authKey = derive_key_from_seed_with_path(mnemonic, undefined, authKeyPath, currentNetwork)
+        // Additional authentication key (critical security)
+        const authCriticalPath = `m/9'/${currentNetwork === 'mainnet' ? 5 : 1}'/5'/0'/0'/${identityIndex}'/1'`
+        const authCritical = derive_key_from_seed_with_path(mnemonic!, undefined, authCriticalPath, currentNetwork)
 
-// // Transfer key (critical security)
-// const transferKeyPath = `m/9'/${currentNetwork === 'mainnet' ? 5 : 1}'/5'/0'/0'/${identityIndex}'/2'`
-// const transferKey = derive_key_from_seed_with_path(mnemonic, undefined, transferKeyPath, currentNetwork)
-const masterKeyPath = `m/9'/${currentNetwork === 'mainnet' ? 5 : 1}'/5'/0'/0'/${identityIndex}'/0'`
-const masterKey = derive_key_from_seed_with_path(mnemonic!, undefined, masterKeyPath, currentNetwork)
-console.log('Master key object:', masterKey)
-console.log('Master key (public_key):', masterKey.public_key)
+        // Additional authentication key (high security)
+        const authHighPath = `m/9'/${currentNetwork === 'mainnet' ? 5 : 1}'/5'/0'/0'/${identityIndex}'/2'`
+        const authHigh = derive_key_from_seed_with_path(mnemonic!, undefined, authHighPath, currentNetwork)
 
-// Additional authentication key (critical security)
-const authCriticalPath = `m/9'/${currentNetwork === 'mainnet' ? 5 : 1}'/5'/0'/0'/${identityIndex}'/1'`
-const authCritical = derive_key_from_seed_with_path(mnemonic!, undefined, authCriticalPath, currentNetwork)
+        // Transfer key (critical security)
+        const transferKeyPath = `m/9'/${currentNetwork === 'mainnet' ? 5 : 1}'/5'/0'/0'/${identityIndex}'/3'`
+        const transferKey = derive_key_from_seed_with_path(mnemonic!, undefined, transferKeyPath, currentNetwork)
 
-// Additional authentication key (high security)
-const authHighPath = `m/9'/${currentNetwork === 'mainnet' ? 5 : 1}'/5'/0'/0'/${identityIndex}'/2'`
-const authHigh = derive_key_from_seed_with_path(mnemonic!, undefined, authHighPath, currentNetwork)
-
-// Transfer key (critical security)
-const transferKeyPath = `m/9'/${currentNetwork === 'mainnet' ? 5 : 1}'/5'/0'/0'/${identityIndex}'/3'`
-const transferKey = derive_key_from_seed_with_path(mnemonic!, undefined, transferKeyPath, currentNetwork)
-
-// Transfer key (critical security)
-const encryptionKeyPath = `m/9'/${currentNetwork === 'mainnet' ? 5 : 1}'/5'/0'/0'/${identityIndex}'/4'`
-const encryptionKey = derive_key_from_seed_with_path(mnemonic!, undefined, encryptionKeyPath, currentNetwork)
+        // Transfer key (critical security)
+        const encryptionKeyPath = `m/9'/${currentNetwork === 'mainnet' ? 5 : 1}'/5'/0'/0'/${identityIndex}'/4'`
+        const encryptionKey = derive_key_from_seed_with_path(mnemonic!, undefined, encryptionKeyPath, currentNetwork)
 
         const publicKeys = [
             {
@@ -268,112 +238,41 @@ console.log('SIGNING (private) KEY', signingPrivateKey)
 console.log('PENDING STATUS', status)
 
             /* Validate (pending) status. */
-            if (
-                typeof status !== 'undefined' &&
-                status !== null &&
-                status.results.length > 0
-            ) {
+            if (typeof status !== 'undefined' && status !== null) {
                 /* Set username. */
-                const username = status?.results[0]?.username
+                const username = status.username
 console.log('USERNAME', username)
 
                 /* Set proof. */
-                const proof = status?.results[0]?.proof
+                const proof = status.proof
 console.log('PROOF', typeof proof, proof)
 
                 /* Set WIF. */
-                const wif = status?.results[0]?.wif
+                const wif = status.wif
 console.log('WIF', typeof wif, wif)
 
-                /* Validate registration credentials. */
-                if (typeof proof !== 'undefined' && proof !== null && typeof wif !== 'undefined' && wif !== null) {
-                    /* Request user permission to resume registration. */
-                    if (confirm(`Hey, welcome back!\n\nYou have a pending Identity + Username registration. Are you ready complete it now? It'll ONLY take a few seconds..\n\n!! IMPORTANT NOTICE !!\nAfter you click to resume, DO NOT interrupt the process until it's 100% completed.\n\nOkay, let's GO!`)) {
-                        setIsLoading(false)
-                        setIsResuming(true)
+                /* Request user permission to resume registration. */
+                if (confirm(`Hey, welcome back!\n\nYou have a pending Identity + Username registration. Are you ready complete it now? It'll ONLY take a few seconds..\n\n!! IMPORTANT NOTICE !!\nAfter you click to resume, DO NOT interrupt the process until it's 100% completed.\n\nOkay, let's GO!`)) {
+                    setIsLoading(false)
+                    setIsResuming(true)
 
-                        /* Initialize SDK. */
-                        const sdk = await wasmSdkService.getSdk()
+                    /* Register Identity + Username. */
+                    const regResult = await registerIdentityAndUsername(
+                        (network as 'mainnet' | 'testnet'), username, proof, wif)
+                        .catch(err => console.error(err))
+console.log('REGISTRATION RESULT', regResult)
 
-                        // setIsModalOpen(true)
-                        const result = await sdk.identityCreate(
-                            proof,
-                            wif,
-                            JSON.stringify(publicKeys)
-                        ).catch(err => console.error(err))
-console.log('WASM REGISTRATION RESULT', result)
-
-                        /* Validate result. */
-                        if (typeof result !== 'undefined' && result !== null) {
-                            const creationStatus = result.status
-                            const creationIdentity = result.identityId
-
-                            const keyId = 1 // AUTHENTICATION (CRITICAL)
-                            const actualPrivateKey = authCritical.private_key_wif
-
-                            const usernameResult = await dpns_register_name(
-                                sdk,
-                                dpns_convert_to_homograph_safe(username),
-                                creationIdentity,       // Use the identity ID from authentication
-                                keyId,            // Use the determined key ID
-                                actualPrivateKey, // Use the actual private key (without :keyId suffix)
-                                // Callback for preorder success
-                                (preorderInfo: any) => {
-console.log('PRE-ORDER SUCCESSFUL', preorderInfo)
-                                    // updateStatus('Preorder successful! Now submitting domain document...', 'info');
-
-                                    // Show preorder info in a temporary notification
-                                    const preorderMsg = `Preorder Document ID: ${preorderInfo.get('documentId')}`;
-console.log('PRE-ORDER MESSAGE', preorderMsg)
-                                    // const notification = document.createElement('div');
-                                    // notification.className = 'preorder-notification';
-                                    // notification.style.cssText = 'background: #4CAF50; color: white; padding: 10px; margin: 10px 0; border-radius: 4px;';
-                                    // notification.textContent = preorderMsg;
-
-                                    // const resultsSection = document.getElementById('results');
-
-                                    // if (resultsSection) {
-                                    //     resultsSection.insertBefore(notification, resultsSection.firstChild);
-                                    //     // Remove notification after 5 seconds
-                                    //     setTimeout(() => notification.remove(), 5000);
-                                    // }
-                                }
-                            )
-console.log('USERNAME (REG) RESULT', usernameResult)
-
-
-                            /* Set (request) headers. */
-                            const headers = {
-                                'Authorization': `Bearer ${publicKey}`
-                            }
-
-                            /* Prepare submission body. */
-                            const body = JSON.stringify({
-                                action: 'completeReg',
-                                platformid: creationIdentity,
-                                masterKey: publicKey,
-                                isMainnet: network === 'mainnet' ? true : false,
-                            })
-
-                            /* Make completion request. */
-                            const completionResponse = await fetch('https://evonext.app/v1/registrar/proof', {
-                                method: 'POST',
-                                headers,
-                                body,
-                            }).catch(err => console.error(err))
-                            const completion = await completionResponse!.json()
-                            console.log('REGISTRATON COMPLETION', completion)
-                        }
-                    } else {
-                        /* User has rejected the request to RESUME registration. */
-                        //NOTE: WE DO NOT WANT TO CONTINUE THRU THE STANDARD PROCESS
-                        //      UNTIL REGISTRATION IS 100% COMPLETED
-                        return
-                    }
+                    setIsResuming(false)
+                } else {
+                    /* User has rejected the request to RESUME registration. */
+                    //NOTE: WE DO NOT WANT TO CONTINUE THRU THE STANDARD PROCESS
+                    //      UNTIL REGISTRATION IS 100% COMPLETED
+                    return
                 }
             }
 // END NO IDENTITY FOUND
 
+            /* Present user with NEW Identity + Username registration. */
             if (confirm(`OH NO!\n\nWe COULD NOT find an Identity for you on the Dash Platform. Would you like to create a NEW Identity and register a NEW Username now?\n\nIt should ONLY take about 2 minutes..\nDon't MISS OUT, let's GO!`)) {
                 setIsModalOpen(true)
             }
@@ -387,13 +286,11 @@ console.log('USERNAME (REG) RESULT', usernameResult)
     }
 
     const onMnemonicPaste = (e: ClipboardEvent) => {
-console.log('PASTE DETECTED')
         setError(null)
         setIsLoading(true)
 
         /* Set (new) clipboard. */
         const clipboard = e.clipboardData.getData('text/plain')
-console.log('CLIPBOARD', clipboard)
 
         /* Wait a tick. */
         setTimeout(async () => {
@@ -404,7 +301,6 @@ console.log('CLIPBOARD', clipboard)
             const emptyValuesNeeded = ((splitWords.length > 12) ? 24 : 12) - splitWords.length
             const emptyValues = Array(emptyValuesNeeded).fill('')
             const pastedWords = [ ...splitWords, ...emptyValues ]
-console.log('PASTED MENMONIC', pastedWords)
 
             /* Handle mnemonic. */
             await handleMnemonic(pastedWords)
