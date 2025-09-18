@@ -16,17 +16,9 @@ import { QRCodeSVG } from 'qrcode.react'
 import {
     checkPendingStatus,
     getPaymentAddress,
-    getRegisteredKeys,
     registerIdentityAndUsername,
 } from '@/lib/registrar-manager'
-import { getPrivateKeys, getPublicKeys } from '@/lib/wallet-manager'
-import {
-    derive_key_from_seed_with_path,
-    get_identity_by_public_key_hash,
-    get_identity_by_non_unique_public_key_hash,
-    validate_mnemonic,
-    dpns_is_contested_username,
-} from '@/lib/dash-wasm/wasm_sdk'
+import { dpns_is_contested_username } from '@/lib/dash-wasm/wasm_sdk'
 
 /* Initialize constants. */
 const MAX_USERNAME_LENGTH = 63 // Maximum length - 63 characters
@@ -174,15 +166,11 @@ export function RegistrarModal({
         /* Request mnemonic. */
         const { getMnemonic } = await import('@/lib/secure-storage')
         const mnemonic = getMnemonic()
-console.log('MNEMONIC', mnemonic)
+console.log('REGISTRAR (mnemonic)', mnemonic)
 
         /* Set network. */
         const currentNetwork = (network === 'mainnet' ? 'mainnet' : 'testnet') as 'mainnet' | 'testnet'
-console.log('CURRENT NETWORK', currentNetwork)
-
-        /* Set identity index. */
-// FIXME ALLOW SUPPORT FOR MULTIPLE IDENTITIES
-        // const identityIndex = 0
+console.log('REGISTRAR (currentNetwork)', currentNetwork)
 
         /* Request payment address. */
         const paymentAddress = await getPaymentAddress(currentNetwork, username, email)
@@ -196,11 +184,11 @@ console.log('CURRENT NETWORK', currentNetwork)
             setPaymentAddress(`dash:${paymentAddress}?amount=${NON_CONTESTED_REG_FEE}`)
         }
 
-        // const { storeMnemonic } = await import('@/lib/secure-storage')
-
         /* Initialize payment monitoring handler. */
-        let attemptCounter = 0
-        const paymentHandler = setInterval(async () => {
+        let attemptsCounter = 0
+
+        /* Manage payment detection. */
+        const paymentDetectionHandler = setInterval(async () => {
 console.log('WAITING (up to 10 minutes) FOR PAYMENT...')
 
             /* Request pending registration. */
@@ -210,7 +198,7 @@ console.log('WAITING (up to 10 minutes) FOR PAYMENT...')
             /* Validate (pending registration) response. */
             if (typeof response !== 'undefined' && response !== null) {
                 /* Stop the timer/interval. */
-                clearTimeout(paymentHandler)
+                clearTimeout(paymentDetectionHandler)
 
                 /* Set (asset lock) proof. */
                 const proof = response.proof
@@ -224,19 +212,26 @@ console.log('WAITING (up to 10 minutes) FOR PAYMENT...')
                     .catch(err => console.error(err))
 console.log('REGISTRATION RESULT', regResult)
 
+                /* Set submission flag. */
+                setIsSubmitting(false)
+
                 /* Validate registration response. */
                 if (typeof regResult === 'undefined' || regResult === null) {
-                    alert(`Oops! Looks like something went wrong. Please contact support, AKA Shomari`)
+                    alert(`Oops! Something went wrong, but NO worries. Please contact support (AKA Shomari) for assistance.`)
                 } else {
-                    alert(`Congratulations! You're all set!`)
+                    alert(`Congratulations!\n\nYou're all set.\nEnjoy your NEW Identity!`)
                 }
             }
 
             // NOTE: WAIT UP TO 10 MINUTES FOR DEPOSIT
-            if (++attemptCounter === 120) {
+            if (++attemptsCounter === 120) {
                 /* Stop the timer/interval. */
-                clearTimeout(paymentHandler)
+                clearTimeout(paymentDetectionHandler)
 console.log('TIMER STOPPED (after 10 minutes)')
+
+                /* Set submission flag. */
+                setIsSubmitting(false)
+
                 alert(`Your payment has EXPIRED! Please REFRESH and try again...`)
             }
         }, PAYMENT_CHECK_INTERVAL)

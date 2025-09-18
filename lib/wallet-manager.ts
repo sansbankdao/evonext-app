@@ -104,3 +104,31 @@ export const getPublicKeys = (_currentNetwork: string) => {
     /* Return ALL public keys. */
     return publicKeys
 }
+
+export const getTransferKey = (_currentNetwork: string) => {
+    /* Request private keys. */
+    const keys = getPrivateKeys(_currentNetwork)
+
+// FIXME WE WANT TO SUPPORT ALTERNATIVE KEY CONFIGURATIONS
+
+/*
+
+// WHAT IS THE CONFIG FOR TRANSFER KEYS??
+
+const signingPublicKey = regPubKeys.find((_pubkey: any) => {
+    return _pubkey.purpose === 0 && (_pubkey.securityLevel === 1 || _pubkey.securityLevel === 2)
+})
+console.log('SIGNING (public) KEY', signingPublicKey)
+
+const signingPrivateKey = publicKeys.find(_pubkey => {
+    return _pubkey.id === signingPublicKey.id
+})
+console.log('SIGNING (private) KEY', signingPrivateKey)
+
+const seedPrivateKey = signingPrivateKey!.privateKeyWif
+
+*/
+
+    /* Return transfer (private) key. */
+    return keys.transferKey
+}

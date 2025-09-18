@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/auth-context'
 import { useNetwork } from '@/contexts/network-context'
 import { Button } from '@/components/ui/button'
 import { RegistrarModal } from '@/components/id/registrar-modal'
-import { useRouter } from 'next/navigation'
+// import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 import {
     checkPendingStatus,
@@ -16,7 +16,7 @@ import { getPrivateKeys, getPublicKeys } from '@/lib/wallet-manager'
 import { validate_mnemonic } from '@/lib/dash-wasm/wasm_sdk'
 
 export default function LoginPage() {
-    const router = useRouter()
+    // const router = useRouter()
     const { login } = useAuth()
     const { network } = useNetwork()
     const [identityId, setIdentityId] = useState('')
@@ -61,7 +61,6 @@ export default function LoginPage() {
 
         /* Validate mnemonic. */
         const isValid = validate_mnemonic(mnemonic)
-console.log('MNEMONIC VALID', isValid)
 
         /* Validate mnemonic. */
         if (!isValid) {
@@ -70,6 +69,8 @@ console.log('MNEMONIC VALID', isValid)
 
         /* Initialize secure storage. */
         const { storeMnemonic } = await import('@/lib/secure-storage')
+
+        /* Save mnemonic (to secure storage). */
         storeMnemonic(mnemonic)
 
         /* Request private keys. */
@@ -77,25 +78,26 @@ console.log('MNEMONIC VALID', isValid)
 
         /* Request public keys. */
         const publicKeys = getPublicKeys(currentNetwork)
-console.log('CONNECT PUBLIC KEYS', publicKeys)
 
         /* Request ALL (registered) public keys. */
         const regPubKeys = await getRegisteredKeys(currentNetwork)
+console.log('CONNECT (registered public keys)', regPubKeys)
 
         /* Validate Identity ID and public keys. */
         if (identityId && regPubKeys) {
             const signingPublicKey = regPubKeys.find((_pubkey: any) => {
                 return _pubkey.purpose === 0 && (_pubkey.securityLevel === 1 || _pubkey.securityLevel === 2)
             })
-console.log('SIGNING (public) KEY', signingPublicKey)
+console.log('CONNECT (signingPublicKey)', signingPublicKey)
 
             const signingPrivateKey = publicKeys.find(_pubkey => {
                 return _pubkey.id === signingPublicKey.id
             })
-console.log('SIGNING (private) KEY', signingPrivateKey)
+console.log('CONNECT (signingPrivateKey)', signingPrivateKey)
 
-            /* Set seed private key. */
+            /* Set seed private key (WIF). */
             const seedPrivateKey = signingPrivateKey!.privateKeyWif
+console.log('CONNECT (seedPrivateKey WIF)', seedPrivateKey)
 
             try {
                 await login(identityId, seedPrivateKey)
@@ -109,31 +111,31 @@ console.log('SIGNING (private) KEY', signingPrivateKey)
         } else {
 // BEGIN NO IDENTITY FOUND
             const publicKey = privateKeys.masterKey.public_key
-console.log('REGISTRATION SEARCH (publicKey)', publicKey)
+console.log('CONNECT (publicKey)', publicKey)
 
             /* Check (pending) status. */
             const status = await checkPendingStatus(publicKey)
                 .catch(err => console.error(err))
-console.log('PENDING STATUS', status)
+console.log('CONNECT (checkPendingStatus)', status)
 
             /* Validate (pending) status. */
             if (typeof status !== 'undefined' && status !== null) {
-                /* Set username. */
-                const username = status.username
-console.log('USERNAME', username)
-
-                /* Set proof. */
-                const proof = status.proof
-console.log('PROOF', typeof proof, proof)
-
-                /* Set WIF. */
-                const wif = status.wif
-console.log('WIF', typeof wif, wif)
-
                 /* Request user permission to resume registration. */
                 if (confirm(`Hey, welcome back!\n\nYou have a pending Identity + Username registration. Are you ready complete it now? It'll ONLY take a few seconds..\n\n!! IMPORTANT NOTICE !!\nAfter you click to resume, DO NOT interrupt the process until it's 100% completed.\n\nOkay, let's GO!`)) {
                     setIsLoading(false)
                     setIsResuming(true)
+
+                    /* Set username. */
+                    const username = status.username
+console.log('CONNECT (username)', username)
+
+                    /* Set proof. */
+                    const proof = status.proof
+console.log('CONNECT (proof)', typeof proof, proof)
+
+                    /* Set WIF. */
+                    const wif = status.wif
+console.log('CONNECT (wif)', typeof wif, wif)
 
                     /* Register Identity + Username. */
                     const regResult = await registerIdentityAndUsername(
