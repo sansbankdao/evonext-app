@@ -6,20 +6,14 @@ import { useNetwork } from '@/contexts/network-context'
 import { Button } from '@/components/ui/button'
 import { RegistrarModal } from '@/components/id/registrar-modal'
 import { useRouter } from 'next/navigation'
-import { wasmSdkService } from '@/lib/services/wasm-sdk-service'
 import toast from 'react-hot-toast'
-import {
-    derive_key_from_seed_with_path,
-    get_identity_by_public_key_hash,
-    get_identity_by_non_unique_public_key_hash,
-    validate_mnemonic,
-} from '@/lib/dash-wasm/wasm_sdk'
 import {
     checkPendingStatus,
     getRegisteredKeys,
     registerIdentityAndUsername,
 } from '@/lib/registrar-manager'
 import { getPrivateKeys, getPublicKeys } from '@/lib/wallet-manager'
+import { validate_mnemonic } from '@/lib/dash-wasm/wasm_sdk'
 
 export default function LoginPage() {
     const router = useRouter()
@@ -84,9 +78,6 @@ console.log('MNEMONIC VALID', isValid)
         /* Request public keys. */
         const publicKeys = getPublicKeys(currentNetwork)
 console.log('CONNECT PUBLIC KEYS', publicKeys)
-
-        /* Initialize SDK. */
-        // const sdk = await wasmSdkService.getSdk()
 
         /* Request ALL (registered) public keys. */
         const regPubKeys = await getRegisteredKeys(currentNetwork)
