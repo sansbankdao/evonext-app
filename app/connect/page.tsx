@@ -10,21 +10,16 @@ import { wasmSdkService } from '@/lib/services/wasm-sdk-service'
 import toast from 'react-hot-toast'
 import {
     derive_key_from_seed_with_path,
-    dpns_convert_to_homograph_safe,
-    dpns_is_contested_username,
-    dpns_register_name,
     get_identity_by_public_key_hash,
     get_identity_by_non_unique_public_key_hash,
     validate_mnemonic,
 } from '@/lib/dash-wasm/wasm_sdk'
 import {
     checkPendingStatus,
+    getRegisteredKeys,
     registerIdentityAndUsername,
 } from '@/lib/registrar-manager'
- // @ts-ignore
-import { hash160 } from '@nexajs/crypto'
- // @ts-ignore
-import { binToHex, hexToBin } from '@nexajs/utils'
+import { getPrivateKeys, getPublicKeys } from '@/lib/wallet-manager'
 
 export default function LoginPage() {
     const router = useRouter()
@@ -38,6 +33,12 @@ export default function LoginPage() {
     const [hasIdentityPrivateKey, setHasIdentityPrivateKey] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [mnemonic, setMnemonic] = useState(Array(12).fill(''))
+
+    const handleClose = () => {
+        setIsModalOpen(false)
+        // Navigate to profile creation without username
+        // router.push('/profile/create')
+    }
 
     const hasMnemonic = () => {
         /* Search for empty seed words. */
@@ -54,27 +55,12 @@ export default function LoginPage() {
         }
     }
 
-
-
-    const completeRegistration = async () => {
-
-    }
-
-    const handleClose = () => {
-        setIsModalOpen(false)
-        // Navigate to profile creation without username
-        // router.push('/profile/create')
-    }
-
     const handleMnemonic = async (_mnemonic: any) => {
         /* Set the mnemonic (store). */
         setMnemonic(_mnemonic)
 
         /* Join an array of seed words. */
         const mnemonic = _mnemonic.join(' ')
-
-        /* Set identity index. */
-        const identityIndex = 0
 
         /* Set current network. */
         const currentNetwork = (network === 'mainnet' ? 'mainnet' : 'testnet') as 'mainnet' | 'testnet'
@@ -88,124 +74,22 @@ console.log('MNEMONIC VALID', isValid)
             return toast.error(`Oops! Those seed words are INVALID!`)
         }
 
+        /* Initialize secure storage. */
         const { storeMnemonic } = await import('@/lib/secure-storage')
         storeMnemonic(mnemonic)
 
-        const masterKeyPath = `m/9'/${currentNetwork === 'mainnet' ? 5 : 1}'/5'/0'/0'/${identityIndex}'/0'`
-        const masterKey = derive_key_from_seed_with_path(mnemonic!, undefined, masterKeyPath, currentNetwork)
-        console.log('Master key object:', masterKey)
-        console.log('Master key (public_key):', masterKey.public_key)
+        /* Request private keys. */
+        const privateKeys = getPrivateKeys(currentNetwork)
 
-        // Additional authentication key (critical security)
-        const authCriticalPath = `m/9'/${currentNetwork === 'mainnet' ? 5 : 1}'/5'/0'/0'/${identityIndex}'/1'`
-        const authCritical = derive_key_from_seed_with_path(mnemonic!, undefined, authCriticalPath, currentNetwork)
-
-        // Additional authentication key (high security)
-        const authHighPath = `m/9'/${currentNetwork === 'mainnet' ? 5 : 1}'/5'/0'/0'/${identityIndex}'/2'`
-        const authHigh = derive_key_from_seed_with_path(mnemonic!, undefined, authHighPath, currentNetwork)
-
-        // Transfer key (critical security)
-        const transferKeyPath = `m/9'/${currentNetwork === 'mainnet' ? 5 : 1}'/5'/0'/0'/${identityIndex}'/3'`
-        const transferKey = derive_key_from_seed_with_path(mnemonic!, undefined, transferKeyPath, currentNetwork)
-
-        // Transfer key (critical security)
-        const encryptionKeyPath = `m/9'/${currentNetwork === 'mainnet' ? 5 : 1}'/5'/0'/0'/${identityIndex}'/4'`
-        const encryptionKey = derive_key_from_seed_with_path(mnemonic!, undefined, encryptionKeyPath, currentNetwork)
-
-        const publicKeys = [
-            {
-                id: 0,
-                keyType: "ECDSA_HASH160",
-                purpose: "AUTHENTICATION",
-                securityLevel: "MASTER",
-                privateKeyHex: masterKey.private_key_hex,
-                privateKeyWif: masterKey.private_key_wif,
-                readOnly: false
-            },
-            {
-                id: 1,
-                keyType: "ECDSA_HASH160",
-                purpose: "AUTHENTICATION",
-                securityLevel: "CRITICAL",
-                privateKeyHex: authCritical.private_key_hex,
-                privateKeyWif: authCritical.private_key_wif,
-                readOnly: false
-            },
-            {
-                id: 2,
-                keyType: "ECDSA_HASH160",
-                purpose: "AUTHENTICATION",
-                securityLevel: "HIGH",
-                privateKeyHex: authHigh.private_key_hex,
-                privateKeyWif: authHigh.private_key_wif,
-                readOnly: false
-            },
-            {
-                id: 3,
-                keyType: "ECDSA_HASH160",
-                purpose: "TRANSFER",
-                securityLevel: "CRITICAL",
-                privateKeyHex: transferKey.private_key_hex,
-                privateKeyWif: transferKey.private_key_wif,
-                readOnly: false
-            },
-            {
-                id: 4,
-                keyType: "ECDSA_SECP256K1",
-                purpose: "ENCRYPTION",
-                securityLevel: "MEDIUM",
-                privateKeyHex: encryptionKey.private_key_hex,
-                privateKeyWif: encryptionKey.private_key_wif,
-                readOnly: false
-            },
-        ]
+        /* Request public keys. */
+        const publicKeys = getPublicKeys(currentNetwork)
 console.log('CONNECT PUBLIC KEYS', publicKeys)
 
-        const publicKey = masterKey.public_key
-console.log('PUBLIC KEY', publicKey)
-
-        const publicKeyHash = binToHex(hash160(hexToBin(publicKey)))
-console.log('PUBLIC KEY HASH', publicKeyHash)
-
         /* Initialize SDK. */
-        const sdk = await wasmSdkService.getSdk()
+        // const sdk = await wasmSdkService.getSdk()
 
-        /* Request Identity. */
-        const identityOfHash160 = await get_identity_by_non_unique_public_key_hash(
-            sdk,
-            publicKeyHash,
-            undefined
-        ).catch(err => console.error(err))
-console.log('FOUND IDENTITY (from HASH160)', identityOfHash160)
-
-        const identityOfSecp256k1 = await get_identity_by_public_key_hash(
-            sdk,
-            publicKeyHash
-        ).catch(err => console.error(err))
-console.log('FOUND IDENTITY (from SECP256K1)', identityOfSecp256k1?.toJSON())
-
-        let identityId
-        let regPubKeys
-
-        /* Handle ECDSA_HASH160 signature scheme. */
-        if (identityOfHash160 && identityOfHash160.length > 0 && typeof identityOfHash160 === 'object') {
-            /* Set Identity ID. */
-            identityId = identityOfHash160[0].id
-
-            /* Set registered public keys. */
-            regPubKeys = identityOfHash160[0].publicKeys
-        }
-
-        /* Handle ECDSA_SECP256k1 signature scheme. */
-        if (identityOfSecp256k1 && identityOfSecp256k1.toJSON()) {
-            /* Set Identity ID. */
-            identityId = identityOfSecp256k1.toJSON().id
-
-            /* Set registered public keys. */
-            regPubKeys = identityOfSecp256k1.toJSON().publicKeys
-        }
-console.log('IDENTITY ID', identityId)
-console.log('REGISTERED PUBLIC KEYS', regPubKeys)
+        /* Request ALL (registered) public keys. */
+        const regPubKeys = await getRegisteredKeys(currentNetwork)
 
         /* Validate Identity ID and public keys. */
         if (identityId && regPubKeys) {
@@ -219,6 +103,7 @@ console.log('SIGNING (public) KEY', signingPublicKey)
             })
 console.log('SIGNING (private) KEY', signingPrivateKey)
 
+            /* Set seed private key. */
             const seedPrivateKey = signingPrivateKey!.privateKeyWif
 
             try {
@@ -232,6 +117,9 @@ console.log('SIGNING (private) KEY', signingPrivateKey)
             }
         } else {
 // BEGIN NO IDENTITY FOUND
+            const publicKey = privateKeys.masterKey.public_key
+console.log('REGISTRATION SEARCH (publicKey)', publicKey)
+
             /* Check (pending) status. */
             const status = await checkPendingStatus(publicKey)
                 .catch(err => console.error(err))
@@ -258,7 +146,7 @@ console.log('WIF', typeof wif, wif)
 
                     /* Register Identity + Username. */
                     const regResult = await registerIdentityAndUsername(
-                        (network as 'mainnet' | 'testnet'), username, proof, wif)
+                        currentNetwork, username, proof, wif)
                         .catch(err => console.error(err))
 console.log('REGISTRATION RESULT', regResult)
 
