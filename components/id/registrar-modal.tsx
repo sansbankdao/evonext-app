@@ -14,6 +14,13 @@ import { motion, AnimatePresence } from 'framer-motion'
 // @ts-ignore
 import { QRCodeSVG } from 'qrcode.react'
 import {
+    checkPendingStatus,
+    getPaymentAddress,
+    getRegisteredKeys,
+    registerIdentityAndUsername,
+} from '@/lib/registrar-manager'
+import { getPrivateKeys, getPublicKeys } from '@/lib/wallet-manager'
+import {
     derive_key_from_seed_with_path,
     get_identity_by_public_key_hash,
     get_identity_by_non_unique_public_key_hash,
@@ -25,6 +32,7 @@ import {
 const MAX_USERNAME_LENGTH = 63 // Maximum length - 63 characters
 const NON_CONTESTED_REG_FEE = 0.1 // BIP-21 requires DASH values (not duff)
 const CONTESTED_REG_FEE = 0.3 // BIP-21 requires DASH values (not duff)
+const PAYMENT_CHECK_INTERVAL = 5000
 
 interface RegistrarModalProps {
     isOpen: boolean
@@ -174,53 +182,11 @@ console.log('CURRENT NETWORK', currentNetwork)
 
         /* Set identity index. */
 // FIXME ALLOW SUPPORT FOR MULTIPLE IDENTITIES
-        const identityIndex = 0
+        // const identityIndex = 0
 
-/* Initialize master (authentication) path. */
-const masterKeyPath = `m/9'/${currentNetwork === 'mainnet' ? 5 : 1}'/5'/0'/0'/${identityIndex}'/0'`
-const masterKey = derive_key_from_seed_with_path(mnemonic!, undefined, masterKeyPath, currentNetwork)
-console.log('Master key object:', masterKey)
-console.log('Master key (public_key):', masterKey.public_key)
-
-// Additional authentication key (critical security)
-const authCriticalPath = `m/9'/${currentNetwork === 'mainnet' ? 5 : 1}'/5'/0'/0'/${identityIndex}'/1'`
-const authCritical = derive_key_from_seed_with_path(mnemonic!, undefined, authCriticalPath, currentNetwork)
-
-// Additional authentication key (high security)
-const authHighPath = `m/9'/${currentNetwork === 'mainnet' ? 5 : 1}'/5'/0'/0'/${identityIndex}'/2'`
-const authHigh = derive_key_from_seed_with_path(mnemonic!, undefined, authHighPath, currentNetwork)
-
-// Transfer key (critical security)
-const transferKeyPath = `m/9'/${currentNetwork === 'mainnet' ? 5 : 1}'/5'/0'/0'/${identityIndex}'/3'`
-const transferKey = derive_key_from_seed_with_path(mnemonic!, undefined, transferKeyPath, currentNetwork)
-
-// Transfer key (critical security)
-const encryptionKeyPath = `m/9'/${currentNetwork === 'mainnet' ? 5 : 1}'/5'/0'/0'/${identityIndex}'/4'`
-const encryptionKey = derive_key_from_seed_with_path(mnemonic!, undefined, encryptionKeyPath, currentNetwork)
-
-        /* Prepare order package. */
-        const body = JSON.stringify({
-            masterKey: masterKey.public_key,
-            authCriticalKey: authCritical.public_key,
-            authHighKey: authHigh.public_key,
-            transferKey: transferKey.public_key,
-            encryptionKey: encryptionKey.public_key,
-            username,
-            emailAddr: email,
-            isMainnet: currentNetwork === 'mainnet' ? true : false
-        })
-console.log('ORDER (body)', body)
-
-        /* Request a payment address. */
-        const addressResponse = await fetch('https://evonext.app/v1/registrar/address', {
-            method: 'POST',
-            body,
-        }).catch(err => console.error(err))
-        const json = await addressResponse!.json()
-console.log('PAYMENT ADDRESS', json)
-
-        /* Set payment address. */
-        const paymentAddress = json?.registrar?.dashAddr
+        /* Request payment address. */
+        const paymentAddress = await getPaymentAddress(currentNetwork, username, email)
+            .catch(err => console.error(err))
 
         /* Handle contested username. */
         // NOTE: We add BIP-21 encoding for user convenience.
@@ -230,20 +196,50 @@ console.log('PAYMENT ADDRESS', json)
             setPaymentAddress(`dash:${paymentAddress}?amount=${NON_CONTESTED_REG_FEE}`)
         }
 
-        /* Submit a new order. */
-        const orderResponse = await fetch('https://evonext.app/v1/registrar/order', {
-            method: 'POST',
-            body,
-        }).catch(err => console.error(err))
+        // const { storeMnemonic } = await import('@/lib/secure-storage')
 
-        /* Validate order submission. */
-        if (typeof orderResponse !== 'undefined' && orderResponse !== null) {
-            /* Handle order response. */
-            // NOTE: This is NOT strictly required, but consider offering
-            //       user feedback, if an error is recognized.
-            const orderConfirm = await orderResponse!.json()
-console.log('ORDER CONFIRM', orderConfirm)
-        }
+        /* Initialize payment monitoring handler. */
+        let attemptCounter = 0
+        const paymentHandler = setInterval(async () => {
+console.log('WAITING (up to 10 minutes) FOR PAYMENT...')
+
+            /* Request pending registration. */
+            const response = await checkPendingStatus(currentNetwork)
+                .catch(err => console.error(err))
+
+            /* Validate (pending registration) response. */
+            if (typeof response !== 'undefined' && response !== null) {
+                /* Stop the timer/interval. */
+                clearTimeout(paymentHandler)
+
+                /* Set (asset lock) proof. */
+                const proof = response.proof
+
+                /* Set WIF. */
+                const wif = response.wif
+
+                /* Register Identity + Username. */
+                const regResult = await registerIdentityAndUsername(
+                    currentNetwork, username, proof, wif)
+                    .catch(err => console.error(err))
+console.log('REGISTRATION RESULT', regResult)
+
+                /* Validate registration response. */
+                if (typeof regResult === 'undefined' || regResult === null) {
+                    alert(`Oops! Looks like something went wrong. Please contact support, AKA Shomari`)
+                } else {
+                    alert(`Congratulations! You're all set!`)
+                }
+            }
+
+            // NOTE: WAIT UP TO 10 MINUTES FOR DEPOSIT
+            if (++attemptCounter === 120) {
+                /* Stop the timer/interval. */
+                clearTimeout(paymentHandler)
+console.log('TIMER STOPPED (after 10 minutes)')
+                alert(`Your payment has EXPIRED! Please REFRESH and try again...`)
+            }
+        }, PAYMENT_CHECK_INTERVAL)
     }
 
     const getStatusIcon = () => {

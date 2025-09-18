@@ -86,20 +86,95 @@ console.log('REGISTRATION SEARCH (regPubKeys)', regPubKeys)
     return regPubKeys
 }
 
+export const getPaymentAddress = async (
+    _network: string,
+    _username: string,
+    _email: string,
+) => {
+    /* Initialize locals. */
+    let json
+    let response
+
+    /* Request private keys. */
+    const privateKeys = getPrivateKeys(_network)
+
+    /* Prepare order package. */
+    const body = JSON.stringify({
+        masterKey: privateKeys.masterKey.public_key,
+        authCriticalKey: privateKeys.authCritical.public_key,
+        authHighKey: privateKeys.authHigh.public_key,
+        transferKey: privateKeys.transferKey.public_key,
+        encryptionKey: privateKeys.encryptionKey.public_key,
+        username: _username,
+        emailAddr: _email,
+        isMainnet: _network === 'mainnet' ? true : false
+    })
+console.log('ORDER (body)', body)
+
+    /* Request a payment address. */
+    response = await fetch('https://evonext.app/v1/registrar/address', {
+        method: 'POST',
+        body,
+    }).catch(err => console.error(err))
+
+    /* Validate response. */
+    if (typeof response === 'undefined' || response === null) {
+        return null
+    }
+
+    /* Decode JSON. */
+    json = await response!.json()
+console.log('PAYMENT ADDRESS (json)', json)
+
+    /* Validate registrar. */
+    if (typeof json.registrar === 'undefined' || json.registrar === null) {
+        return null
+    }
+
+    /* Set payment address. */
+    const paymentAddress = json.registrar.dashAddr
+console.log('PAYMENT ADDRESS (paymentAddress)', paymentAddress)
+
+    /* Submit a new order. */
+    response = await fetch('https://evonext.app/v1/registrar/order', {
+        method: 'POST',
+        body,
+    }).catch(err => console.error(err))
+
+    /* Validate order submission. */
+    if (typeof response !== 'undefined' && response !== null) {
+        /* Handle order response. */
+        // NOTE: This is NOT strictly required, but consider offering
+        //       user feedback, if an error is recognized.
+        json = await response!.json()
+console.log('ORDER CONFIRM (json)', json)
+    }
+
+    /* Return payment address. */
+    return paymentAddress
+}
+
 /**
  * Check Pending Status
  *
  * Will attempt to resume the registration process.
  */
-export const checkPendingStatus = async (_masterKey: string) => {
+export const checkPendingStatus = async (_network: string) => {
     /* Initialize locals. */
     let username
     let proof
     let wif
 
+    /* Request private keys. */
+    const privateKeys = getPrivateKeys(_network)
+
+    /* Set master/primary public key. */
+    const masterPublicKey = privateKeys.masterKey.public_key
+console.log('MASTER/PRIMARY PUBLIC KEY', masterPublicKey)
+
     /* Set (request) headers. */
     const headers = {
-        'Authorization': `Bearer ${_masterKey}`
+        'Authorization': `Bearer ${masterPublicKey}`
     }
 
     /* Make status request. */
