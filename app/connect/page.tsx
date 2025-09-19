@@ -114,7 +114,7 @@ console.log('CONNECT (seedPrivateKey WIF)', seedPrivateKey)
 console.log('CONNECT (publicKey)', publicKey)
 
             /* Check (pending) status. */
-            const status = await checkPendingStatus(publicKey)
+            const status = await checkPendingStatus(currentNetwork)
                 .catch(err => console.error(err))
 console.log('CONNECT (checkPendingStatus)', status)
 

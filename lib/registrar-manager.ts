@@ -107,7 +107,8 @@ export const getPaymentAddress = async (
         encryptionKey: privateKeys.encryptionKey.public_key,
         username: _username,
         emailAddr: _email,
-        isMainnet: _network === 'mainnet' ? true : false
+        isMainnet: _network === 'mainnet' ? true : false,
+        isPremium: dpns_is_contested_username(_username) ? true : false,
     })
 console.log('ORDER (body)', body)
 
@@ -124,7 +125,7 @@ console.log('ORDER (body)', body)
 
     /* Decode JSON. */
     json = await response!.json()
-console.log('PAYMENT ADDRESS (json)', json)
+// console.log('PAYMENT ADDRESS (json)', json)
 
     /* Validate registrar. */
     if (typeof json.registrar === 'undefined' || json.registrar === null) {
@@ -133,7 +134,7 @@ console.log('PAYMENT ADDRESS (json)', json)
 
     /* Set payment address. */
     const paymentAddress = json.registrar.dashAddr
-console.log('PAYMENT ADDRESS (paymentAddress)', paymentAddress)
+// console.log('PAYMENT ADDRESS (paymentAddress)', paymentAddress)
 
     /* Submit a new order. */
     response = await fetch('https://evonext.app/v1/registrar/order', {
@@ -146,8 +147,9 @@ console.log('PAYMENT ADDRESS (paymentAddress)', paymentAddress)
         /* Handle order response. */
         // NOTE: This is NOT strictly required, but consider offering
         //       user feedback, if an error is recognized.
-        json = await response!.json()
-console.log('ORDER CONFIRM (json)', json)
+        json = await response.json()
+            .catch(err => console.error(err))
+// console.log('ORDER CONFIRM (json)', json)
     }
 
     /* Return payment address. */
@@ -192,7 +194,9 @@ console.log('ORDER STATUS CHECK', status)
         typeof status !== 'undefined' &&
         status !== null &&
         status.results &&
-        status.results.length > 0
+        status.results.length > 0 &&
+        status.results[0].proof !== null &&
+        status.results[0].wif !== null
     ) {
         /* Set username. */
         username = status.results[0].username

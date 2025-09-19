@@ -186,7 +186,7 @@ console.log('REGISTRAR (currentNetwork)', currentNetwork)
 
         /* Initialize payment monitoring handler. */
         let attemptsCounter = 0
-
+return
         /* Manage payment detection. */
         const paymentDetectionHandler = setInterval(async () => {
 console.log('WAITING (up to 10 minutes) FOR PAYMENT...')
