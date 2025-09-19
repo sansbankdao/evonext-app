@@ -396,12 +396,13 @@ console.log('USERNAME MODAL (identity)', identity)
                                 Choose Your Username
                             </h1>
 
-                            <p className="text-pretty text-gray-600 dark:text-gray-400 text-center mb-6">
-                                Add a unique username for your Dash Platform Identity
+                            <p className="px-10 text-gray-600 dark:text-gray-400 text-center mb-6">
+                                Add a unique username to your Dash Platform Identity
                             </p>
 
                             {/* Identity ID Display */}
-                            <div className="mb-6 p-3 bg-gray-100 dark:bg-gray-800 rounded-lg">
+                            {/* DO WE NEED THIS OPTION AVAILABLE?? */}
+                            <div className="hidden mb-6 p-3 bg-gray-100 dark:bg-gray-800 rounded-lg">
                                 <label className="text-xs text-gray-500 uppercase tracking-wide">Identity ID</label>
 
                                 <div className="flex items-center gap-2 mt-1">
