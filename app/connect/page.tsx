@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/auth-context'
 import { useNetwork } from '@/contexts/network-context'
 import { Button } from '@/components/ui/button'
 import { RegistrarModal } from '@/components/id/registrar-modal'
-// import { useRouter } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 import {
     checkPendingStatus,
@@ -16,7 +16,7 @@ import { getPrivateKeys, getPublicKeys } from '@/lib/wallet-manager'
 import { validate_mnemonic } from '@/lib/dash-wasm/wasm_sdk'
 
 export default function LoginPage() {
-    // const router = useRouter()
+    const router = useRouter()
     const { login } = useAuth()
     const { network } = useNetwork()
     const [identityId, setIdentityId] = useState('')
@@ -144,6 +144,10 @@ console.log('CONNECT (wif)', typeof wif, wif)
 console.log('REGISTRATION RESULT', regResult)
 
                     setIsResuming(false)
+
+
+                    /* Redirect user to Profile page and STOP execution. */
+                    return router.push('/profile')
                 } else {
                     /* User has rejected the request to RESUME registration. */
                     //NOTE: WE DO NOT WANT TO CONTINUE THRU THE STANDARD PROCESS
