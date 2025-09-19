@@ -59,7 +59,7 @@ class BiometricStorage {
                     user: {
                         id: new TextEncoder().encode(userId),
                         name: userId,
-                        displayName: 'EvoNext User'
+                        displayName: 'EvoNext Identity'
                     },
                     pubKeyCredParams: [
                         { alg: -7, type: 'public-key' }, // ES256
