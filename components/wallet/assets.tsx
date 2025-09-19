@@ -59,15 +59,10 @@ export function WalletAssets({ isFullScreen }: WalletAssetProps) {
     const [displaySansBalanceUsd, setDisplaySansBalanceUsd] = useState(BigInt(0))
 
     const displayIcon = (_token: Token) => {
-        /* Handle token ID. */
-        switch(_token.id) {
-        case DUSD:
-        case tDUSD:
-            return '/icons/dusd.svg'
-        case SANS:
-        case tSANS:
-            return '/icons/sans.svg'
-        default:
+        /* Handle token icon URL. */
+        if (_token.iconUrl) {
+            return _token.iconUrl
+        } else {
             return '/icon.svg'
         }
     }
@@ -203,7 +198,7 @@ console.log('SANS BALANCE', sansBalance)
                     {
                         id: '0',
                         token_id_hex: dusdContractId,
-                        iconUrl: '/icons/dusd.svg',
+                        iconUrl: '/icons/dash.svg',
                         duffs: BigInt(user.balance),
                         decimal_places: DASH_DECIMALS,
                         fiat: {
