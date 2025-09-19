@@ -161,6 +161,8 @@ export const clearAllPrivateKeys = (): void => {
         secureStorage.delete(key)
     })
 
+    secureStorage.delete('evonext_session')
+
     clearMnemonic()
 }
 

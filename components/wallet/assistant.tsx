@@ -35,7 +35,7 @@ export function WalletAssistant({ isFullScreen }: WalletAssistantProps) {
     }
 
     return (
-        <main className="p-3 pb-20 flex flex-col gap-4">
+        <main className="p-3 pb-32 flex flex-col gap-4">
             <h1 className="text-slate-800 text-4xl font-bold tracking-wider">
                 Platform Assistant
             </h1>
@@ -59,7 +59,7 @@ export function WalletAssistant({ isFullScreen }: WalletAssistantProps) {
                 Make Request
             </button>
 
-            <button onClick={Identity.destroy} className="lg:absolute top-5 right-5 w-fit px-5 py-3 text-2xl font-bold tracking-wider text-red-800 bg-red-200 border-2 border-red-400 rounded-xl shadow hover:bg-red-900 hover:text-red-200">
+            <button onClick={Identity.destroy} className="w-fit px-5 py-3 text-2xl font-bold tracking-wider text-red-800 bg-red-200 border-2 border-red-400 rounded-xl shadow hover:bg-red-900 hover:text-red-200">
                 SIGN-OUT OF EVONEXT
             </button>
         </main>
