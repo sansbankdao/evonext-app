@@ -23,10 +23,10 @@ export function WalletSend({ isFullScreen }: WalletSendProps) {
     const { network } =  useNetwork()
 
     const [mnemonic, setMnemonic] = useState<string | undefined>()
-    const [addressFirstUse, setAddressFirstUse] = useState('')
+    const [identityFirstUse, setIdentityFirstUse] = useState('')
     const [receiver, setReceiver] = useState<string | undefined>()
-    const [txid, setTxid] = useState(null)
-    const [errorMsgs, setErrorMsgs] = useState({})
+    const [txid, setTxid] = useState<string | undefined>()
+    const [errorMsgs, setErrorMsgs] = useState()
     const [isShowingVideoPreview, setIsShowingVideoPreview] = useState('hidden')
 
     useEffect(() => {
@@ -59,13 +59,13 @@ console.log('MNEMONIC', mnemonic)
     const Identity = {
         setAsset: (tokenid: string) => {},
         abbr: 'Asset Abbr',
-        address: 'Asset Address',
+        id: 'Asset ID',
         asset: {
             ticker: 'USD'
         }
     }
 
-    const addressBalance = {
+    const identityBalance = {
         confirmed: 0,
         unconfirmed: 0,
     }
@@ -78,7 +78,7 @@ console.log('MNEMONIC', mnemonic)
         console.log('SEND ASSETS')
     }
 
-    const updateAddressDetails = (_receiver: string) => {
+    const updateIdentityDetails = (_receiver: string) => {
         setReceiver(_receiver)
     }
 
@@ -90,8 +90,8 @@ console.log('MNEMONIC', mnemonic)
     // const txidem = ref(null)
     // const errorMsgs = ref(null)
 
-    // const addressBalance = ref(null)
-    // const addressFirstUse = ref(null)
+    // const identityBalance = ref(null)
+    // const identityFirstUse = ref(null)
     // const firstTx = ref(null)
     // const consolidation = ref(null)
 
@@ -101,11 +101,11 @@ console.log('MNEMONIC', mnemonic)
 
     // const isShowingVideoPreview = ref('hidden')
 
-    // const getAddressBalance = async (_address) => {
+    // const getIdentityBalance = async (_identity) => {
     //     return 123
     // }
 
-    // const getAddressFirstUse = async (_address) => {
+    // const getIdentityFirstUse = async (_identity) => {
     //     return 'just a while ago'
     // }
 
@@ -211,7 +211,7 @@ console.log('MNEMONIC', mnemonic)
     //     let response
 
     //     if (!receiver.value) {
-    //         return alert('Enter a destination address.')
+    //         return alert('Enter a destination Identity.')
     //     }
 
     //     if (!satoshis.value) {
@@ -253,7 +253,7 @@ console.log('MNEMONIC', mnemonic)
     // }
 
     // const consolidate = async () => {
-    //     if (confirm(`Are you sure you want to consolidate ${consolidation.value.coins} coin inputs to ${Identity.address}?`)) {
+    //     if (confirm(`Are you sure you want to consolidate ${consolidation.value.coins} coin inputs to ${Identity.id}?`)) {
     //         /* Start wallet consolidation. */
     //         const response = await Identity.consolidate()
     //         // console.log('RESPONSE', response)
@@ -273,21 +273,21 @@ console.log('MNEMONIC', mnemonic)
     //     }
     // }
 
-    // const updateAddressDetails = async () => {
+    // const updateIdentityDetails = async () => {
     //     console.log('RECEIVER', receiver.value)
 
     //     /* Clear errors. */
     //     clearErrors()
 
-    //     addressBalance.value = await getAddressBalance(receiver.value)
+    //     identityBalance.value = await getIdentityBalance(receiver.value)
     //         .catch(err => console.error(err))
-    //     // console.log('ADDRESS BALANCE', addressBalance.value)
+    //     // console.log('ADDRESS BALANCE', identityBalance.value)
 
-    //     addressFirstUse.value = await getAddressFirstUse(receiver.value)
+    //     identityFirstUse.value = await getIdentityFirstUse(receiver.value)
     //         .catch(err => console.error(err))
-    //     // console.log('ADDRESS FIRST USE', addressFirstUse.value)
+    //     // console.log('ADDRESS FIRST USE', identityFirstUse.value)
 
-    //     firstTx.value = await getTransaction(addressFirstUse.value.tx_hash)
+    //     firstTx.value = await getTransaction(identityFirstUse.value.tx_hash)
     //         .catch(err => console.error(err))
     //     // console.log('FIRST TX', firstTx.value)
     // }
@@ -304,10 +304,8 @@ console.log('MNEMONIC', mnemonic)
                         className="w-full px-3 py-1 text-xl sm:text-2xl bg-cyan-100 border-2 border-cyan-300 rounded-md shadow"
                         type="text"
                         value={receiver}
-                        onChange={(e) => updateAddressDetails(e.target.value)}
-                        // v-model="receiver"
-                        // v-on:keyup="updateAddressDetails"
-                        placeholder="Enter a Username or Address"
+                        onChange={(e) => updateIdentityDetails(e.target.value)}
+                        placeholder="Enter a Username or Identity ID"
                     />
 
                     <div onClick={openScanner}>
@@ -352,7 +350,7 @@ console.log('MNEMONIC', mnemonic)
                     Send {Identity.asset?.ticker}
                 </button>
 
-                <section v-if="txid" className="my-10">
+                {txid && <section className="my-10">
                     <div>
                         <h3 className="text-sm text-gray-500 font-medium">Transaction sent successfully!</h3>
 
@@ -360,9 +358,9 @@ console.log('MNEMONIC', mnemonic)
                             Click here to OPEN transaction details
                         </Link>
                     </div>
-                </section>
+                </section>}
 
-                <section v-if="errorMsgs" className="my-10">
+                {errorMsgs && <section className="my-10">
                     <div className="rounded-md bg-red-50 p-4">
                         <div className="flex">
                             <div className="flex-shrink-0">
@@ -390,33 +388,32 @@ console.log('MNEMONIC', mnemonic)
                             </div>
                         </div>
                     </div>
+                </section>}
 
-                </section>
-
-                <div className="flex flex-col gap-6 text-slate-200">
-                    <section v-if="addressBalance">
+                <div className="flex flex-col gap-6 text-slate-700">
+                    {identityBalance && <section>
                         <h2 className="text-xl font-medium tracking-widest">
-                            Address Balance
+                            Identity Balance
                         </h2>
 
                         <h3>
-                            Confirmed: {addressBalance?.confirmed}
+                            Confirmed: {identityBalance?.confirmed}
                         </h3>
 
                         <h3>
-                            Unconfirmed: {addressBalance?.unconfirmed}
+                            Unconfirmed: {identityBalance?.unconfirmed}
                         </h3>
-                    </section>
+                    </section>}
 
-                    {/* <!-- <section v-if="addressFirstUse">
+                    {/* <!-- <section v-if="identityFirstUse">
                         <h2 className="text-xl font-medium tracking-widest">
-                            Address First Use
+                            Identity First Use
                         </h2>
 
-                        <pre>{addressFirstUse}</pre>
+                        <pre>{identityFirstUse}</pre>
                     </section> --> */}
 
-                    <section v-if="firstTx?.blocktime">
+                    {firstTx?.blocktime && <section>
                         <h2 className="text-xl font-medium tracking-widest">
                             First Transaction
                         </h2>
@@ -430,32 +427,11 @@ console.log('MNEMONIC', mnemonic)
                         </h3>
 
                         {/* <!-- <pre>{firstTx}</pre> --> */}
-                    </section>
+                    </section>}
                 </div>
             </div>
 
             <section className="pl-0 lg:pl-5 col-span-3 flex flex-col gap-6">
-                <div>
-                    <h1 className="text-2xl font-medium">
-                        Manage Assets
-                    </h1>
-
-                    <section>
-                        <button
-                            onClick={consolidate}
-                            className="w-fit cursor-pointer my-5 block px-5 py-2 text-2xl font-medium bg-blue-200 border-2 border-blue-400 rounded-md shadow hover:bg-blue-300"
-                        >
-                            Consolidate Coins
-                        </button>
-
-                        <div className="-mt-3 pl-3">
-                            <span className="block text-sm"># of coin inputs: {consolidation ? consolidation.coins : 'n/a'}</span>
-                            <span className="block text-sm"># of token inputs: {consolidation ? consolidation.tokens : 'n/a'}</span>
-                        </div>
-                    </section>
-
-                </div>
-
                 <div>
                     <h1 className="text-2xl font-medium">
                         Advanced Options

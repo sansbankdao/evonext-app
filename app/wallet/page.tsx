@@ -115,9 +115,19 @@ console.log('USER', user)
                     className="cursor-pointer group w-full px-5 py-3 bg-gradient-to-b from-sky-100 to-sky-50 border-t border-x border-sky-400 rounded-x-lg shadow-md hover:bg-sky-100"
                 >
                     <div className="flex flex-row w-full justify-between items-center mb-1 {[ isShowingAssets ? 'visible' : 'hidden' ]}">
-                        <h3 className="text-lg tracking-tight uppercase text-sky-600 font-medium text-center opacity-40 group-hover:opacity-100 group-hover:scale-105 duration-300 ease-in-out">
-                            My Identity Dashboard
-                        </h3>
+                        <section className="flex flex-col gap-0.5 items-start">
+                            <h2 className="text-base tracking-tight uppercase text-sky-600 font-medium opacity-40 group-hover:opacity-100 group-hover:scale-105 duration-300 ease-in-out">
+                                My Identity Dashboard
+                            </h2>
+
+                            <h3 className="text-lg tracking-wide text-sky-700 font-bold opacity-80 group-hover:opacity-100 group-hover:scale-105 duration-300 ease-in-out">
+                                {user?.dpnsUsername}
+                            </h3>
+
+                            <h3 className="text-xs tracking-tight text-sky-600 font-medium opacity-60 group-hover:opacity-100 group-hover:scale-105 duration-300 ease-in-out">
+                                {user?.identityId}
+                            </h3>
+                        </section>
 
                         <Image
                             src={Identity.asset?.iconUrl}

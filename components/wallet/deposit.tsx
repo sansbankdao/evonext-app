@@ -232,7 +232,8 @@ interface WalletDepositProps {
 
 export function WalletDeposit({ isFullScreen }: WalletDepositProps) {
     const { user } =  useAuth()
-    // const [identity, setIdentity] = useState('')
+    const [depositAmount, setDepositAmount] = useState(0)
+    const [isShowingCurrencyOptions, setIsShowingCurrencyOptions] = useState(false)
 
     // useEffect(() => {
     //     setIdentity('NewMoneyHoney69.dash')
@@ -244,7 +245,18 @@ export function WalletDeposit({ isFullScreen }: WalletDepositProps) {
         address: user?.identityId || '...',
     }
 
-    const dataUrl = ''
+    const handleChangeAsNumber = (e: React.ChangeEvent<HTMLInputElement>) => {
+        /* Use parseFloat to handle decimals for currency. */
+        const numValue = parseFloat(e.target.value);
+
+        /* Handle cases where parsing fails (e.g., empty string). */
+        if (isNaN(numValue)) {
+            setDepositAmount(0)
+        } else {
+            // NOTE: Ensure the value is not negative
+            setDepositAmount(Math.max(0, numValue));
+        }
+    }
 
     const clipboardHandler = () => {
         console.log('HANDLE CLIPBOARD')
@@ -254,8 +266,8 @@ export function WalletDeposit({ isFullScreen }: WalletDepositProps) {
         <main className="{props.isFullScreen === true ? 'grid lg:grid-cols-2 gap-8' : ''}">
             <Link href={Identity.address}>
                 <section className="w-full px-3 py-2 my-5 bg-sky-100 border-2 border-sky-300 rounded-lg shadow">
-                    <h2 className="text-lg sm:text-xl text-sky-500 font-medium text-center uppercase">
-                        Your Deposit Address
+                    <h2 className="text-xl sm:text-2xl text-sky-500/50 font-medium text-center uppercase tracking-widest">
+                        Dash Platform Identity
                     </h2>
 
                     <h3
@@ -305,7 +317,7 @@ export function WalletDeposit({ isFullScreen }: WalletDepositProps) {
                         </svg>
                     </button>
 
-                    <ul v-if="isShowingCurrencyOptions" className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm" id="options" role="listbox">
+                    {isShowingCurrencyOptions && <ul className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm" id="options" role="listbox">
                         <li className="relative cursor-default select-none py-2 pl-3 pr-9 text-gray-900" id="option-0">
                             <span className="block truncate font-semobold">Dash</span>
 
@@ -336,7 +348,7 @@ export function WalletDeposit({ isFullScreen }: WalletDepositProps) {
                             </span>
                         </li>
 
-                        {/* <li className="relative cursor-default select-none py-2 pl-3 pr-9 text-gray-900" id="option-0">
+                        <li className="relative cursor-default select-none py-2 pl-3 pr-9 text-gray-900" id="option-0">
                             <span className="block truncate">Bitcoin</span>
 
                             <span className="absolute inset-y-0 right-0 flex items-center pr-4 text-white">
@@ -344,9 +356,9 @@ export function WalletDeposit({ isFullScreen }: WalletDepositProps) {
                                     <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
                                 </svg>
                             </span>
-                        </li> */}
+                        </li>
 
-                        {/* <li className="relative cursor-default select-none py-2 pl-3 pr-9 text-gray-900" id="option-0">
+                        <li className="relative cursor-default select-none py-2 pl-3 pr-9 text-gray-900" id="option-0">
                             <span className="block truncate">Bitcoin Cash</span>
 
                             <span className="absolute inset-y-0 right-0 flex items-center pr-4 text-white">
@@ -354,15 +366,17 @@ export function WalletDeposit({ isFullScreen }: WalletDepositProps) {
                                     <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
                                 </svg>
                             </span>
-                        </li> */}
+                        </li>
 
-                    </ul>
+                    </ul>}
                 </div>
 
                 <input
                     className="w-full my-3 px-3 py-1 text-xl sm:text-2xl bg-cyan-200 border-2 border-cyan-400 rounded-md shadow"
                     type="number"
-                    v-model="depositAmount"
+                    value={depositAmount}
+                    onChange={handleChangeAsNumber}
+                    min="0"
                     placeholder="Enter a (USD) amount"
                 />
 
