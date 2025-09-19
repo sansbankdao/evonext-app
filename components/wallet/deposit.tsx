@@ -232,16 +232,16 @@ interface WalletDepositProps {
 
 export function WalletDeposit({ isFullScreen }: WalletDepositProps) {
     const { user } =  useAuth()
-    const [identity, setIdentity] = useState('')
+    // const [identity, setIdentity] = useState('')
 
-    useEffect(() => {
-        setIdentity('NewMoneyHoney69.dash')
-    }, [])
+    // useEffect(() => {
+    //     setIdentity('NewMoneyHoney69.dash')
+    // }, [])
 
     const Identity = {
         setAsset: (tokenid: string) => {},
-        abbr: 'NewMoneyHoney69.dash',
-        address: '34vkjdeUTP2z798SiXqoB6EAuobh51kXYURqVa9xkujf',
+        abbr: user?.dpnsUsername || '...`',
+        address: user?.identityId || '...',
     }
 
     const dataUrl = ''
@@ -253,31 +253,31 @@ export function WalletDeposit({ isFullScreen }: WalletDepositProps) {
     return (
         <main className="{props.isFullScreen === true ? 'grid lg:grid-cols-2 gap-8' : ''}">
             <Link href={Identity.address}>
-                <section className="w-full px-3 py-2 my-5 bg-sky-500 border-2 border-sky-700 rounded-lg shadow">
-                    <h2 className="text-lg sm:text-xl text-sky-700 font-medium text-center uppercase">
+                <section className="w-full px-3 py-2 my-5 bg-sky-100 border-2 border-sky-300 rounded-lg shadow">
+                    <h2 className="text-lg sm:text-xl text-sky-500 font-medium text-center uppercase">
                         Your Deposit Address
                     </h2>
 
                     <h3
-                        className="flex justify-center text-lg text-sky-900 font-medium truncate"
+                        className="w-full flex justify-center text-2xl text-sky-700 font-medium truncate tracking-tighter"
                     >
                         {Identity.abbr}
                     </h3>
 
                     <h3
-                        className="flex justify-center text-lg text-sky-900 font-medium truncate"
+                        className="w-full flex justify-center text-lg text-sky-700 font-medium truncate tracking-tighter"
                     >
                         {Identity.address}
                     </h3>
 
-                    <div className="flex justify-center">
+                    <div className="my-3 flex justify-center">
                         <QRCodeSVG
-                            value={identity}
-                            size={290}
+                            value={user?.identityId || ''}
+                            size={340}
                         />
                     </div>
 
-                    <p className="px-0 sm:px-5 text-sm text-sky-900 text-center">
+                    <p className="px-0 sm:px-5 max-w-sm mx-auto text-sm text-sky-900 text-center">
                         Scan the QR code shown above or click the image to open your preferred wallet.
                     </p>
                 </section>
@@ -306,7 +306,7 @@ export function WalletDeposit({ isFullScreen }: WalletDepositProps) {
                     </button>
 
                     <ul v-if="isShowingCurrencyOptions" className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm" id="options" role="listbox">
-                        <li className="relative cursor-default select-none py-2 pl-3 pr-9 text-gray-900" id="option-0" role="option">
+                        <li className="relative cursor-default select-none py-2 pl-3 pr-9 text-gray-900" id="option-0">
                             <span className="block truncate font-semobold">Dash</span>
 
                             <span className="absolute inset-y-0 right-0 flex items-center pr-4 text-sky-600">
@@ -316,10 +316,10 @@ export function WalletDeposit({ isFullScreen }: WalletDepositProps) {
                             </span>
                         </li>
 
-                        <li className="relative cursor-default select-none py-2 pl-3 pr-9 text-gray-900" id="option-0" role="option">
+                        <li className="relative cursor-default select-none py-2 pl-3 pr-9 text-gray-900" id="option-0">
                             <div className="flex items-center">
                                 <Image
-                                    src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
+                                    src="/icons/usdt.svg"
                                     alt=""
                                     className="h-6 w-6 flex-shrink-0 rounded-full"
                                     width={32}
@@ -336,7 +336,7 @@ export function WalletDeposit({ isFullScreen }: WalletDepositProps) {
                             </span>
                         </li>
 
-                        <li className="relative cursor-default select-none py-2 pl-3 pr-9 text-gray-900" id="option-0" role="option">
+                        {/* <li className="relative cursor-default select-none py-2 pl-3 pr-9 text-gray-900" id="option-0">
                             <span className="block truncate">Bitcoin</span>
 
                             <span className="absolute inset-y-0 right-0 flex items-center pr-4 text-white">
@@ -344,9 +344,9 @@ export function WalletDeposit({ isFullScreen }: WalletDepositProps) {
                                     <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd" />
                                 </svg>
                             </span>
-                        </li>
+                        </li> */}
 
-                        <li className="relative cursor-default select-none py-2 pl-3 pr-9 text-gray-900" id="option-0" role="option">
+                        {/* <li className="relative cursor-default select-none py-2 pl-3 pr-9 text-gray-900" id="option-0">
                             <span className="block truncate">Bitcoin Cash</span>
 
                             <span className="absolute inset-y-0 right-0 flex items-center pr-4 text-white">
@@ -354,7 +354,7 @@ export function WalletDeposit({ isFullScreen }: WalletDepositProps) {
                                     <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd" />
                                 </svg>
                             </span>
-                        </li>
+                        </li> */}
 
                     </ul>
                 </div>

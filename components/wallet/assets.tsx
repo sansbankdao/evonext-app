@@ -266,7 +266,7 @@ console.log('SANS BALANCE', sansBalance)
                         </span>
 
                         <span className="bg-gray-100 text-gray-900 ml-1 sm:ml-3 rounded-full py-0.5 px-2.5 text-xs font-medium">
-                            {collections?.length}
+                            {collections?.length || 0}
                         </span>
                     </button>
                 </nav>
