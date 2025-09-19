@@ -12,6 +12,8 @@ import toast from 'react-hot-toast'
 import { CheckCircle2, XCircle, Loader2, RefreshCw, X, Edit2 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
+import { dpns_is_contested_username } from '@/lib/dash-wasm/wasm_sdk'
+
 /* Initialize constants. */
 const MAX_USERNAME_LENGTH = 63 // Maximum length - 63 characters
 const NON_CONTESTED_REG_FEE = 1000000 // 0.1 DASH
@@ -249,24 +251,43 @@ console.log('USERNAME MODAL (identity)', identity)
     }
 
     const getStatusMessage = () => {
-        if (validationError) {
-            return <p className="text-sm text-red-600 mt-1">{validationError}</p>
-        }
+            if (validationError) {
+                return <p className="text-sm text-red-600 mt-1">
+                    {validationError}
+                </p>
+            }
 
-        if (isChecking) {
-            return <p className="text-sm text-gray-500 mt-1">Checking availability...</p>
-        }
+            if (isChecking) {
+                return <p className="text-sm text-gray-500 mt-1">
+                    Checking availability...
+                </p>
+            }
 
-        if (isAvailable === true) {
-            return <p className="text-sm text-green-600 mt-1">Username is available!</p>
-        }
+            if (isAvailable === true) {
+                /* Validate (contested) username. */
+                if (dpns_is_contested_username(username)) {
+                    return <p className="text-sm text-amber-600 mt-1">
+                        Username is available, <span className="font-bold uppercase">but contested!</span>
 
-        if (isAvailable === false) {
-            return <p className="text-sm text-red-600 mt-1">Username is already taken</p>
-        }
+                        <small className="mt-1 block text-xs text-rose-600">
+                            It&apos;s <span className="font-bold uppercase">HIGHLY</span> recommended to choose an uncontested username for your <span className="font-bold uppercase">1st Identity registration.</span>
+                        </small>
+                    </p>
+                } else {
+                    return <p className="text-sm text-green-600 mt-1">
+                        Username is <span className="font-bold uppercase">available!</span>
+                    </p>
+                }
+            }
 
-        return null
-    }
+            if (isAvailable === false) {
+                return <p className="text-sm text-red-600 mt-1">
+                    Username is already taken
+                </p>
+            }
+
+            return null
+        }
 
     const handleCheckExistingUsername = async () => {
         if (!currentIdentityId) return

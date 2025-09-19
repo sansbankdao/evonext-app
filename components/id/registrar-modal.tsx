@@ -20,7 +20,6 @@ import {
     registerIdentityAndUsername,
 } from '@/lib/registrar-manager'
 import { getPrivateKeys, getPublicKeys } from '@/lib/wallet-manager'
-
 import { dpns_is_contested_username } from '@/lib/dash-wasm/wasm_sdk'
 
 /* Initialize constants. */
