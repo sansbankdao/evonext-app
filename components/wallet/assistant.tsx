@@ -35,7 +35,7 @@ export function WalletAssistant({ isFullScreen }: WalletAssistantProps) {
     }
 
     return (
-        <main className="relative p-3 flex flex-col gap-4">
+        <main className="p-3 pb-20 flex flex-col gap-4">
             <h1 className="text-slate-800 text-4xl font-bold tracking-wider">
                 Platform Assistant
             </h1>

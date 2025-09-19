@@ -89,7 +89,7 @@ export function WalletHistory({ isFullScreen }: WalletHistoryProps) {
     }
 
     return (
-        <main className="flex flex-col gap-4 text-slate-200">
+        <main className="pb-20 flex flex-col gap-4 text-slate-200">
             <h2 className="text-xl font-medium">
                 Recent Transactions
             </h2>
