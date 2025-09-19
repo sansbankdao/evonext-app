@@ -272,7 +272,7 @@ console.log('SANS BALANCE', sansBalance)
                 </nav>
             </div>
 
-            {activeTab === 'assets' && <div className="px-1.5 flex flex-col gap-5">
+            {activeTab === 'assets' && <div className="flex flex-col gap-5">
                 {assets && assets.map((token) => (
                     <div
                         key={token.id}
