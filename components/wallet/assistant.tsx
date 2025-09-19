@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/auth-context'
 import { BoltIcon, UserIcon } from '@heroicons/react/24/outline'
 
@@ -17,13 +18,20 @@ export function WalletAssistant({ isFullScreen }: WalletAssistantProps) {
     const { user } =  useAuth()
     const [displayLog, setDisplayLog] = useState(null)
 
+    const router = useRouter()
+
     const search = async () => {
         console.log('START SEARCH')
     }
 
     const Identity = {
         setAsset: (tokenid: string) => {},
-        destroy: () => {},
+        destroy: async () => {
+            const { clearAllPrivateKeys } = await import('@/lib/secure-storage')
+            clearAllPrivateKeys()
+
+            router.push('/')
+        },
     }
 
     return (
@@ -51,7 +59,7 @@ export function WalletAssistant({ isFullScreen }: WalletAssistantProps) {
                 Make Request
             </button>
 
-            <button onClick={Identity.destroy} className="absolute top-5 right-5 w-fit px-5 py-3 text-2xl font-bold tracking-wider text-red-800 bg-red-200 border-2 border-red-400 rounded-xl shadow hover:bg-red-900 hover:text-red-200">
+            <button onClick={Identity.destroy} className="lg:absolute top-5 right-5 w-fit px-5 py-3 text-2xl font-bold tracking-wider text-red-800 bg-red-200 border-2 border-red-400 rounded-xl shadow hover:bg-red-900 hover:text-red-200">
                 SIGN-OUT OF EVONEXT
             </button>
         </main>
