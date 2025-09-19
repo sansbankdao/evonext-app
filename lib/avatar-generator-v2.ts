@@ -211,7 +211,7 @@ export function generateAvatarSVG(features: AvatarFeaturesV2): string {
             <path d="M 100 100 L ${95 - features.noseWidth} 110 L ${105 + features.noseWidth} 110 Z" fill="${mainColor}" opacity="0.8" />
 
             <!-- Mouth -->
-            <path d="M 80 130 Q 100 ${140 + features.lipFullness} 120 130" stroke="#d66" fill="none" stroke-width="2" />
+            <path d="M 80 130 Q 100 ${140 + features.lipFullness} 120 130" stroke="#d66" fill="none" strokeWidth="2" />
 
             <!-- Unique identifier pattern -->
             <rect x="10" y="180" width="180" height="10" fill="${mainColor}" opacity="0.3" />
