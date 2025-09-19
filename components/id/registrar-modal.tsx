@@ -16,8 +16,11 @@ import { QRCodeSVG } from 'qrcode.react'
 import {
     checkPendingStatus,
     getPaymentAddress,
+    getRegisteredKeys,
     registerIdentityAndUsername,
 } from '@/lib/registrar-manager'
+import { getPrivateKeys, getPublicKeys } from '@/lib/wallet-manager'
+
 import { dpns_is_contested_username } from '@/lib/dash-wasm/wasm_sdk'
 
 /* Initialize constants. */
@@ -40,7 +43,7 @@ export function RegistrarModal({
 }: RegistrarModalProps) {
     const router = useRouter()
 
-    const { user } = useAuth()
+    const { login, user } = useAuth()
     const { network } = useNetwork()
     const { isReady: isSdkReady, error: sdkError } = useSdk()
 
@@ -222,8 +225,40 @@ console.log('REGISTRATION RESULT', regResult)
                 } else {
                     alert(`Congratulations!\n\nYou're all set.\nEnjoy your NEW Identity!`)
 
-                    /* Redirect user to Profile page and STOP execution. */
-                    return router.push('/')
+                    /* Request public keys. */
+                    const publicKeys = getPublicKeys(currentNetwork)
+
+                    /* Request ALL (registered) public keys. */
+                    const regKeysResponse = await getRegisteredKeys(currentNetwork)
+console.log('CONNECT (regKeysResponse)', regKeysResponse)
+
+                    const identityId = regKeysResponse?.identityId
+console.log('CONNECT (identityId)', identityId)
+
+                    const regPubKeys = regKeysResponse?.regPubKeys
+console.log('CONNECT (regPubKeys)', regPubKeys)
+
+                    /* Validate Identity ID and public keys. */
+                    if (identityId && regPubKeys) {
+                        const signingPublicKey = regPubKeys.find((_pubkey: any) => {
+                            return _pubkey.purpose === 0 && (_pubkey.securityLevel === 1 || _pubkey.securityLevel === 2)
+                        })
+console.log('CONNECT (signingPublicKey)', signingPublicKey)
+
+                        const signingPrivateKey = publicKeys.find(_pubkey => {
+                            return _pubkey.id === signingPublicKey.id
+                        })
+console.log('CONNECT (signingPrivateKey)', signingPrivateKey)
+
+                        /* Set seed private key (WIF). */
+                        const seedPrivateKey = signingPrivateKey!.privateKeyWif
+console.log('CONNECT (seedPrivateKey WIF)', seedPrivateKey)
+
+                        await login(identityId, seedPrivateKey)
+                        // Navigation handled by auth context
+                    } else {
+                        alert(`Oops! Auto-login failed. Please login manually to continue.`)
+                    }
                 }
             }
 
