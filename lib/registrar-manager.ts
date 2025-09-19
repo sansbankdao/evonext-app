@@ -274,15 +274,17 @@ console.log('WASM REGISTRATION RESULT', result)
         const actualPrivateKey = privateKeys.authCritical.private_key_wif
 
         /* Set (safe) username. */
-        const username = dpns_convert_to_homograph_safe(_username)
+        // NOTE DO NOT USE homograph username here
+        // TODO Apply any relevant safety checks
+        const username = _username
 
         /* Request username registration. */
         const usernameResult = await dpns_register_name(
             sdk,
-            username,
-            creationIdentity,       // Use the identity ID from authentication
-            keyId,            // Use the determined key ID
-            actualPrivateKey, // Use the actual private key (without :keyId suffix)
+            _username,
+            creationIdentity,   // Use the identity ID from authentication
+            keyId,              // Use the determined key ID
+            actualPrivateKey,   // Use the actual private key (without :keyId suffix)
             // Callback for preorder success
             (preorderInfo: any) => {
 console.log('PRE-ORDER SUCCESSFUL', preorderInfo)
