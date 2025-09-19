@@ -24,7 +24,8 @@ import { dpns_is_contested_username } from '@/lib/dash-wasm/wasm_sdk'
 const MAX_USERNAME_LENGTH = 63 // Maximum length - 63 characters
 const NON_CONTESTED_REG_FEE = 0.1 // BIP-21 requires DASH values (not duff)
 const CONTESTED_REG_FEE = 0.3 // BIP-21 requires DASH values (not duff)
-const PAYMENT_CHECK_INTERVAL = 5000
+const PAYMENT_DETECTION_INTERVAL = 5000
+const PAYMENT_DETECTION_CYCLES = 180 // 15 minutes
 
 interface RegistrarModalProps {
     isOpen: boolean
@@ -186,10 +187,10 @@ console.log('REGISTRAR (currentNetwork)', currentNetwork)
 
         /* Initialize payment monitoring handler. */
         let attemptsCounter = 0
-return
+// return
         /* Manage payment detection. */
         const paymentDetectionHandler = setInterval(async () => {
-console.log('WAITING (up to 10 minutes) FOR PAYMENT...')
+console.log('WAITING (up to 15 minutes) FOR PAYMENT...')
 
             /* Request pending registration. */
             const response = await checkPendingStatus(currentNetwork)
@@ -220,21 +221,24 @@ console.log('REGISTRATION RESULT', regResult)
                     alert(`Oops! Something went wrong, but NO worries. Please contact support (AKA Shomari) for assistance.`)
                 } else {
                     alert(`Congratulations!\n\nYou're all set.\nEnjoy your NEW Identity!`)
+
+                    /* Redirect user to Profile page and STOP execution. */
+                    return router.push('/')
                 }
             }
 
             // NOTE: WAIT UP TO 10 MINUTES FOR DEPOSIT
-            if (++attemptsCounter === 120) {
+            if (++attemptsCounter === PAYMENT_DETECTION_CYCLES) {
                 /* Stop the timer/interval. */
                 clearTimeout(paymentDetectionHandler)
-console.log('TIMER STOPPED (after 10 minutes)')
+console.log('TIMER STOPPED (after 15 minutes)')
 
                 /* Set submission flag. */
                 setIsSubmitting(false)
 
                 alert(`Your payment has EXPIRED! Please REFRESH and try again...`)
             }
-        }, PAYMENT_CHECK_INTERVAL)
+        }, PAYMENT_DETECTION_INTERVAL)
     }
 
     const getStatusIcon = () => {

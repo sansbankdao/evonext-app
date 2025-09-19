@@ -80,8 +80,14 @@ export default function LoginPage() {
         const publicKeys = getPublicKeys(currentNetwork)
 
         /* Request ALL (registered) public keys. */
-        const regPubKeys = await getRegisteredKeys(currentNetwork)
-console.log('CONNECT (registered public keys)', regPubKeys)
+        const regKeysResponse = await getRegisteredKeys(currentNetwork)
+console.log('CONNECT (regKeysResponse)', regKeysResponse)
+
+        const identityId = regKeysResponse?.identityId
+console.log('CONNECT (identityId)', identityId)
+
+        const regPubKeys = regKeysResponse?.regPubKeys
+console.log('CONNECT (regPubKeys)', regPubKeys)
 
         /* Validate Identity ID and public keys. */
         if (identityId && regPubKeys) {
@@ -147,7 +153,7 @@ console.log('REGISTRATION RESULT', regResult)
 
 
                     /* Redirect user to Profile page and STOP execution. */
-                    return router.push('/profile')
+                    return router.push('/')
                 } else {
                     /* User has rejected the request to RESUME registration. */
                     //NOTE: WE DO NOT WANT TO CONTINUE THRU THE STANDARD PROCESS

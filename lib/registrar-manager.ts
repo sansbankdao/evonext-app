@@ -82,8 +82,11 @@ console.log('REGISTRATION SEARCH (regPubKeys)', regPubKeys)
         return null
     }
 
-    /* Return (registered) public keys. */
-    return regPubKeys
+    /* Return (registered) Identity + public keys. */
+    return {
+        identityId,
+        regPubKeys,
+    }
 }
 
 export const getPaymentAddress = async (
@@ -165,6 +168,7 @@ export const checkPendingStatus = async (_network: string) => {
     /* Initialize locals. */
     let username
     let proof
+    let orderStatus
     let wif
 
     /* Request private keys. */
@@ -198,6 +202,15 @@ console.log('ORDER STATUS CHECK', status)
         status.results[0].proof !== null &&
         status.results[0].wif !== null
     ) {
+        /* Set status. */
+        orderStatus = status.results[0].status
+console.log('ORDER STATUS', orderStatus)
+
+        /* Validate order status (is NOT complete). */
+        if (orderStatus === 3) {
+            return null
+        }
+
         /* Set username. */
         username = status.results[0].username
 console.log('USERNAME', username)
