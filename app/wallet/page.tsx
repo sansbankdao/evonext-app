@@ -29,7 +29,7 @@ import { WalletHistory } from '@/components/wallet/history'
 import { WalletSend } from '@/components/wallet/send'
 
 /* Initialize constants. */
-const DASH_USD_VALUE = 25.0
+const DASH_USD_VALUE = 24 // FIXME PULL FROM MARKET APIA
 
 export default function WalletPage() {
     const { user } = useAuth()
@@ -92,6 +92,15 @@ console.log('USER', user)
 
                 setDisplayBalanceUsd(balanceUsd)
             }
+
+            setTokens([
+                {
+                    id: 'DUSD',
+                },
+                {
+                    id: 'SANS',
+                },
+            ])
         }
 
         /* Fetch (async) data. */
@@ -142,12 +151,13 @@ console.log('USER', user)
                                     Tokens
                                 </h3>
 
-                                <h2 v-if="tokens" className="text-base text-gray-600 font-medium">
-                                    {tokensBalanceUsd} <small className="text-sky-400">x{Object.keys(tokens).length}</small>
-                                </h2>
-                                <h2 v-else className="text-base text-gray-600 font-medium">
+                                {tokens && <h2 className="text-base text-gray-600 font-medium">
+                                    {/* {tokensBalanceUsd}  */}
+                                    <small className="text-sky-400">x{Object.keys(tokens).length}</small>
+                                </h2>}
+                                {!tokens && <h2 className="text-base text-gray-600 font-medium">
                                     none
-                                </h2>
+                                </h2>}
                             </div>
 
                             <div>
