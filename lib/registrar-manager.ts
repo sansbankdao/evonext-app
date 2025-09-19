@@ -2,7 +2,6 @@
 import { getPrivateKeys, getPublicKeys } from './wallet-manager'
 import { wasmSdkService } from '@/lib/services/wasm-sdk-service'
 import {
-    dpns_convert_to_homograph_safe,
     dpns_is_contested_username,
     dpns_register_name,
     get_identity_by_public_key_hash,

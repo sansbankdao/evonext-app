@@ -24,6 +24,12 @@ export default function DPNSRegisterPage() {
         // router.push('/profile/create')
     }
 
+    const registerUsername = async (_identityId: string) => {
+        // Import and use the username modal store
+        const { useUsernameModal } = await import('@/hooks/use-username-modal')
+        useUsernameModal.getState().open(_identityId)
+    }
+
     // If not authenticated, show login prompt
     if (!user) {
         return (
@@ -64,15 +70,19 @@ export default function DPNSRegisterPage() {
 
     // If user already has a DPNS username, redirect
     if (user.dpnsUsername) {
-        router.push('/')
+        // router.push('/')
 
         return (
-            <div className="min-h-screen bg-gray-50 dark:bg-black flex items-center justify-center">
+            <div className="min-h-screen bg-gray-50 dark:bg-black flex flex-col gap-6 items-center justify-center">
                 <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg p-8 max-w-md w-full">
                     <p className="text-gray-600 dark:text-gray-400">
                         You already have a DPNS username: {user.dpnsUsername}
                     </p>
                 </div>
+
+                <button onClick={() => registerUsername(user.identityId)}>
+                    Register another username
+                </button>
             </div>
         )
     }
