@@ -9,6 +9,19 @@ export interface IApp {
     postId: string;
 }
 
+export interface IAppState {
+    currentUser: IUser | null;
+    theme: 'light' | 'dark';
+    isComposeOpen: boolean;
+    replyingTo: IPost | null;
+
+    setCurrentUser: (user: IUser | null) => void;
+    setTheme: (theme: 'light' | 'dark') => void;
+    toggleTheme: () => void;
+    setComposeOpen: (open: boolean) => void;
+    setReplyingTo: (post: IPost | null) => void;
+}
+
 export interface IComment {
     id: string;
     author: IUser;
@@ -17,6 +30,10 @@ export interface IComment {
     likes: number;
     liked?: boolean;
     postId: string;
+}
+
+export interface ICurrency {
+    USD: any;
 }
 
 export interface IMedia {
@@ -55,10 +72,32 @@ export interface IPost {
     quotedPost?: IPost;
 }
 
+export interface IToken {
+    id: string;
+    name: string;
+    ticker: string;
+    token_id_hex: string;
+    iconUrl: string;
+    duffs?: bigint;
+    amount?: bigint;
+    decimal_places: number;
+    fiat: ICurrency;
+}
+
 export interface ITrend {
     topic: string;
     posts: number;
     category?: string;
+}
+
+export interface ITxError {
+    code: number;
+    message: string;
+    suggestions?: [string];
+}
+
+export interface ITxSuccess {
+    txid: string;
 }
 
 export interface IUser {
@@ -75,34 +114,4 @@ export interface IUser {
     verified?: boolean;
     joinedAt: Date;
     revision: number;
-}
-
-
-// -----------------------------------------------------------------------------
-
-
-export interface ICurrency {
-    USD: any;
-}
-
-export interface IToken {
-    id: string;
-    name: string;
-    ticker: string;
-    token_id_hex: string;
-    iconUrl: string;
-    duffs?: bigint;
-    amount?: bigint;
-    decimal_places: number;
-    fiat: ICurrency;
-}
-
-export interface ITxError {
-    code: number;
-    message: string;
-    suggestions?: [string];
-}
-
-export interface ITxSuccess {
-    txid: string;
 }

@@ -1,25 +1,12 @@
 /* Import modules. */
 import { create } from 'zustand'
-import { User, Post, Comment } from './types'
+import { IAppState } from './types'
 import { generateAvatarV2, encodeAvatarFeaturesV2 } from './avatar-generator-v2'
-
-interface AppState {
-    currentUser: User | null
-    theme: 'light' | 'dark'
-    isComposeOpen: boolean
-    replyingTo: Post | null
-
-    setCurrentUser: (user: User | null) => void
-    setTheme: (theme: 'light' | 'dark') => void
-    toggleTheme: () => void
-    setComposeOpen: (open: boolean) => void
-    setReplyingTo: (post: Post | null) => void
-}
 
 const currentUserAvatarFeatures = generateAvatarV2('londynnlee')
 const currentUserAvatarData = encodeAvatarFeaturesV2(currentUserAvatarFeatures)
 
-export const useAppStore = create<AppState>((set) => ({
+export const useAppStore = create<IAppState>((set) => ({
     currentUser: {
         id: '1',
         docID: 'abc',
