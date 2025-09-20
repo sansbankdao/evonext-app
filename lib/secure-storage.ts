@@ -178,12 +178,12 @@ export const clearMnemonic = (): boolean => {
     return secureStorage.delete('mnemonic')
 }
 
-export const storeIdentityIdx = (mnemonic: string) => {
-    secureStorage.set('identity_idx', mnemonic)
+export const storeIdentityIdx = (_idx: number) => {
+    secureStorage.set('identity_idx', _idx)
 }
 
-export const getIdentityIdx = (): string | null => {
-    return secureStorage.get('identity_idx') || null
+export const getIdentityIdx = (): number => {
+    return Number(secureStorage.get('identity_idx')) || 0
 }
 
 export const clearIdentityIdx = (): boolean => {
