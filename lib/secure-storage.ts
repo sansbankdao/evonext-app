@@ -137,7 +137,10 @@ if (typeof window !== 'undefined') {
 
 export default secureStorage
 
-// Helper functions for common use cases
+// *****************************************************************************
+// PRIVATE KEY MANAGEMENT
+// (enables Dash Evolution Tool support)
+// *****************************************************************************
 export const storePrivateKey = (
     identityId: string,
     privateKey: string,
@@ -166,6 +169,9 @@ export const clearAllPrivateKeys = (): void => {
     clearMnemonic()
 }
 
+// *****************************************************************************
+// MNEMONIC MANAGEMENT
+// *****************************************************************************
 export const storeMnemonic = (mnemonic: string) => {
     secureStorage.set('mnemonic', mnemonic)
 }
@@ -178,6 +184,9 @@ export const clearMnemonic = (): boolean => {
     return secureStorage.delete('mnemonic')
 }
 
+// *****************************************************************************
+// IDENTITY INDEX MANAGEMENT
+// *****************************************************************************
 export const storeIdentityIdx = (_idx: number) => {
     secureStorage.set('identity_idx', _idx)
 }
@@ -188,4 +197,19 @@ export const getIdentityIdx = (): number => {
 
 export const clearIdentityIdx = (): boolean => {
     return secureStorage.delete('identity_idx')
+}
+
+// *****************************************************************************
+// ASSET MANAGEMENT
+// *****************************************************************************
+export const storeAssetId = (assetid: string) => {
+    secureStorage.set('assetid', assetid)
+}
+
+export const getAssetId = (): string => {
+    return secureStorage.get('assetid') || '0'
+}
+
+export const clearAssetId = (): boolean => {
+    return secureStorage.delete('assetid')
 }
