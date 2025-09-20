@@ -96,8 +96,8 @@ export function WalletHistory({ isFullScreen }: WalletHistoryProps) {
 
             {txs.map((tx) => (
                 <Link
-                    key="tx.txid"
-                    href={`https://nexa.sh/tx/${tx.txid}`}
+                    key={tx.txid}
+                    href={`https://explorer.dash.org/tx/${tx.txid}`}
                     target="_blank"
                     className="px-2 p-1 bg-sky-50 border border-sky-300 rounded-md shadow hover:bg-sky-100"
                 >
@@ -130,19 +130,15 @@ export function WalletHistory({ isFullScreen }: WalletHistoryProps) {
                                     <span className="font-medium">{input.outpoint}</span>
                                 </h3>
 
-                                <Link
-                                    href={`https://explorer.nexa.org/address/${input.address}`}
-                                    target="_blank"
-                                    className="text-xs text-sky-600 truncate hover:text-sky-500"
-                                >
+                                <h3>
                                     Address:
                                     <span className="font-medium">{input.address}</span>
-                                </Link>
+                                </h3>
 
-                                <h3 v-if="input.satoshis" className="text-xs text-sky-800 truncate">
+                                {input.satoshis && <h3 className="text-xs text-sky-800 truncate">
                                     Satoshis:
                                     <span className="font-medium">{numeral(Number(input.satoshis)).format('0,0')}</span>
-                                </h3>
+                                </h3>}
                                 {/* <!-- {{input}} --> */}
                             </div>
                         ))}
