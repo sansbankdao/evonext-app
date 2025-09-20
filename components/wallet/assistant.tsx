@@ -36,23 +36,28 @@ export function WalletAssistant({ isFullScreen }: WalletAssistantProps) {
 
     return (
         <main className="p-3 pb-32 flex flex-col gap-4">
-            <h1 className="text-slate-800 text-4xl font-bold tracking-wider">
+            <h1 className="text-slate-600 text-4xl font-bold tracking-wider">
                 Platform Assistant
             </h1>
 
-            <p className="text-xl xl:text-2xl text-zinc-300 text-pretty">
+            <p className="text-xl xl:text-2xl text-zinc-500 text-pretty">
                 A collection of useful tools for everyday use.
             </p>
 
-            <ul>
-                <li>Search for Platform users</li>
-                <li>Purchase gift cards instantly</li>
+            <ul className="-mt-3 pl-10 list-disc text-slate-600 text-sm">
+                <li>
+                    Search for Platform users
+                </li>
+
+                <li>
+                    Purchase gift cards instantly
+                </li>
             </ul>
 
             <textarea
                 // v-model="query"
                 placeholder="What can I help you with today?"
-                className="w-full max-w-2xl px-5 py-3 text-xl text-slate-900 bg-sky-50 border rounded-xl shadow"
+                className="w-full max-w-2xl px-5 py-3 text-xl text-slate-900 bg-sky-50 border border-sky-200 rounded-xl shadow"
             />
 
             <button onClick={search} className="w-full sm:w-fit px-5 py-2 text-2xl font-bold tracking-wider text-sky-800 bg-sky-200 border-2 border-sky-400 rounded-xl shadow hover:bg-sky-900 hover:text-sky-200">
