@@ -3,13 +3,13 @@ import { GasFeesPaidByWASM, PrivateKeyWASM } from 'pshenmic-dpp'
 
 export interface IApp {
     id: string;
+    creatorId: IUser;
+    canvasId: string;
     type: 'blog' | 'game' | null | undefined;
     engine: 'p5' | 'phaser' | 'godot' | null | undefined;
-    creator: IUser;
     content: string;
-    createdAt: Date;
     likes: number;
-    postId: string;
+    createdAt: Date;
 }
 
 export interface IAppState {
@@ -37,6 +37,11 @@ export interface IComment {
 
 export interface ICurrency {
     USD: any;
+}
+
+export interface IIdentity {
+    id: string;
+    publicKeys: [IPublicKey];
 }
 
 export interface IMedia {
@@ -73,6 +78,29 @@ export interface IPost {
     media?: IMedia[];
     replyTo?: IPost;
     quotedPost?: IPost;
+}
+
+export interface IPrivateKey {
+    id: number;
+    type?: number;
+    keyType?: string;       // enumeration
+    purpose: string;
+    securityLevel: string;
+    privateKeyHex: string;
+    privateKeyWif: string;
+    readOnly: boolean;
+}
+
+export interface IPublicKey {
+    id: number;
+    type?: number;
+    keyType?: string;       // enumeration
+    purpose: string;
+    securityLevel: string;
+    contractBounds: any;    // FIXME What is the type??
+    data: string;
+    readOnly: boolean;
+    disabledAt: boolean;
 }
 
 export interface IToken {

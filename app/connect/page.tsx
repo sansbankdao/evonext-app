@@ -7,9 +7,9 @@ import { Button } from '@/components/ui/button'
 import { RegistrarModal } from '@/components/id/registrar-modal'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
+import { getIdentities } from '@/lib/identity-manager'
 import {
     checkPendingStatus,
-    getRegisteredKeys,
     registerIdentityAndUsername,
 } from '@/lib/registrar-manager'
 import { getPrivateKeys, getPublicKeys } from '@/lib/wallet-manager'
@@ -82,14 +82,14 @@ export default function LoginPage() {
         /* Request public keys. */
         const publicKeys = getPublicKeys(currentNetwork, identityIdx)
 
-        /* Request ALL (registered) public keys. */
-        const regKeysResponse = await getRegisteredKeys(currentNetwork, identityIdx)
-console.log('CONNECT (regKeysResponse)', regKeysResponse)
+        /* Request ALL (registered) Identities. */
+        const regIdentities = await getIdentities(currentNetwork)
+console.log('CONNECT (regIdentities)', regIdentities)
 
-        const identityId = regKeysResponse?.identityId
+        const identityId = regIdentities![0].id
 console.log('CONNECT (identityId)', identityId)
 
-        const regPubKeys = regKeysResponse?.regPubKeys
+        const regPubKeys = regIdentities![0].publicKeys
 console.log('CONNECT (regPubKeys)', regPubKeys)
 
         /* Validate Identity ID and public keys. */
@@ -100,7 +100,7 @@ console.log('CONNECT (regPubKeys)', regPubKeys)
 console.log('CONNECT (signingPublicKey)', signingPublicKey)
 
             const signingPrivateKey = publicKeys.find(_pubkey => {
-                return _pubkey.id === signingPublicKey.id
+                return _pubkey.id === signingPublicKey!.id
             })
 console.log('CONNECT (signingPrivateKey)', signingPrivateKey)
 
