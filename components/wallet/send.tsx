@@ -6,9 +6,13 @@ import { useAuth } from '@/contexts/auth-context'
 import { useNetwork } from '@/contexts/network-context'
 import { BoltIcon, UserIcon } from '@heroicons/react/24/outline'
 
+import { getIdentityIdx } from '@/lib/secure-storage'
+
 import {
     DASH_DECIMALS,
     DASH_USD_VALUE,
+
+    DEFAULT_ASSET,
 
     DUSD_CONTRACT_ID_MAINNET,
     DUSD_CONTRACT_ID_TESTNET,
@@ -20,29 +24,23 @@ import {
     SANS_DECIMALS,
     SANS_USD_VALUE,
 } from '@/lib/constants'
-import {
-    getAsset,
-    getMnemonic,
-} from '@/lib/secure-storage'
-import { sendCredit } from '@/lib/wallet-manager'
+import { getAsset, getMnemonic } from '@/lib/secure-storage'
+import { IToken } from '@/lib/types'
+import { sendCredit, sendToken } from '@/lib/wallet-manager'
 
 import moment from 'moment'
 // @ts-ignore
 import numeral from 'numeral'
 
-interface Token {
-    id: string;
-}
-
-interface WalletSendProps {
+interface IWalletSendProps {
     isFullScreen: boolean;
 }
 
-export function WalletSend({ isFullScreen }: WalletSendProps) {
+export function WalletSend({ isFullScreen }: IWalletSendProps) {
     const { user } =  useAuth()
     const { network } =  useNetwork()
 
-    const [mnemonic, setMnemonic] = useState<string | undefined>()
+    const [asset, setAsset] = useState<IToken>(DEFAULT_ASSET)
     const [identityFirstUse, setIdentityFirstUse] = useState('')
     const [txid, setTxid] = useState<string | undefined>()
     const [errorMsgs, setErrorMsgs] = useState()
@@ -52,46 +50,20 @@ export function WalletSend({ isFullScreen }: WalletSendProps) {
     const [amount, setAmount] = useState<number>(0)
 
     useEffect(() => {
-        /* Request mnemonic. */
-        const mnemonic = getMnemonic()
-
-        /* Handle mnemonic. */
-        if (typeof mnemonic !== 'undefined' && mnemonic !== null) {
-            /* Set mnemonic. */
-            setMnemonic(mnemonic)
-        }
-    }, [mnemonic])
-
-// FIXME REMOVE THIS -- NOT USED HERE
-    const consolidate = () => {
-        console.log('BEGIN CONSOLIDATION')
-    }
-
-// FIXME REMOVE THIS -- NOT USED HERE
-    const consolidation = {
-        coins: '',
-        tokens: '',
-    }
+        /* Request asset. */
+        setAsset(getAsset())
+    }, [asset])
 
     const openScanner = () => {
         console.log('OPEN SCANNER')
     }
 
-    const Identity = {
-        setAsset: (tokenid: string) => {},
-        abbr: 'Asset Abbr',
-        id: 'Asset ID',
-        asset: {
-            ticker: 'USD'
-        }
-    }
-
-    const identityBalance = {
+    const reciverBalance = {
         confirmed: 0,
         unconfirmed: 0,
     }
 
-    const firstTx = {
+    const receiverFirstTx = {
         blocktime: 1234567890,
     }
 
@@ -106,12 +78,12 @@ export function WalletSend({ isFullScreen }: WalletSendProps) {
 
         /* Validate receiver. */
         if (typeof receiver === null) {
-            return alert('Enter a destination Identity.')
+            return alert('Please enter an IDENTITY ADDRESS.')
         }
 
         /* Validate duffs. */
         if (amount === null) {
-            return alert('Enter an amount to send.')
+            return alert('Please enter an AMOUNT to send.')
         }
 
         /* Request (active) asset. */
@@ -121,20 +93,20 @@ export function WalletSend({ isFullScreen }: WalletSendProps) {
         case DUSD_CONTRACT_ID_MAINNET:
         case DUSD_CONTRACT_ID_TESTNET:
             /* Calculate DASH value. */
-            assetValue = amount * (10 ** DUSD_DECIMALS)
+            assetValue = BigInt(amount * (10 ** DUSD_DECIMALS))
 
             /* Calculate USD value. */
             assetUsdValue = amount * DUSD_USD_VALUE
         case SANS_CONTRACT_ID_MAINNET:
         case SANS_CONTRACT_ID_TESTNET:
             /* Calculate DASH value. */
-            assetValue = amount * (10 ** SANS_DECIMALS)
+            assetValue = BigInt(amount * (10 ** SANS_DECIMALS))
 
             /* Calculate USD value. */
             assetUsdValue = amount * SANS_USD_VALUE
         default:
             /* Calculate DASH value. */
-            assetValue = amount * (10 ** DASH_DECIMALS)
+            assetValue = BigInt(amount * (10 ** DASH_DECIMALS))
 
             /* Calculate USD value. */
             assetUsdValue = amount * DASH_USD_VALUE
@@ -144,10 +116,32 @@ export function WalletSend({ isFullScreen }: WalletSendProps) {
         if (confirm(`Are you sure you want to send ${numeral(assetValue).format('0,0.00')} ${asset.ticker} (valued @ ${assetUsdValue} USD) to ${receiver}?`)) {
             console.log(`Starting transfer of ${numeral(assetValue).format('0,0.00')} ${asset.ticker} to ${receiver}...`)
 
-            /* Request a credit transfer. */
-            response = await sendCredit(receiver, assetValue)
-                .catch(err => console.error(err))
-console.log('SEND (response)', response)
+            /* Request Identity index. */
+            const identityIdx = getIdentityIdx()
+
+            /* Validate asset. */
+            if (asset.id === '0') {
+                /* Request a credit transfer. */
+                response = await sendCredit(
+                    network!,
+                    user!.identityId,
+                    identityIdx,
+                    receiver,
+                    assetValue
+                ).catch(err => console.error(err))
+console.log('SEND (CREDIT response)', response)
+            } else {
+                /* Request a credit transfer. */
+                response = await sendToken(
+                    network!,
+                    user!.identityId,
+                    identityIdx,
+                    asset.id,
+                    receiver,
+                    assetValue
+                ).catch(err => console.error(err))
+console.log('SEND (TOKEN response)', response)
+            }
         }
     }
 
@@ -163,9 +157,9 @@ console.log('SEND (response)', response)
     // const txidem = ref(null)
     // const errorMsgs = ref(null)
 
-    // const identityBalance = ref(null)
+    // const reciverBalance = ref(null)
     // const identityFirstUse = ref(null)
-    // const firstTx = ref(null)
+    // const receiverFirstTx = ref(null)
     // const consolidation = ref(null)
 
     // const video = ref(null)
@@ -352,17 +346,17 @@ console.log('SEND (response)', response)
     //     /* Clear errors. */
     //     clearErrors()
 
-    //     identityBalance.value = await getIdentityBalance(receiver.value)
+    //     reciverBalance.value = await getIdentityBalance(receiver.value)
     //         .catch(err => console.error(err))
-    //     // console.log('ADDRESS BALANCE', identityBalance.value)
+    //     // console.log('ADDRESS BALANCE', reciverBalance.value)
 
     //     identityFirstUse.value = await getIdentityFirstUse(receiver.value)
     //         .catch(err => console.error(err))
     //     // console.log('ADDRESS FIRST USE', identityFirstUse.value)
 
-    //     firstTx.value = await getTransaction(identityFirstUse.value.tx_hash)
+    //     receiverFirstTx.value = await getTransaction(identityFirstUse.value.tx_hash)
     //         .catch(err => console.error(err))
-    //     // console.log('FIRST TX', firstTx.value)
+    //     // console.log('FIRST TX', receiverFirstTx.value)
     // }
 
     // const clearErrors = () => {
@@ -409,7 +403,7 @@ console.log('SEND (response)', response)
                         type="number"
                         value={amount}
                         onChange={(e) => setAmount(Number(e.target.value))}
-                        placeholder={`Enter a (${Identity.asset?.ticker}) amount`}
+                        placeholder={`Enter a (${asset.ticker}) amount`}
                     />
 
                     {/* <!-- <h4 v-if="satoshis > 0" className="mt-1 ml-3 text-sm text-gray-500 font-medium">
@@ -421,7 +415,7 @@ console.log('SEND (response)', response)
                     onClick={send}
                     className="w-fit cursor-pointer my-5 block px-5 py-2 text-2xl font-medium bg-blue-200 border-2 border-blue-400 rounded-md shadow hover:bg-blue-300"
                 >
-                    Send {Identity.asset?.ticker}
+                    Send {asset.ticker}
                 </button>
 
                 {txid && <section className="my-10">
@@ -465,17 +459,17 @@ console.log('SEND (response)', response)
                 </section>}
 
                 <div className="flex flex-col gap-6 text-slate-700">
-                    {identityBalance && <section>
+                    {reciverBalance && <section>
                         <h2 className="text-xl font-medium tracking-widest">
                             Identity Balance
                         </h2>
 
                         <h3>
-                            Confirmed: {identityBalance?.confirmed}
+                            Confirmed: {reciverBalance?.confirmed}
                         </h3>
 
                         <h3>
-                            Unconfirmed: {identityBalance?.unconfirmed}
+                            Unconfirmed: {reciverBalance?.unconfirmed}
                         </h3>
                     </section>}
 
@@ -487,20 +481,20 @@ console.log('SEND (response)', response)
                         <pre>{identityFirstUse}</pre>
                     </section> --> */}
 
-                    {firstTx?.blocktime && <section>
+                    {receiverFirstTx?.blocktime && <section>
                         <h2 className="text-xl font-medium tracking-widest">
                             First Transaction
                         </h2>
 
                         <h3>
-                            Block Time: {firstTx.blocktime}
+                            Block Time: {receiverFirstTx.blocktime}
                             <span className="block text-rose-500 font-bold">
-                                {moment.unix(firstTx.blocktime).format('llll')}
-                                <span className="italic text-rose-400">{moment.unix(firstTx.blocktime).fromNow()}</span>
+                                {moment.unix(receiverFirstTx.blocktime).format('llll')}
+                                <span className="italic text-rose-400">{moment.unix(receiverFirstTx.blocktime).fromNow()}</span>
                             </span>
                         </h3>
 
-                        {/* <!-- <pre>{firstTx}</pre> --> */}
+                        {/* <!-- <pre>{receiverFirstTx}</pre> --> */}
                     </section>}
                 </div>
             </div>

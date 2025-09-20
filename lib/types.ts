@@ -1,3 +1,6 @@
+/* Import types. */
+import { GasFeesPaidByWASM, PrivateKeyWASM } from 'pshenmic-dpp'
+
 export interface IApp {
     id: string;
     type: 'blog' | 'game' | null | undefined;
@@ -82,6 +85,13 @@ export interface IToken {
     amount?: bigint;
     decimal_places: number;
     fiat: ICurrency;
+}
+
+export interface ITokenPaymentInfo {
+    tokenContractId: string;
+    tokenContractPosition: number;
+    maximumTokenCost: bigint;
+    gasFeesPaidBy: GasFeesPaidByWASM;
 }
 
 export interface ITrend {

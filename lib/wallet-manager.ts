@@ -1,19 +1,26 @@
 /* Import modules. */
-// @ts-ignore
-import numeral from 'numeral'
-
 import { DashPlatformSDK } from 'dash-platform-sdk'
 import { GasFeesPaidByWASM, PrivateKeyWASM } from 'pshenmic-dpp'
-import { wasmSdkService } from '@/lib/services'
 
+import { wasmSdkService } from './services'
+import {
+    WasmSdkBuilder,
+
+    derive_key_from_seed_with_path,
+    get_identities_token_balances_with_proof_info,
+} from './dash-wasm/wasm_sdk'
 import { getMnemonic } from './secure-storage'
-import { derive_key_from_seed_with_path } from './dash-wasm/wasm_sdk'
-
-/* Set constants. */
-const DASH_USD_VALUE = 24 // FIXME PULL FROM MARKET API
+import {
+    ITxError,
+    ITxSuccess,
+    ITokenPaymentInfo,
+} from './types'
 
 /* Get Private Keys. */
-export const getPrivateKeys = (_currentNetwork: string, _identityIdx: number) => {
+export const getPrivateKeys = (
+    _currentNetwork: string,
+    _identityIdx: number,
+) => {
     /* Request mnemonic. */
     const mnemonic = getMnemonic()
 
@@ -55,7 +62,10 @@ export const getPrivateKeys = (_currentNetwork: string, _identityIdx: number) =>
 }
 
 /* Get Public Keys. */
-export const getPublicKeys = (_currentNetwork: string, _identityIdx: number) => {
+export const getPublicKeys = (
+    _currentNetwork: string,
+    _identityIdx: number,
+) => {
     /* Request private keys. */
     const keys = getPrivateKeys(_currentNetwork, _identityIdx)
 
@@ -112,7 +122,10 @@ export const getPublicKeys = (_currentNetwork: string, _identityIdx: number) => 
     return publicKeys
 }
 
-export const getTransferKey = (_currentNetwork: string, _identityIdx: number) => {
+export const getTransferKey = (
+    _currentNetwork: string,
+    _identityIdx: number,
+) => {
     /* Request private keys. */
     const keys = getPrivateKeys(_currentNetwork, _identityIdx)
 
@@ -140,80 +153,233 @@ const seedPrivateKey = signingPrivateKey!.privateKeyWif
     return keys.transferKey
 }
 
-export const sendCredit = async (_receiver: string, _duffs: number) => {
-    /* Initialize locals. */
-    let error
-    let response
-
+export const getTokenBalance = async (
+    identityIds: [string],
+    _tokenId: string,
+): Promise<bigint> => {
     /* Initialize SDK. */
     const sdk = await wasmSdkService.getSdk()
 
+    /* Request TOKEN balance. */
+    const response = await get_identities_token_balances_with_proof_info(
+        sdk, identityIds, _tokenId)
+console.log('getTokenBalance (response)', response)
+
+    /* Validate response. */
+    if (typeof response !== 'undefined' && response !== null && response.data.length > 0) {
+        /* Set TOKEN balance. */
+        const balance = BigInt(response.data[0].balance)
+console.log('getTokenBalance (balance)', balance)
+
+        /* Return TOKEN balance. */
+        return balance
+    }
+
+    /* Return default. */
+    return BigInt(0)
+}
+
+export const sendCredit = async (
+    _network: string,
+    _identityId: string,
+    _identityIdx: number,
+    _receiver: string,
+    _credits: bigint,
+): Promise<ITxSuccess | ITxError> => {
+    /* Initialize locals. */
+    let error
+    let response
+    let sdk
+    let txid
+
+    /* Set receiver. */
+    // TODO ADD FINAL RECEIVER VALIDATION
     const receiver = _receiver
 
-    const duffs = _duffs
+    /* Set credits. */
+    // TODO ADD FINAL CREDITS VALIDATION
+    const credits = BigInt(_credits)
 
-    const usdValue = _duffs / (10 ** 11) *
+    /* Request transfer (WIF) key. */
+    const transferWif = getTransferKey(_network, _identityIdx)
 
-    if (confirm(`Are you sure you want to send ${numeral(amount.value).format('0,0.00')} ${Identity.asset?.ticker} to ${receiver.value}?`)) {
-        console.log(`Starting transfer of ${amount.value} ${Identity.asset?.ticker} to ${receiver.value}...`)
-
-        response = await Identity
-            .transfer(receiver.value, BigInt(satoshis.value))
-            .catch(err => {
-                console.error(err)
-                error = err
-            })
-        console.log('RESPONSE', response)
-
-        /* Validate error. */
-        if (error) {
-            console.error('DISPLAY ERROR MESSAGE', error.message)
-            /* Set error. */
-            errorMsgs.value = error?.message || JSON.stringify(error)
-            return
-        }
-
-        /* Validate transaction idem. */
-        if (response?.txidem) {
-            /* Reset user inputs. */
-            amount.value = null
-            receiver.value = null
-
-            /* Set transaction idem. */
-            txidem.value = response.txidem
-        } else if (response?.error) {
-            /* Set error. */
-            // errorMsgs.value = response?.error?.message || JSON.stringify(response?.error)
-        }
+    /* Handle network. */
+    if (_network === 'mainnet') {
+        /* Initialize SDK. */
+        sdk = await WasmSdkBuilder.new_mainnet_trusted().build()
+    } else {
+        /* Initialize SDK. */
+        sdk = await WasmSdkBuilder.new_testnet_trusted().build()
     }
+
+    /* Transfer credits. */
+    const txResult = await sdk.identityCreditTransfer(
+        _identityId,
+        _receiver,
+        credits,
+        transferWif,
+        null // key_id - will auto-select
+    )
+console.log('WALLET MANGAER (tx result)', txResult)
+
+    /* Return transaction (result) ID. */
+    return { txid: txResult?.txid || 'UNKNOWN TXID' }
 }
 
-export const sendToken = async () => {
+export const sendToken = async (
+    _network: string,
+    _identityId: string,
+    _identityIdx: number,
+    _tokenId: string,
+    _receiver: string,
+    _atomicUnits: bigint,
+): Promise<ITxSuccess | ITxError> => {
+    /* Initialize locals. */
+    let sdk
 
+    /* Handle network. */
+    if (_network === 'mainnet') {
+        /* Initialize Dash Platform SDK. */
+        sdk = new DashPlatformSDK({ network: 'mainnet' })
+    } else {
+        /* Initialize Dash Platform SDK. */
+        sdk = new DashPlatformSDK({ network: 'testnet' })
+    }
+
+    /* Set transfer amount. */
+    // const amount = BigInt(_satoshis)
+
+    /* Initialize token base transition. */
+    const tokenBaseTransition = await sdk.tokens
+        .createBaseTransition(_tokenId, _identityId)
+
+    /* Initialize state transition. */
+    const stateTransition = sdk.tokens
+        .createStateTransition(
+            tokenBaseTransition,
+            _identityId,
+            'transfer',
+            {
+                identityId: _receiver,
+                amount: _atomicUnits,
+            },
+        )
+
+    /* Request transfer (WIF) key. */
+    const transferWif = getTransferKey(_network, _identityIdx)
+
+    /* Set private (transfer) key. */
+    const privKey = PrivateKeyWASM.fromWIF(transferWif)
+
+    /* Set identity. */
+    const identity = await sdk.identities.getIdentityByIdentifier(_identityId)
+
+    /* Set public keys. */
+    const identityPublicKeys = identity.getPublicKeys()
+// console.log('PUBLIC KEYS', identityPublicKeys)
+
+    /* Set public key ID. */
+    const publicKeyId = 3 // 03 => Transfer (Critical)
+
+    /* Set public key. */
+    const pubKey = identityPublicKeys[publicKeyId]
+
+    /* Assign public key ID. */
+// NOTE IS THIS STILL NECESSARY??
+    stateTransition.signaturePublicKeyId = publicKeyId
+
+    /* Sign state transition. */
+    stateTransition.sign(privKey, pubKey)
+
+    /* Broadcast state transition. */
+    await sdk.stateTransitions.broadcast(stateTransition)
+
+    // FIXME FIND A WAY TO REQUEST TXID
+    return { txid: 'UNKNOWN TXID' }
 }
 
-export const createDocument = async () => {
-    const dataContract = ''
+export const createDocument = async (
+    _network: string,
+    _identityIdx: number,
+    _identityId: string,
+    _dataContract: string,
+    _tokenPaymentInfo: ITokenPaymentInfo,
+    _receiver: string,
+    _atomicUnits: bigint,
+): Promise<ITxSuccess | ITxError> => {
+    /* Initialize locals. */
+    let sdk
 
+    /* Handle network. */
+    if (_network === 'mainnet') {
+        /* Initialize Dash Platform SDK. */
+        sdk = new DashPlatformSDK({ network: 'mainnet' })
+    } else {
+        /* Initialize Dash Platform SDK. */
+        sdk = new DashPlatformSDK({ network: 'testnet' })
+    }
+
+    /* Set data contract. */
+    // TODO ADD FINAL DATA CONTRACT VALIDATION
+    const dataContract = _dataContract
+
+    /* Set document type. */
+    // TODO ADD FINAL DOCUMENT TYPE VALIDATION
     const documentType = ''
 
-    const data = ''
+    /* Set (document) data. */
+    const data = {}
 
-    const identity = ''
-
+    /* Create document. */
     const document = sdk.documents
-        .create(dataContract, documentType, data, identity)
+        .create(dataContract, documentType, data, _identityId)
 
+    /* Set identity contract nonce. */
+// FIXME IS THIS STILL NECESSARY??
     const identityContractNonce = BigInt(1)
 
-    const tokenPaymentInfo = {
-        tokenContractId: '...',
-        tokenContractPosition: 0,
-        maximumTokenCost: BigInt(10),
-        gasFeesPaidBy: GasFeesPaidByWASM.ContractOwner,
-    }
+    // const tokenPaymentInfo = {
+    //     tokenContractId: '...',
+    //     tokenContractPosition: 0,
+    //     maximumTokenCost: BigInt(10),
+    //     gasFeesPaidBy: GasFeesPaidByWASM.ContractOwner,
+    // }
 
+    /* Create state transition. */
     const stateTransition = sdk.documents.createStateTransition(
-        document, 'create', { identityContractNonce, tokenPaymentInfo }
+        document,
+        'create',
+        {
+            identityContractNonce,
+            tokenPaymentInfo: _tokenPaymentInfo,
+        },
     )
+
+    /* Request transfer (WIF) key. */
+    const transferWif = getTransferKey(_network, _identityIdx)
+
+    /* Set private (transfer) key. */
+    const privKey = PrivateKeyWASM.fromWIF(transferWif)
+
+    /* Set identity. */
+    const identity = await sdk.identities.getIdentityByIdentifier(_identityId)
+
+    /* Set public keys. */
+    const identityPublicKeys = identity.getPublicKeys()
+// console.log('PUBLIC KEYS', identityPublicKeys)
+
+    /* Set public key ID. */
+    const publicKeyId = 3 // 03 => Transfer (Critical)
+
+    /* Set public key. */
+    const pubKey = identityPublicKeys[publicKeyId]
+
+    /* Sign state transition. */
+    stateTransition.sign(privKey, pubKey)
+
+    /* Broadcast state transition. */
+    await sdk.stateTransitions.broadcast(stateTransition)
+
+    // FIXME FIND A WAY TO REQUEST TXID
+    return { txid: 'UNKNOWN TXID' }
 }
