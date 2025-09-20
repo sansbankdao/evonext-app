@@ -1,5 +1,8 @@
 'use client'
 
+import { DEFAULT_ASSET } from './constants'
+import { IToken } from './types'
+
 /**
  * Secure in-memory storage for sensitive data like private keys
  * This avoids storing sensitive data in localStorage/sessionStorage
