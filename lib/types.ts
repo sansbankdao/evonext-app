@@ -1,17 +1,17 @@
-export interface App {
+export interface IApp {
     id: string;
     type: 'blog' | 'game' | null | undefined;
     engine: 'p5' | 'phaser' | 'godot' | null | undefined;
-    creator: User;
+    creator: IUser;
     content: string;
     createdAt: Date;
     likes: number;
     postId: string;
 }
 
-export interface Comment {
+export interface IComment {
     id: string;
-    author: User;
+    author: IUser;
     content: string;
     createdAt: Date;
     likes: number;
@@ -19,7 +19,7 @@ export interface Comment {
     postId: string;
 }
 
-export interface Media {
+export interface IMedia {
     id: string;
     type: 'image' | 'video' | 'gif';
     url: string;
@@ -29,18 +29,18 @@ export interface Media {
     height?: number;
 }
 
-export interface Notification {
+export interface INotification {
     id: string;
     type: 'like' | 'remix' | 'follow' | 'reply' | 'mention';
-    from: User;
-    post?: Post;
+    from: IUser;
+    post?: IPost;
     createdAt: Date;
     read: boolean;
 }
 
-export interface Post {
+export interface IPost {
     id: string;
-    author: User;
+    author: IUser;
     content: string;
     createdAt: Date;
     likes: number;
@@ -50,18 +50,18 @@ export interface Post {
     liked?: boolean;
     remixed?: boolean;
     bookmarked?: boolean;
-    media?: Media[];
-    replyTo?: Post;
-    quotedPost?: Post;
+    media?: IMedia[];
+    replyTo?: IPost;
+    quotedPost?: IPost;
 }
 
-export interface Trend {
+export interface ITrend {
     topic: string;
     posts: number;
     category?: string;
 }
 
-export interface User {
+export interface IUser {
     id: string;
     docId?: string;         // Document that stores the user's profile
     username: string;       // From DPNS - not stored in profile document
@@ -75,4 +75,34 @@ export interface User {
     verified?: boolean;
     joinedAt: Date;
     revision: number;
+}
+
+
+// -----------------------------------------------------------------------------
+
+
+export interface ICurrency {
+    USD: any;
+}
+
+export interface IToken {
+    id: string;
+    name: string;
+    ticker: string;
+    token_id_hex: string;
+    iconUrl: string;
+    duffs?: bigint;
+    amount?: bigint;
+    decimal_places: number;
+    fiat: ICurrency;
+}
+
+export interface ITxError {
+    code: number;
+    message: string;
+    suggestions?: [string];
+}
+
+export interface ITxSuccess {
+    txid: string;
 }

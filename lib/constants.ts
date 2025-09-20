@@ -4,6 +4,22 @@
  * A single source for ALL applications constants.
  */
 
+/* DASH Asset Details */
+export const DASH_DECIMALS = 11
+export const DASH_USD_VALUE = 24 // FIXME PULL FROM MARKET API
+export const DEFAULT_ASSET = {
+    id: '0',
+    name: 'Dash Credit',
+    ticker: 'DASH',
+    token_id_hex: '0',
+    iconUrl: '/icons/dash.svg',
+    duffs: BigInt(0),
+    decimal_places: 11,
+    fiat: {
+        USD: 0,
+    }
+}
+
 /* DPNS Contract ID */
 export const DPNS_CONTRACT_ID = 'GWRSAVFMjXx8HpQFaNJMqBV7MBgMK4br5UESsB4S31Ec' // Mainnet + Testnet
 
@@ -11,11 +27,15 @@ export const DPNS_CONTRACT_ID = 'GWRSAVFMjXx8HpQFaNJMqBV7MBgMK4br5UESsB4S31Ec' /
 // NOTE: Platform official stablecoin
 export const DUSD_CONTRACT_ID_MAINNET = 'DYqxCsuDgYsEAJ2ADnimkwNdL7C4xbe4No4so19X9mmd' // DUSD on Mainnet
 export const DUSD_CONTRACT_ID_TESTNET = '3oTHkj8nqn82QkZRHkmUmNBX696nzE1rg1fwPRpemEdz' // tDUSD on Testnet
+export const DUSD_DECIMALS = 6
+export const DUSD_USD_VALUE = 1.00
 
 /* SANS Contract IDs */
 // NOTE: Platform official staking token
 export const SANS_CONTRACT_ID_MAINNET = 'AxAYWyXV6mrm8Sq7vc7wEM18wtL8a8rgj64SM3SDmzsB' // SANS on Mainnet
 export const SANS_CONTRACT_ID_TESTNET = 'A36eJF2kyYXwxCtJGsgbR3CTAscUFaNxZN19UqUfM1kw' // tSANS on Testnet
+export const SANS_DECIMALS = 8
+export const SANS_USD_VALUE = 0.01
 
 /* EVONEXT Contract IDs */
 export const EVONEXT_CONTRACT_ID_MAINNET = '6fBkKSne1xQ5GCPW9fdwEkH7nk8oYPu48vYiYssWzhX8' // Mainnet

@@ -1,49 +1,5 @@
 'use client'
 
-export interface Currency {
-    USD: any;
-}
-
-export interface Token {
-    id: string;
-    name: string;
-    ticker: string;
-    token_id_hex: string;
-    iconUrl: string;
-    duffs?: bigint;
-    amount?: bigint;
-    decimal_places: number;
-    fiat: Currency;
-}
-
-/* Initialize constants. */
-export const DEFAULT_ASSET = {
-    id: '0',
-    name: 'Dash Credit',
-    ticker: 'DASH',
-    token_id_hex: '0',
-    iconUrl: '/icons/dash.svg',
-    duffs: BigInt(0),
-    decimal_places: 11,
-    fiat: {
-        USD: 0,
-    }
-}
-
-/* Initialize constants. */
-export const DASH_DECIMALS = 11
-export const DASH_USD_VALUE = 24 // FIXME PULL FROM MARKET API
-
-export const DUSD = 'DYqxCsuDgYsEAJ2ADnimkwNdL7C4xbe4No4so19X9mmd' // DUSD
-export const tDUSD = '3oTHkj8nqn82QkZRHkmUmNBX696nzE1rg1fwPRpemEdz' // tDUSD
-export const DUSD_DECIMALS = 6
-export const DUSD_USD_VALUE = 1.00
-
-export const SANS = 'AxAYWyXV6mrm8Sq7vc7wEM18wtL8a8rgj64SM3SDmzsB' // SANS
-export const tSANS = 'A36eJF2kyYXwxCtJGsgbR3CTAscUFaNxZN19UqUfM1kw' // tSANS
-export const SANS_DECIMALS = 8
-export const SANS_USD_VALUE = 0.01
-
 /**
  * Secure in-memory storage for sensitive data like private keys
  * This avoids storing sensitive data in localStorage/sessionStorage
@@ -246,7 +202,7 @@ export const clearIdentityIdx = (): boolean => {
 // *****************************************************************************
 // ASSET MANAGEMENT
 // *****************************************************************************
-export const storeAsset = (_asset: Token) => {
+export const storeAsset = (_asset: IToken) => {
     /* Create (safe) asset. */
     const safeAsset = JSON.stringify(_asset, (key, value) =>
         typeof value === 'bigint' ? value.toString() + 'n' : value
@@ -256,7 +212,7 @@ export const storeAsset = (_asset: Token) => {
     secureStorage.set('asset', safeAsset)
 }
 
-export const getAsset = (): Token => {
+export const getAsset = (): IToken => {
     /* Initialize locals. */
     let asset
 
