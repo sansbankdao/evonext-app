@@ -68,19 +68,22 @@ export default function LoginPage() {
         }
 
         /* Initialize secure storage. */
-        const { storeMnemonic } = await import('@/lib/secure-storage')
+        const { getIdentityIdx, storeMnemonic } = await import('@/lib/secure-storage')
 
         /* Save mnemonic (to secure storage). */
         storeMnemonic(mnemonic)
 
+        /* Request Identity index. */
+        const identityIdx = getIdentityIdx()
+
         /* Request private keys. */
-        const privateKeys = getPrivateKeys(currentNetwork)
+        const privateKeys = getPrivateKeys(currentNetwork, identityIdx)
 
         /* Request public keys. */
-        const publicKeys = getPublicKeys(currentNetwork)
+        const publicKeys = getPublicKeys(currentNetwork, identityIdx)
 
         /* Request ALL (registered) public keys. */
-        const regKeysResponse = await getRegisteredKeys(currentNetwork)
+        const regKeysResponse = await getRegisteredKeys(currentNetwork, identityIdx)
 console.log('CONNECT (regKeysResponse)', regKeysResponse)
 
         const identityId = regKeysResponse?.identityId
@@ -120,7 +123,7 @@ console.log('CONNECT (seedPrivateKey WIF)', seedPrivateKey)
 console.log('CONNECT (publicKey)', publicKey)
 
             /* Check (pending) status. */
-            const status = await checkPendingStatus(currentNetwork)
+            const status = await checkPendingStatus(currentNetwork, identityIdx)
                 .catch(err => console.error(err))
 console.log('CONNECT (checkPendingStatus)', status)
 
@@ -145,7 +148,7 @@ console.log('CONNECT (wif)', typeof wif, wif)
 
                     /* Register Identity + Username. */
                     const regResult = await registerIdentityAndUsername(
-                        currentNetwork, username, proof, wif)
+                        currentNetwork, identityIdx, username, proof, wif)
                         .catch(err => console.error(err))
 console.log('REGISTRATION RESULT', regResult)
 
