@@ -1,5 +1,31 @@
 'use client'
 
+export interface Currency {
+    USD: any;
+}
+
+export interface Token {
+    id: string;
+    token_id_hex: string;
+    iconUrl: string;
+    duffs?: bigint;
+    amount?: bigint;
+    decimal_places: number;
+    fiat: Currency;
+}
+
+/* Initialize constants. */
+export const DEFAULT_ASSET = {
+    id: '0',
+    token_id_hex: '0',
+    iconUrl: '/icons/dash.svg',
+    duffs: BigInt(0),
+    decimal_places: 11,
+    fiat: {
+        USD: 0,
+    }
+}
+
 /**
  * Secure in-memory storage for sensitive data like private keys
  * This avoids storing sensitive data in localStorage/sessionStorage
@@ -202,14 +228,37 @@ export const clearIdentityIdx = (): boolean => {
 // *****************************************************************************
 // ASSET MANAGEMENT
 // *****************************************************************************
-export const storeAssetId = (assetid: string) => {
-    secureStorage.set('assetid', assetid)
+export const storeAsset = (_asset: Token) => {
+    /* Create (safe) asset. */
+    const safeAsset = JSON.stringify(_asset, (key, value) =>
+        typeof value === 'bigint' ? value.toString() + 'n' : value
+    )
+
+    /* Store (safe) asset. */
+    secureStorage.set('asset', safeAsset)
 }
 
-export const getAssetId = (): string => {
-    return secureStorage.get('assetid') || '0'
+export const getAsset = (): Token => {
+    /* Initialize locals. */
+    let asset
+
+    /* Request (stored) asset. */
+    const storedAsset = secureStorage.get('asset')
+
+    /* Validate (stored) asset. */
+    if (typeof storedAsset !== 'undefined' && storedAsset !== null) {
+        asset = JSON.parse(storedAsset, (key, value) => {
+            if (typeof value === 'string' && /^\d+n$/.test(value)) {
+                return BigInt(value.slice(0, value.length - 1))
+            }
+            return value
+        })
+    }
+
+    /* Return asset. */
+    return asset || DEFAULT_ASSET
 }
 
-export const clearAssetId = (): boolean => {
-    return secureStorage.delete('assetid')
+export const clearAsset = (): boolean => {
+    return secureStorage.delete('asset')
 }
