@@ -6,7 +6,26 @@ import Link from 'next/link'
 import { useAuth } from '@/contexts/auth-context'
 import { useNetwork } from '@/contexts/network-context'
 import { BoltIcon, UserIcon } from '@heroicons/react/24/outline'
+import {
+    DEFAULT_ASSET,
+    DASH_DECIMALS,
+    DASH_USD_VALUE, // FIXME PULL FROM MARKET API
 
+    DUSD,
+    tDUSD,
+    DUSD_DECIMALS,
+    DUSD_USD_VALUE,
+
+    SANS,
+    tSANS,
+    SANS_DECIMALS,
+    SANS_USD_VALUE,
+
+    getAsset,
+    getIdentityIdx,
+    storeAsset,
+    storeIdentityIdx,
+} from '@/lib/secure-storage'
 // @ts-ignore
 import numeral from 'numeral'
 
@@ -30,27 +49,13 @@ interface WalletAssetProps {
     isFullScreen: boolean;
 }
 
-/* Initialize constants. */
-const DUSD = 'DYqxCsuDgYsEAJ2ADnimkwNdL7C4xbe4No4so19X9mmd' // DUSD
-const SANS = 'AxAYWyXV6mrm8Sq7vc7wEM18wtL8a8rgj64SM3SDmzsB' // SANS
-const tDUSD = '3oTHkj8nqn82QkZRHkmUmNBX696nzE1rg1fwPRpemEdz' // tDUSD
-const tSANS = 'A36eJF2kyYXwxCtJGsgbR3CTAscUFaNxZN19UqUfM1kw' // tSANS
-
-const DASH_USD_VALUE = 24 // FIXME PULL FROM MARKET API
-const DUSD_USD_VALUE = 1.00
-const SANS_USD_VALUE = 0.01
-
-const DASH_DECIMALS = 11
-const DUSD_DECIMALS = 6
-const SANS_DECIMALS = 8
-
 export function WalletAssets({ isFullScreen }: WalletAssetProps) {
     const { user } = useAuth()
     const { network } = useNetwork()
 
     const [activeTab, setActiveTab] = useState('assets')
-    const [token, setToken] = useState<Token>()
-    const [assets, setAssets] = useState<Token[]>()
+    const [asset, setAsset] = useState<Token>()
+    const [assets, setAssets] = useState<Token[]>([DEFAULT_ASSET])
     const [collections, setCollections] = useState<Token[]>()
 
     const [displayDusdBalance, setDisplayDusdBalance] = useState(BigInt(0))
@@ -125,7 +130,23 @@ export function WalletAssets({ isFullScreen }: WalletAssetProps) {
         }
     }
     const Identity = {
-        setAsset: (tokenid: string) => {}
+
+    }
+
+    /* Set active asset (coin OR collectible). */
+    const handleActiveAsset = (_tokenid: string) => {
+        const asset = assets.find(_asset => {
+            return _asset.id === _tokenid
+        })
+
+        /* Validate asset. */
+        if (typeof asset !== 'undefined' && asset !== null) {
+            /* Set (local) asset. */
+            setAsset(asset)
+
+            /* Store (in-browser) asset. */
+            storeAsset(asset)
+        }
     }
 
     useEffect(() => {
@@ -276,7 +297,7 @@ console.log('SANS BALANCE', sansBalance)
                 {assets && assets.map((token) => (
                     <div
                         key={token.id}
-                        onClick={() => Identity.setAsset(token.id)}
+                        onClick={() => handleActiveAsset(token.id)}
                         className="flex flex-row justify-between items-end pl-1 pr-3 pt-2 pb-1 sm:py-3 bg-gradient-to-b from-sky-100 to-sky-50 border border-sky-300 rounded-lg shadow hover:bg-sky-200 cursor-pointer"
                     >
                         <div className="w-1/2 flex flex-row items-start">
@@ -322,7 +343,7 @@ console.log('SANS BALANCE', sansBalance)
                 {collections && collections.map((token) => (
                     <div
                         key={token.id}
-                        onClick={() => Identity.setAsset(token.id)}
+                        onClick={() => handleActiveAsset(token.id)}
                         className="flex flex-row justify-between items-end pl-1 pr-3 pt-2 pb-1 sm:py-3 bg-gradient-to-b from-sky-100 to-sky-50 border border-sky-300 rounded-lg shadow hover:bg-sky-200 cursor-pointer"
                     >
                         <div className="w-1/2 flex flex-row items-start">

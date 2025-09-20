@@ -26,6 +26,22 @@ export const DEFAULT_ASSET = {
     }
 }
 
+/* Initialize constants. */
+export const DUSD = 'DYqxCsuDgYsEAJ2ADnimkwNdL7C4xbe4No4so19X9mmd' // DUSD
+export const SANS = 'AxAYWyXV6mrm8Sq7vc7wEM18wtL8a8rgj64SM3SDmzsB' // SANS
+export const tDUSD = '3oTHkj8nqn82QkZRHkmUmNBX696nzE1rg1fwPRpemEdz' // tDUSD
+export const tSANS = 'A36eJF2kyYXwxCtJGsgbR3CTAscUFaNxZN19UqUfM1kw' // tSANS
+
+export const DASH_USD_VALUE = 24 // FIXME PULL FROM MARKET API
+export const DUSD_USD_VALUE = 1.00
+export const SANS_USD_VALUE = 0.01
+
+export const DASH_DECIMALS = 11
+export const DUSD_DECIMALS = 6
+export const SANS_DECIMALS = 8
+
+
+
 /**
  * Secure in-memory storage for sensitive data like private keys
  * This avoids storing sensitive data in localStorage/sessionStorage
