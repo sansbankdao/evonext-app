@@ -3,47 +3,35 @@
 import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
+import { BoltIcon, UserIcon } from '@heroicons/react/24/outline'
+// @ts-ignore
+import numeral from 'numeral'
+
 import { useAuth } from '@/contexts/auth-context'
 import { useNetwork } from '@/contexts/network-context'
-import { BoltIcon, UserIcon } from '@heroicons/react/24/outline'
+import { IToken } from '@/lib/types'
 import {
     DEFAULT_ASSET,
     DASH_DECIMALS,
     DASH_USD_VALUE, // FIXME PULL FROM MARKET API
 
-    DUSD,
-    tDUSD,
+    DUSD_CONTRACT_ID_MAINNET,
+    DUSD_CONTRACT_ID_TESTNET,
     DUSD_DECIMALS,
     DUSD_USD_VALUE,
 
-    SANS,
-    tSANS,
+    SANS_CONTRACT_ID_MAINNET,
+    SANS_CONTRACT_ID_TESTNET,
     SANS_DECIMALS,
     SANS_USD_VALUE,
-
+} from '@/lib/constants'
+import {
     getAsset,
     getIdentityIdx,
     storeAsset,
     storeIdentityIdx,
 } from '@/lib/secure-storage'
-// @ts-ignore
-import numeral from 'numeral'
-
-import { getWasmSdk } from '../../lib/services/wasm-sdk-service'
-
-interface Currency {
-    USD: any;
-}
-
-interface Token {
-    id: string;
-    token_id_hex: string;
-    iconUrl: string;
-    duffs?: bigint;
-    amount?: bigint;
-    decimal_places: number;
-    fiat: Currency;
-}
+import { getWasmSdk } from '@/lib/services/wasm-sdk-service'
 
 interface WalletAssetProps {
     isFullScreen: boolean;
@@ -54,16 +42,16 @@ export function WalletAssets({ isFullScreen }: WalletAssetProps) {
     const { network } = useNetwork()
 
     const [activeTab, setActiveTab] = useState('assets')
-    const [asset, setAsset] = useState<Token>()
-    const [assets, setAssets] = useState<Token[]>([DEFAULT_ASSET])
-    const [collections, setCollections] = useState<Token[]>()
+    const [asset, setAsset] = useState<IToken>()
+    const [assets, setAssets] = useState<IToken[]>([DEFAULT_ASSET])
+    const [collections, setCollections] = useState<IToken[]>()
 
     const [displayDusdBalance, setDisplayDusdBalance] = useState(BigInt(0))
     const [displayDusdBalanceUsd, setDisplayDusdBalanceUsd] = useState(BigInt(0))
     const [displaySansBalance, setDisplaySansBalance] = useState(BigInt(0))
     const [displaySansBalanceUsd, setDisplaySansBalanceUsd] = useState(BigInt(0))
 
-    const displayIcon = (_token: Token) => {
+    const displayIcon = (_token: IToken) => {
         /* Handle token icon URL. */
         if (_token.iconUrl) {
             return _token.iconUrl
@@ -77,18 +65,18 @@ export function WalletAssets({ isFullScreen }: WalletAssetProps) {
         switch(_tokenid) {
         case '0':
             return 'Dash Credit'
-        case DUSD:
-        case tDUSD:
+        case DUSD_CONTRACT_ID_MAINNET:
+        case DUSD_CONTRACT_ID_TESTNET:
             return 'Dash USD'
-        case SANS:
-        case tSANS:
+        case SANS_CONTRACT_ID_MAINNET:
+        case SANS_CONTRACT_ID_TESTNET:
             return 'Sansnote'
         default:
             return 'Unknown token'
         }
     }
 
-    const displayDecimalAmount = (_token: Token) => {
+    const displayDecimalAmount = (_token: IToken) => {
         // console.log('_token', _token)
 
         /* Initialize locals. */
@@ -113,7 +101,7 @@ export function WalletAssets({ isFullScreen }: WalletAssetProps) {
         return numeral(parseFloat(bigIntValue.toString()) / 1e4).format('0,0[.]00[0000]')
     }
 
-    const displayDecimalAmountUsd = (_token: Token) => {
+    const displayDecimalAmountUsd = (_token: IToken) => {
         // console.log('_token', _token)
         let amount
 
@@ -177,11 +165,11 @@ export function WalletAssets({ isFullScreen }: WalletAssetProps) {
 
                 /* Handle network. */
                 if (network === 'mainnet') {
-                    dusdContractId = DUSD
-                    sansContractId = SANS
+                    dusdContractId = DUSD_CONTRACT_ID_MAINNET
+                    sansContractId = SANS_CONTRACT_ID_MAINNET
                 } else {
-                    dusdContractId = tDUSD
-                    sansContractId = tSANS
+                    dusdContractId = DUSD_CONTRACT_ID_TESTNET
+                    sansContractId = SANS_CONTRACT_ID_TESTNET
                 }
 
                 /* Request DUSD balance. */
@@ -215,9 +203,11 @@ console.log('SANS BALANCE', sansBalance)
                 }
 
                 /* Build AVAILABLE (Platform) assets collection. */
-                const assets: Token[] = [
+                const assets: IToken[] = [
                     {
                         id: '0',
+                        name: 'Dash Credit',
+                        ticker: 'DASH',
                         token_id_hex: dusdContractId,
                         iconUrl: '/icons/dash.svg',
                         duffs: BigInt(user.balance),
@@ -228,6 +218,8 @@ console.log('SANS BALANCE', sansBalance)
                     },
                     {
                         id: dusdContractId,
+                        name: 'Dash USD',
+                        ticker: 'DUSD',
                         token_id_hex: dusdContractId,
                         iconUrl: '/icons/dusd.svg',
                         amount: dusdBalance,
@@ -238,6 +230,8 @@ console.log('SANS BALANCE', sansBalance)
                     },
                     {
                         id: sansContractId,
+                        name: 'Sansnote',
+                        ticker: 'SANS',
                         token_id_hex: sansContractId,
                         iconUrl: '/icons/sans.svg',
                         amount: sansBalance,

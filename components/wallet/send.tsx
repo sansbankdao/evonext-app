@@ -10,16 +10,17 @@ import {
     DASH_DECIMALS,
     DASH_USD_VALUE,
 
-    DUSD,
-    tDUSD,
+    DUSD_CONTRACT_ID_MAINNET,
+    DUSD_CONTRACT_ID_TESTNET,
     DUSD_DECIMALS,
     DUSD_USD_VALUE,
 
-    SANS,
-    tSANS,
+    SANS_CONTRACT_ID_MAINNET,
+    SANS_CONTRACT_ID_TESTNET,
     SANS_DECIMALS,
     SANS_USD_VALUE,
-
+} from '@/lib/constants'
+import {
     getAsset,
     getMnemonic,
 } from '@/lib/secure-storage'
@@ -117,15 +118,15 @@ export function WalletSend({ isFullScreen }: WalletSendProps) {
         const asset = getAsset()
 
         switch(asset.id) {
-        case DUSD:
-        case tDUSD:
+        case DUSD_CONTRACT_ID_MAINNET:
+        case DUSD_CONTRACT_ID_TESTNET:
             /* Calculate DASH value. */
             assetValue = amount * (10 ** DUSD_DECIMALS)
 
             /* Calculate USD value. */
             assetUsdValue = amount * DUSD_USD_VALUE
-        case SANS:
-        case tSANS:
+        case SANS_CONTRACT_ID_MAINNET:
+        case SANS_CONTRACT_ID_TESTNET:
             /* Calculate DASH value. */
             assetValue = amount * (10 ** SANS_DECIMALS)
 
