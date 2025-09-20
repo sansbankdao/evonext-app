@@ -18,7 +18,7 @@ import { binToHex, hexToBin } from '@nexajs/utils'
  * Will search ALL keys and signature schemes for an Identity's
  * registered public keys.
  */
-export const getRegisteredKeys = async (_network: string) => {
+export const getRegisteredKeys = async (_network: string, _identityIdx: number) => {
     /* Initialize locals. */
     let identityId
     let regPubKeys
@@ -27,13 +27,13 @@ export const getRegisteredKeys = async (_network: string) => {
     const sdk = await wasmSdkService.getSdk()
 
     /* Request private keys. */
-    const privateKeys = getPrivateKeys(_network)
+    const privateKeys = getPrivateKeys(_network, _identityIdx)
 
     const publicKey = privateKeys.masterKey.public_key
-console.log('REGISTRATION SEARCH (publicKey)', publicKey)
+// console.log('REGISTRATION SEARCH (publicKey)', publicKey)
 
     const publicKeyHash = binToHex(hash160(hexToBin(publicKey)))
-console.log('REGISTRATION SEARCH (publicKeyHash)', publicKeyHash)
+// console.log('REGISTRATION SEARCH (publicKeyHash)', publicKeyHash)
 
     /* Request (HASH160) Identity. */
     const identityOfHash160 = await get_identity_by_non_unique_public_key_hash(
@@ -41,14 +41,14 @@ console.log('REGISTRATION SEARCH (publicKeyHash)', publicKeyHash)
         publicKeyHash,
         undefined
     ).catch(err => console.error(err))
-console.log('REGISTRATION SEARCH (from HASH160)', identityOfHash160)
+// console.log('REGISTRATION SEARCH (from HASH160)', identityOfHash160)
 
     /* Request (SECP256k1) Identity. */
     const identityOfSecp256k1 = await get_identity_by_public_key_hash(
         sdk,
         publicKeyHash
     ).catch(err => console.error(err))
-console.log('REGISTRATION SEARCH (from SECP256K1)', identityOfSecp256k1?.toJSON())
+// console.log('REGISTRATION SEARCH (from SECP256K1)', identityOfSecp256k1?.toJSON())
 
     /* Handle ECDSA_HASH160 signature scheme. */
     if (identityOfHash160 && identityOfHash160.length > 0 && typeof identityOfHash160 === 'object') {
@@ -68,8 +68,8 @@ console.log('REGISTRATION SEARCH (from SECP256K1)', identityOfSecp256k1?.toJSON(
         regPubKeys = identityOfSecp256k1.toJSON().publicKeys
     }
 
-console.log('REGISTRATION SEARCH (identityId)', identityId)
-console.log('REGISTRATION SEARCH (regPubKeys)', regPubKeys)
+// console.log('REGISTRATION SEARCH (identityId)', identityId)
+// console.log('REGISTRATION SEARCH (regPubKeys)', regPubKeys)
 
     /* Validate Identity. */
     if (typeof identityId === 'undefined' || identityId === null) {
@@ -90,6 +90,7 @@ console.log('REGISTRATION SEARCH (regPubKeys)', regPubKeys)
 
 export const getPaymentAddress = async (
     _network: string,
+    _identityIdx: number,
     _username: string,
     _email: string,
 ) => {
@@ -98,7 +99,7 @@ export const getPaymentAddress = async (
     let response
 
     /* Request private keys. */
-    const privateKeys = getPrivateKeys(_network)
+    const privateKeys = getPrivateKeys(_network, _identityIdx)
 
     /* Prepare order package. */
     const body = JSON.stringify({
@@ -112,7 +113,7 @@ export const getPaymentAddress = async (
         isMainnet: _network === 'mainnet' ? true : false,
         isPremium: dpns_is_contested_username(_username) ? true : false,
     })
-console.log('ORDER (body)', body)
+// console.log('ORDER (body)', body)
 
     /* Request a payment address. */
     response = await fetch('https://evonext.app/v1/registrar/address', {
@@ -163,7 +164,7 @@ console.log('ORDER (body)', body)
  *
  * Will attempt to resume the registration process.
  */
-export const checkPendingStatus = async (_network: string) => {
+export const checkPendingStatus = async (_network: string, _identityIdx: number) => {
     /* Initialize locals. */
     let username
     let proof
@@ -171,11 +172,11 @@ export const checkPendingStatus = async (_network: string) => {
     let wif
 
     /* Request private keys. */
-    const privateKeys = getPrivateKeys(_network)
+    const privateKeys = getPrivateKeys(_network, _identityIdx)
 
     /* Set master/primary public key. */
     const masterPublicKey = privateKeys.masterKey.public_key
-console.log('MASTER/PRIMARY PUBLIC KEY', masterPublicKey)
+// console.log('MASTER/PRIMARY PUBLIC KEY', masterPublicKey)
 
     /* Set (request) headers. */
     const headers = {
@@ -190,7 +191,7 @@ console.log('MASTER/PRIMARY PUBLIC KEY', masterPublicKey)
 
     /* Handle status response. */
     const status = await statusResponse!.json()
-console.log('ORDER STATUS CHECK', status)
+// console.log('ORDER STATUS CHECK', status)
 
     /* Validate (pending) status. */
     if (
@@ -203,7 +204,7 @@ console.log('ORDER STATUS CHECK', status)
     ) {
         /* Set status. */
         orderStatus = status.results[0].status
-console.log('ORDER STATUS', orderStatus)
+// console.log('ORDER STATUS', orderStatus)
 
         /* Validate order status (is NOT complete). */
         if (orderStatus === 3) {
@@ -212,15 +213,15 @@ console.log('ORDER STATUS', orderStatus)
 
         /* Set username. */
         username = status.results[0].username
-console.log('USERNAME', username)
+// console.log('USERNAME', username)
 
         /* Set proof. */
         proof = status.results[0].proof
-console.log('PROOF', typeof proof, proof)
+// console.log('PROOF', typeof proof, proof)
 
         /* Set WIF. */
         wif = status.results[0].wif
-console.log('WIF', typeof wif, wif)
+// console.log('WIF', typeof wif, wif)
 
         /* Return registration credentials. */
         return {
@@ -236,6 +237,7 @@ console.log('WIF', typeof wif, wif)
 /* Register Identity + Username */
 export const registerIdentityAndUsername = async (
     _currentNetwork: string,
+    _identityIdx: number,
     _username: string,
     _proof: string,
     _wif: string,
@@ -244,10 +246,10 @@ export const registerIdentityAndUsername = async (
     const sdk = await wasmSdkService.getSdk()
 
     /* Request public keys. */
-    const publicKeys = getPublicKeys(_currentNetwork)
+    const publicKeys = getPublicKeys(_currentNetwork, _identityIdx)
 
     /* Request private keys. */
-    const privateKeys = getPrivateKeys(_currentNetwork)
+    const privateKeys = getPrivateKeys(_currentNetwork, _identityIdx)
 
     // setIsModalOpen(true)
     const result = await sdk.identityCreate(
@@ -255,7 +257,7 @@ export const registerIdentityAndUsername = async (
         _wif,
         JSON.stringify(publicKeys)
     ).catch(err => console.error(err))
-console.log('WASM REGISTRATION RESULT', result)
+// console.log('WASM REGISTRATION RESULT', result)
 
     /* Validate result. */
     if (typeof result !== 'undefined' && result !== null) {
@@ -286,18 +288,18 @@ console.log('WASM REGISTRATION RESULT', result)
             actualPrivateKey,   // Use the actual private key (without :keyId suffix)
             // Callback for preorder success
             (preorderInfo: any) => {
-console.log('PRE-ORDER SUCCESSFUL', preorderInfo)
+// console.log('PRE-ORDER SUCCESSFUL', preorderInfo)
 
                 // Show preorder info in a temporary notification
                 const preorderMsg = `Preorder Document ID: ${preorderInfo.get('documentId')}`;
-console.log('PRE-ORDER MESSAGE', preorderMsg)
+// console.log('PRE-ORDER MESSAGE', preorderMsg)
             }
         )
-console.log('USERNAME (REG) RESULT', usernameResult)
+// console.log('USERNAME (REG) RESULT', usernameResult)
 
         /* Set master/primary public key. */
         const masterPublicKey = privateKeys.masterKey.public_key
-console.log('MASTER/PRIMARY PUBLIC KEY', masterPublicKey)
+// console.log('MASTER/PRIMARY PUBLIC KEY', masterPublicKey)
 
         /* Set (request) headers. */
         const headers = {
@@ -335,7 +337,7 @@ console.log('MASTER/PRIMARY PUBLIC KEY', masterPublicKey)
             body,
         }).catch(err => console.error(err))
         const completion = await completionResponse!.json()
-console.log('REGISTRATION COMPLETION', completion)
+// console.log('REGISTRATION COMPLETION', completion)
 
         /* Return (completion) result. */
         return completion
