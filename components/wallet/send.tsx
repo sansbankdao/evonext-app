@@ -6,9 +6,28 @@ import { useAuth } from '@/contexts/auth-context'
 import { useNetwork } from '@/contexts/network-context'
 import { BoltIcon, UserIcon } from '@heroicons/react/24/outline'
 
-import { getMnemonic } from '@/lib/secure-storage'
+import {
+    DASH_DECIMALS,
+    DASH_USD_VALUE,
+
+    DUSD,
+    tDUSD,
+    DUSD_DECIMALS,
+    DUSD_USD_VALUE,
+
+    SANS,
+    tSANS,
+    SANS_DECIMALS,
+    SANS_USD_VALUE,
+
+    getAsset,
+    getMnemonic,
+} from '@/lib/secure-storage'
+import { sendCredit } from '@/lib/wallet-manager'
 
 import moment from 'moment'
+// @ts-ignore
+import numeral from 'numeral'
 
 interface Token {
     id: string;
@@ -24,10 +43,12 @@ export function WalletSend({ isFullScreen }: WalletSendProps) {
 
     const [mnemonic, setMnemonic] = useState<string | undefined>()
     const [identityFirstUse, setIdentityFirstUse] = useState('')
-    const [receiver, setReceiver] = useState<string | undefined>()
     const [txid, setTxid] = useState<string | undefined>()
     const [errorMsgs, setErrorMsgs] = useState()
     const [isShowingVideoPreview, setIsShowingVideoPreview] = useState('hidden')
+
+    const [receiver, setReceiver] = useState<string>('')
+    const [amount, setAmount] = useState<number>(0)
 
     useEffect(() => {
         /* Request mnemonic. */
@@ -73,13 +94,65 @@ export function WalletSend({ isFullScreen }: WalletSendProps) {
         blocktime: 1234567890,
     }
 
+    /* Handle asset transfer request. */
     const send = async () => {
-        console.log('SEND ASSETS')
+        /* Initialize locals. */
+        let assetValue
+        let assetDecimals
+        let assetUsdValue
+        let error
+        let response
+
+        /* Validate receiver. */
+        if (typeof receiver === null) {
+            return alert('Enter a destination Identity.')
+        }
+
+        /* Validate duffs. */
+        if (amount === null) {
+            return alert('Enter an amount to send.')
+        }
+
+        /* Request (active) asset. */
+        const asset = getAsset()
+
+        switch(asset.id) {
+        case DUSD:
+        case tDUSD:
+            /* Calculate DASH value. */
+            assetValue = amount * (10 ** DUSD_DECIMALS)
+
+            /* Calculate USD value. */
+            assetUsdValue = amount * DUSD_USD_VALUE
+        case SANS:
+        case tSANS:
+            /* Calculate DASH value. */
+            assetValue = amount * (10 ** SANS_DECIMALS)
+
+            /* Calculate USD value. */
+            assetUsdValue = amount * SANS_USD_VALUE
+        default:
+            /* Calculate DASH value. */
+            assetValue = amount * (10 ** DASH_DECIMALS)
+
+            /* Calculate USD value. */
+            assetUsdValue = amount * DASH_USD_VALUE
+        }
+
+        /* Confirm user request. */
+        if (confirm(`Are you sure you want to send ${numeral(assetValue).format('0,0.00')} ${asset.ticker} (valued @ ${assetUsdValue} USD) to ${receiver}?`)) {
+            console.log(`Starting transfer of ${numeral(assetValue).format('0,0.00')} ${asset.ticker} to ${receiver}...`)
+
+            /* Request a credit transfer. */
+            response = await sendCredit(receiver, assetValue)
+                .catch(err => console.error(err))
+console.log('SEND (response)', response)
+        }
     }
 
-    const updateIdentityDetails = (_receiver: string) => {
-        setReceiver(_receiver)
-    }
+    // const updateIdentityDetails = (_receiver: string) => {
+    //     setReceiver(_receiver)
+    // }
 
 
     // const amount = ref(null)
@@ -303,7 +376,7 @@ export function WalletSend({ isFullScreen }: WalletSendProps) {
                         className="w-full px-3 py-1 text-xl sm:text-2xl bg-cyan-100 border-2 border-cyan-300 rounded-md shadow"
                         type="text"
                         value={receiver}
-                        onChange={(e) => updateIdentityDetails(e.target.value)}
+                        onChange={(e) => setReceiver(e.target.value)}
                         placeholder="Enter a Username or Identity ID"
                     />
 
@@ -333,7 +406,8 @@ export function WalletSend({ isFullScreen }: WalletSendProps) {
                     <input
                         className="w-full px-3 py-1 text-xl sm:text-2xl bg-cyan-100 border-2 border-cyan-300 rounded-md shadow"
                         type="number"
-                        v-model="amount"
+                        value={amount}
+                        onChange={(e) => setAmount(Number(e.target.value))}
                         placeholder={`Enter a (${Identity.asset?.ticker}) amount`}
                     />
 
@@ -365,7 +439,7 @@ export function WalletSend({ isFullScreen }: WalletSendProps) {
                             <div className="flex-shrink-0">
                                 <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                                     <path
-                                        fill-rule="evenodd"
+                                        fillRule="evenodd"
                                         d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z"
                                         clipRule="evenodd"
                                     />
