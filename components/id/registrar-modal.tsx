@@ -13,10 +13,10 @@ import { CheckCircle2, XCircle, Loader2, RefreshCw, X, Edit2 } from 'lucide-reac
 import { motion, AnimatePresence } from 'framer-motion'
 // @ts-ignore
 import { QRCodeSVG } from 'qrcode.react'
+import { getIdentities } from '@/lib/identity-manager'
 import {
     checkPendingStatus,
     getPaymentAddress,
-    getRegisteredKeys,
     registerIdentityAndUsername,
 } from '@/lib/registrar-manager'
 import { getPrivateKeys, getPublicKeys } from '@/lib/wallet-manager'
@@ -34,6 +34,9 @@ interface RegistrarModalProps {
     onClose: () => void
     customIdentityId?: string
 }
+
+// FIXME WE MUST ALLOW FOR A USER-DEFINED INDEX
+const IDENTITY_INDEX = 0
 
 export function RegistrarModal({
     isOpen,
@@ -176,7 +179,8 @@ console.log('REGISTRAR (mnemonic)', mnemonic)
 console.log('REGISTRAR (currentNetwork)', currentNetwork)
 
         /* Request payment address. */
-        const paymentAddress = await getPaymentAddress(currentNetwork, username, email)
+        const paymentAddress = await getPaymentAddress(
+            currentNetwork, IDENTITY_INDEX, username, email)
             .catch(err => console.error(err))
 
         /* Handle contested username. */
@@ -195,7 +199,7 @@ console.log('REGISTRAR (currentNetwork)', currentNetwork)
 console.log('WAITING (up to 15 minutes) FOR PAYMENT...')
 
             /* Request pending registration. */
-            const response = await checkPendingStatus(currentNetwork)
+            const response = await checkPendingStatus(currentNetwork, IDENTITY_INDEX)
                 .catch(err => console.error(err))
 
             /* Validate (pending registration) response. */
@@ -211,7 +215,7 @@ console.log('WAITING (up to 15 minutes) FOR PAYMENT...')
 
                 /* Register Identity + Username. */
                 const regResult = await registerIdentityAndUsername(
-                    currentNetwork, username, proof, wif)
+                    currentNetwork, IDENTITY_INDEX, username, proof, wif)
                     .catch(err => console.error(err))
 console.log('REGISTRATION RESULT', regResult)
 
@@ -225,16 +229,16 @@ console.log('REGISTRATION RESULT', regResult)
                     alert(`Congratulations!\n\nYou're all set.\nEnjoy your NEW Identity!`)
 
                     /* Request public keys. */
-                    const publicKeys = getPublicKeys(currentNetwork)
+                    const publicKeys = getPublicKeys(currentNetwork, IDENTITY_INDEX)
 
-                    /* Request ALL (registered) public keys. */
-                    const regKeysResponse = await getRegisteredKeys(currentNetwork)
-console.log('CONNECT (regKeysResponse)', regKeysResponse)
+                    /* Request ALL (registered) Identities. */
+                    const regIdentities = await getIdentities(currentNetwork)
+console.log('CONNECT (regIdentities)', regIdentities)
 
-                    const identityId = regKeysResponse?.identityId
+                    const identityId = regIdentities![0].id
 console.log('CONNECT (identityId)', identityId)
 
-                    const regPubKeys = regKeysResponse?.regPubKeys
+                    const regPubKeys = regIdentities![0].publicKeys
 console.log('CONNECT (regPubKeys)', regPubKeys)
 
                     /* Validate Identity ID and public keys. */
@@ -245,7 +249,7 @@ console.log('CONNECT (regPubKeys)', regPubKeys)
 console.log('CONNECT (signingPublicKey)', signingPublicKey)
 
                         const signingPrivateKey = publicKeys.find(_pubkey => {
-                            return _pubkey.id === signingPublicKey.id
+                            return _pubkey.id === signingPublicKey!.id
                         })
 console.log('CONNECT (signingPrivateKey)', signingPrivateKey)
 
