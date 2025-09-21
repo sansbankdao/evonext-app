@@ -1,6 +1,10 @@
 /* Import modules. */
 import { DashPlatformSDK } from 'dash-platform-sdk'
 import { GasFeesPaidByWASM, PrivateKeyWASM } from 'pshenmic-dpp'
+// @ts-ignore
+import { hash160 } from '@nexajs/crypto'
+// @ts-ignore
+import { binToHex, hexToBin } from '@nexajs/utils'
 
 import { wasmSdkService } from './services'
 import {
@@ -9,8 +13,10 @@ import {
     derive_key_from_seed_with_path,
     get_identities_token_balances_with_proof_info,
 } from './dash-wasm/wasm_sdk'
-import { getMnemonic } from './secure-storage'
+import { getIdentities } from './identity-manager'
+import { getIdentityIdx, getMnemonic } from './secure-storage'
 import {
+    IKeyTypes,
     ITxError,
     ITxSuccess,
     ITokenPaymentInfo,
@@ -122,7 +128,7 @@ export const getPublicKeys = (
     return publicKeys
 }
 
-export const getTransferKey = (
+export const getTransferKey = async (
     _currentNetwork: string,
     _identityIdx: number,
 ) => {
@@ -130,11 +136,35 @@ export const getTransferKey = (
     const network = (_currentNetwork === 'mainnet') ? 'mainnet' : 'testnet'
 
     /* Request private keys. */
-    const keys = getPrivateKeys(network, _identityIdx)
+    const generatedkeys = getPrivateKeys(network, _identityIdx)
+console.log('GENERATED KEYS', generatedkeys)
 
+// FIXME -- ONLY SEARCH IF (STANDARD) KEYS DO NOT WORK
+    const response = await getIdentities(network)
+    const registeredKeys = response![0].publicKeys
+console.log('REGISTERED KEYS', registeredKeys)
 // FIXME WE WANT TO SUPPORT ALTERNATIVE KEY CONFIGURATIONS
 
 /*
+
+PURPOSES
+0 => AUTHENTICATION
+1 => ENCRYPTION
+2 => DECRYPTION
+3 => TRANSFER
+
+TYPES
+0 =>
+1 =>
+2 => ???
+
+SECURITY LEVELS
+0 => MASTER
+1 => CRITICAL
+2 => HIGH
+3 => MEDIUM
+
+
 
 // WHAT IS THE CONFIG FOR TRANSFER KEYS??
 
@@ -152,8 +182,8 @@ const seedPrivateKey = signingPrivateKey!.privateKeyWif
 
 */
 
-    /* Return transfer (private) key. */
-    return keys.transferKey
+    /* Return transfer (private) key (WIF). */
+    return generatedkeys.transferKey.private_key_wif
 }
 
 export const getTokenBalance = async (
@@ -204,7 +234,7 @@ export const sendCredit = async (
     const credits = BigInt(_credits)
 
     /* Request transfer (WIF) key. */
-    const transferWif = getTransferKey(_network, _identityIdx)
+    const transferWif = await getTransferKey(_network, _identityIdx)
 console.log('GET TRANSFER KEY', transferWif)
     /* Handle network. */
     if (_network === 'mainnet') {
@@ -269,7 +299,7 @@ export const sendToken = async (
         )
 
     /* Request transfer (WIF) key. */
-    const transferWif = getTransferKey(_network, _identityIdx)
+    const transferWif = await getTransferKey(_network, _identityIdx)
 
     /* Set private (transfer) key. */
     const privKey = PrivateKeyWASM.fromWIF(transferWif)
@@ -359,7 +389,7 @@ export const createDocument = async (
     )
 
     /* Request transfer (WIF) key. */
-    const transferWif = getTransferKey(_network, _identityIdx)
+    const transferWif = await getTransferKey(_network, _identityIdx)
 
     /* Set private (transfer) key. */
     const privKey = PrivateKeyWASM.fromWIF(transferWif)

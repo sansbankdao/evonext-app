@@ -25,6 +25,30 @@ const getKeyType = (_type: number | undefined) => {
     return 'FIXME -- ENUMERATE KEY TYPE'
 }
 
+const decodeBase64ToHex = (_base64String: string) => {
+  try {
+    // 1. Decode the Base64 string into a binary string
+    const byteString = atob(_base64String);
+
+    // 2. Create an array to hold the byte values
+    const bytes = [];
+    for (let i = 0; i < byteString.length; i++) {
+      // 3. Convert each character to its byte value
+      const byte = byteString.charCodeAt(i);
+
+      // 4. Convert the byte to a two-digit hex string and add to the array
+      const hex = byte.toString(16).padStart(2, '0');
+      bytes.push(hex);
+    }
+
+    // 5. Join the array elements to form the final hex string
+    return bytes.join('');
+  } catch (e) {
+    console.error('Failed to decode Base64 string:', e);
+    return null;
+  }
+}
+
 /**
  * Get Identities
  *
@@ -45,6 +69,7 @@ export const getIdentities = async (
         if (typeof hash160Result !== 'undefined' && hash160Result !== null) {
             identities.push({
                 id: hash160Result.identityId,
+                idx: i,
                 publicKeys: hash160Result.regPubKeys.map((_key: IPublicKey) => {
                     return {
                         id: _key.id,
@@ -54,6 +79,7 @@ export const getIdentities = async (
                         securityLevel: _key.securityLevel,
                         contractBounds: _key.contractBounds,
                         data: _key.data,
+                        dataBytes: decodeBase64ToHex(_key.data),
                         readOnly: _key.readOnly,
                         disabledAt: _key.disabledAt,
                     }
@@ -68,6 +94,7 @@ export const getIdentities = async (
         if (typeof secp256k1Result !== 'undefined' && secp256k1Result !== null) {
             identities.push({
                 id: secp256k1Result.identityId,
+                idx: i,
                 publicKeys: secp256k1Result.regPubKeys.map((_key: IPublicKey) => {
                     return {
                         id: _key.id,
@@ -77,6 +104,7 @@ export const getIdentities = async (
                         securityLevel: _key.securityLevel,
                         contractBounds: _key.contractBounds,
                         data: _key.data,
+                        dataBytes: decodeBase64ToHex(_key.data),
                         readOnly: _key.readOnly,
                         disabledAt: _key.disabledAt,
                     }

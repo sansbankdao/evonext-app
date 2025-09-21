@@ -41,7 +41,16 @@ export interface ICurrency {
 
 export interface IIdentity {
     id: string;
+    idx: number;
     publicKeys: [IPublicKey];
+}
+
+export interface IKeyTypes {
+    masterKey: IPrivateKey | IPublicKey;
+    authCritical: IPrivateKey | IPublicKey;
+    authHigh: IPrivateKey | IPublicKey;
+    transferKey: IPrivateKey | IPublicKey;
+    encryptionKey: IPrivateKey | IPublicKey;
 }
 
 export interface IMedia {
@@ -80,15 +89,9 @@ export interface IPost {
     quotedPost?: IPost;
 }
 
-export interface IPrivateKey {
-    id: number;
-    type?: number;
-    keyType?: string;       // enumeration
-    purpose: string;
-    securityLevel: string;
+export interface IPrivateKey extends IPublicKey {
     privateKeyHex: string;
     privateKeyWif: string;
-    readOnly: boolean;
 }
 
 export interface IPublicKey {

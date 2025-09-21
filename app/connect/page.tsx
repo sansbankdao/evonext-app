@@ -68,19 +68,13 @@ export default function LoginPage() {
         }
 
         /* Initialize secure storage. */
-        const { getIdentityIdx, storeMnemonic } = await import('@/lib/secure-storage')
+        const { getIdentityIdx, storeIdentityIdx, storeMnemonic } = await import('@/lib/secure-storage')
 
         /* Save mnemonic (to secure storage). */
         storeMnemonic(mnemonic)
 
         /* Request Identity index. */
-        const identityIdx = getIdentityIdx()
-
-        /* Request private keys. */
-        const privateKeys = getPrivateKeys(currentNetwork, identityIdx)
-
-        /* Request public keys. */
-        const publicKeys = getPublicKeys(currentNetwork, identityIdx)
+        // const identityIdx = getIdentityIdx()
 
         /* Request ALL (registered) Identities. */
         const regIdentities = await getIdentities(currentNetwork)
@@ -89,11 +83,20 @@ console.log('CONNECT (regIdentities)', regIdentities)
         const identityId = regIdentities![0].id
 console.log('CONNECT (identityId)', identityId)
 
+        const identityIdx = regIdentities![0].idx || 0
+console.log('CONNECT (identityIdx)', identityIdx)
+
         const regPubKeys = regIdentities![0].publicKeys
 console.log('CONNECT (regPubKeys)', regPubKeys)
 
         /* Validate Identity ID and public keys. */
         if (identityId && regPubKeys) {
+// STORE THE IDENTITY INDEX
+storeIdentityIdx(identityIdx)
+
+/* Request public keys. */
+const publicKeys = getPublicKeys(currentNetwork, identityIdx)
+
             const signingPublicKey = regPubKeys.find((_pubkey: any) => {
                 return _pubkey.purpose === 0 && (_pubkey.securityLevel === 1 || _pubkey.securityLevel === 2)
             })
@@ -119,6 +122,9 @@ console.log('CONNECT (seedPrivateKey WIF)', seedPrivateKey)
             }
         } else {
 // BEGIN NO IDENTITY FOUND
+/* Request private keys. */
+const privateKeys = getPrivateKeys(currentNetwork, identityIdx)
+
             const publicKey = privateKeys.masterKey.public_key
 console.log('CONNECT (publicKey)', publicKey)
 

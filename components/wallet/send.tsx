@@ -118,7 +118,7 @@ export function WalletSend({ isFullScreen }: IWalletSendProps) {
 
             /* Request Identity index. */
             const identityIdx = getIdentityIdx()
-
+console.log('WHY IS THIS IDENTITY INDEX WRONG?', identityIdx)
             /* Validate asset. */
             if (asset.id === '0') {
                 /* Request a credit transfer. */
@@ -128,7 +128,10 @@ export function WalletSend({ isFullScreen }: IWalletSendProps) {
                     identityIdx,
                     receiver,
                     assetValue
-                ).catch(err => console.error(err))
+                ).catch(err => {
+                    console.error(err)
+                    setErrorMsgs(err)
+                })
 console.log('SEND (CREDIT response)', response)
             } else {
                 /* Request a credit transfer. */

@@ -19,6 +19,7 @@ import {
     getPaymentAddress,
     registerIdentityAndUsername,
 } from '@/lib/registrar-manager'
+import { storeIdentityIdx } from '@/lib/secure-storage'
 import { getPrivateKeys, getPublicKeys } from '@/lib/wallet-manager'
 import { dpns_is_contested_username } from '@/lib/dash-wasm/wasm_sdk'
 
@@ -238,11 +239,17 @@ console.log('CONNECT (regIdentities)', regIdentities)
                     const identityId = regIdentities![0].id
 console.log('CONNECT (identityId)', identityId)
 
+                    const identityIdx = regIdentities![0].idx || 0
+console.log('CONNECT (identityIdx)', identityIdx)
+
                     const regPubKeys = regIdentities![0].publicKeys
 console.log('CONNECT (regPubKeys)', regPubKeys)
 
                     /* Validate Identity ID and public keys. */
                     if (identityId && regPubKeys) {
+// STORE THE IDENTITY INDEX
+storeIdentityIdx(identityIdx)
+
                         const signingPublicKey = regPubKeys.find((_pubkey: any) => {
                             return _pubkey.purpose === 0 && (_pubkey.securityLevel === 1 || _pubkey.securityLevel === 2)
                         })
