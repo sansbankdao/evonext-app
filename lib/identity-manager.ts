@@ -16,6 +16,11 @@ import { binToHex, hexToBin } from '@nexajs/utils'
 /* Initialize constants. */
 const MIN_INDEX_SEARCH = 3
 
+/**
+ * Get Key Type
+ *
+ * FIXME -- ENUMERATE KEY TYPE
+ */
 const getKeyType = (_type: number | undefined) => {
     return 'FIXME -- ENUMERATE KEY TYPE'
 }

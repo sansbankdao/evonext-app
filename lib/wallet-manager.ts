@@ -126,8 +126,11 @@ export const getTransferKey = (
     _currentNetwork: string,
     _identityIdx: number,
 ) => {
+    /* Set network. */
+    const network = (_currentNetwork === 'mainnet') ? 'mainnet' : 'testnet'
+
     /* Request private keys. */
-    const keys = getPrivateKeys(_currentNetwork, _identityIdx)
+    const keys = getPrivateKeys(network, _identityIdx)
 
 // FIXME WE WANT TO SUPPORT ALTERNATIVE KEY CONFIGURATIONS
 
@@ -202,7 +205,7 @@ export const sendCredit = async (
 
     /* Request transfer (WIF) key. */
     const transferWif = getTransferKey(_network, _identityIdx)
-
+console.log('GET TRANSFER KEY', transferWif)
     /* Handle network. */
     if (_network === 'mainnet') {
         /* Initialize SDK. */
@@ -211,7 +214,7 @@ export const sendCredit = async (
         /* Initialize SDK. */
         sdk = await WasmSdkBuilder.new_testnet_trusted().build()
     }
-
+console.log('IDENTITY ID', _identityId)
     /* Transfer credits. */
     const txResult = await sdk.identityCreditTransfer(
         _identityId,
