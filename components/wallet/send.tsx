@@ -52,7 +52,7 @@ export function WalletSend({ isFullScreen }: IWalletSendProps) {
     useEffect(() => {
         /* Request asset. */
         setAsset(getAsset())
-    }, [asset])
+    }, [])
 
     const openScanner = () => {
         console.log('OPEN SCANNER')
@@ -113,8 +113,8 @@ export function WalletSend({ isFullScreen }: IWalletSendProps) {
         }
 
         /* Confirm user request. */
-        if (confirm(`Are you sure you want to send ${numeral(assetValue).format('0,0.00')} ${asset.ticker} (valued @ ${assetUsdValue} USD) to ${receiver}?`)) {
-            console.log(`Starting transfer of ${numeral(assetValue).format('0,0.00')} ${asset.ticker} to ${receiver}...`)
+        if (confirm(`Are you sure you want to send ${numeral(amount).format('0,0.00[0000]')} ${asset.ticker} (valued @ ${assetUsdValue} USD) to ${receiver}?`)) {
+            console.log(`Starting transfer of ${numeral(amount).format('0,0.00[0000]')} ${asset.ticker} to ${receiver}...`)
 
             /* Request Identity index. */
             const identityIdx = getIdentityIdx()

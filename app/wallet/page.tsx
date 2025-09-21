@@ -120,13 +120,13 @@ console.log('USER', user)
                                 My Identity Dashboard
                             </h2>
 
-                            <h3 className="text-lg tracking-wide text-sky-700 font-bold opacity-80 group-hover:opacity-100 group-hover:scale-105 duration-300 ease-in-out">
-                                {user?.dpnsUsername}
-                            </h3>
+                            {user?.dpnsUsername && <h3 className="text-lg tracking-wide text-sky-700 font-bold opacity-80 group-hover:opacity-100 group-hover:scale-105 duration-300 ease-in-out">
+                                {user?.dpnsUsername.slice(0, -5)}
+                            </h3>}
 
-                            <h3 className="text-xs tracking-tight text-sky-600 font-medium opacity-60 group-hover:opacity-100 group-hover:scale-105 duration-300 ease-in-out">
+                            {user?.identityId && <h3 className="text-xs tracking-tight text-sky-600 font-medium opacity-60 group-hover:opacity-100 group-hover:scale-105 duration-300 ease-in-out">
                                 {user?.identityId}
-                            </h3>
+                            </h3>}
                         </section>
 
                         <Image

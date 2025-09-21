@@ -126,7 +126,7 @@ export function WalletAssets({ isFullScreen }: WalletAssetProps) {
         const asset = assets.find(_asset => {
             return _asset.id === _tokenid
         })
-
+console.log('ACTIVE ASSET', asset)
         /* Validate asset. */
         if (typeof asset !== 'undefined' && asset !== null) {
             /* Set (local) asset. */
@@ -203,20 +203,22 @@ console.log('SANS BALANCE', sansBalance)
                 }
 
                 /* Build AVAILABLE (Platform) assets collection. */
-                const assets: IToken[] = [
-                    {
-                        id: '0',
-                        name: 'Dash Credit',
-                        ticker: 'DASH',
-                        token_id_hex: dusdContractId,
-                        iconUrl: '/icons/dash.svg',
-                        duffs: BigInt(user.balance),
-                        decimal_places: DASH_DECIMALS,
-                        fiat: {
-                            USD: DASH_USD_VALUE * (user.balance / (10 ** DASH_DECIMALS)),
-                        },
+                const assets: IToken[] = [{
+                    id: '0',
+                    name: 'Dash Credit',
+                    ticker: 'DASH',
+                    token_id_hex: dusdContractId,
+                    iconUrl: '/icons/dash.svg',
+                    duffs: BigInt(user.balance),
+                    decimal_places: DASH_DECIMALS,
+                    fiat: {
+                        USD: DASH_USD_VALUE * (user.balance / (10 ** DASH_DECIMALS)),
                     },
-                    {
+                }]
+
+                /* Validate DUSD balance. */
+                if (typeof dusdBalance !== 'undefined' && dusdBalance !== null) {
+                    assets.push({
                         id: dusdContractId,
                         name: 'Dash USD',
                         ticker: 'DUSD',
@@ -227,8 +229,12 @@ console.log('SANS BALANCE', sansBalance)
                         fiat: {
                             USD: DUSD_USD_VALUE * (parseFloat(dusdBalance!.toString()) / (10 ** DUSD_DECIMALS)),
                         },
-                    },
-                    {
+                    })
+                }
+
+                /* Validate SANS balance. */
+                if (typeof sansBalance !== 'undefined' && sansBalance !== null) {
+                    assets.push({
                         id: sansContractId,
                         name: 'Sansnote',
                         ticker: 'SANS',
@@ -239,8 +245,8 @@ console.log('SANS BALANCE', sansBalance)
                         fiat: {
                             USD: SANS_USD_VALUE * (parseFloat(sansBalance!.toString()) / (10 ** SANS_DECIMALS)),
                         },
-                    },
-                ]
+                    })
+                }
 
                 /* Save/update assets. */
                 setAssets(assets)
