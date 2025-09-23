@@ -93,20 +93,22 @@ export function WalletSend({ isFullScreen }: IWalletSendProps) {
         case DUSD_CONTRACT_ID_MAINNET:
         case DUSD_CONTRACT_ID_TESTNET:
             /* Calculate DASH value. */
-            assetValue = BigInt(amount * (10 ** DUSD_DECIMALS))
+            assetValue = BigInt(Math.trunc(amount * (10 ** DUSD_DECIMALS)))
 
             /* Calculate USD value. */
             assetUsdValue = amount * DUSD_USD_VALUE
+            break
         case SANS_CONTRACT_ID_MAINNET:
         case SANS_CONTRACT_ID_TESTNET:
             /* Calculate DASH value. */
-            assetValue = BigInt(amount * (10 ** SANS_DECIMALS))
+            assetValue = BigInt(Math.trunc(amount * (10 ** SANS_DECIMALS)))
 
             /* Calculate USD value. */
             assetUsdValue = amount * SANS_USD_VALUE
+            break
         default:
             /* Calculate DASH value. */
-            assetValue = BigInt(amount * (10 ** DASH_DECIMALS))
+            assetValue = BigInt(Math.trunc(amount * (10 ** DASH_DECIMALS)))
 
             /* Calculate USD value. */
             assetUsdValue = amount * DASH_USD_VALUE
