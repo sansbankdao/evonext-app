@@ -128,6 +128,65 @@ export const getPublicKeys = (
     return publicKeys
 }
 
+export const getAuthKey = async (
+    _currentNetwork: string,
+    _identityIdx: number,
+) => {
+    /* Set network. */
+    const network = (_currentNetwork === 'mainnet') ? 'mainnet' : 'testnet'
+
+    /* Request private keys. */
+    const generatedkeys = getPrivateKeys(network, _identityIdx)
+console.log('GENERATED KEYS', generatedkeys)
+
+// FIXME -- ONLY SEARCH IF (STANDARD) KEYS DO NOT WORK
+    const response = await getIdentities(network)
+    const registeredKeys = response![0].publicKeys
+console.log('REGISTERED KEYS', registeredKeys)
+// FIXME WE WANT TO SUPPORT ALTERNATIVE KEY CONFIGURATIONS
+
+/*
+
+PURPOSES
+0 => AUTHENTICATION
+1 => ENCRYPTION
+2 => DECRYPTION
+3 => TRANSFER
+
+TYPES
+0 =>
+1 =>
+2 => ???
+
+SECURITY LEVELS
+0 => MASTER
+1 => CRITICAL
+2 => HIGH
+3 => MEDIUM
+
+
+
+// WHAT IS THE CONFIG FOR TRANSFER KEYS??
+
+const signingPublicKey = regPubKeys.find((_pubkey: any) => {
+    return _pubkey.purpose === 0 && (_pubkey.securityLevel === 1 || _pubkey.securityLevel === 2)
+})
+console.log('SIGNING (public) KEY', signingPublicKey)
+
+const signingPrivateKey = publicKeys.find(_pubkey => {
+    return _pubkey.id === signingPublicKey.id
+})
+console.log('SIGNING (private) KEY', signingPrivateKey)
+
+const seedPrivateKey = signingPrivateKey!.privateKeyWif
+
+*/
+
+    /* Return transfer (private) key (WIF). */
+    return generatedkeys.authCritical.private_key_wif
+    // return generatedkeys.transferKey.private_key_hex
+}
+
 export const getTransferKey = async (
     _currentNetwork: string,
     _identityIdx: number,
@@ -184,6 +243,7 @@ const seedPrivateKey = signingPrivateKey!.privateKeyWif
 
     /* Return transfer (private) key (WIF). */
     return generatedkeys.transferKey.private_key_wif
+    // return generatedkeys.transferKey.private_key_hex
 }
 
 export const getTokenBalance = async (
@@ -281,7 +341,8 @@ export const sendToken = async (
 
     /* Set transfer amount. */
     // const amount = BigInt(_satoshis)
-
+console.log('TOKEN ID', _tokenId)
+console.log('IDENTITY ID', _identityId)
     /* Initialize token base transition. */
     const tokenBaseTransition = await sdk.tokens
         .createBaseTransition(_tokenId, _identityId)
@@ -299,11 +360,16 @@ export const sendToken = async (
         )
 
     /* Request transfer (WIF) key. */
-    const transferWif = await getTransferKey(_network, _identityIdx)
+    const authWif = await getAuthKey(_network, _identityIdx)
+console.log('authWif', authWif)
 
+    /* Request transfer (WIF) key. */
+    const transferWif = await getTransferKey(_network, _identityIdx)
+console.log('transferWif', transferWif)
     /* Set private (transfer) key. */
     const privKey = PrivateKeyWASM.fromWIF(transferWif)
-
+    // const privKey = PrivateKeyWASM.fromHex(transferWif, 'testnet')
+console.log('privKey', privKey)
     /* Set identity. */
     const identity = await sdk.identities.getIdentityByIdentifier(_identityId)
 
@@ -316,10 +382,14 @@ export const sendToken = async (
 
     /* Set public key. */
     const pubKey = identityPublicKeys[publicKeyId]
+// console.log('PUB KEY', pubKey)
+    // stateTransition.signByPrivateKey(PrivateKeyWASM.fromHex(privateKey, 'testnet'), 'ECDSA_SECP256K1')
+    // stateTransition.signByPrivateKey(PrivateKeyWASM.fromWIF(transferWif), publicKeyId, 'ECDSA_HASH160')
+    // stateTransition.signByPrivateKey(PrivateKeyWASM.fromHex(transferWif, 'testnet'), undefined, 'ECDSA_HASH160')
 
     /* Assign public key ID. */
 // NOTE IS THIS STILL NECESSARY??
-    stateTransition.signaturePublicKeyId = publicKeyId
+    // stateTransition.signaturePublicKeyId = publicKeyId
 
     /* Sign state transition. */
     stateTransition.sign(privKey, pubKey)
@@ -371,12 +441,12 @@ export const createDocument = async (
 // FIXME IS THIS STILL NECESSARY??
     const identityContractNonce = BigInt(1)
 
-    // const tokenPaymentInfo = {
-    //     tokenContractId: '...',
-    //     tokenContractPosition: 0,
-    //     maximumTokenCost: BigInt(10),
-    //     gasFeesPaidBy: GasFeesPaidByWASM.ContractOwner,
-    // }
+    const tokenPaymentInfo = {
+        tokenContractId: '...',
+        tokenContractPosition: 0,
+        maximumTokenCost: BigInt(10),
+        gasFeesPaidBy: GasFeesPaidByWASM.ContractOwner,
+    }
 
     /* Create state transition. */
     const stateTransition = sdk.documents.createStateTransition(

@@ -118,7 +118,7 @@ export function WalletSend({ isFullScreen }: IWalletSendProps) {
 
             /* Request Identity index. */
             const identityIdx = getIdentityIdx()
-console.log('WHY IS THIS IDENTITY INDEX WRONG?', identityIdx)
+
             /* Validate asset. */
             if (asset.id === '0') {
                 /* Request a credit transfer. */
