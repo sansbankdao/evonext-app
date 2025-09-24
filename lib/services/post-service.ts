@@ -1,6 +1,6 @@
 /* Import modules. */
 import { BaseDocumentService, QueryOptions, DocumentResult } from './document-service'
-import { Post, User } from '../types'
+import { IPost, IUser } from '../types'
 import { identityService } from './identity-service'
 import { profileService } from './profile-service'
 import {
@@ -84,7 +84,7 @@ export interface PostStats {
     views: number;
 }
 
-class PostService extends BaseDocumentService<Post> {
+class PostService extends BaseDocumentService<IPost> {
     private statsCache: Map<string, { data: PostStats; timestamp: number }> = new Map()
 
     constructor(_contractId: string) {
@@ -94,9 +94,9 @@ class PostService extends BaseDocumentService<Post> {
     /**
      * Transform document to Post type
      */
-    protected transformDocument(doc: PostDocument): Post {
+    protected transformDocument(doc: PostDocument): IPost {
         // Return a basic Post object - additional data will be loaded separately
-        const post: Post = {
+        const post: IPost = {
             id: doc.$id,
             // author: this.getDefaultUser(doc.$ownerId),
             author: this.getDefaultUser(doc.ownerId),
@@ -126,7 +126,7 @@ class PostService extends BaseDocumentService<Post> {
      * Enrich post with async data
      */
     private async enrichPost(
-        post: Post,
+        post: IPost,
         doc: PostDocument,
     ): Promise<void> {
         try {
@@ -190,7 +190,7 @@ class PostService extends BaseDocumentService<Post> {
             language?: string;
             isSensitive?: boolean;
         } = {}
-    ): Promise<Post> {
+    ): Promise<IPost> {
         const data: any = {
             content
         }
@@ -210,7 +210,7 @@ class PostService extends BaseDocumentService<Post> {
     /**
      * Get timeline posts
      */
-    async getTimeline(options: QueryOptions = {}): Promise<DocumentResult<Post>> {
+    async getTimeline(options: QueryOptions = {}): Promise<DocumentResult<IPost>> {
         const defaultOptions: QueryOptions = {
             orderBy: [['$createdAt', 'desc']],
             limit: 20,
@@ -226,7 +226,7 @@ class PostService extends BaseDocumentService<Post> {
     async getUserPosts(
         userId: string,
         options: QueryOptions = {},
-    ): Promise<DocumentResult<Post>> {
+    ): Promise<DocumentResult<IPost>> {
         const queryOptions: QueryOptions = {
             where: [['$ownerId', '==', userId]],
             orderBy: [['$createdAt', 'desc']],
@@ -243,7 +243,7 @@ class PostService extends BaseDocumentService<Post> {
     async getReplies(
         postId: string,
         options: QueryOptions = {},
-    ): Promise<DocumentResult<Post>> {
+    ): Promise<DocumentResult<IPost>> {
         const queryOptions: QueryOptions = {
             where: [['replyToId', '==', postId]],
             orderBy: [['$createdAt', 'asc']],
@@ -260,7 +260,7 @@ class PostService extends BaseDocumentService<Post> {
     async getPostsByHashtag(
         hashtag: string,
         options: QueryOptions = {},
-    ): Promise<DocumentResult<Post>> {
+    ): Promise<DocumentResult<IPost>> {
         const queryOptions: QueryOptions = {
             where: [['primaryHashtag', '==', hashtag.replace('#', '')]],
             orderBy: [['$createdAt', 'desc']],
@@ -366,7 +366,7 @@ class PostService extends BaseDocumentService<Post> {
     /**
      * Get default user object when profile not found
      */
-    private getDefaultUser(userId: string): User {
+    private getDefaultUser(userId: string): IUser {
         return {
             id: userId,
             docId: undefined,
