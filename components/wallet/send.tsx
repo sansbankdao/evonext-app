@@ -115,7 +115,7 @@ export function WalletSend({ isFullScreen }: IWalletSendProps) {
         }
 
         /* Confirm user request. */
-        if (confirm(`Are you sure you want to send ${numeral(amount).format('0,0.00[0000]')} ${asset.ticker} (valued @ ${assetUsdValue} USD) to ${receiver}?`)) {
+        if (confirm(`Are you sure you want to send ${numeral(amount).format('0,0.00[0000]')} ${asset.ticker} (valued @ ${numeral(assetUsdValue).format('0,0.00[0000]')} USD) to ${receiver}?`)) {
             console.log(`Starting transfer of ${numeral(amount).format('0,0.00[0000]')} ${asset.ticker} to ${receiver}...`)
 
             /* Request Identity index. */

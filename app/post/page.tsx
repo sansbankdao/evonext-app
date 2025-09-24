@@ -9,17 +9,17 @@ import { PostCard } from '@/components/post/post-card'
 import { withAuth, useAuth } from '@/contexts/auth-context'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Post } from '@/lib/types'
+import { IPost } from '@/lib/types'
 import toast from 'react-hot-toast'
 
-interface Reply extends Post {
+interface Reply extends IPost {
     replyToId: string
 }
 
 function PostDetailPage() {
     const router = useRouter()
     const { user } = useAuth()
-    const [post, setPost] = useState<Post | null>(null)
+    const [post, setPost] = useState<IPost | null>(null)
     const [replies, setReplies] = useState<Reply[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [replyContent, setReplyContent] = useState('')
@@ -52,7 +52,7 @@ function PostDetailPage() {
 
                 // In a real app, this would fetch the specific post from Dash Platform
                 // For now, we'll simulate it
-                const mockPost: Post = {
+                const mockPost: IPost = {
                     id: hashId as string,
                     content: 'This is a sample post content. In a real app, this would be loaded from Dash Platform.',
                     author: {

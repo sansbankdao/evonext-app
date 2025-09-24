@@ -18,7 +18,7 @@ import {
     BookmarkIcon as BookmarkIconSolid
 } from '@heroicons/react/24/solid'
 
-import { Post } from '@/lib/types'
+import { IPost } from '@/lib/types'
 import { formatTime, formatNumber } from '@/lib/utils'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { IconButton } from '@/components/ui/icon-button'
@@ -32,7 +32,7 @@ import { decodeAvatarFeaturesV2, generateAvatarV2 } from '@/lib/avatar-generator
 import { LikesModal } from './likes-modal'
 
 interface PostCardProps {
-    post: Post
+    post: IPost
     hideAvatar?: boolean
     isOwnPost?: boolean
 }
