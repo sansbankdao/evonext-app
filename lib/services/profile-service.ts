@@ -4,7 +4,7 @@ import {
     QueryOptions,
     DocumentResult,
 } from './document-service'
-import { User } from '../types'
+import { IUser } from '../types'
 import { dpnsService } from './dpns-service'
 import { cacheManager } from '../cache-manager'
 
@@ -32,7 +32,7 @@ export interface AvatarDocument {
     $updatedAt?: number;
 }
 
-class ProfileService extends BaseDocumentService<User> {
+class ProfileService extends BaseDocumentService<IUser> {
     private readonly AVATAR_CACHE = 'avatars'
     private readonly USERNAME_CACHE = 'usernames'
     private readonly PROFILE_CACHE = 'profiles'
@@ -49,7 +49,7 @@ console.log('CONTRUCT PROFILE SERVICE (contractId)', _contractId)
      */
     async query(
         options: QueryOptions = {}
-    ): Promise<DocumentResult<User>> {
+    ): Promise<DocumentResult<IUser>> {
         try {
             const sdk = await getWasmSdk()
 
@@ -143,7 +143,7 @@ console.log('DEFAUT PROFILE', {
     protected transformDocument(
         doc: ProfileDocument,
         options?: { cachedUsername?: string },
-    ): User {
+    ): IUser {
         console.log('ProfileService: transformDocument input:', doc)
 
         // Handle both $ prefixed and non-prefixed properties
@@ -153,7 +153,7 @@ console.log('DEFAUT PROFILE', {
         const revision = doc.data.revision
 
         // Return a basic User object - additional data will be loaded separately
-        const user: User = {
+        const user: IUser = {
             id: ownerId,
             docId: doc.id!, // NOTE: THIS MUST ALWAYS EXIST
             username: options?.cachedUsername || (ownerId.substring(0, 8) + '...'),
@@ -179,7 +179,7 @@ console.log('DEFAUT PROFILE', {
      * Enrich user with async data
      */
     private async enrichUser(
-        user: User,
+        user: IUser,
         doc: ProfileDocument,
         skipUsernameResolution?: boolean,
     ): Promise<void> {
@@ -218,12 +218,12 @@ console.log('DEFAUT PROFILE', {
     async getProfile(
         ownerId: string,
         cachedUsername?: string,
-    ): Promise<User | null> {
+    ): Promise<IUser | null> {
         try {
             console.log('ProfileService: Getting profile for owner ID:', ownerId);
 
             // Check cache first
-            const cached = cacheManager.get<User>(this.PROFILE_CACHE, ownerId);
+            const cached = cacheManager.get<IUser>(this.PROFILE_CACHE, ownerId);
 
             if (cached) {
                 console.log('ProfileService: Returning cached profile for:', ownerId);
@@ -280,7 +280,7 @@ console.log('DEFAUT PROFILE', {
         displayName: string,
         bio?: string,
         avatarData?: string
-    ): Promise<User> {
+    ): Promise<IUser> {
         const data: any = {
             displayName,
             bio: bio || ''
@@ -310,7 +310,7 @@ console.log('DEFAUT PROFILE', {
             bio?: string;
             avatarData?: string;
         }
-    ): Promise<User | null> {
+    ): Promise<IUser | null> {
         try {
             // Get existing profile
             const profile = await this.getProfile(ownerId)
