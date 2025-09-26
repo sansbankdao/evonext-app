@@ -80,22 +80,36 @@ export default function LoginPage() {
         const regIdentities = await getIdentities(currentNetwork)
 console.log('CONNECT (regIdentities)', regIdentities)
 
-        const identityId = regIdentities![0].id
+        let identityId
+        let identityIdx
+        let regPubKeys
+
+        if (typeof regIdentities !== 'undefined' && regIdentities !== null && regIdentities.length > 0) {
+            /* Set identity ID. */
+            identityId = regIdentities[0].id
 console.log('CONNECT (identityId)', identityId)
 
-        const identityIdx = regIdentities![0].idx || 0
+            /* Set identity index. */
+            identityIdx = regIdentities[0].idx || 0
 console.log('CONNECT (identityIdx)', identityIdx)
 
-        const regPubKeys = regIdentities![0].publicKeys
+            /* Set registered public keys. */
+            regPubKeys = regIdentities[0].publicKeys
 console.log('CONNECT (regPubKeys)', regPubKeys)
+        } else {
+            /* Set identity index. */
+            identityIdx = 0
+console.log('CONNECT (identityIdx)', identityIdx)
+        }
+
+// STORE THE IDENTITY INDEX
+storeIdentityIdx(identityIdx!)
 
         /* Validate Identity ID and public keys. */
-        if (identityId && regPubKeys) {
-// STORE THE IDENTITY INDEX
-storeIdentityIdx(identityIdx)
+        if (typeof identityId !== 'undefined' && typeof regPubKeys !== 'undefined') {
 
 /* Request public keys. */
-const publicKeys = getPublicKeys(currentNetwork, identityIdx)
+const publicKeys = getPublicKeys(currentNetwork, identityIdx!)
 
             const signingPublicKey = regPubKeys.find((_pubkey: any) => {
                 return _pubkey.purpose === 0 && (_pubkey.securityLevel === 1 || _pubkey.securityLevel === 2)
@@ -121,15 +135,16 @@ console.log('CONNECT (seedPrivateKey WIF)', seedPrivateKey)
                 setIsResuming(false)
             }
         } else {
+console.log('BEGIN NO IDENTITY FOUND', currentNetwork, identityIdx)
 // BEGIN NO IDENTITY FOUND
 /* Request private keys. */
-const privateKeys = getPrivateKeys(currentNetwork, identityIdx)
+const privateKeys = getPrivateKeys(currentNetwork, identityIdx!)
 
             const publicKey = privateKeys.masterKey.public_key
 console.log('CONNECT (publicKey)', publicKey)
 
             /* Check (pending) status. */
-            const status = await checkPendingStatus(currentNetwork, identityIdx)
+            const status = await checkPendingStatus(currentNetwork, identityIdx!)
                 .catch(err => console.error(err))
 console.log('CONNECT (checkPendingStatus)', status)
 
@@ -154,7 +169,7 @@ console.log('CONNECT (wif)', typeof wif, wif)
 
                     /* Register Identity + Username. */
                     const regResult = await registerIdentityAndUsername(
-                        currentNetwork, identityIdx, username, proof, wif)
+                        currentNetwork, identityIdx!, username, proof, wif)
                         .catch(err => console.error(err))
 console.log('REGISTRATION RESULT', regResult)
 
