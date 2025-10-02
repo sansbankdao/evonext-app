@@ -9,7 +9,6 @@ import { binToHex, hexToBin } from '@nexajs/utils'
 import { wasmSdkService } from './services'
 import {
     WasmSdkBuilder,
-
     derive_key_from_seed_with_path,
     get_identities_token_balances_with_proof_info,
 } from './dash-wasm/wasm_sdk'

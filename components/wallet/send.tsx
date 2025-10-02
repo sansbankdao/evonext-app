@@ -6,6 +6,9 @@ import { useAuth } from '@/contexts/auth-context'
 import { useNetwork } from '@/contexts/network-context'
 import { BoltIcon, UserIcon } from '@heroicons/react/24/outline'
 
+// import { Button } from '@/components/ui/button'
+import { Loader2 } from 'lucide-react'
+
 import { getIdentityIdx } from '@/lib/secure-storage'
 
 import {
@@ -24,6 +27,10 @@ import {
     SANS_DECIMALS,
     SANS_USD_VALUE,
 } from '@/lib/constants'
+const {
+    WasmSdkBuilder,
+    dpns_resolve_name,
+} = require('@/lib/dash-wasm/wasm_sdk')
 import { getAsset, getMnemonic } from '@/lib/secure-storage'
 import { IToken } from '@/lib/types'
 import { sendCredit, sendToken } from '@/lib/wallet-manager'
@@ -36,18 +43,39 @@ interface IWalletSendProps {
     isFullScreen: boolean;
 }
 
+interface IAmountInputProps {
+  asset: {
+    ticker: string;
+  };
+}
+
+const isBase58 = (_str: string) => {
+    /* Check if the input is a string and not null/undefined. */
+    if (typeof _str !== 'string') {
+        return false;
+    }
+
+    // Base58 regex. Allows an empty string.
+    // ^               - start of string
+    // [1-9A-HJ-NP-Za-km-z]* - 0 or more chars from the Base58 alphabet
+    // $               - end of string
+    const base58Regex = /^[1-9A-HJ-NP-Za-km-z]*$/
+    return base58Regex.test(_str)
+}
+
 export function WalletSend({ isFullScreen }: IWalletSendProps) {
     const { user } =  useAuth()
     const { network } =  useNetwork()
 
     const [asset, setAsset] = useState<IToken>(DEFAULT_ASSET)
     const [identityFirstUse, setIdentityFirstUse] = useState('')
+    const [isSubmitting, setIsSubmitting] = useState(false)
     const [txid, setTxid] = useState<string | undefined>()
     const [errorMsgs, setErrorMsgs] = useState()
     const [isShowingVideoPreview, setIsShowingVideoPreview] = useState('hidden')
 
     const [receiver, setReceiver] = useState<string>('')
-    const [amount, setAmount] = useState<number>(0)
+    const [amount, setAmount] = useState<string>('')
 
     useEffect(() => {
         /* Request asset. */
@@ -67,6 +95,24 @@ export function WalletSend({ isFullScreen }: IWalletSendProps) {
         blocktime: 1234567890,
     }
 
+    const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = e.target.value
+
+        // Use a regex to allow only valid numeric/decimal characters.
+        // This allows an empty string, numbers, and a single decimal point.
+        const regex = /^[0-9]*\.?[0-9]*$/
+
+        if (regex.test(value)) {
+            // Prevent leading zeros like "01" or "05" but allow "0." and "0.5"
+            if (value.length > 1 && value.startsWith('0') && !value.startsWith('0.')) {
+                // If "01" is entered, this will set the value to "1"
+                setAmount(value.substring(1))
+            } else {
+                setAmount(value)
+            }
+        }
+    }
+
     /* Handle asset transfer request. */
     const send = async () => {
         /* Initialize locals. */
@@ -75,14 +121,23 @@ export function WalletSend({ isFullScreen }: IWalletSendProps) {
         let assetUsdValue
         let error
         let response
+        let safeReceiver
+        let sdk
+
+        /* Reset state. */
+        setErrorMsgs(undefined)
 
         /* Validate receiver. */
         if (typeof receiver === null) {
             return alert('Please enter an IDENTITY ADDRESS.')
         }
 
+        // When you need the numeric value for calculations, parse the string.
+        // Default to 0 if the string is empty or just a ".".
+        const numericAmount = parseFloat(amount) || 0
+
         /* Validate duffs. */
-        if (amount === null) {
+        if (numericAmount === null || numericAmount === 0) {
             return alert('Please enter an AMOUNT to send.')
         }
 
@@ -93,33 +148,54 @@ export function WalletSend({ isFullScreen }: IWalletSendProps) {
         case DUSD_CONTRACT_ID_MAINNET:
         case DUSD_CONTRACT_ID_TESTNET:
             /* Calculate DASH value. */
-            assetValue = BigInt(Math.trunc(amount * (10 ** DUSD_DECIMALS)))
+            assetValue = BigInt(Math.trunc(numericAmount * (10 ** DUSD_DECIMALS)))
 
             /* Calculate USD value. */
-            assetUsdValue = amount * DUSD_USD_VALUE
+            assetUsdValue = numericAmount * DUSD_USD_VALUE
             break
         case SANS_CONTRACT_ID_MAINNET:
         case SANS_CONTRACT_ID_TESTNET:
             /* Calculate DASH value. */
-            assetValue = BigInt(Math.trunc(amount * (10 ** SANS_DECIMALS)))
+            assetValue = BigInt(Math.trunc(numericAmount * (10 ** SANS_DECIMALS)))
 
             /* Calculate USD value. */
-            assetUsdValue = amount * SANS_USD_VALUE
+            assetUsdValue = numericAmount * SANS_USD_VALUE
             break
         default:
             /* Calculate DASH value. */
-            assetValue = BigInt(Math.trunc(amount * (10 ** DASH_DECIMALS)))
+            assetValue = BigInt(Math.trunc(numericAmount * (10 ** DASH_DECIMALS)))
 
             /* Calculate USD value. */
-            assetUsdValue = amount * DASH_USD_VALUE
+            assetUsdValue = numericAmount * DASH_USD_VALUE
         }
 
         /* Confirm user request. */
-        if (confirm(`Are you sure you want to send ${numeral(amount).format('0,0.00[0000]')} ${asset.ticker} (valued @ ${numeral(assetUsdValue).format('0,0.00[0000]')} USD) to ${receiver}?`)) {
-            console.log(`Starting transfer of ${numeral(amount).format('0,0.00[0000]')} ${asset.ticker} to ${receiver}...`)
+        if (confirm(`Are you sure you want to send ${numeral(numericAmount).format('0,0.00[0000]')} ${asset.ticker} (valued @ ${numeral(assetUsdValue).format('0,0.00[0000]')} USD) to ${receiver}?`)) {
+            console.log(`Starting transfer of ${numeral(numericAmount).format('0,0.00[0000]')} ${asset.ticker} to ${receiver}...`)
+
+            /* Set flag. */
+            setIsSubmitting(true)
 
             /* Request Identity index. */
             const identityIdx = getIdentityIdx()
+
+            /* Validate Identity or Username format. */
+            if (!isBase58(receiver)) {
+                /* Handle network. */
+                if (network === 'mainnet') {
+                    /* Initialize SDK. */
+                    sdk = await WasmSdkBuilder.new_mainnet_trusted().build()
+                } else {
+                    /* Initialize SDK. */
+                    sdk = await WasmSdkBuilder.new_testnet_trusted().build()
+                }
+
+                /* Resolve username (w/ onchain query). */
+                safeReceiver = await dpns_resolve_name(sdk, receiver)
+            } else {
+                safeReceiver = receiver
+            }
+console.log('SAVE RECEIVER', safeReceiver)
 
             /* Validate asset. */
             if (asset.id === '0') {
@@ -128,13 +204,13 @@ export function WalletSend({ isFullScreen }: IWalletSendProps) {
                     network!,
                     user!.identityId,
                     identityIdx,
-                    receiver,
+                    safeReceiver,
                     assetValue
                 ).catch(err => {
                     console.error(err)
-                    setErrorMsgs(err)
+                    setErrorMsgs(err?.message)
                 })
-console.log('SEND (CREDIT response)', response)
+console.log('SEND (CREDIT response)', typeof response, response)
             } else {
                 /* Request a credit transfer. */
                 response = await sendToken(
@@ -142,11 +218,17 @@ console.log('SEND (CREDIT response)', response)
                     user!.identityId,
                     identityIdx,
                     asset.id,
-                    receiver,
+                    safeReceiver,
                     assetValue
-                ).catch(err => console.error(err))
+                ).catch(err => {
+                    console.error(err)
+                    setErrorMsgs(err?.message)
+                })
 console.log('SEND (TOKEN response)', response)
             }
+
+            /* Set flag. */
+            setIsSubmitting(false)
         }
     }
 
@@ -405,10 +487,12 @@ console.log('SEND (TOKEN response)', response)
                 <section className="my-5 flex flex-col">
                     <input
                         className="w-full px-3 py-1 text-xl sm:text-2xl bg-cyan-100 border-2 border-cyan-300 rounded-md shadow"
-                        type="number"
+                        type="text"
+                        inputMode="decimal"
                         value={amount}
-                        onChange={(e) => setAmount(Number(e.target.value))}
+                        onChange={handleAmountChange}
                         placeholder={`Enter a (${asset.ticker}) amount`}
+                        aria-label={`Amount in ${asset.ticker}`}
                     />
 
                     {/* <!-- <h4 v-if="satoshis > 0" className="mt-1 ml-3 text-sm text-gray-500 font-medium">
@@ -418,9 +502,17 @@ console.log('SEND (TOKEN response)', response)
 
                 <button
                     onClick={send}
-                    className="w-fit cursor-pointer my-5 block px-5 py-2 text-2xl font-medium bg-blue-200 border-2 border-blue-400 rounded-md shadow hover:bg-blue-300"
+                    className={`w-fit flex items-center my-5 px-5 py-2 text-2xl font-medium bg-blue-200 border-2 border-blue-400 rounded-md shadow hover:bg-blue-300 ${isSubmitting ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                    disabled={isSubmitting}
                 >
-                    Send {asset.ticker}
+                    {isSubmitting ? (
+                        <>
+                            <Loader2 className="mr-2 size-8 animate-spin" />
+                            Sending {asset.ticker}...
+                        </>
+                    ) : (
+                        `Send ${asset.ticker}`
+                    )}
                 </button>
 
                 {txid && <section className="my-10">

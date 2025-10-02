@@ -586,7 +586,6 @@ console.log('TIMER STOPPED (after 15 minutes)')
                                 <Button
                                     type="submit"
                                     className="w-full text-xl"
-                                    // disabled={!username || !isAvailable || !!validationError || isChecking || isSubmitting || !currentIdentityId}
                                     disabled={!username || !isAvailable || !!validationError || isChecking || isSubmitting}
                                 >
                                     {isSubmitting ? (
