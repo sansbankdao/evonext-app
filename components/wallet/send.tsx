@@ -44,22 +44,23 @@ interface IWalletSendProps {
 }
 
 interface IAmountInputProps {
-  asset: {
-    ticker: string;
-  };
+    asset: {
+        ticker: string;
+    }
 }
 
-const isBase58 = (_str: string) => {
+const isBase58IdentityId = (_str: string) => {
     /* Check if the input is a string and not null/undefined. */
     if (typeof _str !== 'string') {
         return false;
     }
 
-    // Base58 regex. Allows an empty string.
+    // Base58 regex. Allows an empty string. MUST be exactly 32 characters.
     // ^               - start of string
     // [1-9A-HJ-NP-Za-km-z]* - 0 or more chars from the Base58 alphabet
     // $               - end of string
-    const base58Regex = /^[1-9A-HJ-NP-Za-km-z]*$/
+    // const base58Regex = /^[1-9A-HJ-NP-Za-km-z]*$/
+    const base58Regex = /^[1-9A-HJ-NP-Za-km-z]{32}$/
     return base58Regex.test(_str)
 }
 
@@ -180,7 +181,7 @@ export function WalletSend({ isFullScreen }: IWalletSendProps) {
             const identityIdx = getIdentityIdx()
 
             /* Validate Identity or Username format. */
-            if (!isBase58(receiver)) {
+            if (!isBase58IdentityId(receiver)) {
                 /* Handle network. */
                 if (network === 'mainnet') {
                     /* Initialize SDK. */
