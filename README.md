@@ -2,7 +2,7 @@
 
 ### https://evonext.app
 
-Free Your Inhibitions ⛓️‍💥 Discover safe and enjoyable spaces to Explore. Curate. Share YOUR Truth Fearlessly ✊ secured by Dash Platform v2 🛡️
+Free and Fearless ✊ Discover safe spaces to Explore. Curate. Share YOUR Truth — secured by Dash Platform 🛡️
 
 
 ## Release Notes

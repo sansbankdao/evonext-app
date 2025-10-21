@@ -4,9 +4,10 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import {
+    AdjustmentsHorizontalIcon,
     ArrowRightOnRectangleIcon,
     BellIcon,
-    BookmarkIcon,
+    BookmarkSquareIcon,
     Cog6ToothIcon,
     EllipsisHorizontalIcon,
     EnvelopeIcon,
@@ -15,6 +16,7 @@ import {
     MagnifyingGlassIcon,
     PencilSquareIcon,
     SparklesIcon,
+    Squares2X2Icon,
     UserIcon,
     UserGroupIcon,
     UsersIcon,
@@ -23,12 +25,13 @@ import {
 
 import {
     BellIcon as BellIconSolid,
-    BookmarkIcon as BookmarkIconSolid,
+    BookmarkSquareIcon as BookmarkSquareIconSolid,
     EnvelopeIcon as EnvelopeIconSolid,
     HashtagIcon as HashtagIconSolid,
     HomeIcon as HomeIconSolid,
     MagnifyingGlassIcon as SearchIconSolid,
     SparklesIcon as SparklesIconSolid,
+    Squares2X2Icon as Squares2X2IconSolid,
     UserIcon as UserIconSolid,
     UserGroupIcon as UserGroupIconSolid,
     UsersIcon as UsersIconSolid,
@@ -55,15 +58,14 @@ const getNavigation = (isLoggedIn: boolean) => {
     }
 
     return [
-        { name: 'Home', href: '/posts', icon: HomeIcon, activeIcon: HomeIconSolid },
-        // { name: 'Following', href: '/following', icon: UserGroupIcon, activeIcon: UserGroupIconSolid },
-        // { name: 'Followers', href: '/followers', icon: UsersIcon, activeIcon: UsersIconSolid },
+        { name: 'Home', href: '/', icon: HomeIcon, activeIcon: HomeIconSolid },
+        { name: 'Posts | Remix', href: '/posts', icon: HashtagIcon, activeIcon: HashtagIconSolid },
         { name: 'Explore', href: '/explore', icon: MagnifyingGlassIcon, activeIcon: SearchIconSolid },
-        { name: 'Remix', href: '/remix', icon: SparklesIcon, activeIcon: SparklesIconSolid },
-        // { name: 'Messages', href: '/messages', icon: EnvelopeIcon, activeIcon: EnvelopeIconSolid },
-        { name: 'Bookmarks', href: '/bookmarks', icon: BookmarkIcon, activeIcon: BookmarkIconSolid },
+        { name: 'Community', href: '/', icon: UserGroupIcon, activeIcon: UserGroupIconSolid },
+        { name: 'Mini Apps', href: '/apps', icon: Squares2X2Icon, activeIcon: Squares2X2IconSolid },
         { name: 'Wallet', href: '/wallet', icon: WalletIcon, activeIcon: WalletIconSolid },
-        { name: 'Profile', href: '/profile', icon: UserIcon, activeIcon: UserIconSolid },
+        { name: 'Favorites', href: '/bookmarks', icon: BookmarkSquareIcon, activeIcon: BookmarkSquareIconSolid },
+        { name: 'Identities', href: '/profile', icon: UsersIcon, activeIcon: UsersIconSolid },
     ]
 }
 
@@ -86,11 +88,11 @@ export function Sidebar() {
 
     // Format identity ID for display (show first 6 and last 4 chars)
     const formatIdentityId = (id: string) => {
-        if (id.length <= 10) {
+        if (id.length <= 20) {
             return id
         }
 
-        return `${id.slice(0, 6)}...${id.slice(-4)}`
+        return `${id.slice(0, 12)}...${id.slice(-8)}`
     }
 
     return (
@@ -124,7 +126,7 @@ export function Sidebar() {
                             href="/settings"
                             className="flex items-center gap-4 px-3 py-3 text-xl rounded-full transition-all duration-200 hover:bg-gray-100 dark:hover:bg-gray-900"
                         >
-                            <Cog6ToothIcon className="h-7 w-7" />
+                            <AdjustmentsHorizontalIcon className="h-7 w-7" />
                             <span className="block">
                                 Settings
                             </span>
@@ -186,11 +188,11 @@ export function Sidebar() {
 
                                 <div className="flex flex-1 text-left">
                                     <div className="flex-1">
-                                        <p className="text-sm font-semibold">
+                                        <p className="text-xs font-semibold tracking-wider uppercase">
                                             Identity
                                         </p>
 
-                                        <p className="text-sm text-gray-500">
+                                        <p className="text-base text-gray-500">
                                             {formatIdentityId(user.identityId)}
                                         </p>
                                     </div>

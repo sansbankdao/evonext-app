@@ -52,7 +52,7 @@ interface IAmountInputProps {
 const isBase58IdentityId = (_str: string) => {
     /* Check if the input is a string and not null/undefined. */
     if (typeof _str !== 'string') {
-        return false;
+        return false
     }
 
     // Base58 regex. Allows an empty string. MUST be exactly 32 characters.
