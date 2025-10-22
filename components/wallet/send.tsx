@@ -8,6 +8,7 @@ import { BoltIcon, UserIcon } from '@heroicons/react/24/outline'
 
 // import { Button } from '@/components/ui/button'
 import { Loader2 } from 'lucide-react'
+import bs58 from 'bs58'
 
 import { getIdentityIdx } from '@/lib/secure-storage'
 
@@ -50,18 +51,22 @@ interface IAmountInputProps {
 }
 
 const isBase58IdentityId = (_str: string) => {
-    /* Check if the input is a string and not null/undefined. */
-    if (typeof _str !== 'string') {
+// Basic validation: ensure we have a non-empty string.
+    if (typeof _str !== 'string' || _str.length === 0) {
         return false
     }
 
-    // Base58 regex. Allows an empty string. MUST be exactly 32 characters.
-    // ^               - start of string
-    // [1-9A-HJ-NP-Za-km-z]* - 0 or more chars from the Base58 alphabet
-    // $               - end of string
-    // const base58Regex = /^[1-9A-HJ-NP-Za-km-z]*$/
-    const base58Regex = /^[1-9A-HJ-NP-Za-km-z]{32}$/
-    return base58Regex.test(_str)
+    try {
+        // Attempt to decode the Base58 string into a byte array (Uint8Array).
+        const decodedBytes = bs58.decode(_str)
+
+        // Check if the resulting byte array has a length of exactly 32.
+        return decodedBytes.length === 32
+    } catch (e) {
+        // If decode() throws an error, it means the string is not valid Base58.
+        // This can happen if it contains invalid characters like '0', 'O', 'I', 'l'.
+        return false
+    }
 }
 
 export function WalletSend({ isFullScreen }: IWalletSendProps) {
@@ -179,7 +184,8 @@ export function WalletSend({ isFullScreen }: IWalletSendProps) {
 
             /* Request Identity index. */
             const identityIdx = getIdentityIdx()
-
+console.log('RECEIVER', receiver)
+console.log('TEST RECEIVER', isBase58IdentityId(receiver))
             /* Validate Identity or Username format. */
             if (!isBase58IdentityId(receiver)) {
                 /* Handle network. */
