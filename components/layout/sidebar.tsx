@@ -149,7 +149,7 @@ export function Sidebar() {
                     <div className="mt-8 space-y-3">
                         <Button
                             asChild
-                            className="w-full h-12 text-base xl:text-lg shadow-evonext-lg"
+                            className="w-full h-12 text-base xl:text-2xl shadow-evonext-lg"
                             size="lg"
                         >
                             <Link href="/connect">
@@ -158,7 +158,7 @@ export function Sidebar() {
                         </Button>
 
                         <p className="text-xs text-center text-gray-500 px-4">
-                            Join EvoNext to share your voice on the decentralized web
+                            Compatible with <Link href="https://chromewebstore.google.com/detail/odmphbcnlldggfhcpdjgnlhbehoicdnf" target="_blank" className="font-bold text-blue-500 hover:underline">Dash Platform Extension</Link>
                         </p>
                     </div>
                 ) : (

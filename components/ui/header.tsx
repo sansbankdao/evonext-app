@@ -15,7 +15,7 @@ export function Header() {
             <div className="pr-7 top-2.5 w-full max-w-7xl mx-auto flex items-center justify-between">
                 <Link href="/" className="-mt-2 sm:-mt-2 lg:-mt-1 flex md:flex-col text-sm font-mono tracking-wider items-center">
                     <span className={`px-2 text-4xl sm:text-5xl font-bold inline tracking-wider ${network !== 'mainnet' ? '' : 'pt-3'}`}>
-                        EvoNext
+                        ΞvoNext
 
                         {network !== 'mainnet' && <>
                             <span className="w-fit flex ml-40 sm:ml-52 lg:ml-52 -mt-7 sm:-mt-9 lg:-mt-9">

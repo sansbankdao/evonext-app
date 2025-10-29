@@ -165,7 +165,7 @@ export default function PublicHomePage() {
                         </h3>
 
                         <h1 className="-mt-3 text-gradient text-7xl sm:text-8xl font-bold text-slate-500 tracking-widest">
-                            EvoNext
+                            ΞvoNext
                         </h1>
 
                         <h2 className="text-3xl text-sky-700 dark:text-sky-300 mb-8 max-w-2xl mx-auto font-bold tracking-widest">
