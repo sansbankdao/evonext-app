@@ -52,8 +52,8 @@ const getNavigation = (isLoggedIn: boolean) => {
     if (!isLoggedIn) {
         return [
             { name: 'Home', href: '/', icon: HomeIcon, activeIcon: HomeIconSolid },
-            { name: 'Explore', href: '/explore', icon: HashtagIcon, activeIcon: HashtagIconSolid },
-            { name: 'Claim', href: '/claim', icon: UserIcon, activeIcon: UserIconSolid },
+            { name: 'Explore', href: '/explore', icon: MagnifyingGlassIcon, activeIcon: SearchIconSolid },
+            { name: 'Claim Identity', href: '/claim', icon: UserIcon, activeIcon: UserIconSolid },
         ]
     }
 
@@ -65,7 +65,7 @@ const getNavigation = (isLoggedIn: boolean) => {
         { name: 'Mini Apps', href: '/apps', icon: Squares2X2Icon, activeIcon: Squares2X2IconSolid },
         { name: 'Wallet', href: '/wallet', icon: WalletIcon, activeIcon: WalletIconSolid },
         { name: 'Favorites', href: '/bookmarks', icon: BookmarkSquareIcon, activeIcon: BookmarkSquareIconSolid },
-        { name: 'Identities', href: '/profile', icon: UsersIcon, activeIcon: UsersIconSolid },
+        { name: 'Identity', href: '/profile', icon: UsersIcon, activeIcon: UsersIconSolid },
     ]
 }
 
