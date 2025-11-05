@@ -184,8 +184,7 @@ export function WalletSend({ isFullScreen }: IWalletSendProps) {
 
             /* Request Identity index. */
             const identityIdx = getIdentityIdx()
-console.log('RECEIVER', receiver)
-console.log('TEST RECEIVER', isBase58IdentityId(receiver))
+
             /* Validate Identity or Username format. */
             if (!isBase58IdentityId(receiver)) {
                 /* Handle network. */
