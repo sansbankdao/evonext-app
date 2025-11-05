@@ -62,7 +62,7 @@ export default function StudioPage() {
                         <div className="flex items-center gap-4 mb-4">
                             <RocketLaunchIcon className="h-8 w-8" />
                             <h1 className="text-3xl font-bold">
-                                Mini Apps Studio by EvoNext
+                                Mini App Studio by EvoNext
                             </h1>
                         </div>
                         <p className="text-lg opacity-90">
