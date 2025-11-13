@@ -28,9 +28,6 @@ import { WalletSwap } from '@/components/wallet/swap'
 import { WalletHistory } from '@/components/wallet/history'
 import { WalletSend } from '@/components/wallet/send'
 
-/* Initialize constants. */
-const DASH_USD_VALUE = 24 // FIXME PULL FROM MARKET APIA
-
 export default function WalletPage() {
     const { user } = useAuth()
     const { network } = useNetwork()
@@ -79,6 +76,14 @@ export default function WalletPage() {
             /* Initiallize SDK. */
             const sdk = await getWasmSdk()
 
+// FIXME FOR DEV PURPOSES ONLY
+            const ENDPOINT = 'https://dashswap.xyz/v1/ticker/DASH'
+            const response = await fetch(ENDPOINT)
+            const ticker = await response.json()
+console.log('TICKER', ticker)
+            const dashUsdValue = ticker.quote.USD.price
+console.log('DASH/USD', dashUsdValue)
+
 console.log('USER', user)
             /* Validate user. */
             if (typeof user !== 'undefined' && user !== null) {
@@ -88,7 +93,7 @@ console.log('USER', user)
 
                 setDisplayBalance(balance)
 
-                const balanceUsd = numeral((user?.balance / 10 ** 11) * DASH_USD_VALUE).format('$0,0.00[00]')
+                const balanceUsd = numeral((user?.balance / 10 ** 11) * dashUsdValue).format('$0,0.00[00]')
 
                 setDisplayBalanceUsd(balanceUsd)
             }

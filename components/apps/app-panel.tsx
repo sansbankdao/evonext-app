@@ -31,7 +31,7 @@ export function AppPanel({
     const dialogId = useId()
     const menuId = useId()
 
-    // FIXME FOR DEV PURPOSES ONLY
+// FIXME FOR DEV PURPOSES ONLY
     // useEffect(() => { setOpen(true) }, [])
 
     return (

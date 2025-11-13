@@ -13,7 +13,6 @@ import { IToken } from '@/lib/types'
 import {
     DEFAULT_ASSET,
     DASH_DECIMALS,
-    DASH_USD_VALUE, // FIXME PULL FROM MARKET API
 
     DUSD_CONTRACT_ID_MAINNET,
     DUSD_CONTRACT_ID_TESTNET,
@@ -202,6 +201,14 @@ console.log('SANS BALANCE', sansBalance)
                     setDisplaySansBalance(sansBalance)
                 }
 
+// FIXME FOR DEV PURPOSES ONLY
+                const ENDPOINT = 'https://dashswap.xyz/v1/ticker/DASH'
+                response = await fetch(ENDPOINT)
+                const ticker = await response.json()
+console.log('TICKER', ticker)
+                const dashUsdValue = ticker.quote.USD.price
+console.log('DASH/USD', dashUsdValue)
+
                 /* Build AVAILABLE (Platform) assets collection. */
                 const assets: IToken[] = [{
                     id: '0',
@@ -212,7 +219,7 @@ console.log('SANS BALANCE', sansBalance)
                     duffs: BigInt(user.balance),
                     decimal_places: DASH_DECIMALS,
                     fiat: {
-                        USD: DASH_USD_VALUE * (user.balance / (10 ** DASH_DECIMALS)),
+                        USD: dashUsdValue * (user.balance / (10 ** DASH_DECIMALS)),
                     },
                 }]
 

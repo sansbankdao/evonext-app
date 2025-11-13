@@ -14,7 +14,6 @@ import { getIdentityIdx } from '@/lib/secure-storage'
 
 import {
     DASH_DECIMALS,
-    DASH_USD_VALUE,
 
     DEFAULT_ASSET,
 
@@ -171,8 +170,16 @@ export function WalletSend({ isFullScreen }: IWalletSendProps) {
             /* Calculate DASH value. */
             assetValue = BigInt(Math.trunc(numericAmount * (10 ** DASH_DECIMALS)))
 
+// FIXME FOR DEV PURPOSES ONLY
+            const ENDPOINT = 'https://dashswap.xyz/v1/ticker/DASH'
+            const response = await fetch(ENDPOINT)
+            const ticker = await response.json()
+console.log('TICKER', ticker)
+            const dashUsdValue = ticker.quote.USD.price
+console.log('DASH/USD', dashUsdValue)
+
             /* Calculate USD value. */
-            assetUsdValue = numericAmount * DASH_USD_VALUE
+            assetUsdValue = numericAmount * dashUsdValue
         }
 
         /* Confirm user request. */

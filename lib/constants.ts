@@ -6,7 +6,6 @@
 
 /* DASH Asset Details */
 export const DASH_DECIMALS = 11
-export const DASH_USD_VALUE = 24 // FIXME PULL FROM MARKET API
 export const DEFAULT_ASSET = {
     id: '0',
     name: 'Dash Credit',
