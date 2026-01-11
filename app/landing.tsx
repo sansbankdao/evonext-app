@@ -9,7 +9,7 @@ import { motion } from 'framer-motion'
 
 export function LandingPage() {
     return (
-        <div className="relative min-h-screen w-full py-32 bg-[#0e0f14] flex items-center justify-center overflow-hidden selection:bg-purple-500/30">
+        <div className="relative min-h-screen w-full py-40 bg-[#0e0f14] flex items-center justify-center overflow-hidden selection:bg-purple-500/30">
 
             {/* Dark Purple Gradient Background */}
             <div className="absolute inset-0 z-0 bg-gradient-to-br from-[#1a0c2e] via-[#110b1e] to-[#0e0f14]" />
@@ -23,7 +23,7 @@ export function LandingPage() {
             <div className="relative z-10 flex w-full max-w-[1400px] h-screen px-4 sm:px-8 lg:px-12">
 
                 {/* Left Side: Content & Downloads */}
-                <div className="flex flex-col justify-center w-full lg:w-1/2 py-16 lg:py-0 space-y-10">
+                <div className="flex flex-col justify-center w-full lg:w-1/2 py-16 lg:py-8 space-y-10">
 
                     <motion.div
                         initial={{ opacity: 0, x: -30 }}
@@ -32,7 +32,7 @@ export function LandingPage() {
                         className="space-y-6"
                     >
                         <h1 className="text-5xl sm:text-7xl font-bold text-white tracking-tight leading-tight">
-                            Your
+                            Enjoy
                             <span className="mx-4 text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-fuchsia-400 to-blue-400">
                                 Free
                             </span>
@@ -47,7 +47,11 @@ export function LandingPage() {
                         </h1>
 
                         <p className="text-lg sm:text-xl text-slate-200 max-w-lg leading-9">
-                            EvoNext is the best place to find new people, projects and ideas in crypto.
+                            EvoNext is the best platform to find meet the most boundless Founders, disruptive Projects and radical Ideas from our bleeding edge of existence.
+                        </p>
+
+                        <p className="text-sm sm:text-base tracking-tight text-slate-200 max-w-lg leading-9">
+                            TL;DR<br />
                             It&apos;s a social network and crypto wallet reimagined on Dash Platform.
                         </p>
                     </motion.div>
