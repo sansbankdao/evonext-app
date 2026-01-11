@@ -76,7 +76,7 @@ export interface IPost {
     id: string;
     author: IUser;
     content: string;
-    createdAt: Date;
+    createdAt: number | Date;
     likes: number;
     remixes: number;
     replies: number;
