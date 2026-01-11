@@ -1,14 +1,17 @@
+// app/page.tsx
+
 'use client'
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/auth-context'
-import { GuestPage } from './landing'
-import { DashboardPage } from './maison'
+import { LandingPage } from './landing'
+import { MaisonPage } from './maison'
+import { Sidebar } from '@/components/layout/sidebar'
 
 export default function PublicHomePage() {
     const router = useRouter()
-    const { user } = useAuth()
+    const { user, isLoading: isAuthLoading } = useAuth()
     const [isHydrated, setIsHydrated] = useState(false)
 
     // Prevent hydration mismatches
@@ -16,11 +19,23 @@ export default function PublicHomePage() {
         setIsHydrated(true)
     }, [])
 
-    // Redirect logic is handled within the child components.
-    // GuestPage does not redirect, DashboardPage redirects if !user.
+    useEffect(() => {
+        // Only run redirect logic if hydration is complete and auth context is ready
+        if (isHydrated && !isAuthLoading) {
+            if (user) {
+                // If user is authenticated, ensure they are on the dashboard
+                // (Optional: You can rely on MaisonPage's internal redirect,
+                // but doing it here prevents a flash of the landing page)
+                // router.replace('/posts')
+            } else {
+                // If user is NOT authenticated, MaisonPage will handle redirecting to /
+                // However, to ensure a clean state, we don't need to do anything here.
+            }
+        }
+    }, [user, isHydrated, isAuthLoading, router])
 
-    // Show loading skeleton during hydration
-    if (!isHydrated) {
+    // Show loading skeleton during hydration or initial auth check
+    if (!isHydrated || isAuthLoading) {
         return (
             <div className="min-h-screen flex">
                 {/* Sidebar skeleton */}
@@ -52,5 +67,10 @@ export default function PublicHomePage() {
         )
     }
 
-    return user ? <DashboardPage /> : <GuestPage />
+    // Route Logic:
+    // - If user exists, show MaisonPage (Dashboard)
+    // - If no user, show LandingPage (Guest)
+    // NOTE: Ensure you haven't hardcoded redirects inside MaisonPage or LandingPage
+    // that conflict with this logic.
+    return user ? <MaisonPage /> : <LandingPage />
 }
