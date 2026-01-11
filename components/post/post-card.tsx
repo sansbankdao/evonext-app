@@ -132,7 +132,7 @@ console.log('HANDLE SHARE')
                         <div className="flex items-center gap-1 text-sm">
                             {isOwnPost ? (
                                 <span className="text-gray-500">
-                                    You wrote {formatTime(post.createdAt)}:
+                                    You wrote {formatTime(new Date((post.createdAt as number) * 1000))}:
                                 </span>
                             ) : (
                                 <>
@@ -153,7 +153,7 @@ console.log('HANDLE SHARE')
                                         </>
                                     )}
 
-                                    <span className="text-gray-500 hover:underline">{formatTime(post.createdAt)}</span>
+                                    <span className="text-gray-500 hover:underline">{formatTime(new Date((post.createdAt as number) * 1000))}</span>
                                 </>
                             )}
                         </div>
@@ -215,7 +215,7 @@ console.log('HANDLE SHARE')
                                 <span>·</span>
 
                                 <span>
-                                    {formatTime(post.quotedPost.createdAt)}
+                                    {formatTime(new Date((post.quotedPost.createdAt as number) * 1000))}
                                 </span>
                             </div>
 
