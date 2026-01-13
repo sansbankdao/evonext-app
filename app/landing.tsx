@@ -3,24 +3,26 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { ArrowRightIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline'
 import { motion } from 'framer-motion'
 
 export function LandingPage() {
     return (
-        <div className="relative min-h-screen w-full py-40 bg-[#0e0f14] flex items-center justify-center overflow-hidden selection:bg-purple-500/30">
+        // 3. Changed to h-[100dvh] and overflow-y-auto for independent scrolling
+        <div className="relative h-[100dvh] w-full pt-48 mb-5 bg-[#0e0f14] flex items-center justify-center overflow-y-auto selection:bg-purple-500/30">
 
             {/* Dark Purple Gradient Background */}
-            <div className="absolute inset-0 z-0 bg-gradient-to-br from-[#1a0c2e] via-[#110b1e] to-[#0e0f14]" />
+            <div className="fixed inset-0 z-0 bg-gradient-to-br from-[#1a0c2e] via-[#110b1e] to-[#0e0f14]" />
 
             {/* Subtle Grid/Texture Overlay */}
-            <div className="absolute inset-0 z-0 opacity-20"
+            <div className="fixed inset-0 z-0 opacity-20"
                  style={{ backgroundImage: 'radial-gradient(#6b21a8 1px, transparent 1px)', backgroundSize: '40px 40px' }}
             />
 
             {/* Content Container */}
-            <div className="relative z-10 flex w-full max-w-[1400px] h-screen px-4 sm:px-8 lg:px-12">
+            <div className="relative z-10 flex w-full max-w-[1400px] min-h-screen px-4 sm:px-8 lg:px-12">
 
                 {/* Left Side: Content & Downloads */}
                 <div className="flex flex-col justify-center w-full lg:w-1/2 py-16 lg:py-8 space-y-10">
@@ -104,30 +106,26 @@ export function LandingPage() {
                                 </Button>
                             </Link>
                         </div>
-
-                        <div className="flex items-center space-x-4 pt-4">
-                            <div className="h-px bg-gray-700 flex-1" />
-                            <span className="text-sm text-gray-400 uppercase tracking-wider">Already have an account?</span>
-                            <div className="h-px bg-gray-700 flex-1" />
-                        </div>
-
-                        <div className="flex gap-4">
-                            <Link href="/connect" className="text-gray-400 hover:text-white transition-colors">
-                                Log In
-                            </Link>
-                        </div>
                     </motion.div>
 
                     <div className="pt-8 text-gray-500 text-sm">
-                        © {new Date().getFullYear()} Sansbank DAO. All rights reserved.
+                        &copy; {new Date().getFullYear()} Sansbank DAO. All rights reserved.
                         <div className="flex gap-6 mt-2 font-medium text-gray-400">
-                            <Link href="#" className="hover:text-purple-400">Developers</Link>
+                            <Link href="https://studio.evonext.app" target="_blank" className="hover:text-purple-400">
+                                Developers
+                            </Link>
                             <span>•</span>
-                            <Link href="#" className="hover:text-purple-400">Support</Link>
+                            <Link href="#" className="hover:text-purple-400">
+                                Support
+                            </Link>
                             <span>•</span>
-                            <Link href="#" className="hover:text-purple-400">Privacy</Link>
+                            <Link href="#" className="hover:text-purple-400">
+                                Privacy
+                            </Link>
                             <span>•</span>
-                            <Link href="#" className="hover:text-purple-400">Terms</Link>
+                            <Link href="#" className="hover:text-purple-400">
+                                Terms
+                            </Link>
                         </div>
                     </div>
                 </div>
@@ -143,68 +141,17 @@ export function LandingPage() {
                         {/* Phone Frame */}
                         <div className="absolute inset-0 bg-[#000] rounded-[3rem] border-8 border-[#1a1a1a] shadow-2xl overflow-hidden">
                             {/* Screen Glow */}
-                            <div className="absolute inset-0 bg-gradient-to-b from-purple-900/20 to-transparent pointer-events-none" />
+                            <div className="absolute inset-0 bg-gradient-to-b from-purple-900/20 to-transparent pointer-events-none z-10" />
 
-                            {/* Screen Content (Simplified Farcaster-style UI) */}
-                            <div className="w-full h-full bg-[#111] text-white flex flex-col pt-10 px-4">
-                                {/* App Header */}
-                                <div className="flex justify-between items-center mb-6 px-2">
-                                    <span className="font-bold text-lg">Home</span>
-                                    <div className="flex gap-4">
-                                        <div className="w-6 h-6 bg-gray-700 rounded-full" />
-                                        <div className="w-6 h-6 bg-gray-700 rounded-full" />
-                                    </div>
-                                </div>
-
-                                {/* Content Mockup: Coin/Project */}
-                                <div className="space-y-6">
-                                    <div>
-                                        <div className="flex items-center gap-3 mb-2">
-                                            <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-blue-500 rounded-full flex items-center justify-center font-bold">Z</div>
-                                            <div>
-                                                <div className="font-bold">Zora</div>
-                                                <div className="text-xs text-green-400">▲ 373.68%</div>
-                                            </div>
-                                        </div>
-                                        <div className="text-2xl font-bold mb-1">$0.09</div>
-                                        <div className="h-24 w-full bg-gradient-to-r from-green-500/20 to-green-500/5 rounded-lg border border-green-500/20 flex items-end justify-between px-2 pb-2">
-                                            {/* Fake Chart Line */}
-                                            <div className="w-full h-10 border-b-2 border-green-500 relative">
-                                                <div className="absolute top-0 left-1/4 w-10 h-full border-r border-green-500/50"/>
-                                                <div className="absolute top-0 right-1/4 w-10 h-full border-r border-green-500/50"/>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="bg-gray-900/50 rounded-xl p-4 space-y-3 border border-gray-800">
-                                        <div className="text-gray-400 text-xs uppercase tracking-wider">Links</div>
-                                        <div className="flex items-center gap-2 text-blue-400 text-sm">
-                                            <span>🔗</span> zora.co
-                                        </div>
-                                        <div className="flex items-center gap-2 text-gray-400 text-sm">
-                                            <span>🐦</span> X zora
-                                        </div>
-                                    </div>
-
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <div className="bg-gray-900/50 rounded-lg p-3 border border-gray-800">
-                                            <div className="text-gray-400 text-xs">Market Cap</div>
-                                            <div className="font-mono text-sm">$411M</div>
-                                        </div>
-                                        <div className="bg-gray-900/50 rounded-lg p-3 border border-gray-800">
-                                            <div className="text-gray-400 text-xs">Liquidity</div>
-                                            <div className="font-mono text-sm">$22M</div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Bottom Nav */}
-                                <div className="mt-auto flex justify-around py-6 border-t border-gray-800">
-                                    <div className="w-6 h-6 bg-white rounded-full" /> {/* Home Active */}
-                                    <div className="w-6 h-6 bg-gray-700 rounded-full" />
-                                    <div className="w-6 h-6 bg-gray-700 rounded-full" />
-                                    <div className="w-6 h-6 bg-gray-700 rounded-full" />
-                                </div>
+                            {/* 1. Screen Content: Replaced with next/image */}
+                            <div className="relative w-full h-full bg-[#111]">
+                                <Image
+                                    src="/screenshot.webp"
+                                    alt="EvoNext App Interface"
+                                    fill
+                                    className="object-cover"
+                                    priority
+                                />
                             </div>
                         </div>
 
