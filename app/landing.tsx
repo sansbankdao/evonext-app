@@ -49,12 +49,7 @@ export function LandingPage() {
                         </h1>
 
                         <p className="text-lg sm:text-xl text-slate-200 max-w-lg leading-9">
-                            EvoNext is the best platform to find meet the most boundless Founders, disruptive Projects and radical Ideas from our bleeding edge of existence.
-                        </p>
-
-                        <p className="text-sm sm:text-base tracking-tight text-slate-200 max-w-lg leading-9">
-                            TL;DR<br />
-                            It&apos;s a social network and crypto wallet reimagined on Dash Platform.
+                            Connect with early-stage founders and creative hobbyists, while enhancing your daily life experiences with a vast collection of mini apps <span class="font-medium">designed to streamline your workflow and simplify everyday tasks.</span>
                         </p>
                     </motion.div>
 
