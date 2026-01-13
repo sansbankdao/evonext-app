@@ -49,7 +49,7 @@ export function LandingPage() {
                         </h1>
 
                         <p className="text-lg sm:text-xl text-slate-200 max-w-lg leading-9">
-                            Connect with early-stage founders and creative hobbyists, while enhancing your daily life experiences with a vast collection of mini apps <span className="font-medium">designed to streamline your workflow and simplify everyday tasks.</span>
+                            Connect with early-stage Founders and Creators — enhance your daily life with the hottest collection of Mini Apps <span className="font-medium">designed to streamline your workflow and simplify everyday tasks.</span>
                         </p>
                     </motion.div>
 
@@ -112,7 +112,7 @@ export function LandingPage() {
 
                         <div className="flex gap-6 mt-2 font-medium text-gray-400">
                             <Link href="https://studio.evonext.app" target="_blank" className="hover:text-purple-400">
-                                Developers
+                                Mini App Studio
                             </Link>
                             <span>•</span>
                             <Link href="#" className="hover:text-purple-400">

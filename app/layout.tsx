@@ -32,9 +32,9 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
     metadataBase: new URL('https://evonext.app'), // FIXME Handle Testnet
-    title: 'EvoNext: Free and Fearless',
+    title: 'EvoNext: Free and Fearless Social',
     applicationName: 'EvoNext: Free and Fearless',
-    description: 'Free and Fearless — Discover safe and enjoyable spaces to Explore. Curate. Share YOUR Truth Fearlessly!',
+    description: 'Connect with early-stage Founders and Creators — plus, the hottest collection of Mini Apps designed to streamline your workflow and simplify everyday tasks.',
     icons: {
         icon: '/favicon.ico',
     },
