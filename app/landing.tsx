@@ -49,7 +49,7 @@ export function LandingPage() {
                         </h1>
 
                         <p className="text-lg sm:text-xl text-slate-200 max-w-lg leading-9">
-                            Connect with early-stage founders and creative hobbyists, while enhancing your daily life experiences with a vast collection of mini apps <span class="font-medium">designed to streamline your workflow and simplify everyday tasks.</span>
+                            Connect with early-stage founders and creative hobbyists, while enhancing your daily life experiences with a vast collection of mini apps <span className="font-medium">designed to streamline your workflow and simplify everyday tasks.</span>
                         </p>
                     </motion.div>
 
@@ -104,7 +104,12 @@ export function LandingPage() {
                     </motion.div>
 
                     <div className="pt-8 text-gray-500 text-sm">
+                        <span className="block my-2">
+                            Powered by <Link href="https://www.dash.org/platform/" target="_blank" className="font-bold hover:text-purple-400">Dash Ξvolution Platform v2.3</Link> ⚡️
+                        </span>
+
                         &copy; {new Date().getFullYear()} Sansbank DAO. All rights reserved.
+
                         <div className="flex gap-6 mt-2 font-medium text-gray-400">
                             <Link href="https://studio.evonext.app" target="_blank" className="hover:text-purple-400">
                                 Developers
