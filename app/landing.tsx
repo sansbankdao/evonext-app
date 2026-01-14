@@ -11,7 +11,7 @@ import { motion } from 'framer-motion'
 export function LandingPage() {
     return (
         // 3. Changed to h-[100dvh] and overflow-y-auto for independent scrolling
-        <div className="relative h-[100dvh] w-full pt-48 mb-5 bg-[#0e0f14] flex items-center justify-center overflow-y-auto selection:bg-purple-500/30">
+        <div className="relative h-[100dvh] w-full pt-72 sm:pt-48 mb-5 bg-[#0e0f14] flex items-center justify-center overflow-y-auto selection:bg-purple-500/30">
 
             {/* Dark Purple Gradient Background */}
             <div className="fixed inset-0 z-0 bg-gradient-to-br from-[#1a0c2e] via-[#110b1e] to-[#0e0f14]" />
