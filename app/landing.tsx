@@ -49,7 +49,7 @@ export function LandingPage() {
                         </h1>
 
                         <p className="text-pretty text-lg sm:text-xl text-slate-200 max-w-lg leading-9">
-                            Connect with early-stage Founders and Creators — enhance your daily life with the hottest collection of Mini Apps <span className="font-medium">designed to streamline your workflow and simplify everyday tasks.</span>
+                            Connect with early-stage <span className="font-bold">Founders</span> and <span className="font-bold">Creators</span> — enhance your daily life with the hottest collection of Mini Apps <span className="font-bold">designed to streamline your workflow and simplify everyday tasks.</span>
                         </p>
                     </motion.div>
 
