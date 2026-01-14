@@ -105,7 +105,7 @@ export function LandingPage() {
 
                     <div className="pt-8 text-gray-500 text-sm">
                         <span className="block my-2">
-                            Powered by <Link href="https://www.dash.org/platform/" target="_blank" className="font-bold hover:text-purple-400">Dash Ξvolution Platform</Link> ⚡️
+                            Powered by ⚡️ <Link href="https://www.dash.org/platform/" target="_blank" className="font-bold hover:text-purple-400">Dash Ξvolution Platform</Link>
                         </span>
 
                         &copy; {new Date().getFullYear()} Sansbank DAO. All rights reserved.
