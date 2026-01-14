@@ -105,10 +105,12 @@ export function LandingPage() {
 
                     <div className="pt-8 text-gray-500 text-sm">
                         <span className="block my-2">
-                            Powered by ⚡️ <Link href="https://www.dash.org/platform/" target="_blank" className="font-bold hover:text-purple-400">Dash Ξvolution Platform</Link>
+                            Powered by ⚡️ <Link href="https://www.dash.org/platform" target="_blank" className="font-bold hover:text-purple-400">Dash Ξvolution Platform</Link>
                         </span>
 
-                        &copy; {new Date().getFullYear()} Sansbank DAO. All rights reserved.
+                        &copy; {new Date().getFullYear()}
+                        <Link href="https://sansbank.org" target="_blank" className="font-bold hover:text-purple-400">Sansbank DAO</Link>.
+                        All rights reserved.
 
                         <div className="flex flex-col sm:flex-row gap-2 sm:gap-6 mt-2 font-medium text-gray-400">
                             <Link href="https://studio.evonext.app" target="_blank" className="hover:text-purple-400">
