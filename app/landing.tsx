@@ -109,7 +109,7 @@ export function LandingPage() {
                         </span>
 
                         &copy; {new Date().getFullYear()}
-                        <Link href="https://sansbank.org" target="_blank" className="font-bold hover:text-purple-400">Sansbank DAO</Link>.
+                        <Link href="https://sansbank.org" target="_blank" className="pl-1 font-bold hover:text-purple-400">Sansbank DAO</Link>.
                         All rights reserved.
 
                         <div className="flex flex-col sm:flex-row gap-2 sm:gap-6 mt-2 font-medium text-gray-400">
