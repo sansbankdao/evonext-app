@@ -48,27 +48,27 @@ export const metadata: Metadata = {
     creator: '0xShomari + Frens',
     publisher: 'Sansbank DAO',
     openGraph: {
-        title: 'EvoNext: Free and Fearless',
-        description: 'Free and Fearless — Discover safe and enjoyable spaces to Explore. Curate. Share YOUR Truth Fearlessly!',
+        title: 'EvoNext: Free and Fearless Social',
+        description: 'Connect with early-stage Founders and Creators — plus, the hottest collection of Mini Apps designed to streamline your workflow and simplify everyday tasks.',
         images: [
             {
                 url: 'https://evonext.app/poster.webp?1768350110',
-                width: 800,
-                height: 600,
-                alt: 'EvoNext media banner',
+                width: 1200,
+                height: 630,
+                alt: 'EvoNext Open Graph poster',
             }
         ],
     },
     twitter: {
         card: 'summary_large_image',
-        title: 'EvoNext: Free and Fearless',
-        description: 'Free and Fearless — Discover safe and enjoyable spaces to Explore. Curate. Share YOUR Truth Fearlessly!',
+        title: 'EvoNext: Free and Fearless Social',
+        description: 'Connect with early-stage Founders and Creators — plus, the hottest collection of Mini Apps designed to streamline your workflow and simplify everyday tasks.',
         images: [
             {
                 url: 'https://evonext.app/poster.webp?1768350110',
-                width: 800,
-                height: 600,
-                alt: 'EvoNext media banner',
+                width: 1200,
+                height: 630,
+                alt: 'EvoNext Open Graph poster',
             }
         ],
     },

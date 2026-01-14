@@ -2,7 +2,9 @@
 
 ### https://evonext.app
 
-Free and Fearless ✊ Discover safe spaces to Explore. Curate. Share YOUR Truth — secured by Dash Platform 🛡️
+### Free and Fearless Social
+
+Connect with early-stage Founders and Creators — plus, the hottest collection of Mini Apps designed to streamline your workflow and simplify everyday tasks.
 
 
 ## Release Notes
