@@ -110,19 +110,19 @@ export function LandingPage() {
 
                         &copy; {new Date().getFullYear()} Sansbank DAO. All rights reserved.
 
-                        <div className="flex gap-6 mt-2 font-medium text-gray-400">
+                        <div className="flex flex-col sm:flex-row gap-2 sm:gap-6 mt-2 font-medium text-gray-400">
                             <Link href="https://studio.evonext.app" target="_blank" className="hover:text-purple-400">
                                 Mini App Studio
                             </Link>
-                            <span>•</span>
+                            <span className="hidden sm:inline-flex">•</span>
                             <Link href="#" className="hover:text-purple-400">
                                 Support
                             </Link>
-                            <span>•</span>
+                            <span className="hidden sm:inline-flex">•</span>
                             <Link href="#" className="hover:text-purple-400">
                                 Privacy
                             </Link>
-                            <span>•</span>
+                            <span className="hidden sm:inline-flex">•</span>
                             <Link href="#" className="hover:text-purple-400">
                                 Terms
                             </Link>
