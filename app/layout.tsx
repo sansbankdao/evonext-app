@@ -27,11 +27,11 @@ export const viewport: Viewport = {
     initialScale: 1,
     maximumScale: 1,
     userScalable: false,
-    // themeColor: 'black',
+    // themeColor: 'black', // FIXME Finalize a theme color
 }
 
 export const metadata: Metadata = {
-    metadataBase: new URL('https://evonext.app'), // FIXME Handle Testnet
+    metadataBase: new URL('https://evonext.app'), // FIXME Handle Testnet as well
     title: 'EvoNext: Free and Fearless Social',
     applicationName: 'EvoNext: Free and Fearless',
     description: 'Connect with early-stage Founders and Creators — plus, the hottest collection of Mini Apps designed to streamline your workflow and simplify everyday tasks.',
@@ -52,7 +52,7 @@ export const metadata: Metadata = {
         description: 'Free and Fearless — Discover safe and enjoyable spaces to Explore. Curate. Share YOUR Truth Fearlessly!',
         images: [
             {
-                url: 'https://evonext.app/poster.webp',
+                url: 'https://evonext.app/poster.webp?1768350110',
                 width: 800,
                 height: 600,
                 alt: 'EvoNext media banner',
@@ -65,7 +65,7 @@ export const metadata: Metadata = {
         description: 'Free and Fearless — Discover safe and enjoyable spaces to Explore. Curate. Share YOUR Truth Fearlessly!',
         images: [
             {
-                url: 'https://evonext.app/poster.webp',
+                url: 'https://evonext.app/poster.webp?1768350110',
                 width: 800,
                 height: 600,
                 alt: 'EvoNext media banner',
@@ -111,6 +111,7 @@ export default function RootLayout({
                     }}
                 />
             </body>
+            {/* Simple analytics (local script). */}
             <Script src="/js/latest.js" strategy="afterInteractive" />
         </html>
     )
