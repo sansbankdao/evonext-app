@@ -42,7 +42,7 @@ export default function StudioPage() {
                 <div className="w-full flex items-center justify-between mb-8 flex-wrap gap-4">
                     <div /> {/* Spacer */}
                     <Link
-                        href="https://studio.evonext.app"
+                        href="https://studio.evonext.dev"
                         target="_blank"
                         className="px-5 py-2 inline-flex items-center gap-3 text-sky-600 dark:text-sky-400 hover:text-white dark:hover:text-white transition-colors border border-sky-500 bg-sky-100 dark:bg-sky-500/10 hover:bg-sky-600 dark:hover:bg-sky-600 rounded-xl font-semibold"
                     >

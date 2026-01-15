@@ -113,7 +113,7 @@ export function LandingPage() {
                         All rights reserved.
 
                         <div className="flex flex-col sm:flex-row gap-2 sm:gap-6 mt-2 font-medium text-gray-400">
-                            <Link href="https://studio.evonext.app" target="_blank" className="hover:text-purple-400">
+                            <Link href="https://studio.evonext.dev" target="_blank" className="hover:text-purple-400">
                                 Mini App Studio
                             </Link>
                             <span className="hidden sm:inline-flex">•</span>
