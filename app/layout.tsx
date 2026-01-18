@@ -1,3 +1,5 @@
+// app/layout.tsx
+
 /* Import (core) modules. */
 import type { Metadata } from 'next'
 import type { Viewport } from 'next'
