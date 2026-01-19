@@ -1,3 +1,5 @@
+// lib/biometric-storage.ts
+
 'use client'
 
 /**
