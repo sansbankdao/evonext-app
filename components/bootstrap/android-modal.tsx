@@ -102,14 +102,14 @@ export function AndroidModal({ open, onOpenChange }: AndroidModalProps) {
 
                                     <div className="mt-8 flex flex-col gap-3 pb-2">
                                         <Link href="https://apk.evonext.app" target="_blank" className="w-full">
-                                            <Button className="w-full h-14 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xl rounded-xl">
+                                            <Button className="w-full h-14 bg-blue-600 hover:bg-blue-500 text-white font-bold text-2xl rounded-xl">
                                                 <ArrowDownTrayIcon className="w-5 h-5 mr-2" />
-                                                Download APK (v2.x)
+                                                Download APK
                                             </Button>
                                         </Link>
 
                                         <Link href="https://sansbank.org/bootstrap" target="_blank" className="w-full">
-                                            <Button variant="outline" className="w-full h-12 border-blue-500/30 text-blue-400 hover:bg-blue-500/10 font-bold rounded-xl">
+                                            <Button variant="outline" className="w-full h-12 border-blue-500/30 text-blue-400 hover:bg-blue-500/10 font-bold rounded-xl text-lg">
                                                 Support Google Play Listing
                                             </Button>
                                         </Link>
