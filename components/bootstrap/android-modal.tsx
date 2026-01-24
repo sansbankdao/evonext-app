@@ -60,7 +60,8 @@ export function AndroidModal({ open, onOpenChange }: AndroidModalProps) {
                                         <div className="bg-amber-500/10 border border-amber-500/20 p-4 rounded-xl flex gap-3">
                                             <ExclamationTriangleIcon className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
                                             <p className="text-[10px] sm:text-xs text-amber-200/80 leading-relaxed uppercase font-medium tracking-tight">
-                                                <strong>Security Warning:</strong> Only download EvoNext APKs from official sources. Never share your seed phrase with third-party sites.
+                                                <h3 className="block font-bold">Security Notice</h3>
+                                                Only download EvoNext APKs from official sources. Never share your seed phrase with third-party sites.
                                             </p>
                                         </div>
 
@@ -104,7 +105,7 @@ export function AndroidModal({ open, onOpenChange }: AndroidModalProps) {
                                         <Link href="https://apk.evonext.app" target="_blank" className="w-full">
                                             <Button className="w-full h-14 bg-blue-600 hover:bg-blue-500 text-white font-bold text-2xl rounded-xl">
                                                 <ArrowDownTrayIcon className="w-5 h-5 mr-2" />
-                                                Download APK
+                                                Download .APK
                                             </Button>
                                         </Link>
 
