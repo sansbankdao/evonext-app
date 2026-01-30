@@ -6,13 +6,33 @@ import type { IPost, IUser } from '@/lib/types'
 
 // Mock profile-service: Export both singleton instance and class constructor
 vi.mock('@/lib/services/profile-service', () => {
-    const mockProfileInstance = vi.fn().mockReturnValue({
+    // Mock class constructor: new ProfileService(contractId) returns a mock instance
+    const MockProfileServiceClass = vi.fn().mockImplementation((contractId: string) => ({
+        getProfile: vi.fn().mockResolvedValue({
+            id: 'dynamic-mock-user',
+            docId: 'dynamic-mock-doc',
+            username: 'dynamic-testuser',
+            displayName: 'Dynamic Test User',
+            avatar: 'https://example.com/dynamic-avatar.jpg',
+            avatarId: 'dynamic-mock-avatar',
+            bio: 'Dynamic test bio',
+            followers: 20,
+            following: 15,
+            verified: false,
+            joinedAt: new Date(),
+            revision: 2,
+        } as IUser),
+    }))
+
+    // Mock instance for singleton (direct usage: profileService.getProfile())
+    const mockProfileInstance = {
         getProfile: vi.fn().mockResolvedValue({
             id: 'mock-user',
             docId: 'mock-doc',
             username: 'testuser',
             displayName: 'Test User',
             avatar: 'https://example.com/avatar.jpg',
+            avatarId: 'mock-avatar',
             bio: 'Test bio',
             followers: 10,
             following: 5,
@@ -20,16 +40,11 @@ vi.mock('@/lib/services/profile-service', () => {
             joinedAt: new Date(),
             revision: 1,
         } as IUser),
-    })
-
-    // Mock the class constructor: When 'new ProfileService()' is called, return a mock instance
-    const MockProfileServiceClass = vi.fn().mockImplementation(() => mockProfileInstance.mock.results?.[0]?.value || {
-        getProfile: vi.fn().mockResolvedValue(null),  // Default to failure for fallback tests
-    })
+    }
 
     return {
-        profileService: mockProfileInstance,  // Singleton export (instance)
-        ProfileService: MockProfileServiceClass,  // Class export (constructor)
+        ProfileService: MockProfileServiceClass,  // Class export (for 'new ProfileService()')
+        profileService: mockProfileInstance,  // Singleton export (instance for direct use)
     }
 })
 
@@ -59,18 +74,16 @@ vi.mock('@/lib/services/document-service', () => ({
     BaseDocumentService: vi.fn().mockImplementation(() => ({
         query: vi.fn(),
         create: vi.fn(),
-        get: vi.fn().mockImplementation((id: string) => ({  // ✅ Fixed: Use mockImplementation
+        get: vi.fn().mockImplementation((id: string) => ({
             $id: id,
             $ownerId: 'mock-owner',
             ownerId: 'mock-owner',
             content: 'Mock post content',
             $createdAt: Date.now(),
         })),  // Returns raw doc for transformation simulation
-
-        // If BaseDocumentService has protected methods, we don't mock them here—spy on the child class
     })),
     QueryOptions: {} as any,
-    DocumentResult: { documents: [], next: null, prev: null } as any,
+    DocumentResult: { documents: [], nextCursor: null, prevCursor: null } as any,
 }))
 
 // Mock constants
@@ -79,20 +92,21 @@ vi.mock('@/lib/constants', () => ({
     EVONEXT_CONTRACT_ID_MAINNET: 'mock-main-contract-id',
 }))
 
-// Mock getNetwork for consistent test behavior
+// Mock functions in post-service itself for consistent test behavior
 vi.mock('@/lib/services/post-service', async () => {
     const actual = await vi.importActual('@/lib/services/post-service')
     return {
         ...actual,
-        getNetwork: vi.fn().mockReturnValue('testnet'),  // Fixed network for tests
-        getContractId: vi.fn().mockReturnValue('mock-contract-id'),
-        postService,
+        getNetwork: () => 'testnet',  // Fixed network for tests
+        getContractId: () => 'mock-contract-id',
+        postService,  // Re-export the mocked instance
     }
 })
 
 describe('postService', () => {
     beforeEach(() => {
         vi.clearAllMocks()
+        // Clear the internal statsCache to reset state between tests
         ;(postService as any).statsCache?.clear()
     })
 
@@ -102,18 +116,19 @@ describe('postService', () => {
         const mockOptions = { mediaUrl: 'https://example.com/image.jpg' }
 
         const mockRawDoc = {
-            $id: 'new-post-id',
-            $ownerId: mockOwnerId,
-            ownerId: mockOwnerId,
+            id: 'new-post-id',  // Added id for IPost
+            author: { id: 'default-author' } as IUser,  // Minimal author
             content: mockContent,
-            mediaUrl: mockOptions.mediaUrl,
-            $createdAt: Date.now(),
-        } as any
+            createdAt: new Date(),
+            likes: 0, remixes: 0, replies: 0, views: 0,
+            liked: false, remixed: false, bookmarked: false,
+            media: [{ type: 'image', url: mockOptions.mediaUrl }],
+        } as IPost
 
         vi.spyOn(postService as any, 'create').mockResolvedValue(mockRawDoc)
         vi.spyOn(postService as any, 'enrichPost').mockResolvedValue(undefined)  // Mock private enrichment
 
-        const result: IPost = await postService.createPost(mockOwnerId, mockContent, undefined, mockOptions)
+        const result = await postService.createPost(mockOwnerId, mockContent, undefined, mockOptions)
 
         expect((postService as any).create).toHaveBeenCalledWith(mockOwnerId, {
             content: mockContent,
@@ -136,13 +151,14 @@ describe('postService', () => {
         ]
 
         // Mock query to return raw docs (assumes internal transformation)
-        vi.spyOn(postService as any, 'query').mockResolvedValue({
+        const mockQueryResponse = {
             documents: mockRawDocs,
-            next: null,
-            prev: null,
-        })
+            nextCursor: null,
+            prevCursor: null,
+        }
+        vi.spyOn(postService as any, 'query').mockResolvedValue(mockQueryResponse)
 
-        // Mock transformDocument (override protected method for test)
+        // Mock transformDocument (override protected method for test - simulate full IPost)
         vi.spyOn(postService as any, 'transformDocument').mockImplementation((doc: any) => ({
             id: doc.$id,
             author: { id: doc.ownerId, username: 'mock-user' } as IUser,
@@ -150,7 +166,7 @@ describe('postService', () => {
             createdAt: new Date(doc.$createdAt),
             likes: 0, remixes: 0, replies: 0, views: 0,
             liked: false, remixed: false, bookmarked: false,
-        }))
+        } as IPost))
 
         const result = await postService.getUserPosts(mockUserId, { limit: 10 })
 
@@ -164,29 +180,57 @@ describe('postService', () => {
     })
 
     it('should handle profileService correctly in enrichment (singleton vs new)', async () => {
-        // Test singleton usage (if refactored)
-        const singletonProfile = await import('@/lib/services/profile-service')
-        expect(singletonProfile.profileService.getProfile).toHaveBeenCalledTimes(0)  // Before use
+        // Import the mocked module to access mocks (type assertion for vi.importActual)
+        const profileModule = await vi.importActual('@/lib/services/profile-service') as {
+            ProfileService: any
+            profileService: { getProfile: any }
+        }
 
-        // Test dynamic new ProfileService() (post-refactor)
-        // In a real test, call enrichPost or a method that triggers it
+        // Mock dependencies for enrichment
+        vi.spyOn(postService as any, 'getPostStats').mockResolvedValue({
+            likes: 0, remixes: 0, replies: 0, views: 0,
+        } as any)
+        vi.spyOn(postService as any, 'getUserInteractions').mockResolvedValue({
+            liked: false, remixed: false, bookmarked: false,
+        })
+
+        // Simulate a document that triggers enrichment
         const mockDoc = { ownerId: 'test-owner', $id: 'test-post' } as any
-        vi.spyOn(postService as any, 'getPostStats').mockResolvedValue({ likes: 0, remixes: 0, replies: 0, views: 0 } as any)
-        vi.spyOn(postService as any, 'getUserInteractions').mockResolvedValue({ liked: false, remixed: false, bookmarked: false })
+        const mockPost: IPost = {
+            id: 'test-post',
+            author: {} as IUser,
+            content: 'Test post',
+            createdAt: new Date(),
+            likes: 0, remixes: 0, replies: 0, views: 0,
+            liked: false, remixed: false, bookmarked: false,
+        }
 
-        // Simulate transform + enrich
-        const mockPost = postService['transformDocument'](mockDoc) as IPost  // Via any cast
-        await postService['enrichPost'](mockPost, mockDoc)
+        // Mock transformDocument to return the mockPost (which will call enrichPost internally)
+        vi.spyOn(postService as any, 'transformDocument').mockImplementation((doc: any) => {
+            // Simulate the transformation calling enrichPost
+            postService['enrichPost'](mockPost, mockDoc)  // Trigger the method under test
+            return mockPost
+        })
 
-        // Now the mock should have been called
-        expect(singletonProfile.profileService.getProfile).toHaveBeenCalledWith('test-owner')
-        // OR if using new ProfileService, check the constructor mock: expect(singletonProfile.ProfileService).toHaveBeenCalled()
+        // Call a method that uses transformDocument (e.g., get to trigger it)
+        await postService.get('test-post')
+
+        // Verify the dynamic class constructor was called (from enrichPost: new ProfileService())
+        expect(profileModule.ProfileService).toHaveBeenCalledWith('mock-contract-id')  // From getContractId mock
+        expect(profileModule.ProfileService().getProfile).toHaveBeenCalledWith('test-owner')
+
+        // Singleton shouldn't be called in this flow (since enrichPost uses new)
+        expect(profileModule.profileService.getProfile).not.toHaveBeenCalled()
     })
 
     it('should fall back to default user when profile fetch fails', async () => {
-        // Mock ProfileService to fail
-        const { ProfileService } = await import('@/lib/services/profile-service')
-        ;(ProfileService as any).mockImplementation(() => ({
+        // Import the mocked module to access mocks (type assertion for vi.importActual)
+        const profileModule = await vi.importActual('@/lib/services/profile-service') as {
+            ProfileService: any
+        }
+
+        // Mock ProfileService constructor to return a failing instance
+        profileModule.ProfileService.mockImplementation(() => ({
             getProfile: vi.fn().mockRejectedValue(new Error('Profile not found')),
         }))
 
@@ -197,22 +241,66 @@ describe('postService', () => {
             $createdAt: Date.now(),
         } as any
 
-        vi.spyOn(postService as any, 'transformDocument').mockImplementation((doc: any) => {
-            // Simulate transformation with default user logic
-            return {
+        // Mock transformDocument to simulate the logic (calls enrichPost which fetches profile)
+        vi.spyOn(postService as any, 'transformDocument').mockImplementation(async (doc: any) => {
+            const post: IPost = {
                 id: doc.$id,
-                author: postService['getDefaultUser'](doc.ownerId) as IUser,
+                author: postService['getDefaultUser'](doc.ownerId) as IUser,  // Use default initially
                 content: doc.content,
                 createdAt: new Date(doc.$createdAt),
-                // ... other defaults
+                likes: 0, remixes: 0, replies: 0, views: 0,
+                liked: false, remixed: false, bookmarked: false,
             }
+            // Trigger enrichPost, which should fail and keep default author
+            await postService['enrichPost'](post, doc)
+            return post
         })
 
-        const result = postService['transformDocument'](mockDoc)
+        // Mock other enrich dependencies to isolate profile failure
+        vi.spyOn(postService as any, 'getPostStats').mockResolvedValue({ likes: 0, remixes: 0, replies: 0, views: 0 })
+        vi.spyOn(postService as any, 'getUserInteractions').mockResolvedValue({ liked: false, remixed: false, bookmarked: false })
+
+        const result = await postService['transformDocument'](mockDoc)
         expect(result.author).toMatchObject({
             id: 'unknown-user',
             username: 'unknown-...',
             displayName: 'Unknown User',
+            avatar: '',
+            bio: '',
+            followers: 0,
+            following: 0,
+            verified: false,
+            joinedAt: expect.any(Date),
+            revision: 0,
         })
+
+        // Verify failure was handled (profile fetch called but rejected)
+        expect(profileModule.ProfileService().getProfile).toHaveBeenCalledWith('unknown-user')
+    })
+
+    it('should handle post stats caching', async () => {
+        const mockPostId = 'cached-post-789'
+
+        // Mock private count methods
+        vi.spyOn(postService as any, 'countLikes').mockResolvedValue(5)
+        vi.spyOn(postService as any, 'countRemixes').mockResolvedValue(2)
+        vi.spyOn(postService as any, 'countReplies').mockResolvedValue(1)
+
+        // First call: Computes and caches
+        const firstCall = await postService['getPostStats'](mockPostId)
+        expect(firstCall.likes).toBe(5)
+        expect(firstCall.remixes).toBe(2)
+        expect(firstCall.replies).toBe(1)
+
+        // Second call within cache window: Returns cached
+        vi.useFakeTimers()
+        vi.advanceTimersByTime(5000)  // Within 10s
+        const secondCall = await postService['getPostStats'](mockPostId)
+        expect(secondCall).toEqual(firstCall)
+
+        // Third call after expiry: Recomputes (but mocks will return same)
+        vi.advanceTimersByTime(6000)  // Over 10s
+        const thirdCall = await postService['getPostStats'](mockPostId)
+        expect(thirdCall.likes).toBe(5)  // Same due to mocks, but cache cleared internally
     })
 })

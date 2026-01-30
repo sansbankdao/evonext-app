@@ -1,8 +1,10 @@
+// lib/services/post-service.ts
+
 /* Import modules. */
 import { BaseDocumentService, QueryOptions, DocumentResult } from './document-service'
 import { IPost, IUser } from '../types'
 import { identityService } from './identity-service'
-import { profileService } from './profile-service'
+import { ProfileService, profileService } from './profile-service'
 import {
     EVONEXT_CONTRACT_ID_MAINNET,
     EVONEXT_CONTRACT_ID_TESTNET,
@@ -132,7 +134,8 @@ class PostService extends BaseDocumentService<IPost> {
         try {
             // Get author information
             // const author = await profileService.getProfile(doc.$ownerId)
-            const ps = new profileService(getContractId(getNetwork()))
+            // const ps = new profileService(getContractId(getNetwork()))
+            const ps = new ProfileService(getContractId(getNetwork()))
             const author = await ps.getProfile(doc.ownerId)
 
             if (author) {
