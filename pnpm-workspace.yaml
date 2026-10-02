@@ -2,3 +2,9 @@ allowBuilds:
   esbuild: true
   msw: true
   unrs-resolver: true
+overrides:
+  # lodash@4.17.21 (transitive via @nexajs/crypto -> lodash) ships in the client
+  # bundle and has HIGH + MODERATE advisories; all are fixed in >=4.17.24 and the
+  # current release is 4.18.1. Pin the fixed line here (pnpm 11 no longer reads
+  # `pnpm.overrides` from package.json).
+  'lodash@<4.18.1': '4.18.1'

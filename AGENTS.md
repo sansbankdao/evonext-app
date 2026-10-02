@@ -9,7 +9,7 @@ unverified claims here.
 ## Project Snapshot
 
 - App: `evonext-app` v`26.1.30` — `package.json:2-3`
-- Stack: Next.js `14.1.0`, React `18.2.0`, TypeScript `5` — `package.json:34,37`
+- Stack: Next.js `14.2.35` (upgraded from `14.1.0`, see F18), React `18.2.0`, TypeScript `5` — `package.json`
 - Build: static export (`output: 'export'`) — `next.config.js:3`
 - Source size: 127 TS/TSX files (excluding `node_modules`/`.next`/`.git`)
 
@@ -23,6 +23,9 @@ unverified claims here.
 - `pnpm lint` -> **exit 0**; **0 errors**, **8 warnings** (all `react-hooks/exhaustive-deps`;
   triaged in F15, unresolved pending a product decision).
 - `pnpm test:run` -> **exit 0**; `Test Files 5 passed (5)`, `Tests 62 passed (62)`.
+- Playwright chromium -> **exit 0**; `2 passed`.
+- `pnpm audit` -> **95** advisories (`low 10, moderate 30, high 44, critical 6`), down from 106;
+  the only genuinely *shipped* runtime vuln found (transitive `lodash`) is fixed (F17).
 - `tsc --noEmit` -> **exit 0**.
 - The 8 `react-hooks/exhaustive-deps` warnings, by file:line —
   `app/explore/page.tsx:90,133`, `app/followers/page.tsx:173`, `app/following/page.tsx:176`,
@@ -345,6 +348,53 @@ sites were left untouched. They remain warnings only (lint exits 0). Cleanup opt
 keep as-is, add targeted `// eslint-disable-next-line` with a rationale, or memoize the callbacks
 with `useCallback` and then add them to deps (the real fix, but it changes refetch timing).
 
+### F17. Dependency audit (`pnpm audit`) — TRIAGED, shipped-runtime vulns FIXED (item #2)
+Snapshot before any change: **106** advisories (`low 12, moderate 38, high 49, critical 7`).
+GitHub separately reported 78 on the default branch; `pnpm audit` is broader because it walks the
+full installed tree, not just the lockfile diff.
+Key reachability finding — this app is `output: 'export'` (static), so the *shipped* surface is only
+what lands in `out/_next/static/chunks/*.js`. Five vulnerable runtime libraries were checked against
+the emitted chunks:
+- `elliptic` (CRITICAL x7), `crypto-js` (CRITICAL x2), `secure-ls`, `scrypt-js`, `bn.js`: **0 chunks** —
+  not shipped at all. (They arrive via `@nexajs/crypto`, but webpack tree-shakes them because only
+  `hash160` is imported from that package.)
+- `lodash`: **1 chunk** — genuinely shipped (`out/_next/static/chunks/*.js` contains
+  `__lodash_hash_undefined__`/`_.template`), pulled transitively via `@nexajs/crypto` -> `lodash`.
+  Advisories: HIGH (code injection via `_.template`) + 2x MODERATE (prototype pollution via
+  `_.unset`/`_.omit`), all patched at `>=4.17.24`. Our code never calls those functions, but the
+  library ships, so it was fixed as defense-in-depth.
+- `moment` **is** shipped (`components/wallet/send.tsx:38`), advisory patched at `>=2.31.0`.
+- `uuid` is a declared direct dep with **0 imports** and 0 chunks, advisory patched at `>=13.0.1`.
+All 23 remaining `next` advisories require **`>=15.x`** (none fixable on any 14.x line) and every one
+is a *server-runtime* issue (Server Actions, Middleware, rewrites, i18n, Image Optimizer, CSP nonces,
+`beforeInteractive`, WebSocket upgrades). Verified unreachable here: `'use server'` count 0, middleware
+files 0, `async rewrites` 0, `i18n` config 0, `images.unoptimized: true`, no custom server file,
+`output: 'export'`. 48 of the advisories are in dev/build-only tooling (`vite`/`vitest`/`jsdom`/
+`eslint`/`postcss`/`glob`/`minimatch`/`brace-expansion` and friends).
+Fixes applied (no product source changed):
+- `lodash` pinned to `4.18.1` via `pnpm-workspace.yaml` `overrides`. **Verified** `pnpm.overrides` in
+  `package.json` is IGNORED by pnpm 11 (install printed:
+  `The "pnpm" field in package.json is no longer read by pnpm ... ignored: "pnpm.overrides"`); the
+  working location is `pnpm-workspace.yaml`. After the move, `pnpm why lodash` -> `lodash@4.18.1`.
+- `moment` `2.30.1 -> 2.31.0`, `uuid` `13.0.0 -> 13.0.1` (direct deps).
+- `eslint-config-next` `14.1.0 -> 14.2.35` to match `next`.
+Audit after: **95** (`low 10, moderate 30, high 44, critical 6`).
+
+### F18. Next.js upgrade 14.1.0 -> 14.2.35 (item #4)
+Chose `14.2.35` (latest 14.x) because its peer deps still read `react: ^18.2.0` /
+`react-dom: ^18.2.0` — verified via `npm view next@14.2.35 peerDependencies` — so **no React 19
+migration** is forced. `next` advisories fell `34 -> 23`; the remaining 23 all require `>=15.x` and
+are unreachable server-runtime issues (see F17). Both CRITICAL RCE advisories require `>=15.5.24`
+(Windows-hosted servers; AVIF in the Image Optimization API) — the latter is inert because
+`images.unoptimized: true` disables the optimizer entirely, and there is no server in a static export.
+Verified after: `pnpm build` exit 0 -> `Generating static pages (36/36)`, 0 `headers` warnings,
+`out/_headers` emitted, WASM still emitted; `pnpm lint` exit 0 (0 errors / 8 warnings);
+`pnpm test:run` exit 0 (`Test Files 5 passed`, `Tests 62 passed`); `tsc --noEmit` exit 0;
+Playwright chromium exit 0 (`2 passed`). Client bundle chunk changed to `9837-ac1297f112e9d313.js`;
+`hash160` still present, `elliptic` still 0.
+Note: the 78-vulnerability GitHub count and the 95-remaining `pnpm audit` count are different scopes;
+not all remain reachable in a static export.
+
 ## Ordered Work Plan
 
 1. [DONE] Fix the six `new profileService(...)` -> `new ProfileService(...)` call sites so `tsc`
@@ -399,6 +449,18 @@ C. [PARTIAL] Triaged all 8 `react-hooks/exhaustive-deps` warnings. 2 are safe to
    change (`app/followers/page.tsx:173`, `app/following/page.tsx:176`); the other 6 would change
    behavior (4 add a `network` refetch dependency, 2 add re-created-every-render function deps) and
    were **left untouched** pending an explicit product decision. Full detail in F16.
+
+### Follow-up items #2 / #4 (2026-10-02)
+
+#2. [DONE] Dependency audit (`pnpm audit`): 106 -> 95. Triaged every advisory for reachability in
+   this static export. Only one vulnerable library actually ships in the client bundle — transitive
+   `lodash` — and it was pinned to `4.18.1` via `pnpm-workspace.yaml` `overrides` (the `pnpm.overrides`
+   key in `package.json` is ignored by pnpm 11). Also bumped `moment` 2.30.1->2.31.0 and
+   `uuid` 13.0.0->13.0.1, and aligned `eslint-config-next` to 14.2.35. The CRITICAL `elliptic`/
+   `crypto-js` advisories are **not shipped** (0 chunks). Full detail in F17.
+#4. [DONE] Upgraded Next.js 14.1.0 -> 14.2.35 (latest 14.x; keeps `react: ^18.2.0`, no React 19
+   migration). `next` advisories 34 -> 23; all 23 remaining require `>=15.x` and are server-runtime
+   issues unreachable in a static export. Full detail in F18.
 
 ### Final verification pass (2026-10-02, after all 8 items)
 
