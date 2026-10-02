@@ -18,12 +18,12 @@ unverified claims here.
 - `pnpm build` -> **exit 0**; `✓ Compiled successfully`; `Generating static pages (36/36)`;
   zero `Export encountered errors` / `Error occurred prerendering` / `window is not defined`;
   static artifacts emitted for the two Task 6 routes (`out/followers.html` 18821 B,
-  `out/following.html` 18950 B).
-- `pnpm lint` -> **exit 0**; **0 errors**, **8 warnings** (all `react-hooks/exhaustive-deps`).
+  `out/following.html` 18950 B). The former `Specified "headers"...` build warning now fires **0**
+  times (was 2) — see F14.
+- `pnpm lint` -> **exit 0**; **0 errors**, **8 warnings** (all `react-hooks/exhaustive-deps`;
+  triaged in F15, unresolved pending a product decision).
 - `pnpm test:run` -> **exit 0**; `Test Files 5 passed (5)`, `Tests 62 passed (62)`.
 - `tsc --noEmit` -> **exit 0**.
-- Remaining non-fatal build warning: `Specified "headers" will not automatically work with
-  "output: export"` (fires twice) from `next.config.js` `headers()` combined with `output: 'export'`.
 - The 8 `react-hooks/exhaustive-deps` warnings, by file:line —
   `app/explore/page.tsx:90,133`, `app/followers/page.tsx:173`, `app/following/page.tsx:176`,
   `app/profile/create/page.tsx:75`, `app/profile/page.tsx:120`,
@@ -300,6 +300,51 @@ instance) in the browser. Recorded here as an invariant; no code change made.
 Note: `test/` contains no test that references `wallet-manager`, so this audit was statically driven
 (module loading + bundle inspection), not by an existing test.
 
+### F14. Dead `headers()` under `output: 'export'` — FIXED (item A)
+Before: every `pnpm build` warned **twice**: `Specified "headers" will not automatically work with
+"output: export"`. Cause verified at `node_modules/next/dist/server/config.js:279` — Next warns
+whenever a `headers` key is present, and a static export cannot apply response headers.
+So the CSP / `Cross-Origin-Embedder-Policy: require-corp` / `Cross-Origin-Opener-Policy: same-origin`
+policy in `next.config.js` was **silently never sent**.
+Two additional verified facts made the intent unsound as written:
+- the second rule targeted `/dash-wasm/:path*.wasm`, but the exported WASM is emitted by Next at
+  `out/_next/static/media/wasm_sdk_bg.c3177f65.wasm` — the targeted path does not exist in `out/`;
+- neither WASM entry references `SharedArrayBuffer` (`grep -c SharedArrayBuffer` = 0 in both
+  `lib/dash-wasm/wasm_sdk.js` and `node_modules/pshenmic-dpp/dist/binaries/wasm.js`), so the
+  `// CRITICAL: These headers are required for WASM to work` comment was inaccurate.
+Fix (minimum diff): removed the `headers()` key from `next.config.js` and re-created the policy
+verbatim in `public/_headers` (the static-host convention; copied into `out/` by `next build`).
+After: build warning count **2 -> 0**; `out/_headers` present (819 B); WASM still emitted;
+`pnpm build` exits 0 with `Generating static pages (36/36)`. No security policy was dropped — it is
+now actually deployed instead of inert.
+
+### F15. Unused `@nexajs` imports in `lib/wallet-manager.ts` — FIXED (item B)
+Verified: `hash160` (`lib/wallet-manager.ts:5`) and `binToHex`/`hexToBin` (`:7`) each appeared
+**only on their own import line** anywhere in the file. Removed all three imports plus their two
+now-orphaned `@ts-ignore` comments. The symbols remain genuinely used elsewhere via separate imports
+(`lib/identity-manager.ts:12,14,145,201`, `lib/registrar-manager.ts:11,13`), so the fix is scoped to
+the one file. `tsc --noEmit` exits 0; `pnpm lint` exits 0.
+
+### F16. `react-hooks/exhaustive-deps` warnings — TRIAGED, 6 of 8 NOT safe to auto-fix (item C)
+All 8 sites inspected. They split into three distinct groups:
+- **Safe (2):** `app/followers/page.tsx:173` and `app/following/page.tsx:176` — the missing dep is
+  `followersState`/`followingState`, an object rebuilt every render by `useAsyncState`
+  (`components/ui/loading-state.tsx:111-137` returns a fresh object literal). Its members
+  `setData`/`setLoading`/`setError` are `useCallback`-wrapped and **already listed individually** in
+  the dep arrays, so those arrays are already functionally complete. Fixable with no behavior change.
+- **Behavior change — `network` (4):** `app/explore/page.tsx:90`, `:133`,
+  `app/profile/create/page.tsx:75`, `app/profile/page.tsx:120`. Each closure reads `network` through
+  `getContractId(network!)` (e.g. `app/explore/page.tsx:50,102`). Adding `network` to deps would make
+  the effect **refetch when the user switches networks** — today it runs once with the initial value.
+- **Behavior change — un-memoized functions (2):** `components/post/likes-modal.tsx:57` (`loadLikes`,
+  `:27`) and `components/settings/biometric-settings.tsx:20` (`checkBiometricStatus`, `:22`). Both are
+  plain in-component functions re-created every render; adding them as deps makes the dep array
+  change identity **every render**, i.e. the effect runs every render (potential fetch loop).
+Per the repo rule "do not modify product/logic behavior without asking", the 6 behavior-changing
+sites were left untouched. They remain warnings only (lint exits 0). Cleanup options for the 6:
+keep as-is, add targeted `// eslint-disable-next-line` with a rationale, or memoize the callbacks
+with `useCallback` and then add them to deps (the real fix, but it changes refetch timing).
+
 ## Ordered Work Plan
 
 1. [DONE] Fix the six `new profileService(...)` -> `new ProfileService(...)` call sites so `tsc`
@@ -340,6 +385,21 @@ Note: `test/` contains no test that references `wallet-manager`, so this audit w
    recorded one invariant: the F10 webpack alias is load-bearing for DPP instance identity (browser
    shares one WASM instance; bare `pshenmic-dpp` under Node is a different instance). Full detail in F13.
 
+### Follow-up items A / B / C (2026-10-02)
+
+A. [DONE] Removed the dead `headers()` block from `next.config.js` (a no-op under `output: 'export'`
+   that warned twice per build) and re-created the exact policy in `public/_headers` so it is actually
+   deployed. Verified: build warning count `2 -> 0`; `out/_headers` emitted (819 B); `pnpm build`
+   exit 0 -> `Generating static pages (36/36)`. Full detail in F14.
+B. [DONE] Removed three genuinely unused imports (`hash160`, `binToHex`, `hexToBin`) and their
+   orphaned `@ts-ignore` comments from `lib/wallet-manager.ts`. Verified: `tsc --noEmit` exit 0;
+   `pnpm lint` exit 0; uses elsewhere (`lib/identity-manager.ts`, `lib/registrar-manager.ts`) intact.
+   Full detail in F15.
+C. [PARTIAL] Triaged all 8 `react-hooks/exhaustive-deps` warnings. 2 are safe to fix without behavior
+   change (`app/followers/page.tsx:173`, `app/following/page.tsx:176`); the other 6 would change
+   behavior (4 add a `network` refetch dependency, 2 add re-created-every-render function deps) and
+   were **left untouched** pending an explicit product decision. Full detail in F16.
+
 ### Final verification pass (2026-10-02, after all 8 items)
 
 All 8 items above are complete. Re-ran the full suite sequentially after finishing Task 8:
@@ -349,10 +409,9 @@ All 8 items above are complete. Re-ran the full suite sequentially after finishi
 
 ### Known remaining items (not yet actioned, need a decision)
 
-- `next.config.js` `headers()` is a no-op under `output: 'export'` (build warns twice). Either remove
-  the `headers()` block or document that edge/static hosting must supply those headers.
-- The 8 `react-hooks/exhaustive-deps` warnings listed in the snapshot. Fixing them is a behavior
-  change (refetch semantics), so it requires explicit approval.
+- The 8 `react-hooks/exhaustive-deps` warnings listed in the snapshot. Triage in F15: 2 are safe
+  to fix, 6 would change behavior (un-memoized function deps -> run-every-render; `network` deps ->
+  refetch-on-switch). Requires explicit approval for the 6.
 - No automated test references `lib/wallet-manager.ts` (relevant to F13's static-only audit).
 
 ## Working Rules For This Repo

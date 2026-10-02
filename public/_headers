@@ -1,0 +1,14 @@
+# public/_headers
+#
+# Static-host response headers for the exported site (copied verbatim into `out/` by
+# `next build` under `output: 'export'`; honoured by Netlify, Cloudflare Pages, GitHub
+# Pages, Firebase Hosting, etc.).
+#
+# These replace the former `headers()` block in `next.config.js`, which Next.js cannot
+# apply in a static export and which the build warned about on every run:
+#   `Specified "headers" will not automatically work with "output: export"`.
+
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: blob:; font-src 'self'; connect-src 'self' https: wss:; worker-src 'self' blob:; child-src 'self' blob:
+  Cross-Origin-Embedder-Policy: require-corp
+  Cross-Origin-Opener-Policy: same-origin

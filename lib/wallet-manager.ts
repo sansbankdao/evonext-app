@@ -1,10 +1,6 @@
 /* Import modules. */
 import { DashPlatformSDK } from 'dash-platform-sdk'
 import { GasFeesPaidByWASM, PrivateKeyWASM } from 'pshenmic-dpp'
-// @ts-ignore
-import { hash160 } from '@nexajs/crypto'
-// @ts-ignore
-import { binToHex, hexToBin } from '@nexajs/utils'
 
 import { wasmSdkService } from './services'
 import {

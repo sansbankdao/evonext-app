@@ -74,54 +74,6 @@ const nextConfig = {
 
         return config
     },
-    async headers() {
-        return [
-            {
-                source: '/:path*',
-                headers: [
-                    {
-                        key: 'Content-Security-Policy',
-                        value: [
-                            "default-src 'self'",
-                            "script-src 'self' 'unsafe-eval' 'unsafe-inline'",
-                            "style-src 'self' 'unsafe-inline'",
-                            "img-src 'self' data: https: blob:",
-                            "font-src 'self'",
-                            "connect-src 'self' https: wss:",
-                            "worker-src 'self' blob:",
-                            "child-src 'self' blob:"
-                        ].join('; ')
-                    },
-                    // CRITICAL: These headers are required for WASM to work
-                    {
-                        key: 'Cross-Origin-Embedder-Policy',
-                        value: 'require-corp'
-                    },
-                    {
-                        key: 'Cross-Origin-Opener-Policy',
-                        value: 'same-origin'
-                    },
-                ]
-            },
-            {
-                source: '/dash-wasm/:path*.wasm',
-                headers: [
-                    {
-                        key: 'Content-Type',
-                        value: 'application/wasm'
-                    },
-                    {
-                        key: 'Cross-Origin-Embedder-Policy',
-                        value: 'require-corp'
-                    },
-                    {
-                        key: 'Cross-Origin-Opener-Policy',
-                        value: 'same-origin'
-                    }
-                ]
-            }
-        ]
-    }
 }
 
 module.exports = nextConfig
