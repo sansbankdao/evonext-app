@@ -1,6 +1,8 @@
+// app/followers/page.tsx
+
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { ArrowPathIcon } from '@heroicons/react/24/outline'
 import { Sidebar } from '@/components/layout/sidebar'
@@ -15,30 +17,6 @@ import { generateAvatarV2 } from '@/lib/avatar-generator-v2'
 import { Button } from '@/components/ui/button'
 import { formatNumber } from '@/lib/utils'
 import { AlsoKnownAs } from '@/components/ui/also-known-as'
-import {
-    EVONEXT_CONTRACT_ID_MAINNET,
-    EVONEXT_CONTRACT_ID_TESTNET,
-} from '@/lib/constants'
-
-/**
- * Get Contract ID
- *
- * @param _network
- * @returns
- */
-const getContractId = (_network: string) => {
-    /* Initialize locals. */
-    let contractId
-
-    /* Handle network. */
-    if (_network === 'mainnet') {
-        contractId = EVONEXT_CONTRACT_ID_MAINNET
-    } else {
-        contractId = EVONEXT_CONTRACT_ID_TESTNET
-    }
-
-    return contractId
-}
 
 interface Follower {
     id: string
@@ -135,9 +113,8 @@ function FollowersPage() {
                     }
                 })),
 
-                const ps = new profileService(getContractId(network!))
                 // Fetch EvoNext profiles
-                profileService.ps(identityIds)
+                profileService.getProfilesByIdentityIds(identityIds)
             ])
 
             // Check if we follow them back
@@ -155,7 +132,7 @@ function FollowersPage() {
             const profileMap = new Map(profiles.map(p => [p.$ownerId, p]))
 
             // Create enriched user data
-            const followers = follows.map((follow: any) => {
+            const followers = follows.map((follow: any): Follower | null => {
                 const followerId = follow.$ownerId || follow.ownerId
 
                 if (!followerId) {
@@ -178,12 +155,12 @@ function FollowersPage() {
                     isFollowingBack: followingBackMap.get(followerId) || false,
                     allUsernames: allUsernames
                 }
-            }).filter(Boolean) // Remove any null entries
+            }).filter((f): f is Follower => Boolean(f)) // Remove any null entries
 
             // Cache the results
             cacheManager.set('followers', cacheKey, followers)
 
-// setData(followers)
+            setData(followers)
             console.log(`Followers: Successfully loaded ${followers.length} followers`)
         } catch (error) {
             console.error('Followers: Failed to load followers list:', error)

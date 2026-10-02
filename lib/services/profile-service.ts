@@ -24,7 +24,9 @@ const getContractId = (_network: string) => {
     return contractId
 }
 const getNetwork = () => {
-    const host = window.location.host
+    // Guard for SSR / static-export prerender where `window` is undefined.
+    // Client-side behavior is unchanged; server-side falls back to 'testnet'.
+    const host = typeof window !== 'undefined' ? window.location.host : ''
     let network
     // FIXME Handle mainnet for localhost and IPFS.
     switch(host) {

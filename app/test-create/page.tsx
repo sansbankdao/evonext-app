@@ -4,7 +4,7 @@ import React, { useState } from 'react'
 import {
     likeService,
     postService,
-    profileService,
+    ProfileService,
     wasmSdkService,
 } from '@/lib/services'
 import { EVONEXT_CONTRACT_ID_TESTNET } from '@/lib/constants'
@@ -80,7 +80,7 @@ export default function TestCreatePage() {
             //     profileName,
             //     profileBio
             // )
-            const ps = new profileService(EVONEXT_CONTRACT_ID_TESTNET)
+            const ps = new ProfileService(EVONEXT_CONTRACT_ID_TESTNET)
             const profile = await ps.updateProfile(
                 identityId,
                 {

@@ -56,8 +56,8 @@ function CreateProfilePage() {
             if (!user) return
 
             try {
-                const { profileService } = await import('@/lib/services/profile-service')
-                const ps = new profileService(getContractId(network!))
+                const { ProfileService } = await import('@/lib/services/profile-service')
+                const ps = new ProfileService(getContractId(network!))
                 const existingProfile = await ps.getProfile(user.identityId)
 
                 if (existingProfile) {
@@ -106,7 +106,7 @@ function CreateProfilePage() {
 
         try {
             // Create profile using the profile service
-            const { profileService } = await import('@/lib/services/profile-service')
+            const { ProfileService } = await import('@/lib/services/profile-service')
 
             if (!user) {
                 throw new Error('User not authenticated')
@@ -115,7 +115,7 @@ function CreateProfilePage() {
             console.log('Creating profile with data:', formData)
 
             // Create the profile
-            const ps = new profileService(getContractId(network!))
+            const ps = new ProfileService(getContractId(network!))
             await ps.createProfile(
                 user.identityId,
                 formData.displayName,

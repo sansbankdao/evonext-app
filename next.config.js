@@ -29,8 +29,27 @@ const nextConfig = {
     //     ]
     // },
     webpack: (config, { isServer }) => {
+        // FIX: pshenmic-dpp's `node` export condition resolves to
+        // dist/src/native.js, whose dist/binaries/node.cjs does a runtime
+        // require() of native `.node` binaries that webpack cannot parse.
+        // Route the package to its WASM entry (the same one the `browser`
+        // condition uses), which bundles cleanly in every compilation.
+        config.resolve = config.resolve || {}
+        config.resolve.alias = {
+            ...config.resolve.alias,
+            'pshenmic-dpp': 'pshenmic-dpp/wasm',
+        }
+
         // Optimize Dash SDK bundle size
         if (!isServer) {
+            // FIX: the WASM entry guards these Node builtins behind `isNode`,
+            // but webpack still statically resolves them for the client. Map
+            // them to empty modules so the browser bundle compiles.
+            config.resolve.fallback = {
+                ...config.resolve.fallback,
+                worker_threads: false,
+            }
+
             config.optimization = {
                 ...config.optimization,
                 splitChunks: {

@@ -85,7 +85,7 @@ export default function StudioPage() {
                                     </h3>
                                 </div>
                                 <p>
-                                    Build apps that feel native to EvoNext. Access user profiles, post data, and interact with the platform's UI using our powerful, easy-to-use SDK.
+                                    Build apps that feel native to EvoNext. Access user profiles, post data, and interact with the platform&apos;s UI using our powerful, easy-to-use SDK.
                                 </p>
                             </div>
 

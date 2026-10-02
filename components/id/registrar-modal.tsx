@@ -374,8 +374,8 @@ console.log('TIMER STOPPED (after 15 minutes)')
                 onClose()
 
                 // Redirect to home or profile creation
-                const { profileService } = await import('@/lib/services/profile-service')
-                const ps = new profileService(network!)
+                const { ProfileService } = await import('@/lib/services/profile-service')
+                const ps = new ProfileService(network!)
                 const profile = await ps.getProfile(currentIdentityId, existingRegistrar)
 
                 if (profile) {

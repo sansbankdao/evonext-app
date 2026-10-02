@@ -1,3 +1,5 @@
+// app/following/page.tsx
+
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
@@ -133,7 +135,7 @@ function FollowingPage() {
             const profileMap = new Map(profiles.map(p => [p.$ownerId, p]))
 
             // Create enriched user data
-            const followingUsers = follows.map((follow: any) => {
+            const followingUsers = follows.map((follow: any): FollowingUser | null => {
                 const followingId = follow.followingId
 
                 if (!followingId) {
@@ -156,12 +158,12 @@ function FollowingPage() {
                     isFollowing: true,
                     allUsernames: allUsernames
                 }
-            }).filter(Boolean) // Remove any null entries
+            }).filter((f): f is FollowingUser => Boolean(f)) // Remove any null entries
 
             // Cache the results
             cacheManager.set('following', cacheKey, followingUsers)
 
-// setData(followingUsers)
+            setData(followingUsers)
             console.log(`Following: Successfully loaded ${followingUsers.length} following`)
         } catch (error) {
             console.error('Following: Failed to load following list:', error)
