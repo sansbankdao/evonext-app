@@ -8,7 +8,7 @@ import {
     dpns_register_name,
     dpns_is_name_available,
     dpns_resolve_name
-} from '../dash-wasm/wasm_sdk'
+} from '../dash-wasm/compat'
 import { DPNS_CONTRACT_ID, DPNS_DOCUMENT_TYPE } from '../constants'
 
 interface DpnsDocument {
@@ -56,7 +56,7 @@ class DpnsService {
 
             // Try the dedicated DPNS usernames function first
             try {
-                const { get_dpns_usernames } = await import('../dash-wasm/wasm_sdk');
+                const { get_dpns_usernames } = await import('../dash-wasm/compat');
                 const response = await get_dpns_usernames(sdk, identityId, 20); // Get up to 20 usernames
 
                 console.log('DPNS: Usernames response:', response);

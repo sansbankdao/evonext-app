@@ -132,7 +132,7 @@ console.log('EXISTING LIKE', like)
 
             // Import necessary modules
             const { getDashPlatformClient } = await import('../dash-platform-client')
-            const { get_documents } = await import('../dash-wasm/wasm_sdk')
+            const { get_documents } = await import('../dash-wasm/compat')
             const bs58Module = await import('bs58')
             const bs58 = bs58Module.default
 
@@ -196,7 +196,7 @@ console.log('GET LIKE (response)', response)
 
             // Import necessary modules
             const { getDashPlatformClient } = await import('../dash-platform-client')
-            const { get_documents } = await import('../dash-wasm/wasm_sdk')
+            const { get_documents } = await import('../dash-wasm/compat')
             const bs58Module = await import('bs58')
             const bs58 = bs58Module.default
 

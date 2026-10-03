@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { wasmSdkService } from '@/lib/services'
-import { get_documents } from '@/lib/dash-wasm/wasm_sdk'
+import { get_documents } from '@/lib/dash-wasm/compat'
 import { EVONEXT_CONTRACT_ID_TESTNET } from '@/lib/constants'
 
 const DPNS_CONTRACT_ID = 'GWRSAVFMjXx8HpQFaNJMqBV7MBgMK4br5UESsB4S31Ec'

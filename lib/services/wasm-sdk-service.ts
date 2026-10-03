@@ -2,9 +2,7 @@
 import init, {
     WasmSdkBuilder,
     WasmSdk,
-    prefetch_trusted_quorums_testnet,
-    prefetch_trusted_quorums_mainnet,
-    data_contract_fetch,
+    WasmTrustedContext,
 } from '../dash-wasm/wasm_sdk'
 
 import { contractService } from './contract-service'
@@ -116,8 +114,16 @@ class WasmSdkService {
             // Since we can't directly insert the contract, we need to intercept or mock the fetch.
             // For now, let's try the fetch and see if it succeeds (it might if the contract exists on testnet)
             try {
-                await data_contract_fetch(this.sdk, contractId)
-                console.log('WasmSdkService: EvoNext contract found on network and cached in trusted context');
+                // v4.1.1 API: getDataContract fetches (with proof) and caches the
+                // contract in the SDK's contract store; resolves undefined when
+                // the contract is not on the network.
+                const contract = await this.sdk.getDataContract(contractId)
+                if (contract) {
+                    console.log('WasmSdkService: EvoNext contract found on network and cached in trusted context');
+                } else {
+                    console.log('WasmSdkService: Contract not found on network (expected for local development)');
+                    console.log('WasmSdkService: Local contract operations will be handled gracefully');
+                }
             } catch (error) {
                 console.log('WasmSdkService: Contract not found on network (expected for local development)');
                 console.log('WasmSdkService: Local contract operations will be handled gracefully');
@@ -141,17 +147,20 @@ class WasmSdkService {
             // Now create the SDK instance for this service
             // Prefetch trusted quorums and create SDK builder based on network
             if (this.config!.network === 'testnet') {
-                console.log('WasmSdkService: Prefetching testnet quorum information...');
+                console.log('WasmSdkService: Prefetching testnet trusted context (quorums + masternode addresses)...');
 
-                await prefetch_trusted_quorums_testnet();
+                // v4.1.1 API: the trusted context fetches quorum keys AND discovers
+                // live masternode addresses at runtime, replacing the removed
+                // hard-coded address list of older SDK builds.
+                const context = await WasmTrustedContext.prefetchTestnet();
                 console.log('WasmSdkService: Building testnet SDK in trusted mode...');
 
-                // Create builder - new_testnet_trusted() returns a Result that throws on error
+                // Create builder - returns a builder preconfigured for the network
                 console.log('WasmSdkService: Creating testnet builder...');
                 let builder;
 
                 try {
-                    builder = WasmSdkBuilder.new_testnet_trusted();
+                    builder = WasmSdkBuilder.testnet().withTrustedContext(context);
                     console.log('WasmSdkService: Builder created successfully');
                 } catch (error) {
                     console.error('WasmSdkService: Failed to create testnet builder:', error);
@@ -162,7 +171,7 @@ class WasmSdkService {
                 console.log('WasmSdkService: Setting request timeout to 8 seconds...');
 
                 try {
-                    builder = builder.with_settings(undefined, 8000, undefined, undefined);
+                    builder = builder.withSettings(undefined, 8000, undefined, undefined);
                     console.log('WasmSdkService: Settings applied successfully');
                 } catch (error) {
                     console.error('WasmSdkService: Failed to apply settings:', error);
@@ -180,18 +189,18 @@ class WasmSdkService {
                 }
                 console.log('WasmSdkService: Testnet SDK built successfully with 8s timeout');
             } else {
-                console.log('WasmSdkService: Prefetching mainnet quorum information...');
+                console.log('WasmSdkService: Prefetching mainnet trusted context (quorums + masternode addresses)...');
 
-                await prefetch_trusted_quorums_mainnet();
+                const context = await WasmTrustedContext.prefetchMainnet();
                 console.log('Building mainnet SDK in trusted mode...');
 
-                // Create builder - new_mainnet_trusted() returns a Result that throws on error
+                // Create builder - returns a builder preconfigured for the network
                 console.log('WasmSdkService: Creating mainnet builder...');
 
                 let builder;
 
                 try {
-                    builder = WasmSdkBuilder.new_mainnet_trusted();
+                    builder = WasmSdkBuilder.mainnet().withTrustedContext(context);
                     console.log('WasmSdkService: Builder created successfully');
                 } catch (error) {
                     console.error('WasmSdkService: Failed to create mainnet builder:', error);
@@ -202,7 +211,7 @@ class WasmSdkService {
                 console.log('WasmSdkService: Setting request timeout to 8 seconds...');
 
                 try {
-                    builder = builder.with_settings(undefined, 8000, undefined, undefined);
+                    builder = builder.withSettings(undefined, 8000, undefined, undefined);
                     console.log('WasmSdkService: Settings applied successfully');
                 } catch (error) {
                     console.error('WasmSdkService: Failed to apply settings:', error);

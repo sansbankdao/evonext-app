@@ -13,7 +13,7 @@ import { cacheManager } from '../cache-manager'
 import { getContractId, getNetwork } from '../network'
 // Import at the bottom originally, but moved up for global scope (no logic change)
 import { getWasmSdk } from './wasm-sdk-service'
-import { get_document, get_documents } from '../dash-wasm/wasm_sdk'
+import { get_document, get_documents } from '../dash-wasm/compat'
 import { stateTransitionService } from './state-transition-service'
 export interface ProfileDocument {
     $id: string;

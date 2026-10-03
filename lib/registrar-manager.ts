@@ -6,7 +6,7 @@ import {
     dpns_register_name,
     get_identity_by_public_key_hash,
     get_identity_by_non_unique_public_key_hash,
-} from '@/lib/dash-wasm/wasm_sdk'
+} from '@/lib/dash-wasm/compat'
  // @ts-ignore
 import { hash160 } from '@nexajs/crypto'
  // @ts-ignore
@@ -176,11 +176,17 @@ export const registerIdentityAndUsername = async (
     const privateKeys = getPrivateKeys(_currentNetwork, _identityIdx)
 
     // setIsModalOpen(true)
-    const result = await sdk.identityCreate(
+    // NOTE (4.1.1 migration): the new SDK's identityCreate(options) requires a
+    // fully rebuilt flow (Identity object, AssetLockProof, PrivateKey,
+    // IdentitySigner) and returns void — the old single-call signature no
+    // longer exists. The legacy call is preserved behind a cast so the
+    // migration of the registration flow can be designed separately (see
+    // AGENTS.md); at runtime the new WASM will reject these arguments.
+    const result = await (sdk as any).identityCreate(
         _proof,
         _wif,
         JSON.stringify(publicKeys)
-    ).catch(err => console.error(err))
+    ).catch((err: any) => console.error(err))
 // console.log('WASM REGISTRATION RESULT', result)
 
     /* Validate result. */

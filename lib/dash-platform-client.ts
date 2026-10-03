@@ -4,7 +4,7 @@
 import {
     identity_fetch,
     get_documents
-} from './dash-wasm/wasm_sdk'
+} from './dash-wasm/compat'
 
 // Import the centralized WASM service
 import { wasmSdkService } from './services/wasm-sdk-service'

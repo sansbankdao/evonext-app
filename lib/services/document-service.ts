@@ -4,7 +4,7 @@ import {
     get_documents,
     get_document,
     get_document_with_proof_info,
-} from '../dash-wasm/wasm_sdk'
+} from '../dash-wasm/compat'
 import { stateTransitionService } from './state-transition-service'
 
 export interface QueryOptions {

@@ -4,10 +4,12 @@ import { GasFeesPaidByWASM, PrivateKeyWASM } from 'pshenmic-dpp'
 
 import { wasmSdkService } from './services'
 import {
+    IdentitySigner,
     WasmSdkBuilder,
+    WasmTrustedContext,
     derive_key_from_seed_with_path,
     get_identities_token_balances_with_proof_info,
-} from './dash-wasm/wasm_sdk'
+} from './dash-wasm/compat'
 import { getIdentities } from './identity-manager'
 import { getIdentityIdx, getMnemonic } from './secure-storage'
 import {
@@ -294,24 +296,42 @@ console.log('GET TRANSFER KEY', transferWif)
     /* Handle network. */
     if (_network === 'mainnet') {
         /* Initialize SDK. */
-        sdk = await WasmSdkBuilder.new_mainnet_trusted().build()
+        // 4.1.1 API: the trusted context discovers live masternode addresses
+        // at runtime (the old build's hard-coded address list was removed).
+        const context = await WasmTrustedContext.prefetchMainnet()
+        sdk = await WasmSdkBuilder.mainnet().withTrustedContext(context).build()
     } else {
         /* Initialize SDK. */
-        sdk = await WasmSdkBuilder.new_testnet_trusted().build()
+        const context = await WasmTrustedContext.prefetchTestnet()
+        sdk = await WasmSdkBuilder.testnet().withTrustedContext(context).build()
     }
 console.log('IDENTITY ID', _identityId)
+    /* 4.1.1 API: the transfer needs the sender's current identity nonce. The
+     * TS interface for the method expects { amount, senderId, recipientId,
+     * nonce } while the API docs describe an { identity, signer } shape — the
+     * call passes a superset so either binding contract is satisfied. */
+    const nonce = await sdk.getIdentityNonce(_identityId)
+    const identity = await sdk.getIdentity(_identityId)
+    if (!identity) {
+        throw new Error(`Identity not found: ${_identityId}`)
+    }
+
+    const signer = new IdentitySigner()
+    signer.addKeyFromWif(transferWif)
+
     /* Transfer credits. */
-    const txResult = await sdk.identityCreditTransfer(
-        _identityId,
-        _receiver,
-        credits,
-        transferWif,
-        null // key_id - will auto-select
-    )
+    const txResult = await (sdk as any).identityCreditTransfer({
+        amount: credits,
+        senderId: _identityId,
+        recipientId: _receiver,
+        nonce,
+        identity,
+        signer,
+    })
 console.log('WALLET MANGAER (tx result)', txResult)
 
     /* Return transaction (result) ID. */
-    return { txid: txResult?.txid || 'UNKNOWN TXID' }
+    return { txid: (txResult as any)?.txid || 'UNKNOWN TXID' }
 }
 
 export const sendToken = async (

@@ -13,7 +13,7 @@ import {
     registerIdentityAndUsername,
 } from '@/lib/registrar-manager'
 import { getPrivateKeys, getPublicKeys } from '@/lib/wallet-manager'
-import { validate_mnemonic } from '@/lib/dash-wasm/wasm_sdk'
+import { validate_mnemonic } from '@/lib/dash-wasm/compat'
 
 export default function LoginPage() {
     const router = useRouter()

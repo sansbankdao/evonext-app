@@ -3,7 +3,7 @@ import { getWasmSdk } from './wasm-sdk-service'
 import {
     identity_fetch,
     get_identity_balance,
-} from '../dash-wasm/wasm_sdk'
+} from '../dash-wasm/compat'
 
 export interface IdentityInfo {
     id: string;

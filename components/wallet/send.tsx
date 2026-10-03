@@ -29,8 +29,9 @@ import {
 } from '@/lib/constants'
 const {
     WasmSdkBuilder,
+    WasmTrustedContext,
     dpns_resolve_name,
-} = require('@/lib/dash-wasm/wasm_sdk')
+} = require('@/lib/dash-wasm/compat')
 import { getAsset, getMnemonic } from '@/lib/secure-storage'
 import { IToken } from '@/lib/types'
 import { sendCredit, sendToken } from '@/lib/wallet-manager'
@@ -195,12 +196,14 @@ console.log('DASH/USD', dashUsdValue)
             /* Validate Identity or Username format. */
             if (!isBase58IdentityId(receiver)) {
                 /* Handle network. */
+                // 4.1.1 API: the trusted context discovers live masternode
+                // addresses at runtime (the old hard-coded list was removed).
                 if (network === 'mainnet') {
-                    /* Initialize SDK. */
-                    sdk = await WasmSdkBuilder.new_mainnet_trusted().build()
+                    const context = await WasmTrustedContext.prefetchMainnet()
+                    sdk = await WasmSdkBuilder.mainnet().withTrustedContext(context).build()
                 } else {
-                    /* Initialize SDK. */
-                    sdk = await WasmSdkBuilder.new_testnet_trusted().build()
+                    const context = await WasmTrustedContext.prefetchTestnet()
+                    sdk = await WasmSdkBuilder.testnet().withTrustedContext(context).build()
                 }
 
                 /* Resolve username (w/ onchain query). */

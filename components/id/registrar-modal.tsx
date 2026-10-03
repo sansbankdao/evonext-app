@@ -21,7 +21,7 @@ import {
 } from '@/lib/registrar-manager'
 import { storeIdentityIdx } from '@/lib/secure-storage'
 import { getPrivateKeys, getPublicKeys } from '@/lib/wallet-manager'
-import { dpns_is_contested_username } from '@/lib/dash-wasm/wasm_sdk'
+import { dpns_is_contested_username } from '@/lib/dash-wasm/compat'
 
 /* Initialize constants. */
 const MAX_USERNAME_LENGTH = 63 // Maximum length - 63 characters

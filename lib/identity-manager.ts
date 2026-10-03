@@ -6,7 +6,7 @@ import {
     dpns_register_name,
     get_identity_by_public_key_hash,
     get_identity_by_non_unique_public_key_hash,
-} from '@/lib/dash-wasm/wasm_sdk'
+} from '@/lib/dash-wasm/compat'
 import { IIdentity, IPublicKey } from '@/lib/types'
  // @ts-ignore
 import { hash160 } from '@nexajs/crypto'

@@ -1,7 +1,7 @@
 'use client'
 
 import { getDashPlatformClient } from './dash-platform-client'
-import { get_documents } from './dash-wasm/wasm_sdk'
+import { get_documents } from './dash-wasm/compat'
 import { DPNS_CONTRACT_ID } from './constants'
 
 /**

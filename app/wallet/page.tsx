@@ -71,7 +71,7 @@ export default function WalletPage() {
                 // get_identity_balance_with_proof_info,
                 get_identities_token_balances_with_proof_info,
                 // get_identities_token_infos_with_proof_info,
-            } = await import('../../lib/dash-wasm/wasm_sdk')
+            } = await import('../../lib/dash-wasm/compat')
 
             /* Initiallize SDK. */
             const sdk = await getWasmSdk()

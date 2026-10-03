@@ -4,10 +4,10 @@ const nextConfig = {
     images: {
         unoptimized: true,
     },
-    eslint: {
-        ignoreDuringBuilds: true,
-    },
     reactStrictMode: true,
+    // NOTE (Next 16): the top-level `eslint` key is no longer supported —
+    // linting is driven directly by the ESLint CLI (see eslint.config.mjs
+    // and the `lint` script in package.json).
     // images: {
     //     // remotePatterns: [ // NOTE: Avail after v15.3.0
     //     //     new URL('https://images.unsplash.com/**'),
@@ -28,8 +28,7 @@ const nextConfig = {
     //         },
     //     ]
     // },
-    webpack: (config, { isServer }) => {
-        // FIX: pshenmic-dpp's `node` export condition resolves to
+    webpack: (config, { isServer }) => {        // FIX: pshenmic-dpp's `node` export condition resolves to
         // dist/src/native.js, whose dist/binaries/node.cjs does a runtime
         // require() of native `.node` binaries that webpack cannot parse.
         // Route the package to its WASM entry (the same one the `browser`

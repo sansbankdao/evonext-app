@@ -12,7 +12,7 @@ import toast from 'react-hot-toast'
 import { CheckCircle2, XCircle, Loader2, RefreshCw, X, Edit2 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
-import { dpns_is_contested_username } from '@/lib/dash-wasm/wasm_sdk'
+import { dpns_is_contested_username } from '@/lib/dash-wasm/compat'
 
 /* Initialize constants. */
 const MAX_USERNAME_LENGTH = 63 // Maximum length - 63 characters

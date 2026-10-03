@@ -3,7 +3,7 @@
 import { Fragment } from 'react'
 import { Dialog, Transition } from '@headlessui/react'
 import { XMarkIcon } from '@heroicons/react/24/outline'
-import { dpns_is_contested_username } from '@/lib/dash-wasm/wasm_sdk'
+import { dpns_is_contested_username } from '@/lib/dash-wasm/compat'
 
 interface UsernamesModalProps {
     isOpen: boolean

@@ -1,7 +1,12 @@
 /* Import modules. */
 import { getWasmSdk } from './wasm-sdk-service'
-import { wait_for_state_transition_result } from '../dash-wasm/wasm_sdk'
-import type { WasmSdk } from '../dash-wasm/wasm_sdk'
+import { wait_for_state_transition_result } from '../dash-wasm/compat'
+import type { WasmSdk } from '../dash-wasm/compat'
+import {
+    Document,
+    IdentitySigner,
+    PlatformVersion,
+} from '../dash-wasm/compat'
 
 export interface StateTransitionResult {
     success: boolean;
@@ -61,7 +66,7 @@ class StateTransitionService {
     /**
      * Generate entropy for state transitions
      */
-    private generateEntropy(): string {
+    private generateEntropyBytes(): Uint8Array {
         const bytes = new Uint8Array(32)
 
         if (typeof window !== 'undefined' && window.crypto) {
@@ -73,7 +78,19 @@ class StateTransitionService {
             }
         }
 
-        return Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+        return bytes;
+    }
+
+    /**
+     * Resolve the signing key: the identity's first non-disabled
+     * AUTHENTICATION key (falls back to the first key).
+     */
+    private getSigningKey(identity: any) {
+        const keys = identity.publicKeys || []
+        return (
+            keys.find((k: any) => k.purpose === 'AUTHENTICATION' && !k.disabledAt) ||
+            keys[0]
+        )
     }
 
     /**
@@ -88,29 +105,46 @@ class StateTransitionService {
         try {
             const sdk = await getWasmSdk()
             const privateKey = await this.getPrivateKey(ownerId)
-            const entropy = this.generateEntropy()
+            const entropy = this.generateEntropyBytes()
 
             console.log(`Creating ${documentType} document with data:`, documentData)
             console.log(`Contract ID: ${contractId}`)
             console.log(`Owner ID: ${ownerId}`)
 
-            // Create the document using the SDK method
-            const result = await sdk.documentCreate(
-                contractId,
-                documentType,
-                ownerId,
-                JSON.stringify(documentData),
-                entropy,
-                privateKey
-            )
+            // 4.1.1 API: the transition is assembled from a Document instance,
+            // the owner's identity key and an IdentitySigner holding the WIF.
+            const identity = await sdk.getIdentity(ownerId)
+            if (!identity) {
+                throw new Error(`Identity not found: ${ownerId}`)
+            }
 
-            console.log('Document creation result:', result)
+            const identityKey = this.getSigningKey(identity)
+            if (!identityKey) {
+                throw new Error(`No usable public key on identity: ${ownerId}`)
+            }
+
+            const signer = new IdentitySigner()
+            signer.addKeyFromWif(privateKey)
+
+            const document = new Document({
+                properties: documentData,
+                documentTypeName: documentType,
+                dataContractId: contractId,
+                ownerId,
+                entropy,
+            })
+
+            await sdk.documentCreate({ document, identityKey, signer })
+
+            // The new API returns void; the created document is reconstructed
+            // from the Document instance (its ID/entropy were generated locally).
+            const createdDocument = document.toJSON(PlatformVersion.current())
+            console.log('Document creation result:', createdDocument)
 
             // The result contains the document and transition info
             return {
                 success: true,
-                transactionHash: result.stateTransition?.$id || result.transitionId,
-                document: result.document || result
+                document: createdDocument
             }
         } catch (error) {
             console.error('Error creating document:', error)
@@ -140,21 +174,40 @@ class StateTransitionService {
             console.log(`Updating ${documentType} document ${documentId}...`)
             console.log('REVISION IS', revision)
 
-            // Update the document using the SDK method
-            const result = await sdk.documentReplace(
-                contractId,
-                documentType,
-                documentId,
+            // 4.1.1 API: the replace transition takes a Document instance whose
+            // revision is the CURRENT revision + 1, the owner's identity key
+            // and an IdentitySigner holding the WIF.
+            const identity = await sdk.getIdentity(ownerId)
+            if (!identity) {
+                throw new Error(`Identity not found: ${ownerId}`)
+            }
+
+            const identityKey = this.getSigningKey(identity)
+            if (!identityKey) {
+                throw new Error(`No usable public key on identity: ${ownerId}`)
+            }
+
+            const signer = new IdentitySigner()
+            signer.addKeyFromWif(privateKey)
+
+            const document = new Document({
+                properties: documentData,
+                documentTypeName: documentType,
+                dataContractId: contractId,
                 ownerId,
-                JSON.stringify(documentData),
-                BigInt(revision),
-                privateKey
-            )
+                id: documentId,
+                revision: BigInt(revision) + BigInt(1),
+            })
+
+            await sdk.documentReplace({ document, identityKey, signer })
+
+            // The new API returns void; the updated document is reconstructed
+            // from the Document instance.
+            const updatedDocument = document.toJSON(PlatformVersion.current())
 
             return {
                 success: true,
-                transactionHash: result.stateTransition?.$id || result.transitionId,
-                document: result.document || result
+                document: updatedDocument
             }
         } catch (error) {
             console.error('Error updating document:', error)
@@ -181,18 +234,34 @@ class StateTransitionService {
 
             console.log(`Deleting ${documentType} document ${documentId}...`);
 
-            // Delete the document using the SDK method
-            const result = await sdk.documentDelete(
-                contractId,
-                documentType,
-                documentId,
-                ownerId,
-                privateKey
-            )
+            // 4.1.1 API: the delete transition takes identifiers plus the
+            // owner's identity key and an IdentitySigner holding the WIF.
+            const identity = await sdk.getIdentity(ownerId)
+            if (!identity) {
+                throw new Error(`Identity not found: ${ownerId}`)
+            }
+
+            const identityKey = this.getSigningKey(identity)
+            if (!identityKey) {
+                throw new Error(`No usable public key on identity: ${ownerId}`)
+            }
+
+            const signer = new IdentitySigner()
+            signer.addKeyFromWif(privateKey)
+
+            await sdk.documentDelete({
+                document: {
+                    id: documentId,
+                    ownerId,
+                    dataContractId: contractId,
+                    documentTypeName: documentType,
+                },
+                identityKey,
+                signer,
+            })
 
             return {
-                success: true,
-                transactionHash: result.stateTransition?.$id || result.transitionId
+                success: true
             }
         } catch (error) {
             console.error('Error deleting document:', error);
