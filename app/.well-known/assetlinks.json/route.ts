@@ -2,6 +2,10 @@
 
 import { NextResponse } from 'next/server'
 
+// Next 15 requires an explicit static mode for route handlers under
+// `output: 'export'` (Next 14 did not enforce this).
+export const dynamic = 'force-static'
+
 const SHA_HEX_VALUE = '0x0'
 
 export async function GET() {

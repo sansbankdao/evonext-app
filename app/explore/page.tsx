@@ -87,7 +87,7 @@ console.log('EXPLORE CONTRACT ID', getContractId(network!))
         }
 
         loadTrendingPosts()
-    }, [])
+    }, [network])
 
     // Search posts when query changes
     useEffect(() => {
@@ -130,7 +130,7 @@ console.log('EXPLORE CONTRACT ID', getContractId(network!))
         const debounceTimer = setTimeout(searchPosts, 300)
 
         return () => clearTimeout(debounceTimer)
-    }, [searchQuery])
+    }, [searchQuery, network])
 
     const displayPosts = searchQuery ? searchResults : posts
 

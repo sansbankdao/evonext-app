@@ -2,6 +2,9 @@
 
 import { NextResponse } from 'next/server'
 
+// Required by Next 15 for route handlers under `output: 'export'`.
+export const dynamic = 'force-static'
+
 export async function GET() {
     const data = {
         applinks: {},

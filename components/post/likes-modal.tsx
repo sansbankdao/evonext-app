@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
 import { XMarkIcon } from '@heroicons/react/24/outline'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -23,9 +23,17 @@ interface LikeWithUser extends LikeDocument {
 
 export function LikesModal({ isOpen, onClose, postId }: LikesModalProps) {
     const likesState = useAsyncState<LikeWithUser[]>([])
+    // Destructured here (not inside `loadLikes`) so the memoized callback's deps
+    // reference the stable `useCallback`-backed setters rather than `likesState`
+    // itself. `useAsyncState` returns a new object each render
+    // (`components/ui/loading-state.tsx`), so depending on `likesState` would
+    // make `loadLikes` unstable and refetch in a loop.
+    const { setLoading, setError, setData } = likesState
 
-    const loadLikes = async () => {
-        const { setLoading, setError, setData } = likesState
+    // NOTE: memoized so its identity is stable across renders (it is an effect
+    // dependency below). Deps cover every reactive value the body reads: `postId`
+    // and the stable `useAsyncState` setters.
+    const loadLikes = useCallback(async () => {
         setLoading(true)
         setError(null)
 
@@ -48,13 +56,13 @@ export function LikesModal({ isOpen, onClose, postId }: LikesModalProps) {
         } finally {
             setLoading(false)
         }
-    }
+    }, [postId, setLoading, setError, setData])
 
     useEffect(() => {
         if (isOpen) {
             loadLikes()
         }
-    }, [isOpen])
+    }, [isOpen, loadLikes])
 
     return (
         <Dialog.Root open={isOpen} onOpenChange={onClose}>

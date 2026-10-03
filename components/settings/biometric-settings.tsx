@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/contexts/auth-context'
 import { biometricStorage, clearBiometricPrivateKey } from '@/lib/biometric-storage'
 import { Switch } from '@radix-ui/react-switch'
@@ -15,11 +15,10 @@ export function BiometricSettings() {
     const [isEnabled, setIsEnabled] = useState(false)
     const [isLoading, setIsLoading] = useState(true)
 
-    useEffect(() => {
-        checkBiometricStatus()
-    }, [user])
-
-    const checkBiometricStatus = async () => {
+    // NOTE: memoized so it can be listed as an effect dependency (its deps cover
+    // every reactive value the body reads: `user`; the setState functions and the
+    // module-level `biometricStorage` are stable).
+    const checkBiometricStatus = useCallback(async () => {
         if (!user) {
             setIsLoading(false)
             return
@@ -40,8 +39,15 @@ export function BiometricSettings() {
         } finally {
             setIsLoading(false)
         }
+    }, [user])
 
-        const handleToggleBiometric = async () => {
+    useEffect(() => {
+        checkBiometricStatus()
+    }, [checkBiometricStatus])
+
+    // NOTE: memoized so it is a stable callback for the (commented-out) Switch
+    // handler below; deps cover everything the body reads.
+    const handleToggleBiometric = useCallback(async () => {
             if (!user) return
 
             try {
@@ -70,7 +76,7 @@ export function BiometricSettings() {
                 console.error('Error toggling biometric:', error)
                 toast.error('Failed to update biometric settings')
             }
-        }
+    }, [user, isEnabled])
 
         if (isLoading) {
             return (
@@ -180,5 +186,4 @@ export function BiometricSettings() {
             //   </CardContent>
             // </Card>
         )
-    }
 }

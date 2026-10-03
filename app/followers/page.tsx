@@ -35,9 +35,14 @@ function FollowersPage() {
     const followersState = useAsyncState<Follower[]>([])
 
     // Load followers list
-    const loadFollowers = useCallback(async (forceRefresh: boolean = false) => {
-        const { setLoading, setError, setData } = followersState
+    // Destructured here (not inside `loadFollowers`) so the memoized callback's deps
+    // reference the stable `useCallback`-backed setters rather than `followersState`
+    // itself. `useAsyncState` returns a new object each render
+    // (`components/ui/loading-state.tsx`), so depending on `followersState` would
+    // make `loadFollowers` unstable.
+    const { setLoading, setError, setData } = followersState
 
+    const loadFollowers = useCallback(async (forceRefresh: boolean = false) => {
         setLoading(true)
         setError(null)
 
@@ -171,9 +176,9 @@ function FollowersPage() {
             setLoading(false)
         }
     }, [
-        followersState.setLoading,
-        followersState.setError,
-        followersState.setData,
+        setLoading,
+        setError,
+        setData,
         user?.identityId,
     ])
 

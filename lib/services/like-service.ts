@@ -2,6 +2,7 @@
 import { getWasmSdk } from './wasm-sdk-service'
 import { BaseDocumentService, QueryOptions } from './document-service'
 import { stateTransitionService } from './state-transition-service'
+import { getContractId, getNetwork } from '../network'
 
 export interface LikeDocument {
     $id: string;
@@ -287,4 +288,6 @@ console.log('GET LIKE (response)', response)
 }
 
 // Singleton instance
-export const likeService = new LikeService(undefined)
+// CHANGE: resolved the real contract ID (was undefined — queries/state
+// transitions received an undefined contractId and could not work).
+export const likeService = new LikeService(getContractId(getNetwork()))

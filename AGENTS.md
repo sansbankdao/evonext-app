@@ -9,7 +9,7 @@ unverified claims here.
 ## Project Snapshot
 
 - App: `evonext-app` v`26.1.30` — `package.json:2-3`
-- Stack: Next.js `14.2.35` (upgraded from `14.1.0`, see F18), React `18.2.0`, TypeScript `5` — `package.json`
+- Stack: Next.js `15.5.27` (upgraded 14.2.35→15.5.27, see F21), React `19.3.0` (upgraded from 18.2.0, see F21), TypeScript `5` — `package.json`
 - Build: static export (`output: 'export'`) — `next.config.js:3`
 - Source size: 127 TS/TSX files (excluding `node_modules`/`.next`/`.git`)
 
@@ -20,19 +20,16 @@ unverified claims here.
   static artifacts emitted for the two Task 6 routes (`out/followers.html` 18821 B,
   `out/following.html` 18950 B). The former `Specified "headers"...` build warning now fires **0**
   times (was 2) — see F14.
-- `pnpm lint` -> **exit 0**; **0 errors**, **8 warnings** (all `react-hooks/exhaustive-deps`;
-  triaged in F15, unresolved pending a product decision).
+- `pnpm lint` -> **exit 0**; **0 errors, 0 warnings** (was 8 `react-hooks/exhaustive` warnings; all 8 resolved, see F20).
 - `pnpm test:run` -> **exit 0**; `Test Files 5 passed (5)`, `Tests 62 passed (62)`.
 - Playwright chromium -> **exit 0**; `2 passed`.
 - `pnpm audit` -> **95** advisories (`low 10, moderate 30, high 44, critical 6`), down from 106;
   the only genuinely *shipped* runtime vuln found (transitive `lodash`) is fixed (F17).
 - `tsc --noEmit` -> **exit 0**.
-- The 8 `react-hooks/exhaustive-deps` warnings, by file:line —
-  `app/explore/page.tsx:90,133`, `app/followers/page.tsx:173`, `app/following/page.tsx:176`,
-  `app/profile/create/page.tsx:75`, `app/profile/page.tsx:120`,
-  `components/post/likes-modal.tsx:57`, `components/settings/biometric-settings.tsx:20`.
-  These are warnings, not errors; fixing them changes refetch semantics (product logic), so they
-  remain deliberately deferred pending an explicit decision.
+- The 8 `react-hooks/exhaustive-deps` warnings (formerly at `app/explore/page.tsx:90,133`,
+  `app/followers/page.tsx:173`, `app/following/page.tsx:176`, `app/profile/create/page.tsx:75`,
+  `app/profile/page.tsx:120`, `components/post/likes-modal.tsx:57`,
+  `components/settings/biometric-settings.tsx:20`) are **all resolved** — see F20.
 
 ### Operational note (user directive)
 
@@ -395,6 +392,80 @@ Playwright chromium exit 0 (`2 passed`). Client bundle chunk changed to `9837-ac
 Note: the 78-vulnerability GitHub count and the 95-remaining `pnpm audit` count are different scopes;
 not all remain reachable in a static export.
 
+### F19. Broken service singletons (`undefined`/`''` contract IDs) — FIXED (item #3)
+Five services instantiated their singleton with a non-resolvable contract ID, which flowed into
+every query and state transition:
+- `lib/services/follow-service.ts:238` `new FollowService(undefined)`
+- `lib/services/bookmark-service.ts:150` `new BookmarkService(undefined)`
+- `lib/services/like-service.ts:290` `new LikeService(undefined)`
+- `lib/services/remix-service.ts:162` `new RemixService(undefined)`
+- `lib/services/post-service.ts:390` `new PostService('')`
+Only `ProfileService` resolved a real ID. `BaseDocumentService`'s constructor coerces with
+`this.contractId = _contractId!` (`lib/services/document-service.ts:23-24`), and every service
+passes `this.contractId` into queries (`follow-service.ts:69,105`, etc.) and into
+`stateTransitionService.createDocument/deleteDocument`.
+Fix: extracted the identical `getContractId`/`getNetwork` helpers (duplicated in
+`profile-service.ts:17-45` and `post-service.ts:19-56`) into a new shared module **`lib/network.ts`**
+(logic copied 1:1, SSR `typeof window` guard and `FIXME Handle mainnet for localhost and IPFS`
+comment preserved), then:
+- `profile-service.ts` and `post-service.ts` now import the shared helpers (local copies deleted;
+  the constants imports they made unused were removed);
+- all five singletons now call `new XService(getContractId(getNetwork()))`;
+- `getNetwork()` is SSR-guarded in the shared module, so module-scope evaluation is prerender-safe
+  (same pattern as the F11 fix).
+Behavior note (approved by user): follows/bookmarks/likes/remixes/posts previously could not work
+(`contractId: undefined`); they now target the real EVONEXT contract for the active network.
+Verified: `tsc --noEmit` exit 0; `pnpm test:run` -> 62 passed; build passes with all pages exported.
+
+### F20. All 8 `react-hooks/exhaustive-deps` warnings resolved (items C / #2)
+- **Memoized (3):** `components/post/likes-modal.tsx` (`loadLikes` via `useCallback`, deps
+  `[postId, setLoading, setError, setData]`; the `useAsyncState` setters are destructured OUTSIDE
+  the callback so the deps reference the stable `useCallback`-backed setters, not the per-render
+  state object — depending on `likesState` itself would refetch in a loop); `app/followers/page.tsx`
+  and `app/following/page.tsx` (same destructure-outside pattern, deps `[setLoading, setError,
+  setData, user?.identityId]`). This also fixed a real latent bug in the likes modal: its effect
+  deps were `[isOpen]` only, so a `postId` change with the modal open never refetched likes.
+- **Repaired + memoized (1):** `components/settings/biometric-settings.tsx` was structurally
+  corrupted — `handleToggleBiometric`, the `isLoading`/`isAvailable` checks, and the JSX `return`
+  were all accidentally nested INSIDE the async `checkBiometricStatus` function, so the component
+  never returned JSX at its own top level (it compiled only because TS never checks its return type
+  as JSX, and it was imported nowhere / fully tree-shaken from the build). Structure repaired:
+  `checkBiometricStatus` now ends after its `finally`; the JSX returns are the component's own;
+  both callbacks memoized with `useCallback` (`[user]` and `[user, isEnabled]`); the effect moved
+  below the callback declaration (TDZ) with deps `[checkBiometricStatus]`. NOTE: the component is
+  still not rendered by any page (user chose to fix the file, not integrate it).
+- **Added `network` dep (4):** `app/explore/page.tsx:90,133` (both effects),
+  `app/profile/page.tsx:120`, `app/profile/create/page.tsx:75`. Each effect reads `network` via
+  `getContractId(network!)` and the data is per-contract/per-network, so refetching on a network
+  switch is correct behavior (approved by user), not a hazard.
+Verified: `pnpm lint` -> 0 errors, 0 warnings; `tsc --noEmit` exit 0.
+
+### F21. Next.js 15.5.27 + React 19.3.0 upgrade — DONE (item #4, follow-up)
+Versions (all peers verified before install):
+- `next` 14.2.35 -> **15.5.27** (latest 15.x; user chose 15 over 16), `eslint-config-next` -> 15.5.27.
+- `react`/`react-dom` 18.2.0 -> **19.3.0**; `@types/react`/`@types/react-dom` 18 -> **19.3.0**.
+- `framer-motion` 11.0.3 -> **12.43.0** (11.0.3 peer was `^18` only; 12.x peers `^18 || ^19`).
+- Radix bumps to React-19-peer versions (installed ones were `^18`-only):
+  `react-avatar` 1.0.4->1.2.6, `react-dialog` 1.0.5->1.1.23, `react-dropdown-menu` 2.0.6->2.1.24,
+  `react-popover` 1.0.7->1.1.23, `react-tabs` 1.0.4->1.1.21, `react-tooltip` 1.0.7->1.2.16.
+  (`react-switch`, `react-radio-group`, `react-slider` already accepted `^19`; left as installed.)
+- All other react-peer deps already support 19: `@headlessui/react` 2.2.8, `lucide-react`,
+  `next-themes` 0.4.6, `qrcode.react`, `zustand`, `react-hot-toast`, `@testing-library/react` 16.3.2.
+Code fixes required (2):
+- `app/.well-known/assetlinks.json/route.ts`: Next 15 **enforces** `export const dynamic =
+  'force-static'` on route handlers under `output: 'export'` (build failed before the fix; Next 14
+  did not enforce). Added the export.
+- `components/ui/button.tsx:41`: React 19 types made `ReactElement`'s default props `unknown`,
+  breaking `child.props.className` in the `asChild` path. Typed the child as
+  `React.ReactElement<any>` (runtime behavior unchanged).
+Notes: `pnpm lint` now prints the expected Next 15 deprecation notice for `next lint` (removal in
+Next 16; migrate to the ESLint CLI in a later task). `forwardRef` usage (6 files) still works in
+React 19 (deprecated in favor of ref-as-prop, not removed).
+Verified sequentially: `tsc --noEmit` exit 0; `pnpm lint` exit 0 (0 errors/0 warnings);
+`pnpm test:run` -> `Tests 62 passed (62)`; `pnpm build` exit 0 (Compiled successfully, static pages
++ both route handlers exported, `out/_headers` + WASM emitted);
+`playwright test --project=chromium` -> `2 passed`.
+
 ## Ordered Work Plan
 
 1. [DONE] Fix the six `new profileService(...)` -> `new ProfileService(...)` call sites so `tsc`
@@ -462,6 +533,23 @@ C. [PARTIAL] Triaged all 8 `react-hooks/exhaustive-deps` warnings. 2 are safe to
    migration). `next` advisories 34 -> 23; all 23 remaining require `>=15.x` and are server-runtime
    issues unreachable in a static export. Full detail in F18.
 
+### Session items C / #2 / #3 / #4 (2026-10-03)
+C. [DONE] All 8 react-hooks/exhaustive-deps warnings resolved: 3 memoized (likes-modal,
+   followers, following - destructure-outside pattern), 1 structurally repaired + memoized
+   (biometric-settings), 4 got the network dependency (explore x2, profile, profile/create;
+   refetch-on-switch approved as correct behavior). Full detail in F20.
+2. [DONE] Contract-ID fix expanded to all five broken service singletons: new shared module
+   lib/network.ts (getContractId/getNetwork, logic copied 1:1, SSR guard kept); profile-service
+   and post-service now import it; follow/bookmark/like/remix/post singletons resolve the real
+   EVONEXT contract ID. Full detail in F19.
+3. [DONE] biometric-settings.tsx structure repaired (JSX returns + handleToggleBiometric were
+   nested inside checkBiometricStatus; component now returns JSX at its own top level). Still
+   not rendered by any page (fix only, no integration - user decision recorded).
+4. [DONE] Next.js upgrade: 14.2.35 -> 15.5.27, React 18.2.0 -> 19.3.0 (+ types 19.3.0),
+   eslint-config-next 15.5.27, framer-motion 12.43.0, six radix packages bumped to
+   React-19-peer versions. Two code fixes: force-static on both .well-known route
+   handlers (Next 15 enforces it), ReactElement<any> in ui/button.tsx. Full detail in F21.
+   Verified: tsc 0, lint 0/0, tests 62/62, build exit 0 (36/36 + 2/2 handlers), e2e 2 passed.
 ### Final verification pass (2026-10-02, after all 8 items)
 
 All 8 items above are complete. Re-ran the full suite sequentially after finishing Task 8:
@@ -471,10 +559,10 @@ All 8 items above are complete. Re-ran the full suite sequentially after finishi
 
 ### Known remaining items (not yet actioned, need a decision)
 
-- The 8 `react-hooks/exhaustive-deps` warnings listed in the snapshot. Triage in F15: 2 are safe
-  to fix, 6 would change behavior (un-memoized function deps -> run-every-render; `network` deps ->
-  refetch-on-switch). Requires explicit approval for the 6.
+- ~~The 8 `react-hooks/exhaustive-deps` warnings~~ — **all resolved** (F20); lint reports 0 warnings.
 - No automated test references `lib/wallet-manager.ts` (relevant to F13's static-only audit).
+- `next lint` is deprecated in Next 15 (removal in Next 16); migrate `pnpm lint` to the ESLint CLI
+  before any future Next 16 upgrade (see F21).
 
 ## Working Rules For This Repo
 

@@ -1,6 +1,7 @@
 /* Import modules. */
 import { BaseDocumentService, QueryOptions } from './document-service'
 import { stateTransitionService } from './state-transition-service'
+import { getContractId, getNetwork } from '../network'
 
 export interface BookmarkDocument {
     $id: string;
@@ -147,4 +148,6 @@ class BookmarkService extends BaseDocumentService<BookmarkDocument> {
 }
 
 // Singleton instance
-export const bookmarkService = new BookmarkService(undefined)
+// CHANGE: resolved the real contract ID (was undefined — queries/state
+// transitions received an undefined contractId and could not work).
+export const bookmarkService = new BookmarkService(getContractId(getNetwork()))

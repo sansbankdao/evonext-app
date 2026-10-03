@@ -47,10 +47,15 @@ function FollowingPage() {
     const [searchError, setSearchError] = useState<string | null>(null)
     const [followingInProgress, setFollowingInProgress] = useState<Set<string>>(new Set())
 
+    // Destructured here (not inside `loadFollowing`) so the memoized callback's deps
+    // reference the stable `useCallback`-backed setters rather than `followingState`
+    // itself. `useAsyncState` returns a new object each render
+    // (`components/ui/loading-state.tsx`), so depending on `followingState` would
+    // make `loadFollowing` unstable.
+    const { setLoading, setError, setData } = followingState
+
     // Load following list
     const loadFollowing = useCallback(async (forceRefresh: boolean = false) => {
-        const { setLoading, setError, setData } = followingState
-
         setLoading(true)
         setError(null)
 
@@ -174,9 +179,9 @@ function FollowingPage() {
             setLoading(false)
         }
     }, [
-        followingState.setLoading,
-        followingState.setError,
-        followingState.setData,
+        setLoading,
+        setError,
+        setData,
         user?.identityId,
     ])
 

@@ -117,7 +117,7 @@ console.log('PROFILE CONTRACT ID', getContractId(network!))
         }
 
         loadUserPosts()
-    }, [user])
+    }, [user, network])
 
     const handleSaveProfile = () => {
         // Save profile changes

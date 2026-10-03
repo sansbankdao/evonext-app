@@ -9,36 +9,8 @@ import {
 import { IUser } from '../types'
 import { dpnsService } from './dpns-service'
 import { cacheManager } from '../cache-manager'
-import {
-    EVONEXT_CONTRACT_ID_MAINNET,
-    EVONEXT_CONTRACT_ID_TESTNET,
-} from '@/lib/constants'
-// Dependencies for singleton (copied minimally from post-service.ts)
-const getContractId = (_network: string) => {
-    let contractId
-    if (_network === 'mainnet') {
-        contractId = EVONEXT_CONTRACT_ID_MAINNET
-    } else {
-        contractId = EVONEXT_CONTRACT_ID_TESTNET
-    }
-    return contractId
-}
-const getNetwork = () => {
-    // Guard for SSR / static-export prerender where `window` is undefined.
-    // Client-side behavior is unchanged; server-side falls back to 'testnet'.
-    const host = typeof window !== 'undefined' ? window.location.host : ''
-    let network
-    // FIXME Handle mainnet for localhost and IPFS.
-    switch(host) {
-    case 'evonext.app':
-        network = 'mainnet'
-        break
-    default:
-        network = 'testnet'
-        break
-    }
-    return network
-}
+// Shared resolution (extracted from the local copies below; no logic change)
+import { getContractId, getNetwork } from '../network'
 // Import at the bottom originally, but moved up for global scope (no logic change)
 import { getWasmSdk } from './wasm-sdk-service'
 import { get_document, get_documents } from '../dash-wasm/wasm_sdk'

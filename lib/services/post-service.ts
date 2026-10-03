@@ -5,61 +5,10 @@ import { BaseDocumentService, QueryOptions, DocumentResult } from './document-se
 import { IPost, IUser } from '../types'
 import { identityService } from './identity-service'
 import { ProfileService, profileService } from './profile-service'
-import {
-    EVONEXT_CONTRACT_ID_MAINNET,
-    EVONEXT_CONTRACT_ID_TESTNET,
-} from '@/lib/constants'
 
-/**
- * Get Contract ID
- *
- * @param _network
- * @returns
- */
-const getContractId = (_network: string) => {
-    /* Initialize locals. */
-    let contractId
-
-    /* Handle network. */
-    if (_network === 'mainnet') {
-        contractId = EVONEXT_CONTRACT_ID_MAINNET
-    } else {
-        contractId = EVONEXT_CONTRACT_ID_TESTNET
-    }
-
-    return contractId
-}
-
-/**
- * Get Network
- *
- * Returns the currently active network:
- *   - mainnet
- *   - testnet
- *   - localhost (NOT YET SUPPORTED)
- * @returns
- */
-const getNetwork = () => {
-    /* Set host. */
-    const host = window.location.host
-
-    /* Initialize locals. */
-    let network
-
-    /* Handle host. */
-// FIXME Handle mainnet for localhost and IPFS.
-    switch(host) {
-    case 'evonext.app':
-        network = 'mainnet'
-        break
-    default:
-        network = 'testnet'
-        break
-    }
-
-    /* Return network. */
-    return network
-}
+// Shared resolution (extracted from the local copies below; no logic change).
+// `getNetwork` is SSR-guarded in the shared module (prerender-safe).
+import { getContractId, getNetwork } from '../network'
 
 export interface PostDocument {
     $id: string;
@@ -387,4 +336,6 @@ class PostService extends BaseDocumentService<IPost> {
 }
 
 // Singleton instance
-export const postService = new PostService('')
+// CHANGE: resolved the real contract ID (was '' — queries/state transitions
+// received an empty contractId and could not work).
+export const postService = new PostService(getContractId(getNetwork()))

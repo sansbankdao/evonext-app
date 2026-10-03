@@ -75,6 +75,7 @@ function CreateProfilePage() {
     }, [
         user,
         router,
+        network,
     ])
 
     const handleSubmit = async (e: React.FormEvent) => {
