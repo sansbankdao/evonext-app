@@ -19,6 +19,7 @@
     "clean": "rm -rf .next .vitest node_modules/.cache coverage playwright-report"
   },
   "dependencies": {
+    "@dashevo/dashcore-lib": "0.25.0",
     "@headlessui/react": "2.2.8",
     "@heroicons/react": "2.1.1",
     "@nexajs/crypto": "24.9.5",
@@ -33,6 +34,7 @@
     "@radix-ui/react-tabs": "1.1.21",
     "@radix-ui/react-tooltip": "1.2.16",
     "bs58": "6.0.0",
+    "buffer": "^6.0.3",
     "class-variance-authority": "0.7.1",
     "clsx": "2.1.0",
     "dash-platform-sdk": "1.5.0-dev.11",
@@ -43,6 +45,7 @@
     "next": "16.3.8",
     "next-themes": "0.4.6",
     "numeral": "2.0.6",
+    "process": "^0.11.10",
     "pshenmic-dpp": "2.0.0-dev.29",
     "qr-scanner": "1.4.2",
     "qrcode.react": "4.2.0",

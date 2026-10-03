@@ -39,6 +39,15 @@ const nextConfig = {
             'pshenmic-dpp': 'pshenmic-dpp/wasm',
         }
 
+        // FIX: @dashevo/dashcore-lib (minimal L1 support, lib/core-chain.ts)
+        // expects the Node `Buffer` global. Webpack 5 does not polyfill it,
+        // so inject the `buffer` package.
+        const webpack = require('webpack')
+        config.plugins = config.plugins || []
+        config.plugins.push(new webpack.ProvidePlugin({
+            Buffer: ['buffer', 'Buffer'],
+        }))
+
         // Optimize Dash SDK bundle size
         if (!isServer) {
             // FIX: the WASM entry guards these Node builtins behind `isNode`,
@@ -47,6 +56,13 @@ const nextConfig = {
             config.resolve.fallback = {
                 ...config.resolve.fallback,
                 worker_threads: false,
+                // @dashevo/bls (transitive via dashcore-lib, used only for
+                // BLS signatures we never touch) is an Emscripten build whose
+                // node branch requires fs/path/crypto. In the browser that
+                // branch is dead code, so resolve them to empty modules.
+                fs: false,
+                path: false,
+                crypto: false,
             }
 
             config.optimization = {

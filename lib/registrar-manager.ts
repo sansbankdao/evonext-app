@@ -1,275 +1,219 @@
 /* Import modules. */
-import { getPrivateKeys, getPublicKeys } from './wallet-manager'
+// SELF-CUSTODIAL REGISTRATION.
+//
+// This module no longer talks to the evonext.app/v1/registrar endpoints.
+// The OLD process (pre-generated asset locks sold to users through the
+// registrar server) has been REPLACED: users now fund and manage their OWN
+// asset locks. The app accepts coins on the L1 strictly for asset lock and
+// identity creation (see lib/core-chain.ts for the minimal L1 module).
+//
+// Verified end-to-end on testnet (AGENTS.md F24).
 import { wasmSdkService } from '@/lib/services/wasm-sdk-service'
 import {
     dpns_is_contested_username,
     dpns_register_name,
-    get_identity_by_public_key_hash,
-    get_identity_by_non_unique_public_key_hash,
 } from '@/lib/dash-wasm/compat'
+import { getPrivateKeys } from './wallet-manager'
  // @ts-ignore
 import { hash160 } from '@nexajs/crypto'
  // @ts-ignore
 import { binToHex, hexToBin } from '@nexajs/utils'
+import {
+    ASSET_LOCK_SATOSHIS,
+    MINIMUM_DEPOSIT_SATOSHIS,
+    broadcastTransaction,
+    createAssetLockTransaction,
+    deriveFundingKey,
+    getFundingUtxos,
+    waitForConfirmation,
+} from './core-chain'
 
-export const getPaymentAddress = async (
+/**
+ * Get Funding Info
+ *
+ * Returns the funding details the UI needs to accept the user's deposit:
+ * the derived address, the required deposit, and the locked amount.
+ */
+export const getFundingInfo = async (
     _network: string,
     _identityIdx: number,
-    _username: string,
-    _email: string,
 ) => {
-    /* Initialize locals. */
-    let json
-    let response
+    /* Derive the funding key from the user's own mnemonic. */
+    const funding = deriveFundingKey(_network, _identityIdx)
 
-    /* Request private keys. */
-    const privateKeys = getPrivateKeys(_network, _identityIdx)
-
-    /* Prepare order package. */
-    const body = JSON.stringify({
-        masterKey: privateKeys.masterKey.public_key,
-        authCriticalKey: privateKeys.authCritical.public_key,
-        authHighKey: privateKeys.authHigh.public_key,
-        transferKey: privateKeys.transferKey.public_key,
-        encryptionKey: privateKeys.encryptionKey.public_key,
-        username: _username,
-        emailAddr: _email,
-        isMainnet: _network === 'mainnet' ? true : false,
-        isPremium: dpns_is_contested_username(_username) ? true : false,
-    })
-// console.log('ORDER (body)', body)
-
-    /* Request a payment address. */
-    response = await fetch('https://evonext.app/v1/registrar/address', {
-        method: 'POST',
-        body,
-    }).catch(err => console.error(err))
-
-    /* Validate response. */
-    if (typeof response === 'undefined' || response === null) {
-        return null
+    /* Return funding info. */
+    return {
+        address: funding.address,
+        path: funding.path,
+        lockedSatoshis: ASSET_LOCK_SATOSHIS,
+        requiredSatoshis: MINIMUM_DEPOSIT_SATOSHIS,
+        lockedDash: ASSET_LOCK_SATOSHIS / 1e8,
+        requiredDash: MINIMUM_DEPOSIT_SATOSHIS / 1e8,
     }
-
-    /* Decode JSON. */
-    json = await response!.json()
-// console.log('PAYMENT ADDRESS (json)', json)
-
-    /* Validate registrar. */
-    if (typeof json.registrar === 'undefined' || json.registrar === null) {
-        return null
-    }
-
-    /* Set payment address. */
-    const paymentAddress = json.registrar.dashAddr
-// console.log('PAYMENT ADDRESS (paymentAddress)', paymentAddress)
-
-    /* Submit a new order. */
-    response = await fetch('https://evonext.app/v1/registrar/order', {
-        method: 'POST',
-        body,
-    }).catch(err => console.error(err))
-
-    /* Validate order submission. */
-    if (typeof response !== 'undefined' && response !== null) {
-        /* Handle order response. */
-        // NOTE: This is NOT strictly required, but consider offering
-        //       user feedback, if an error is recognized.
-        json = await response.json()
-            .catch(err => console.error(err))
-// console.log('ORDER CONFIRM (json)', json)
-    }
-
-    /* Return payment address. */
-    return paymentAddress
 }
 
 /**
- * Check Pending Status
+ * Register Identity + Username
  *
- * Will attempt to resume the registration process.
+ * Runs the FULL self-custodial flow against the user's own funded L1
+ * address:
+ *   1. collect the funding UTXOs,
+ *   2. build + sign the asset-lock transaction locally,
+ *   3. broadcast it (minimal L1 usage),
+ *   4. wait for confirmation,
+ *   5. build the ChainAssetLockProof (outpoint MUST reference the OP_RETURN
+ *      output at index 0 — verified on testnet),
+ *   6. create the identity via the WASM SDK,
+ *   7. register the DPNS username.
+ *
+ * Returns { identityId, txid, username } on success.
  */
-export const checkPendingStatus = async (_network: string, _identityIdx: number) => {
-    /* Initialize locals. */
-    let username
-    let proof
-    let orderStatus
-    let wif
-
-    /* Request private keys. */
-    const privateKeys = getPrivateKeys(_network, _identityIdx)
-
-    /* Set master/primary public key. */
-    const masterPublicKey = privateKeys.masterKey.public_key
-// console.log('MASTER/PRIMARY PUBLIC KEY', masterPublicKey)
-
-    /* Set (request) headers. */
-    const headers = {
-        'Authorization': `Bearer ${masterPublicKey}`
-    }
-
-    /* Make status request. */
-    const statusResponse = await fetch('https://evonext.app/v1/registrar/status', {
-        method: 'GET',
-        headers,
-    }).catch(err => console.error(err))
-
-    /* Handle status response. */
-    const status = await statusResponse!.json()
-// console.log('ORDER STATUS CHECK', status)
-
-    /* Validate (pending) status. */
-    if (
-        typeof status !== 'undefined' &&
-        status !== null &&
-        status.results &&
-        status.results.length > 0 &&
-        status.results[0].proof !== null &&
-        status.results[0].wif !== null
-    ) {
-        /* Set status. */
-        orderStatus = status.results[0].status
-// console.log('ORDER STATUS', orderStatus)
-
-        /* Validate order status (is NOT complete). */
-        if (orderStatus === 3) {
-            return null
-        }
-
-        /* Set username. */
-        username = status.results[0].username
-// console.log('USERNAME', username)
-
-        /* Set proof. */
-        proof = status.results[0].proof
-// console.log('PROOF', typeof proof, proof)
-
-        /* Set WIF. */
-        wif = status.results[0].wif
-// console.log('WIF', typeof wif, wif)
-
-        /* Return registration credentials. */
-        return {
-            username,
-            proof,
-            wif,
-        }
-    } else {
-        return null
-    }
-}
-
-/* Register Identity + Username */
 export const registerIdentityAndUsername = async (
     _currentNetwork: string,
     _identityIdx: number,
     _username: string,
-    _proof: string,
-    _wif: string,
+    _onProgress?: (message: string) => void,
 ) => {
+    /* Report progress (optional callback). */
+    const progress = _onProgress ?? ((_message: string) => {})
+
+    /* Derive the funding key (same path the UI displayed). */
+    const funding = deriveFundingKey(_currentNetwork, _identityIdx)
+
+    /* Collect funding UTXOs. */
+    progress('Checking your deposit...')
+    const utxos = await getFundingUtxos(_currentNetwork, funding.address)
+
+    /* Validate funding. */
+    const funded = utxos.reduce(
+        (sum: number, utxo: any) => sum + utxo.satoshis, 0)
+    if (utxos.length === 0 || funded < MINIMUM_DEPOSIT_SATOSHIS) {
+        throw new Error(
+            `Insufficient deposit at ${funding.address}: ${funded} sats available, ${MINIMUM_DEPOSIT_SATOSHIS} required`)
+    }
+
+    /* Build + sign the asset-lock transaction (client-side). */
+    progress('Building your asset lock transaction...')
+    const assetLock = createAssetLockTransaction(
+        _currentNetwork, funding.privateKeyWif, utxos)
+
+    /* Broadcast (minimal L1 support). */
+    progress('Broadcasting to the Dash network...')
+    const txid = await broadcastTransaction(
+        _currentNetwork, assetLock.hex)
+console.log('REGISTRAR (asset lock broadcast)', txid)
+
+    /* Wait for confirmation. */
+    progress('Waiting for confirmation...')
+    const { bestHeight } = await waitForConfirmation(
+        _currentNetwork, txid)
+console.log('REGISTRAR (confirmed at best height)', bestHeight)
+
     /* Initialize SDK. */
     const sdk = await wasmSdkService.getSdk()
 
-    /* Request public keys. */
-    const publicKeys = getPublicKeys(_currentNetwork, _identityIdx)
+    /* Build the chain asset-lock proof.
+     * NOTE: the outpoint references the OP_RETURN output at index 0 —
+     * referencing the credit output (index 1) is REJECTED by the platform. */
+    /* Untyped: the WASM class constructors take loose option objects. */
+    const wasm: any = await import('./dash-wasm/wasm_sdk')
+    const outPoint = new wasm.OutPoint(txid, 0)
+    const assetLockProof = wasm.AssetLockProof.createChainAssetLockProof(
+        bestHeight, outPoint)
 
-    /* Request private keys. */
+    /* Derive the identity ID from the proof. */
+    const creationIdentity = String(assetLockProof.createIdentityId())
+console.log('REGISTRAR (identity from proof)', creationIdentity)
+
+    /* Request private keys (each derive includes its public key hex). */
     const privateKeys = getPrivateKeys(_currentNetwork, _identityIdx)
 
-    // setIsModalOpen(true)
-    // NOTE (4.1.1 migration): the new SDK's identityCreate(options) requires a
-    // fully rebuilt flow (Identity object, AssetLockProof, PrivateKey,
-    // IdentitySigner) and returns void — the old single-call signature no
-    // longer exists. The legacy call is preserved behind a cast so the
-    // migration of the registration flow can be designed separately (see
-    // AGENTS.md); at runtime the new WASM will reject these arguments.
-    const result = await (sdk as any).identityCreate(
-        _proof,
-        _wif,
-        JSON.stringify(publicKeys)
-    ).catch((err: any) => console.error(err))
-// console.log('WASM REGISTRATION RESULT', result)
+    /* Build the Identity with its public keys.
+     * Data field: ECDSA_HASH160 keys carry the 20-byte hash160 of the
+     * compressed pubkey; ECDSA_SECP256K1 keys carry the 33-byte pubkey. */
+    const identity = new wasm.Identity(creationIdentity)
+    const keyDefs = [
+        { id: 0, keyType: 'ECDSA_HASH160', purpose: 'AUTHENTICATION', securityLevel: 'MASTER', derived: privateKeys.masterKey },
+        { id: 1, keyType: 'ECDSA_HASH160', purpose: 'AUTHENTICATION', securityLevel: 'CRITICAL', derived: privateKeys.authCritical },
+        { id: 2, keyType: 'ECDSA_HASH160', purpose: 'AUTHENTICATION', securityLevel: 'HIGH', derived: privateKeys.authHigh },
+        { id: 3, keyType: 'ECDSA_HASH160', purpose: 'TRANSFER', securityLevel: 'CRITICAL', derived: privateKeys.transferKey },
+        { id: 4, keyType: 'ECDSA_SECP256K1', purpose: 'ENCRYPTION', securityLevel: 'MEDIUM', derived: privateKeys.encryptionKey },
+    ]
+    for (const key of keyDefs) {
+        // hash160 of the compressed pubkey (bytes), per the platform spec.
+        const pubBytes = hexToBytes(key.derived.publicKey)
+        const data = key.keyType === 'ECDSA_HASH160'
+            ? hash160(pubBytes)
+            : pubBytes
+        identity.addPublicKey(new wasm.IdentityPublicKey({
+            keyId: key.id,
+            purpose: key.purpose,
+            securityLevel: key.securityLevel,
+            keyType: key.keyType,
+            data,
+        }))
+    }
+console.log('REGISTRAR (identity keys added)', identity.publicKeys.length)
 
-    /* Validate result. */
-    if (typeof result !== 'undefined' && result !== null) {
-        /* Set creation status. */
-        const creationStatus = result.status
+    /* Build the signer with ALL identity private keys. */
+    const signer = new wasm.IdentitySigner()
+    signer.addKeyFromWif(privateKeys.masterKey.private_key_wif)
+    signer.addKeyFromWif(privateKeys.authCritical.private_key_wif)
+    signer.addKeyFromWif(privateKeys.authHigh.private_key_wif)
+    signer.addKeyFromWif(privateKeys.transferKey.private_key_wif)
+    signer.addKeyFromWif(privateKeys.encryptionKey.private_key_wif)
 
-        /* Set creation identity. */
-        const creationIdentity = result.identityId
+    /* The asset-lock private key = the funding key that controls the
+     * credit output. */
+    const assetLockPrivateKey = wasm.PrivateKey.fromWIF(funding.privateKeyWif)
 
-        /* Set key ID. */
-// FIXME REMOVE MAGIC NUMBER
-        const keyId = 1 // AUTHENTICATION (CRITICAL)
+    /* Create the identity (broadcasts + waits for confirmation). */
+    progress('Creating your identity...')
+    await sdk.identityCreate({
+        identity,
+        assetLockProof,
+        assetLockPrivateKey,
+        signer,
+    })
+console.log('REGISTRAR (identity created)', creationIdentity)
 
-        /* Set (actual) key to AUTH (CRITICAL) key. */
-        const actualPrivateKey = privateKeys.authCritical.private_key_wif
+    /* Set (actual) key to AUTH (CRITICAL) key. */
+    const actualPrivateKey = privateKeys.authCritical.private_key_wif
 
-        /* Set (safe) username. */
-        // NOTE DO NOT USE homograph username here
-        // TODO Apply any relevant safety checks
-        const username = _username
+    /* Set master/primary public key. */
+    const masterPublicKey = privateKeys.masterKey.public_key
+console.log('REGISTRAR (master public key)', masterPublicKey)
 
-        /* Request username registration. */
-        const usernameResult = await dpns_register_name(
-            sdk,
-            _username,
-            creationIdentity,   // Use the identity ID from authentication
-            keyId,              // Use the determined key ID
-            actualPrivateKey,   // Use the actual private key (without :keyId suffix)
-            // Callback for preorder success
-            (preorderInfo: any) => {
+    /* Request username registration. */
+    progress('Registering your username...')
+    const usernameResult = await dpns_register_name(
+        sdk,
+        _username,
+        creationIdentity,   // Use the identity ID from authentication
+        1,                  // Key ID 1 => AUTH (CRITICAL)
+        actualPrivateKey,   // Use the actual private key
+        // Callback for preorder success
+        (preorderInfo: any) => {
 // console.log('PRE-ORDER SUCCESSFUL', preorderInfo)
 
-                // Show preorder info in a temporary notification
-                const preorderMsg = `Preorder Document ID: ${preorderInfo.get('documentId')}`;
+            // Show preorder info in a temporary notification
+            const preorderMsg = `Preorder Document ID: ${preorderInfo.get('documentId')}`;
 // console.log('PRE-ORDER MESSAGE', preorderMsg)
-            }
-        )
-// console.log('USERNAME (REG) RESULT', usernameResult)
-
-        /* Set master/primary public key. */
-        const masterPublicKey = privateKeys.masterKey.public_key
-// console.log('MASTER/PRIMARY PUBLIC KEY', masterPublicKey)
-
-        /* Set (request) headers. */
-        const headers = {
-            'Authorization': `Bearer ${masterPublicKey}`
         }
+    )
+console.log('REGISTRAR (username result)', usernameResult)
 
-        /* Set action. */
-        const action = 'completeReg'
-
-        /* Set primary ID. */
-        const platformid = creationIdentity
-
-        /* Set master key. */
-        const masterKey = masterPublicKey
-
-        /* Set mainnet flag. */
-        const isMainnet = _currentNetwork === 'mainnet' ? true : false
-
-        /* Set premium flag. */
-        const isPremium = dpns_is_contested_username(username) ? true : false
-
-        /* Prepare submission body. */
-        const body = JSON.stringify({
-            action,
-            platformid,
-            masterKey,
-            isMainnet,
-            isPremium,
-        })
-
-        /* Make completion request. */
-        const completionResponse = await fetch('https://evonext.app/v1/registrar/proof', {
-            method: 'POST',
-            headers,
-            body,
-        }).catch(err => console.error(err))
-        const completion = await completionResponse!.json()
-// console.log('REGISTRATION COMPLETION', completion)
-
-        /* Return (completion) result. */
-        return completion
+    /* Return (registration) result. */
+    return {
+        identityId: creationIdentity,
+        txid,
+        username: _username,
+        isContested: dpns_is_contested_username(_username),
     }
+}
+
+/* --- helpers --- */
+
+const hexToBytes = (hex: string): Uint8Array => {
+    return new Uint8Array(hex.match(/.{2}/g)!.map(byte => parseInt(byte, 16)))
 }

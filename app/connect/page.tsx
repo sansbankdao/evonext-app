@@ -8,10 +8,6 @@ import { RegistrarModal } from '@/components/id/registrar-modal'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 import { getIdentities } from '@/lib/identity-manager'
-import {
-    checkPendingStatus,
-    registerIdentityAndUsername,
-} from '@/lib/registrar-manager'
 import { getPrivateKeys, getPublicKeys } from '@/lib/wallet-manager'
 import { validate_mnemonic } from '@/lib/dash-wasm/compat'
 
@@ -142,50 +138,6 @@ const privateKeys = getPrivateKeys(currentNetwork, identityIdx!)
 
             const publicKey = privateKeys.masterKey.public_key
 console.log('CONNECT (publicKey)', publicKey)
-
-            /* Check (pending) status. */
-            const status = await checkPendingStatus(currentNetwork, identityIdx!)
-                .catch(err => console.error(err))
-console.log('CONNECT (checkPendingStatus)', status)
-
-            /* Validate (pending) status. */
-            if (typeof status !== 'undefined' && status !== null) {
-                /* Request user permission to resume registration. */
-                if (confirm(`Hey, welcome back!\n\nYou have a pending Identity + Username registration. Are you ready complete it now? It'll ONLY take a few seconds..\n\n!! IMPORTANT NOTICE !!\nAfter you click to resume, DO NOT interrupt the process until it's 100% completed.\n\nOkay, let's GO!`)) {
-                    setIsLoading(false)
-                    setIsResuming(true)
-
-                    /* Set username. */
-                    const username = status.username
-console.log('CONNECT (username)', username)
-
-                    /* Set proof. */
-                    const proof = status.proof
-console.log('CONNECT (proof)', typeof proof, proof)
-
-                    /* Set WIF. */
-                    const wif = status.wif
-console.log('CONNECT (wif)', typeof wif, wif)
-
-                    /* Register Identity + Username. */
-                    const regResult = await registerIdentityAndUsername(
-                        currentNetwork, identityIdx!, username, proof, wif)
-                        .catch(err => console.error(err))
-console.log('REGISTRATION RESULT', regResult)
-
-                    setIsResuming(false)
-
-
-                    /* Redirect user to Profile page and STOP execution. */
-                    return router.push('/')
-                } else {
-                    /* User has rejected the request to RESUME registration. */
-                    //NOTE: WE DO NOT WANT TO CONTINUE THRU THE STANDARD PROCESS
-                    //      UNTIL REGISTRATION IS 100% COMPLETED
-                    return
-                }
-            }
-// END NO IDENTITY FOUND
 
             /* Present user with NEW Identity + Username registration. */
             if (confirm(`OH NO!\n\nWe COULD NOT find an Identity for you on the Dash Platform. Would you like to create a NEW Identity and register a NEW Username now?\n\nIt should ONLY take about 2 minutes..\nDon't MISS OUT, let's GO!`)) {

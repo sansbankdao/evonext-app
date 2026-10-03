@@ -8,3 +8,7 @@ overrides:
   # current release is 4.18.1. Pin the fixed line here (pnpm 11 no longer reads
   # `pnpm.overrides` from package.json).
   'lodash@<4.18.1': '4.18.1'
+  # elliptic (transitive via @nexajs/crypto and @dashevo/dashcore-lib) now
+  # ships in the client bundle for L1 signing; HIGH/CRITICAL advisories are
+  # fixed in >=6.6.1.
+  'elliptic@<6.6.1': '6.6.1'

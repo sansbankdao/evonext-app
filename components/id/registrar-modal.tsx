@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -15,18 +15,18 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { QRCodeSVG } from 'qrcode.react'
 import { getIdentities } from '@/lib/identity-manager'
 import {
-    checkPendingStatus,
-    getPaymentAddress,
+    getFundingInfo,
     registerIdentityAndUsername,
 } from '@/lib/registrar-manager'
+import { getFundingUtxos, MINIMUM_DEPOSIT_SATOSHIS } from '@/lib/core-chain'
 import { storeIdentityIdx } from '@/lib/secure-storage'
 import { getPrivateKeys, getPublicKeys } from '@/lib/wallet-manager'
 import { dpns_is_contested_username } from '@/lib/dash-wasm/compat'
 
 /* Initialize constants. */
 const MAX_USERNAME_LENGTH = 63 // Maximum length - 63 characters
-const NON_CONTESTED_REG_FEE = 0.1 // BIP-21 requires DASH values (not duff)
-const CONTESTED_REG_FEE = 0.3 // BIP-21 requires DASH values (not duff)
+// NOTE: users now fund their OWN asset lock. The locked amount (and the
+// matching credit output) is set in lib/core-chain.ts.
 const PAYMENT_DETECTION_INTERVAL = 5000
 const PAYMENT_DETECTION_CYCLES = 180 // 15 minutes
 
@@ -50,7 +50,6 @@ export function RegistrarModal({
     const { network } = useNetwork()
     const { isReady: isSdkReady, error: sdkError } = useSdk()
 
-    const [email, setEmail] = useState('')
     const [username, setUsername] = useState('')
     const [isChecking, setIsChecking] = useState(false)
     const [isAvailable, setIsAvailable] = useState<boolean | null>(null)
@@ -58,17 +57,34 @@ export function RegistrarModal({
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [isCheckingExisting, setIsCheckingExisting] = useState(false)
     const [isEditingIdentity, setIsEditingIdentity] = useState(false)
-    const [isShowingPayment, setIsShowingPayment] = useState(false)
     const [customIdentityId, setCustomIdentityId] = useState(initialIdentityId || '')
 
-    const [paymentAddress, setPaymentAddress] = useState<string | undefined>()
+    /* Self-custodial funding state. */
+    const [fundingAddress, setFundingAddress] = useState<string | undefined>()
+    const [progressMessage, setProgressMessage] = useState<string | null>(null)
 
-    // Debug SDK state
+    /* Hold the polling interval so the effect cleanup can stop it. */
+    const paymentIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+    const paymentAttemptsRef = useRef(0)
+
+    /* Debug SDK state */
     useEffect(() => {
         console.log('RegistrarModal: SDK ready state:', isSdkReady, 'SDK error:', sdkError)
     }, [
         isSdkReady,
         sdkError,
+    ])
+
+    /* Stop the deposit polling when the modal closes. */
+    useEffect(() => {
+        if (!isOpen) {
+            if (paymentIntervalRef.current) {
+                clearInterval(paymentIntervalRef.current)
+                paymentIntervalRef.current = null
+            }
+        }
+    }, [
+        isOpen,
     ])
 
     /* Set current Identity ID. */
@@ -154,134 +170,144 @@ export function RegistrarModal({
     ])
 
     const handlePayment = () => {
-        /* Handle contested usernames. */
-        if (dpns_is_contested_username(username)) {
-            const dashUri = `dash:${paymentAddress}?amount=${CONTESTED_REG_FEE}`
-            window.location.href = dashUri
-        } else {
-            const dashUri = `dash:${paymentAddress}?amount=${NON_CONTESTED_REG_FEE}`
-            window.location.href = dashUri
+        /* Open the user's wallet with a BIP-21 style Dash URI pointing at
+         * THEIR OWN funding address (self-custodial). */
+        if (fundingAddress) {
+            window.location.href = `dash:${fundingAddress}`
         }
     }
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
 
-        // setIsShowingPayment(true)
         setIsSubmitting(true)
-
-        /* Request mnemonic. */
-        const { getMnemonic } = await import('@/lib/secure-storage')
-        const mnemonic = getMnemonic()
-console.log('REGISTRAR (mnemonic)', mnemonic)
 
         /* Set network. */
         const currentNetwork = (network === 'mainnet' ? 'mainnet' : 'testnet') as 'mainnet' | 'testnet'
 console.log('REGISTRAR (currentNetwork)', currentNetwork)
 
-        /* Request payment address. */
-        const paymentAddress = await getPaymentAddress(
-            currentNetwork, IDENTITY_INDEX, username, email)
-            .catch(err => console.error(err))
+        /* Request funding info (address derived from the user's OWN mnemonic). */
+        const funding = await getFundingInfo(currentNetwork, IDENTITY_INDEX)
+            .catch((err: any) => console.error(err))
 
-        /* Handle contested username. */
-        // NOTE: We add BIP-21 encoding for user convenience.
-        if (dpns_is_contested_username(username)) {
-            setPaymentAddress(`dash:${paymentAddress}?amount=${CONTESTED_REG_FEE}`)
-        } else {
-            setPaymentAddress(`dash:${paymentAddress}?amount=${NON_CONTESTED_REG_FEE}`)
+        /* Validate funding info. */
+        if (typeof funding === 'undefined' || funding === null) {
+            setIsSubmitting(false)
+            toast.error('Failed to generate your funding address')
+            return
         }
 
+        /* Show the funding address + QR. */
+        setFundingAddress(funding.address)
+console.log('REGISTRAR (funding address)', funding.address)
+console.log('REGISTRAR (required deposit)', funding.requiredDash, 'DASH')
+
         /* Initialize payment monitoring handler. */
-        let attemptsCounter = 0
-// return
-        /* Manage payment detection. */
-        const paymentDetectionHandler = setInterval(async () => {
-console.log('WAITING (up to 15 minutes) FOR PAYMENT...')
+        paymentAttemptsRef.current = 0
 
-            /* Request pending registration. */
-            const response = await checkPendingStatus(currentNetwork, IDENTITY_INDEX)
-                .catch(err => console.error(err))
+        /* Manage (deposit) detection. */
+        paymentIntervalRef.current = setInterval(async () => {
+console.log('WAITING (up to 15 minutes) FOR DEPOSIT...')
 
-            /* Validate (pending registration) response. */
-            if (typeof response !== 'undefined' && response !== null) {
+            /* Request funding UTXOs. */
+            const utxos = await getFundingUtxos(currentNetwork, funding.address)
+                .catch((err: any) => console.error(err))
+
+            /* Validate (deposit) response. */
+            if (typeof utxos !== 'undefined' && utxos !== null && utxos.length > 0) {
+                const funded = utxos.reduce(
+                    (sum: number, utxo: any) => sum + utxo.satoshis, 0)
+
+                /* Require the FULL deposit before proceeding. */
+                if (funded < MINIMUM_DEPOSIT_SATOSHIS) {
+console.log('PARTIAL DEPOSIT', funded, 'of', MINIMUM_DEPOSIT_SATOSHIS)
+                    return
+                }
+
                 /* Stop the timer/interval. */
-                clearTimeout(paymentDetectionHandler)
+                if (paymentIntervalRef.current) {
+                    clearInterval(paymentIntervalRef.current)
+                    paymentIntervalRef.current = null
+                }
 
-                /* Set (asset lock) proof. */
-                const proof = response.proof
-
-                /* Set WIF. */
-                const wif = response.wif
-
-                /* Register Identity + Username. */
-                const regResult = await registerIdentityAndUsername(
-                    currentNetwork, IDENTITY_INDEX, username, proof, wif)
-                    .catch(err => console.error(err))
+                /* Run the full self-custodial registration. */
+                try {
+                    const regResult = await registerIdentityAndUsername(
+                        currentNetwork, IDENTITY_INDEX, username,
+                        (message: string) => setProgressMessage(message))
 console.log('REGISTRATION RESULT', regResult)
 
-                /* Set submission flag. */
-                setIsSubmitting(false)
+                    /* Set submission flag. */
+                    setIsSubmitting(false)
 
-                /* Validate registration response. */
-                if (typeof regResult === 'undefined' || regResult === null) {
-                    alert(`Oops! Something went wrong, but NO worries. Please contact support (AKA Shomari) for assistance.`)
-                } else {
-                    alert(`Congratulations!\n\nYou're all set.\nEnjoy your NEW Identity!`)
+                    /* Validate registration response. */
+                    if (typeof regResult === 'undefined' || regResult === null) {
+                        alert(`Oops! Something went wrong, but NO worries. Please contact support (AKA Shomari) for assistance.`)
+                    } else {
+                        alert(`Congratulations!\n\nYou're all set.\nEnjoy your NEW Identity!`)
 
-                    /* Request public keys. */
-                    const publicKeys = getPublicKeys(currentNetwork, IDENTITY_INDEX)
+                        /* Request public keys. */
+                        const publicKeys = getPublicKeys(currentNetwork, IDENTITY_INDEX)
 
-                    /* Request ALL (registered) Identities. */
-                    const regIdentities = await getIdentities(currentNetwork)
+                        /* Request ALL (registered) Identities. */
+                        const regIdentities = await getIdentities(currentNetwork)
 console.log('CONNECT (regIdentities)', regIdentities)
 
-                    const identityId = regIdentities![0].id
+                        const identityId = regIdentities![0].id
 console.log('CONNECT (identityId)', identityId)
 
-                    const identityIdx = regIdentities![0].idx || 0
+                        const identityIdx = regIdentities![0].idx || 0
 console.log('CONNECT (identityIdx)', identityIdx)
 
-                    const regPubKeys = regIdentities![0].publicKeys
+                        const regPubKeys = regIdentities![0].publicKeys
 console.log('CONNECT (regPubKeys)', regPubKeys)
 
-                    /* Validate Identity ID and public keys. */
-                    if (identityId && regPubKeys) {
+                        /* Validate Identity ID and public keys. */
+                        if (identityId && regPubKeys) {
 // STORE THE IDENTITY INDEX
 storeIdentityIdx(identityIdx)
 
-                        const signingPublicKey = regPubKeys.find((_pubkey: any) => {
-                            return _pubkey.purpose === 0 && (_pubkey.securityLevel === 1 || _pubkey.securityLevel === 2)
-                        })
+                            const signingPublicKey = regPubKeys.find((_pubkey: any) => {
+                                return _pubkey.purpose === 0 && (_pubkey.securityLevel === 1 || _pubkey.securityLevel === 2)
+                            })
 console.log('CONNECT (signingPublicKey)', signingPublicKey)
 
-                        const signingPrivateKey = publicKeys.find(_pubkey => {
-                            return _pubkey.id === signingPublicKey!.id
-                        })
+                            const signingPrivateKey = publicKeys.find(_pubkey => {
+                                return _pubkey.id === signingPublicKey!.id
+                            })
 console.log('CONNECT (signingPrivateKey)', signingPrivateKey)
 
-                        /* Set seed private key (WIF). */
-                        const seedPrivateKey = signingPrivateKey!.privateKeyWif
+                            /* Set seed private key (WIF). */
+                            const seedPrivateKey = signingPrivateKey!.privateKeyWif
 console.log('CONNECT (seedPrivateKey WIF)', seedPrivateKey)
 
-                        await login(identityId, seedPrivateKey)
-                        // Navigation handled by auth context
-                    } else {
-                        alert(`Oops! Auto-login failed. Please login manually to continue.`)
+                            await login(identityId, seedPrivateKey)
+                            // Navigation handled by auth context
+                        } else {
+                            alert(`Oops! Auto-login failed. Please login manually to continue.`)
+                        }
                     }
+                } catch (err) {
+console.error('REGISTRATION FAILED', err)
+                    setIsSubmitting(false)
+                    setProgressMessage(null)
+                    toast.error(`Registration failed: ${err instanceof Error ? err.message : 'unknown error'}`)
                 }
             }
 
-            // NOTE: WAIT UP TO 10 MINUTES FOR DEPOSIT
-            if (++attemptsCounter === PAYMENT_DETECTION_CYCLES) {
+            // NOTE: WAIT UP TO 15 MINUTES FOR DEPOSIT
+            if (++paymentAttemptsRef.current === PAYMENT_DETECTION_CYCLES) {
                 /* Stop the timer/interval. */
-                clearTimeout(paymentDetectionHandler)
+                if (paymentIntervalRef.current) {
+                    clearInterval(paymentIntervalRef.current)
+                    paymentIntervalRef.current = null
+                }
 console.log('TIMER STOPPED (after 15 minutes)')
 
                 /* Set submission flag. */
                 setIsSubmitting(false)
 
-                alert(`Your payment has EXPIRED! Please REFRESH and try again...`)
+                toast.error(`Your deposit window has EXPIRED! Please try again...`)
             }
         }, PAYMENT_DETECTION_INTERVAL)
     }
@@ -457,11 +483,11 @@ console.log('TIMER STOPPED (after 15 minutes)')
                                 Choose a NEW &amp; Unique Username for your Dash Platform Identity
                             </p>
 
-                            {/* BEGIN PAYMENT INFORMATION HERE */}
-                            {paymentAddress &&
+                            {/* BEGIN FUNDING INFORMATION HERE */}
+                            {fundingAddress &&
                                 <section className="w-full mb-5 flex flex-col items-center justify-center shadow">
                                     <QRCodeSVG
-                                        value={paymentAddress || ''}
+                                        value={fundingAddress || ''}
                                         size={360}
                                         onClick={() => handlePayment()}
                                         className="cursor-pointer"
@@ -469,34 +495,44 @@ console.log('TIMER STOPPED (after 15 minutes)')
 
                                     <div className="mt-5 px-3 py-5 flex flex-col gap-5 rounded-lg border border-evonext-700 bg-evonext-50">
                                         <h2 className="font-medium text-2xl text-evonext-800 text-center">
-                                            Just One FINAL Step to Complete Your NEW Identity + Username Registration
+                                            Fund YOUR Identity — You&apos;re in Control
                                         </h2>
 
                                         <h3 className="font-medium text-xl text-evonext-800 text-center">
-                                            Send
+                                            Send at least
                                             <button
                                                 className="px-1 text-2xl font-bold text-evonext-600"
                                                 onClick={() => handlePayment()}
                                             >
-                                                {dpns_is_contested_username(username) && <>{CONTESTED_REG_FEE} DASH</>}
-                                                {!dpns_is_contested_username(username) && <>{NON_CONTESTED_REG_FEE} DASH</>}
+                                                {Math.ceil(MINIMUM_DEPOSIT_SATOSHIS) / 1e8} DASH
                                             </button>
-                                            to the payment address shown below -OR- click the QRCode shown above
+                                            to YOUR OWN funding address shown below -OR- click the QRCode shown above
                                         </h3>
 
-                                        <button onClick={() => handlePayment()} className="font-bold text-md text-evonext-600 text-center tracking-tighter">
-                                            {paymentAddress ? paymentAddress.slice(5, -11) : 'loading...'}
+                                        <button onClick={() => handlePayment()} className="font-bold text-md text-evonext-600 text-center tracking-tighter break-all">
+                                            {fundingAddress ? fundingAddress : 'loading...'}
                                         </button>
 
                                         <p className="font-base text-sm text-evonext-800">
                                             <span className="block font-medium text-md tracking-wider">PLEASE NOTE:</span>
-                                            You <span className="font-bold">DO NOT</span> have to keep this window open.
-                                            You will receive an email as soon as your NEW Username registration is complete.
+                                            This address is derived from YOUR wallet — you control the keys.
+                                            The funds become the asset lock for YOUR new Identity. Registration completes automatically after your deposit is confirmed.
                                         </p>
                                     </div>
                                 </section>
                             }
-                            {/* END PAYMENT INFORMATION HERE */}
+                            {/* END FUNDING INFORMATION HERE */}
+
+                            {/* BEGIN PROGRESS MESSAGE */}
+                            {progressMessage &&
+                                <div className="mb-5 px-4 py-3 rounded-lg bg-blue-50 border border-blue-200 text-center">
+                                    <p className="text-md font-medium text-blue-800 flex items-center justify-center gap-2">
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                        {progressMessage}
+                                    </p>
+                                </div>
+                            }
+                            {/* END PROGRESS MESSAGE */}
 
                             <form onSubmit={handleSubmit} className="space-y-6">
                                 <div>
@@ -553,36 +589,6 @@ console.log('TIMER STOPPED (after 15 minutes)')
                                     </div>
                                 </div>
 
-                                <div>
-                                    <label htmlFor="username" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                        Order Confirmation Email <span className="italic">(optional)</span>
-                                    </label>
-
-                                    <div className="relative">
-                                        <Input
-                                            id="email"
-                                            type="text"
-                                            value={email}
-                                            onChange={(e) => setEmail(e.target.value.toLowerCase())}
-                                            placeholder="john.doe@dash.org"
-                                            className="pr-10"
-                                            autoComplete="off"
-                                            maxLength={100}
-                                        />
-                                    </div>
-
-                                    <div className="pl-1 mt-4 space-y-2 text-xs text-gray-500">
-                                        <h3 className="font-bold">
-                                            PLEASE NOTE:
-                                        </h3>
-
-                                        <p>
-                                            If you are concerned about privacy, you <span className="font-bold">DO NOT</span> need to provide an email address.
-                                            We <span className="font-bold">ONLY</span> ask, for your convenience, in case we need to contact you regarding your order.
-                                        </p>
-                                    </div>
-                                </div>
-
                                 <Button
                                     type="submit"
                                     className="w-full text-xl"
@@ -591,7 +597,7 @@ console.log('TIMER STOPPED (after 15 minutes)')
                                     {isSubmitting ? (
                                         <>
                                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                            Waiting for Payment...
+                                            Waiting for Deposit...
                                         </>
                                     ) : (
                                         'Continue Registration'

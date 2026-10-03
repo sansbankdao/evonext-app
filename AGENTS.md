@@ -624,6 +624,61 @@ Also verified: mnemonic validation and key derivation work via the new statics.
   server, whose on-demand compile made runs slow and flaky under 16.
 - Build output: 35/35 pages (Next 16 counts differently than 15's 36; all routes
   present in out/), `out/_headers` and the 20MB wasm asset emitted.
+### F24. Self-custodial asset locks + minimal L1 support - DONE (2026-10-03)
+The OLD registration process (pre-generated asset locks sold to users through
+the evonext.app server: /v1/registrar/address, /order, /status, /proof)
+has been completely removed. Users now fund and manage their OWN asset locks.
+The app accepts coins on the L1 (Core chain) strictly for asset lock and
+identity creation - no other L1 functionality.
+Live end-to-end verification on testnet (single mnemonic, zero servers):
+funding address derived via BIP44 m/44/5/0/0/0, funded (faucet), asset-lock
+tx built and signed locally with dashcore-lib, broadcast via insight,
+confirmed, ChainAssetLockProof, identityCreate (wasm SDK), dpnsRegisterName.
+Result: identity 8Yj6VuAEr5VMRhYeume9fNgCueYNv2oUJmWeBqX5UUXy (39.85B
+credits, 5 keys) with username ev0nextse1fcust0dy.dash.
+Asset-lock transaction format (Dash Core v23, verified against
+src/evo/assetlocktx.cpp and by live broadcast):
+- special tx: nVersion=3, nType=8 (TRANSACTION_ASSET_LOCK);
+- exactly ONE OP_RETURN output with a 2-byte script (6a 00) whose value
+  equals the locked amount (this is what enters the credit pool);
+- P2PKH credit output(s) in the extra payload (CAssetLockPayload v1 =
+  uint8 version + creditOutputs) summing to the SAME value, paid to the
+  funding key;
+- change outputs allowed; relay fee min 1000 sats/kB.
+ChainAssetLockProof: coreChainLockedHeight = current best height,
+OutPoint(txid, 0) - the proof MUST reference the OP_RETURN output at index
+0; referencing the credit output (index 1) is rejected ("Asset Lock
+Transaction Output with index 1 not found").
+identityCreate: IdentityPublicKey data = hash160(pubkey) (20 bytes) for
+ECDSA_HASH160 keys, compressed pubkey (33 bytes) for ECDSA_SECP256K1;
+assetLockPrivateKey = the funding key (proper testnet WIF - note
+dashcore-lib PrivateKey.toString() returns hex, use toWIF()); IdentitySigner
+carries all five keys.
+New files / changes:
+- lib/core-chain.ts (NEW): minimal L1 module - BIP44 funding key derivation
+  (m/44/5/0/0/N via @dashevo/dashcore-lib), insight UTXO queries,
+  asset-lock tx build/sign, broadcast, confirmation polling. Insight APIs
+  (CORS *): https://insight.dash.org/insight-api (mainnet) and
+  https://insight.testnet.networks.dash.org/insight-api (testnet).
+- lib/registrar-manager.ts (REWRITTEN): getFundingInfo +
+  registerIdentityAnd(username) running the full flow client-side; all
+  server calls removed.
+- components/id/registrar-modal.tsx (REWRITTEN): username validation UI
+  kept; payment step now shows the user's own funding address + QR, polls
+  the address for deposits, then drives the registration with progress
+  messages. Email field and registrar deep-link removed (they only served
+  the old order flow).
+- app/connect/page.tsx: removed the checkPendingStatus server-order resume
+  block.
+- next.config.js: webpack ProvidePlugin for Buffer (dashcore-lib) and
+  fs/path/crypto:false fallbacks for the Emscripten @dashevo/bls (BLS is
+  never used; its node branch is dead code in the browser).
+- deps: @dashevo/dashcore-lib@0.25.0 (+buffer, process); elliptic pinned
+  to 6.6.1 in pnpm-workspace.yaml (it now ships in one chunk for L1
+  signing; crypto-js/secure-ls remain tree-shaken, 0 chunks).
+Cost note: locking X burns X (OP_RETURN) and places X in a credit output
+held by the funding key - a 0.1 DASH lock costs about 0.2 DASH on-chain.
+
 ### Final verification pass (2026-10-02, after all 8 items)
 
 All 8 items above are complete. Re-ran the full suite sequentially after finishing Task 8:
