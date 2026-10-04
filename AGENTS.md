@@ -168,6 +168,12 @@ history of this file (see log below for commit hashes) — keep only load-bearin
    natively serves the static export (pretty URLs `/x` -> `x.html`, `_headers`
    honored, immutable cache for `/_next/static/*`). If a future deploy fails,
    check these three dashboard fields first.
+   **VERIFIED LIVE 2026-10-04 after the switch** (trigger commit `88d9add`):
+   served wasm = `cf2b0aef` (sha256 `5b779125…`, byte-identical to our source),
+   6,312,866 bytes on the wire (brotli), `cache-control: immutable` +
+   `content-encoding: br`; ZERO dead DAPI IPs in the served binary; CSP/COOP/
+   COEP live; HTML `max-age=0, must-revalidate` (release detection intact);
+   pretty URLs (`/connect`, `/explore`) return 200 text/html.
 
 ## Working Rules For This Repo
 
