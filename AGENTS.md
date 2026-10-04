@@ -134,10 +134,17 @@ history of this file (see log below for commit hashes) — keep only load-bearin
 
 ## Active work
 
-1. **Q4 spike (in progress)**: prototype note-commitment-tree / witness construction for
-   the web client from the read-only SDK's `getShieldedEncryptedNotes` /
-   `getShieldedPoolState`; deliverable = data-shape report feeding the wasm-prover
-   client-toolkit ABI.
+1. **Q4 spike DONE** (2026-10-04): report at `docs/spike-q4-shielded-tree-witness.md`.
+   Key findings: all tree inputs are served by DAPI in authenticated form (notes in tree
+   order with cmx + nullifier + cvNet + encryptedNote; per-note nullifier is served for
+   rho derivation during trial decryption; anchors list + most-recent anchor; nullifier
+   status). Chunk alignment: start_index must be a multiple of 2048. Testnet tree =
+   4,693 notes (pool balance 75.7T credits). Gaps in wasm 4.1.1: `total_count` dropped
+   by the binding; no MerklePath/tree types exported. Algorithm to port: fetch notes
+   (2048-note pages) -> trial-decrypt with IVK -> append cmx to
+   ClientPersistentCommitmentTree -> match checkpoint root against getShieldedAnchors
+   (shallowest depth wins; 100 checkpoints retention). Proposed client-toolkit API in
+   report section 4.
 2. Pending decisions: shielded-balance UI, DIP-17 platform-address features, biometric
    settings integration, react-hooks v6 cleanup pass.
 3. Known unverified: the -20.33B credit fee breakdown (F25).
