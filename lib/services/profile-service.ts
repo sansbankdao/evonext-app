@@ -25,6 +25,7 @@ export interface ProfileDocument {
     avatarId?: string;
     data?: any; // FIXME What is this for??
     revision: number;
+    $revision?: number; // 4.1.1 flat documents carry the $-prefixed revision
     createdAt?: number;
     $createdAt: number;
     $updatedAt?: number;
@@ -137,11 +138,14 @@ export class ProfileService extends BaseDocumentService<IUser> {  // CHANGE: Exp
         const ownerId = doc.$ownerId || doc.ownerId || ''
         const createdAt = doc.$createdAt || doc.createdAt || 0
         const data = doc.data || doc
-        const revision = doc.data.revision
+        // 4.1.1 documents are FLAT: fields live at the top level ($id,
+        // $ownerId, $revision, bio, ...), so `doc.data` is undefined and the
+        // revision/id must come from the $-prefixed fields (verified live).
+        const revision = doc.$revision ?? data.revision
         // Return a basic User object - additional data will be loaded separately
         const user: IUser = {
-            id: doc.id!, // NOTE: THIS MUST ALWAYS EXIST
-            docId: doc.id!, // NOTE: THIS MUST ALWAYS EXIST
+            id: doc.$id || doc.id!, // NOTE: THIS MUST ALWAYS EXIST
+            docId: doc.$id || doc.id!, // NOTE: THIS MUST ALWAYS EXIST
             username: options?.cachedUsername || (ownerId.substring(0, 8) + '...'),
             displayName: data.displayName,
             avatar: data.avatarId ? `/api/avatar/${ownerId}` : '',

@@ -171,6 +171,29 @@ history of this file (see log below for commit hashes) — keep only load-bearin
    old plain shape (string id, numeric purpose/securityLevel). Verified in Node:
    full connect flow — string identityId, signingPublicKey id=1 found, private key
    matched, WIF derived. tsc 0, eslint clean, 63/63 tests.
+4. **F26e — document creation failures FIXED + full lifecycle LIVE-VERIFIED
+   (2026-10-04)**: profile creation failed with `Unknown error` (masked wasm error).
+   Two root causes, both Node-reproduced:
+   (a) **signing-key mismatch**: the connect flow stores the CRITICAL auth key's WIF
+   (key id 1) but `getSigningKey` picked the first AUTH key (id 0, MASTER) —
+   document transitions require CRITICAL|HIGH: exact error `Invalid public key
+   security level MASTER. The state transition requires one of CRITICAL | HIGH`.
+   Fix: `getSigningKey(identity, privateKey)` now matches by key material —
+   `PrivateKeyWASM.fromWIF(wif).getPublicKeyHash()` vs the identity key's `data`
+   (hex hash160 for type 2; hex compressed key for type 0 via getPublicKey().bytes()),
+   with the old heuristic as fallback. Applied to create/update/delete.
+   (b) **opaque errors**: wasm errors carry `.message` but are not `Error` instances;
+   the catch blocks now extract `(error as any)?.message || 'Unknown error'`.
+   (c) **flat document shape**: `transformDocument` read `doc.data.revision` (crash —
+   4.1.1 docs are flat with `$revision`) and `doc.id` (undefined — it's `$id`);
+   fixed to `$revision ?? data.revision` and `$id || id`; `$revision` added to
+   `ProfileDocument`. (Avatar path unreachable — contract has no avatar type.)
+   LIVE-VERIFIED on testnet with the app's exact post-fix logic: create → replace
+   (rev 1→2) → delete all succeeded for the test identity; test artifacts cleaned up.
+   Note: identity key `.data` is HEX on the class getter but base64 in `.toJSON()`.
+   vitest.config.ts: hookTimeout 60s / testTimeout 30s (post-service beforeAll
+   imports the wasm-backed ProfileService and flaked at the 10s default under
+   parallel load; 2 consecutive full runs green).
 2. Pending decisions: shielded-balance UI, DIP-17 platform-address features, biometric
    settings integration, react-hooks v6 cleanup pass.
 3. Known unverified: the -20.33B credit fee breakdown (F25).

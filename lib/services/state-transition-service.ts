@@ -7,6 +7,7 @@ import {
     IdentitySigner,
     PlatformVersion,
 } from '../dash-wasm/compat'
+import { PrivateKeyWASM } from 'pshenmic-dpp'
 
 export interface StateTransitionResult {
     success: boolean;
@@ -82,11 +83,39 @@ class StateTransitionService {
     }
 
     /**
-     * Resolve the signing key: the identity's first non-disabled
-     * AUTHENTICATION key (falls back to the first key).
+     * Resolve the signing key: the identity key that CORRESPONDS to the
+     * private key we actually hold (the IdentitySigner's key must match
+     * `identityKey`, and document transitions require a CRITICAL or HIGH
+     * security level — a MASTER key is rejected with "Invalid public key
+     * security level MASTER").
+     *
+     * Match by key material: derive the public key hash from the stored WIF
+     * and compare against the identity key's `data` (hex hash160 for
+     * ECDSA_HASH160 keys, hex compressed key for ECDSA_SECP256K1).
+     * Falls back to the previous first-AUTH heuristic if nothing matches.
      */
-    private getSigningKey(identity: any) {
+    private getSigningKey(identity: any, privateKey?: string) {
         const keys = identity.publicKeys || []
+        if (privateKey) {
+            try {
+                const privKey = PrivateKeyWASM.fromWIF(privateKey)
+                const hashHex = privKey.getPublicKeyHash()
+                let compressedHex: string | undefined
+                try {
+                    compressedHex = Buffer.from(privKey.getPublicKey().bytes()).toString('hex')
+                } catch {
+                    /* type-0 matching unavailable */
+                }
+                const matched = keys.find((k: any) => !k.disabledAt && (
+                    (k.type === 2 && k.data === hashHex) ||
+                    (k.type === 0 && compressedHex !== undefined && k.data === compressedHex)))
+                if (matched) {
+                    return matched
+                }
+            } catch {
+                /* fall through to the heuristic below */
+            }
+        }
         return (
             keys.find((k: any) => k.purpose === 'AUTHENTICATION' && !k.disabledAt) ||
             keys[0]
@@ -118,7 +147,7 @@ class StateTransitionService {
                 throw new Error(`Identity not found: ${ownerId}`)
             }
 
-            const identityKey = this.getSigningKey(identity)
+            const identityKey = this.getSigningKey(identity, privateKey)
             if (!identityKey) {
                 throw new Error(`No usable public key on identity: ${ownerId}`)
             }
@@ -151,7 +180,9 @@ class StateTransitionService {
 
             return {
                 success: false,
-                error: error instanceof Error ? error.message : 'Unknown error'
+                error: error instanceof Error
+                    ? error.message
+                    : ((error as any)?.message || 'Unknown error')
             }
         }
     }
@@ -182,7 +213,7 @@ class StateTransitionService {
                 throw new Error(`Identity not found: ${ownerId}`)
             }
 
-            const identityKey = this.getSigningKey(identity)
+            const identityKey = this.getSigningKey(identity, privateKey)
             if (!identityKey) {
                 throw new Error(`No usable public key on identity: ${ownerId}`)
             }
@@ -214,7 +245,9 @@ class StateTransitionService {
 
             return {
                 success: false,
-                error: error instanceof Error ? error.message : 'Unknown error'
+                error: error instanceof Error
+                    ? error.message
+                    : ((error as any)?.message || 'Unknown error')
             }
         }
     }
@@ -241,7 +274,7 @@ class StateTransitionService {
                 throw new Error(`Identity not found: ${ownerId}`)
             }
 
-            const identityKey = this.getSigningKey(identity)
+            const identityKey = this.getSigningKey(identity, privateKey)
             if (!identityKey) {
                 throw new Error(`No usable public key on identity: ${ownerId}`)
             }
@@ -268,7 +301,9 @@ class StateTransitionService {
 
             return {
                 success: false,
-                error: error instanceof Error ? error.message : 'Unknown error'
+                error: error instanceof Error
+                    ? error.message
+                    : ((error as any)?.message || 'Unknown error')
             }
         }
     }
@@ -339,7 +374,9 @@ class StateTransitionService {
             console.error('Error waiting for confirmation:', error);
             return {
                 success: false,
-                error: error instanceof Error ? error.message : 'Unknown error'
+                error: error instanceof Error
+                    ? error.message
+                    : ((error as any)?.message || 'Unknown error')
             }
         }
     }
