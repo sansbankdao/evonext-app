@@ -34,7 +34,7 @@ const {
 } = require('@/lib/dash-wasm/compat')
 import { getAsset, getMnemonic } from '@/lib/secure-storage'
 import { IToken } from '@/lib/types'
-import { sendCredit, sendToken } from '@/lib/wallet-manager'
+import { sendCredit, sendToken, withdrawToCore } from '@/lib/wallet-manager'
 
 import moment from 'moment'
 // @ts-ignore
@@ -69,11 +69,31 @@ const isBase58IdentityId = (_str: string) => {
     }
 }
 
+/** Validate a Core (L1) Base58Check address: 1 version + 20 hash + 4 checksum. */
+const isCoreAddress = (_str: string) => {
+    if (typeof _str !== 'string' || _str.length < 26) {
+        return false
+    }
+
+    try {
+        // A valid Dash address decodes to 25 bytes (version + hash160 + checksum).
+        return bs58.decode(_str).length === 25
+    } catch (e) {
+        return false
+    }
+}
+
 export function WalletSend({ isFullScreen }: IWalletSendProps) {
     const { user } =  useAuth()
     const { network } =  useNetwork()
 
     const [asset, setAsset] = useState<IToken>(DEFAULT_ASSET)
+
+    /* Withdraw-to-Core (L1) state. */
+    const [coreAddress, setCoreAddress] = useState('')
+    const [withdrawAmount, setWithdrawAmount] = useState('')
+    const [isWithdrawing, setIsWithdrawing] = useState(false)
+    const [withdrawNote, setWithdrawNote] = useState<string | null>(null)
     const [identityFirstUse, setIdentityFirstUse] = useState('')
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [txid, setTxid] = useState<string | undefined>()
@@ -620,6 +640,108 @@ console.log('SEND (TOKEN response)', response)
 
                     TBD...
                 </div>
+
+                {/* BEGIN WITHDRAW TO CORE (L1) */}
+                <div className="px-4 py-5 rounded-lg border-2 border-sky-200 bg-sky-50">
+                    <h2 className="text-xl font-medium tracking-widest">
+                        Withdraw to Dash (L1)
+                    </h2>
+
+                    <p className="mt-2 text-sm text-slate-600">
+                        Move identity credits back to a Dash (Core) address.
+                        The withdrawal is signed by YOUR transfer key — no server ever holds your keys.
+                    </p>
+
+                    <section className="mt-4 flex flex-col gap-3">
+                        <input
+                            className="w-full px-3 py-1 text-lg bg-cyan-100 border-2 border-cyan-300 rounded-md shadow"
+                            type="text"
+                            value={coreAddress}
+                            onChange={(e) => setCoreAddress(e.target.value)}
+                            placeholder="Enter a Dash (L1) address"
+                            autoComplete="off"
+                        />
+
+                        <input
+                            className="w-full px-3 py-1 text-lg bg-cyan-100 border-2 border-cyan-300 rounded-md shadow"
+                            type="text"
+                            inputMode="decimal"
+                            value={withdrawAmount}
+                            onChange={(e) => setWithdrawAmount(e.target.value)}
+                            placeholder="Amount in DASH"
+                            aria-label="Withdraw amount in DASH"
+                        />
+
+                        <button
+                            onClick={async () => {
+                                /* Reset state. */
+                                setWithdrawNote(null)
+
+                                /* Validate destination. */
+                                if (!isCoreAddress(coreAddress)) {
+                                    return alert('Please enter a valid Dash (L1) address.')
+                                }
+
+                                /* Validate amount. */
+                                const numeric = parseFloat(withdrawAmount) || 0
+                                if (numeric <= 0) {
+                                    return alert('Please enter an AMOUNT to withdraw.')
+                                }
+
+                                /* Confirm the withdrawal. */
+                                if (!confirm(`Withdraw ${withdrawAmount} DASH from your identity to:\n\n${coreAddress}\n\nContinue?`)) {
+                                    return
+                                }
+
+                                /* Set flag. */
+                                setIsWithdrawing(true)
+
+                                try {
+                                    /* Set credits (100B credits per DASH). */
+                                    const credits = BigInt(Math.trunc(numeric * 1e11))
+
+                                    /* Request withdrawal. */
+                                    const response = await withdrawToCore(
+                                        network!,
+                                        user?.identityId!,
+                                        getIdentityIdx() || 0,
+                                        credits,
+                                        coreAddress,
+                                        1,
+                                    )
+console.log('WITHDRAW (response)', response)
+
+                                    /* Set note. */
+                                    setWithdrawNote(
+                                        `Withdrawal submitted! The funds will arrive at your Dash address after the network processes the withdrawal (usually within minutes to about a day).`
+                                    )
+                                } catch (err: any) {
+console.error('WITHDRAW FAILED', err)
+                                    alert(`Withdrawal failed: ${err?.message || 'unknown error'}`)
+                                } finally {
+                                    /* Reset flag. */
+                                    setIsWithdrawing(false)
+                                }
+                            }}
+                            className={`w-fit flex items-center px-5 py-2 text-xl font-medium bg-sky-200 border-2 border-sky-400 rounded-md shadow hover:bg-sky-300 ${isWithdrawing ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                            disabled={isWithdrawing}
+                        >
+                            {isWithdrawing ? (
+                                <>
+                                    <Loader2 className="mr-2 size-6 animate-spin" />
+                                    Withdrawing...
+                                </>
+                            ) : (
+                                'Withdraw to Dash'
+                            )}
+                        </button>
+
+                        {withdrawNote && <p className="text-sm text-emerald-700 font-medium">
+                            {withdrawNote}
+                        </p>}
+                    </section>
+                </div>
+                {/* END WITHDRAW TO CORE (L1) */}
             </section>
         </main>
     )

@@ -334,6 +334,74 @@ console.log('WALLET MANGAER (tx result)', txResult)
     return { txid: (txResult as any)?.txid || 'UNKNOWN TXID' }
 }
 
+export const withdrawToCore = async (
+    _network: string,
+    _identityId: string,
+    _identityIdx: number,
+    _credits: bigint,
+    _toCoreAddress: string,
+    _coreFeePerByte: number = 1,
+): Promise<ITxSuccess | ITxError> => {
+    /* Initialize locals. */
+    let sdk
+
+    /* Validate destination address (Base58, Core L1 P2PKH/P2SH). */
+    if (typeof _toCoreAddress !== 'string' || _toCoreAddress.length < 26) {
+        throw new Error('Please enter a valid Dash (L1) address.')
+    }
+
+    /* Set credits. */
+    // TODO ADD FINAL CREDITS VALIDATION
+    const credits = BigInt(_credits)
+
+    /* Request transfer (WIF) key. */
+    const transferWif = await getTransferKey(_network, _identityIdx)
+console.log('WITHDRAW (transfer WIF)', transferWif)
+
+    /* Handle network. */
+    if (_network === 'mainnet') {
+        /* Initialize SDK. */
+        // 4.1.1 API: the trusted context discovers live masternode
+        // addresses at runtime (the old hard-coded list was removed).
+        const context = await WasmTrustedContext.prefetchMainnet()
+        sdk = await WasmSdkBuilder.mainnet().withTrustedContext(context).build()
+    } else {
+        /* Initialize SDK. */
+        const context = await WasmTrustedContext.prefetchTestnet()
+        sdk = await WasmSdkBuilder.testnet().withTrustedContext(context).build()
+    }
+console.log('WITHDRAW (identity ID)', _identityId)
+
+    /* Request identity. */
+    const identity = await sdk.getIdentity(_identityId)
+    if (!identity) {
+        throw new Error(`Identity not found: ${_identityId}`)
+    }
+
+    /* Request signer. */
+    const signer = new IdentitySigner()
+    signer.addKeyFromWif(transferWif)
+
+    /* Withdraw credits to Core (L1). */
+    // NOTE: coreFeePerByte MUST be an integer in wasm SDK 4.1.1 (a float
+    // throws "value is not an integer, found float 1.2"). The returned value
+    // is the REMAINING identity balance (verified live on testnet).
+    const remaining = await (sdk as any).identityCreditWithdrawal({
+        identity,
+        amount: credits,
+        toAddress: _toCoreAddress,
+        coreFeePerByte: Math.trunc(_coreFeePerByte),
+        signer,
+    })
+console.log('WITHDRAW (remaining balance)', remaining)
+
+    /* Return result. */
+    return {
+        txid: 'WITHDRAWAL PENDING',
+        remainingBalance: remaining,
+    } as any
+}
+
 export const sendToken = async (
     _network: string,
     _identityId: string,

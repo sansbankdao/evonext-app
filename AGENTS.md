@@ -679,6 +679,52 @@ New files / changes:
 Cost note: locking X burns X (OP_RETURN) and places X in a credit output
 held by the funding key - a 0.1 DASH lock costs about 0.2 DASH on-chain.
 
+### F25. Unshield (identity credits -> L1) LIVE-VERIFIED + integrated; spend-proof HANDOFF issued (2026-10-04)
+Phase 1 of the shield/unshield roadmap. VERIFIED LIVE END-TO-END ON TESTNET:
+1. `identityCreditWithdrawal` (wasm SDK 4.1.1) broadcast and ACCEPTED from
+   identity 8Yj6VuAEr5VMRhYeume9fNgCueYNv2oUJmWeBqX5UUXy: withdrew
+   1,000,000,000 credits (0.01 DASH) to the self-custodial funding address
+   ycxZZzW9waTpSewrTLc7Se2CEhQgZqv9AS (m/44/5/0/0/0). The method returns the
+   REMAINING identity balance as bigint (18521962660), per wasm_sdk.d.ts.
+2. Transfer key = m/9/{net}/5/0/0/0/{idx}/3 (key id 3, purpose TRANSFER,
+   securityLevel CRITICAL) via IdentitySigner.addKeyFromWif.
+3. GOTCHA: `coreFeePerByte` MUST be an integer in the raw wasm binding - a
+   float (1.2, as desktop uses via evo-sdk facades) throws "value is not an
+   integer, found float 1.2". Use 1 (documented default).
+4. Withdrawal document tracked in the SYSTEM withdrawals data contract,
+   Identifier bytes from platform/packages/withdrawals-contract/src/lib.rs
+   ID_BYTES -> display id 4fJLR2GYTPFdomuTVvNy3VRrvWgvkKPzqehEBpNf2nk6
+   (document type "withdrawal"). Our doc GjHevt7mS5gEpwuLSBsXYQyxyA1PLyJHJCp4
+   c8fqwTix: amount 1e9, coreFeePerByte 1, pooling 0, outputScript decoded =
+   P2PKH(hash160 b687035b...) = EXACTLY our funding address; status
+   progression observed 2 (transactionSignHeight 1565941) -> 3 (complete).
+5. Core payout tx 8ae97854c4f36cb5... mined at block 1565942 (signed at
+   1565941), delivering the EXACT 0.01 DASH UTXO to the funding address.
+   Withdrawal cycle took MINUTES, not the historical ~1 day.
+6. Balance accounting: pre-withdrawal balance 19,521,962,660 vs 39,854,154,760
+   recorded at creation => 20,332,192,100 credits (~0.203 DASH) consumed
+   between identity creation and the withdrawal. Identity nonce = 1 (exactly
+   one identity-level op: our withdrawal), DPNS nonce = 2 (preorder + domain
+   only) - NO third party moved funds. The specific fee breakdown (hyp.:
+   DPNS contested-registration fee for the 18-char name) is UNVERIFIED -
+   flagged for follow-up.
+Integration (this repo):
+- lib/wallet-manager.ts: NEW export `withdrawToCore(network, identityId,
+  identityIdx, credits, toCoreAddress, coreFeePerByte=1)` - same pattern as
+  sendCredit (transfer WIF + IdentitySigner); Math.trunc on coreFeePerByte.
+- components/wallet/send.tsx: NEW "Withdraw to Dash (L1)" card in Advanced
+  Options (address + amount + confirm + progress + completion note);
+  isCoreAddress() validates Base58Check 25-byte addresses.
+Verified: tsc 0, eslint 0, tests 62/62, build exit 0 (35/35), playwright 2 passed.
+Spend-proof HANDOFF for the wasm-prover team: docs/handoff-wasm-prover-spend-
+proofs.md - requests the three spend operations (shielded_transfer, unshield,
+shielded_withdraw - reference: mobile shielded_jni.cpp:854-1040 FFI calls), a
+client toolkit module (Orchard key derivation, note decryption, nullifiers,
+merkle witnesses - same pinned orchard fork), and a trust-model decision
+(server-attends-witness vs browser-side proving wasm). Wasm SDK 4.1.1 confirmed
+read-only for shielded ops (no prover, no Orchard key derivation in
+wasm_sdk_bg.wasm).
+
 ### Final verification pass (2026-10-02, after all 8 items)
 
 All 8 items above are complete. Re-ran the full suite sequentially after finishing Task 8:
