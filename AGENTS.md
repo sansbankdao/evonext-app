@@ -160,6 +160,17 @@ history of this file (see log below for commit hashes) — keep only load-bearin
    `test/unit/lib/compat-derive.test.mts` (overrides the global setup mock with
    importOriginal + initSync of the real wasm). Also flake-fixed post-service test's
    200ms `vi.waitFor` -> 1000ms. Verified: tsc 0, eslint clean, 6 files/63 tests.
+3. **F26d — second wave of class-vs-plain-shape gaps in identity lookup FIXED
+   (2026-10-04)**: after F26c deployed, connect progressed further but hit two more
+   4.1.1 class-instance gaps in `searchByHash160`: `result[0].id` returned an
+   `Identifier` object (not string) and the publicKeys items' getters returned enum
+   STRINGS ("AUTHENTICATION"/"MASTER"), so the connect page's
+   `purpose === 0 && securityLevel === 1||2` find failed (signingPublicKey undefined).
+   Fix: `searchByHash160` now normalizes via `.toJSON()` (the same pattern
+   `searchBySecp256k1` and `identityService.getIdentity` already use), restoring the
+   old plain shape (string id, numeric purpose/securityLevel). Verified in Node:
+   full connect flow — string identityId, signingPublicKey id=1 found, private key
+   matched, WIF derived. tsc 0, eslint clean, 63/63 tests.
 2. Pending decisions: shielded-balance UI, DIP-17 platform-address features, biometric
    settings integration, react-hooks v6 cleanup pass.
 3. Known unverified: the -20.33B credit fee breakdown (F25).

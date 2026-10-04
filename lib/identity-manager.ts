@@ -153,11 +153,18 @@ export const searchByHash160 = async (_network: string, _identityIdx: number) =>
 
     /* Handle ECDSA_HASH160 signature scheme. */
     if (result && result.length > 0 && typeof result === 'object') {
+        // The 4.1.1 API returns class instances here (Identifier id object,
+        // IdentityPublicKey items whose getters yield enum STRINGS such as
+        // "AUTHENTICATION"/"MASTER"); consumers expect the old plain shape
+        // (string id, numeric purpose/securityLevel). toJSON() restores it —
+        // same normalization searchBySecp256k1 already applies.
+        const identityJson = result[0].toJSON()
+
         /* Set Identity ID. */
-        identityId = result[0].id
+        identityId = identityJson.id
 
         /* Set registered public keys. */
-        regPubKeys = result[0].publicKeys
+        regPubKeys = identityJson.publicKeys
     }
 
     /* Validate Identity. */
