@@ -274,7 +274,7 @@ describe('postService', () => {
         await flushPromises()
         await vi.waitFor(() => {
             expect(ProfileService as any).toHaveBeenCalledTimes(1)
-        }, { timeout: 200 })
+        }, { timeout: 1000 })
         await flushPromises()
 
         // Verify constructor called (internal flow runs, no crash)

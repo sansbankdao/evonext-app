@@ -269,7 +269,13 @@ export async function dpns_resolve_name(
 }
 
 /**
- * Key derivation from a seed phrase (old signature preserved).
+ * Key derivation from a seed phrase (old signature and old result shape
+ * preserved).
+ *
+ * The new API returns a `PathDerivedKeyInfo` class instance with camelCase
+ * getters (publicKey / privateKeyHex / privateKeyWif / address / network /
+ * path); the old callers read plain snake_case fields on the result
+ * (`public_key`, `private_key_hex`, `private_key_wif`), so map 1:1.
  */
 export function derive_key_from_seed_with_path(
     mnemonic: string,
@@ -277,12 +283,20 @@ export function derive_key_from_seed_with_path(
     path: string,
     network: string
 ): any {
-    return WasmSdk.deriveKeyFromSeedWithPath({
+    const info = WasmSdk.deriveKeyFromSeedWithPath({
         mnemonic,
         passphrase: passphrase ?? undefined,
         path,
         network,
     })
+    return {
+        path: info.path,
+        private_key_wif: info.privateKeyWif,
+        private_key_hex: info.privateKeyHex,
+        public_key: info.publicKey,
+        address: info.address,
+        network: info.network,
+    }
 }
 
 /**

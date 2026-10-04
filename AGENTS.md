@@ -145,6 +145,21 @@ history of this file (see log below for commit hashes) — keep only load-bearin
    ClientPersistentCommitmentTree -> match checkpoint root against getShieldedAnchors
    (shallowest depth wins; 100 checkpoints retention). Proposed client-toolkit API in
    report section 4.
+2. **F26c — login `.length` crash FIXED (2026-10-04)**: after the F26b deployment,
+   connect threw `Cannot read properties of undefined (reading 'length')`. Root cause
+   (Node-reproduced): the 4.1.1 `deriveKeyFromSeedWithPath` returns a `PathDerived
+   KeyInfo` CLASS with camelCase getters, but `compat.ts`'s
+   `derive_key_from_seed_with_path` returned it raw; consumers read the old snake_case
+   plain fields (`masterKey.public_key` -> undefined -> `hexToBin(undefined)` ->
+   `.length` crash). Fix: the compat wrapper now maps 1:1 to the old shape
+   (`public_key`/`private_key_hex`/`private_key_wif`/`address`/`network`/`path`).
+   Verified live in Node: full hash160 search path works (identity found, 5 keys with
+   the exact JSON shape the app expects — purpose/securityLevel as NUMBERS, data
+   base64, direct `.publicKeys` access works); secp256k1 path returns undefined and
+   the existing guard handles it. New unit test
+   `test/unit/lib/compat-derive.test.mts` (overrides the global setup mock with
+   importOriginal + initSync of the real wasm). Also flake-fixed post-service test's
+   200ms `vi.waitFor` -> 1000ms. Verified: tsc 0, eslint clean, 6 files/63 tests.
 2. Pending decisions: shielded-balance UI, DIP-17 platform-address features, biometric
    settings integration, react-hooks v6 cleanup pass.
 3. Known unverified: the -20.33B credit fee breakdown (F25).
