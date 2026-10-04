@@ -148,6 +148,14 @@ history of this file (see log below for commit hashes) — keep only load-bearin
 2. Pending decisions: shielded-balance UI, DIP-17 platform-address features, biometric
    settings integration, react-hooks v6 cleanup pass.
 3. Known unverified: the -20.33B credit fee breakdown (F25).
+4. **Deployment is MANUAL/stale — F26**: the live evonext.app served the OLD pre-F22
+   wasm on 2026-10-04 (deployed asset `wasm_sdk_bg.c3177f65.wasm`, 8,013,662 bytes,
+   sha256 `ca6e51ce…`, CONTAINS dead F22 addresses `52.34.144.50`/`35.82.197.197`),
+   reproducing the F22 hang despite master being fixed. Our source wasm is 20,319,523
+   bytes (sha256 `5b779125…`), zero embedded IPs. Local `out/` (Oct 4) is complete
+   (32 route HTMLs, `_headers`, wasm `cf2b0aef`) and current with all code through
+   F25 — user must redeploy it. Verify a deployment by checking the served wasm's
+   byte size (8.0MB = stale; 20.3MB = current).
 
 ## Working Rules For This Repo
 
