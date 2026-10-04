@@ -156,6 +156,18 @@ history of this file (see log below for commit hashes) — keep only load-bearin
    (32 route HTMLs, `_headers`, wasm `cf2b0aef`) and current with all code through
    F25 — user must redeploy it. Verify a deployment by checking the served wasm's
    byte size (8.0MB = stale; 20.3MB = current).
+5. **F26b — Cloudflare Pages deployment switched OFF next-on-pages (2026-10-04)**:
+   root cause of all failed deploys since Oct 2: the Pages project used the Next.js
+   framework preset, whose build command `npx @cloudflare/next-on-pages@1` broke
+   twice — (a) npm ERESOLVE inside the adapter's own deps (workers-types ^4 vs
+   wrangler 4.x's ^5), and (b) `next-on-pages@1.13.16` peer-requires
+   `next >=14.3.0 && <=15.5.2` (verified from its installed package.json) while the
+   repo is on Next 16.3.8. App is a pure static export, so the adapter is
+   unnecessary: dashboard build config changed to **framework preset None,
+   build command `npm run build`, output directory `out`**. Cloudflare Pages
+   natively serves the static export (pretty URLs `/x` -> `x.html`, `_headers`
+   honored, immutable cache for `/_next/static/*`). If a future deploy fails,
+   check these three dashboard fields first.
 
 ## Working Rules For This Repo
 
