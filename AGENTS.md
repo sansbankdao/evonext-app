@@ -235,6 +235,16 @@ history of this file (see log below for commit hashes) — keep only load-bearin
    = MASTER id 0 — exactly the reported error) and end-to-end with a real WIF:
    matched id 1 CRITICAL, create succeeded, probe cleaned up. tsc 0, eslint 0,
    63/63.
+7. **F26h — empty website/location strings violate the contract schema; FIXED
+   (2026-10-05)**: after F26g the user's edit failed with `JsonSchemaError:
+   "" does not match "^https?://.+\$", path: /website`. The profile form sends
+   `website: ''`/`location: ''`; JSON Schema validates empty strings against
+   patterns, so "" must be OMITTED from the document, not sent. updateProfile
+   now deletes empty location/website from the payload (set-when-truthy,
+   delete-when-falsy, plus defensive cleanup after the raw merge).
+   Live-verified all three cases on testnet: create with both fields ->
+   clearing (document left with bio+displayName only) -> setting website
+   again; probe cleaned up. tsc 0, eslint 0, 63/63.
 2. Pending decisions: shielded-balance UI, DIP-17 platform-address features, biometric
    settings integration, react-hooks v6 cleanup pass.
 3. Known unverified: the -20.33B credit fee breakdown (F25).

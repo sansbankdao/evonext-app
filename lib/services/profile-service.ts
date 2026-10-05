@@ -333,11 +333,31 @@ export class ProfileService extends BaseDocumentService<IUser> {  // CHANGE: Exp
             if (updates.bio !== undefined) {
                 data.bio = updates.bio
             }
+            // The contract's website property has pattern ^https?://.+$ and
+            // JSON Schema validates empty strings against patterns, so ""
+            // is INVALID — empty values must be OMITTED from the document,
+            // not sent as "".
             if (updates.location !== undefined) {
-                data.location = updates.location
+                if (updates.location) {
+                    data.location = updates.location
+                } else {
+                    delete data.location
+                }
             }
             if (updates.website !== undefined) {
-                data.website = updates.website
+                if (updates.website) {
+                    data.website = updates.website
+                } else {
+                    delete data.website
+                }
+            }
+            // Defensive: never emit an empty website/location, even if the
+            // current document somehow contains one.
+            if (!data.website) {
+                delete data.website
+            }
+            if (!data.location) {
+                delete data.location
             }
             // Handle avatar update
             if (updates.avatarData !== undefined) {
