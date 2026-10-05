@@ -415,8 +415,21 @@ console.log('CONTRACT ID', this.contractId)
                 where.push(['$ownerId', '==', options.authorId])
             }
 
-            // Build order by clause - most recent first
-            const orderBy = [['$createdAt', 'desc']]
+            // Build order by clause - most recent first.
+            // The Yappr contract has NO $createdAt-only index on 'post' — DAPI
+            // needs a matching index for the orderBy to be honored. Use the
+            // ownerAndTime index for author feeds and the languageTimeline
+            // index for the global feed (same pattern as yap.pr's
+            // PostService.getTimeline/getUserPosts).
+            let orderBy
+            if (options?.authorId) {
+                where.push(['$createdAt', '>', 0])
+                orderBy = [['$ownerId', 'asc'], ['$createdAt', 'desc']]
+            } else {
+                where.push(['language', '==', 'en'])
+                where.push(['$createdAt', '>', 0])
+                orderBy = [['language', 'asc'], ['$createdAt', 'desc']]
+            }
 
             try {
                 const postsResponse = await get_documents(

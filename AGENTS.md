@@ -409,6 +409,34 @@ history of this file (see log below for commit hashes) — keep only load-bearin
    shows real Yappr posts in the browser, no page errors. Note: pre-migration
    posts/profiles on the retired 465jd contract are no longer visible.
    tsc 0, eslint 0, 63/63.
+14. **F26o — feed ordered by an unindexed `$createdAt` (stale Jan 26 feed);
+   FIXED (2026-10-05)**: user reported the feed showed only posts dated
+   2026-01-26 while today is Oct 5. Root cause (Node-reproduced via
+   `/tmp/dcl/yappr-indices.mjs`): the Yappr 'post' type has NO $createdAt-only
+   index — only ownerAndTime [$ownerId,$createdAt], languageTimeline
+   [language,$createdAt], quotedPostAndOwner, quotedPostOwnerAndTime. DAPI
+   silently ignored the unsupported bare `orderBy: [['$createdAt','desc']]`,
+   returning arbitrary/unindexed order (top = Jan 26). Our test posts existed
+   with correct Oct 5 timestamps (verified in the same diagnostic) — writes
+   were fine, only the read ordering was wrong. Fix, matching yap.pr's
+   PostService.getTimeline/getUserPosts:
+   (a) `lib/dash-platform-client.ts` `_executePostsQuery`: global feed now
+   where [['language','==','en'],['$createdAt','>',0]] + orderBy
+   [['language','asc'],['$createdAt','desc']] (languageTimeline index);
+   author feed where [['$ownerId','==',id],['$createdAt','>',0]] + orderBy
+   [['$ownerId','asc'],['$createdAt','desc']] (ownerAndTime index).
+   (b) `lib/services/post-service.ts` getTimeline (languageTimeline pattern)
+   and getUserPosts (ownerAndTime pattern, plus the missing $createdAt>0
+   range clause). getReplies (replyToId) / getPostsByHashtag (primaryHashtag)
+   still reference fields that don't exist on the Yappr 'post' type, but grep
+   confirmed they are never called — left untouched.
+   (c) Live-verified both index patterns in Node (top result 2026-10-05) and
+   in the browser (Playwright + static server): 20 cards, newest-first 40min →
+   1h → 2h → 4d → 5d, 0 Invalid Date, 0 "User nknown". Unit test updated to
+   the indexed query shape. NOTE: app/posts/page.tsx:182 has a pre-existing
+   intentional exhaustive-deps WARNING (postsState deliberately omitted in
+   F26m to stop re-trigger loops) — expected lint state is now "0 errors,
+   1 warning". tsc 0, 63/63.
 2. Pending decisions: shielded-balance UI, DIP-17 platform-address features, biometric
    settings integration, react-hooks v6 cleanup pass.
 3. Known unverified: the -20.33B credit fee breakdown (F25).

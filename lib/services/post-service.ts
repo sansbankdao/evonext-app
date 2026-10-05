@@ -165,7 +165,14 @@ class PostService extends BaseDocumentService<IPost> {
      */
     async getTimeline(options: QueryOptions = {}): Promise<DocumentResult<IPost>> {
         const defaultOptions: QueryOptions = {
-            orderBy: [['$createdAt', 'desc']],
+            // Use the languageTimeline index [language, $createdAt] — the Yappr
+            // contract has no $createdAt-only index, so a bare orderBy on
+            // $createdAt is not honored by DAPI.
+            where: [
+                ['language', '==', 'en'],
+                ['$createdAt', '>', 0],
+            ],
+            orderBy: [['language', 'asc'], ['$createdAt', 'desc']],
             limit: 20,
             ...options
         }
@@ -181,8 +188,12 @@ class PostService extends BaseDocumentService<IPost> {
         options: QueryOptions = {},
     ): Promise<DocumentResult<IPost>> {
         const queryOptions: QueryOptions = {
-            where: [['$ownerId', '==', userId]],
-            orderBy: [['$createdAt', 'desc']],
+            // Use the ownerAndTime index [$ownerId, $createdAt].
+            where: [
+                ['$ownerId', '==', userId],
+                ['$createdAt', '>', 0],
+            ],
+            orderBy: [['$ownerId', 'asc'], ['$createdAt', 'desc']],
             limit: 20,
             ...options
         }

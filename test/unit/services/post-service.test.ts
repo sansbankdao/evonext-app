@@ -163,8 +163,9 @@ describe('postService', () => {
         const result = await postService.getUserPosts(mockUserId, { limit: 10 })
 
         expect(postService.query).toHaveBeenCalledWith({
-            where: [['$ownerId', '==', mockUserId]],
-            orderBy: [['$createdAt', 'desc']],
+            // ownerAndTime index [$ownerId, $createdAt]
+            where: [['$ownerId', '==', mockUserId], ['$createdAt', '>', 0]],
+            orderBy: [['$ownerId', 'asc'], ['$createdAt', 'desc']],
             limit: 10,
         })
         expect(result.documents).toHaveLength(1)
