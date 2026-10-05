@@ -6,7 +6,6 @@ import { SparklesIcon, ArrowPathIcon } from '@heroicons/react/24/outline'
 import { PostCard } from '@/components/post/post-card'
 import { Sidebar } from '@/components/layout/sidebar'
 import { RightSidebar } from '@/components/layout/right-sidebar'
-import { ComposeModal } from '@/components/compose/compose-modal'
 import { useAppStore } from '@/lib/store'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { getInitials } from '@/lib/utils'
@@ -317,7 +316,6 @@ console.log('***LOADING POSTS-CREATE-REMOVE')
             </div>
 
             <RightSidebar />
-            <ComposeModal />
         </div>
     )
 }

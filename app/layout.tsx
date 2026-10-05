@@ -21,6 +21,7 @@ import { Providers } from '@/components/providers'
 import ErrorBoundary from '@/components/error-boundary'
 import { Header } from '@/components/ui/header'
 import { Footer } from '@/components/ui/footer'
+import { ComposeModal } from '@/components/compose/compose-modal'
 
 // const inter = Inter({ subsets: ['latin'] })
 
@@ -94,6 +95,11 @@ export default function RootLayout({
                         </ErrorBoundary>
 
                         <Footer />
+
+                        {/* Global post composer: the sidebar/header Post button
+                            sets isComposeOpen in the store from any page, so the
+                            modal must be mounted app-wide (was only on /posts). */}
+                        <ComposeModal />
                     </Providers>
                 </ErrorBoundary>
 
