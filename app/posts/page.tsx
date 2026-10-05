@@ -60,8 +60,12 @@ function FeedPage() {
         // Use the setter functions directly, not the whole postsState object
         const { setLoading, setError, setData } = postsState
 console.log('***LOADING POSTS-1')
-        setLoading(true)
+        // NOTE the order: setError() forces loading:false in useAsyncState,
+        // so clearing the error must happen BEFORE setLoading(true) — the
+        // other way around cancelled the loading state and showed the empty
+        // message during the whole load.
         setError(null)
+        setLoading(true)
         try {
             console.log('Feed: Loading posts from Dash Platform...')
             const dashClient = getDashPlatformClient(getContractId(network!))

@@ -520,6 +520,31 @@ history of this file (see log below for commit hashes) — keep only load-bearin
    red with count 1 from likedByMe. Test artifacts cleaned up on-chain
    (like doc removed, test reply removed). tsc 0, 63/63, lint 0 errors
    /1 known warning.
+17. **F26r — "No posts yet" during load fixed; post header = @handle +
+   identity ID (2026-10-05)**: user reported (a) the Posts page still
+   showed "No posts yet" while loading, (b) the detail header duplicated
+   the DPNS name ("NewMoneyHoney69.dash" + "@NewMoneyHoney69.dash"), and
+   asked for @NewMoneyHoney69 with the identity ID below it.
+   (a) ROOT CAUSE (browser timeline reproduced with a 400ms poller): in
+   loadPosts, `setLoading(true)` was followed by `setError(null)` — and
+   useAsyncState's setError implementation sets `loading: false`
+   unconditionally, cancelling the loading state one state update later.
+   Result: the spinner rendered for a single microtask (loading branch
+   hit once in a debug log), then the empty state filled the entire load
+   until data arrived. Fix: clear the error BEFORE setting loading
+   (setError(null) then setLoading(true)) in app/posts/page.tsx.
+   Verified: spinner shows for the whole load; "No posts yet" appears 0
+   times; cards render when data lands.
+   (b) PostCard user header (non-own, non-hideAvatar posts) now renders
+   `@<DPNS label without .dash suffix>` at text-[15px] font-semibold,
+   time after it, and the truncated identity ID (first8…last8) below in
+   text-2xs gray-400 mono — no more duplicated name; applies to detail,
+   feed and reply cards alike (feed authors are still the user_xxx
+   placeholders until profile/DPNS resolution is wired there).
+   (c) User's like on post FETDGwSLvVbZo33tgwJEwyGKUHaPGhvuct5154CmBAkW
+   confirmed on-chain: like doc 4bCu4Qvi2YiMH4UdUbvs9jiwzEmEufsG2NwCZ9s
+   AmYLf, owner ADtgYG2…xLFFB. tsc 0, 63/63, lint 0 errors/1 known
+   warning.
 2. Pending decisions: shielded-balance UI, DIP-17 platform-address features, biometric
    settings integration, react-hooks v6 cleanup pass.
 3. Known unverified: the -20.33B credit fee breakdown (F25).
