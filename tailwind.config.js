@@ -8,6 +8,14 @@ module.exports = {
     ],
     theme: {
         extend: {
+            // Font-size floor: raise the smallest sizes so body-level text is
+            // easy to read. '2xs' is provided for the few intentionally tiny
+            // spots (footer links, legal text) that should stay unnoticed.
+            fontSize: {
+                '2xs': ['0.6875rem', { lineHeight: '1rem' }],
+                xs: ['0.8125rem', { lineHeight: '1.125rem' }],
+                sm: ['0.9375rem', { lineHeight: '1.375rem' }],
+            },
             colors: {
                 evonext: {
                     50: '#f9f0ff',

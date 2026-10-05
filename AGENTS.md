@@ -255,6 +255,40 @@ history of this file (see log below for commit hashes) — keep only load-bearin
    completes. Fix: `isRestoringSession` state (true until restoreSession
    settles), exposed on the AuthContext; withAuth gates its redirect on it
    and shows the spinner while restoring. tsc 0, eslint 0, 63/63.
+9. **F26j — UI fixes batch (2026-10-05)**:
+   (a) **"Joined" date was `new Date()`** (always showed the current month) —
+   now uses the on-chain profile's $createdAt via IUser.joinedAt (user's
+   profile: September 2025, per the chain).
+   (b) **Profile page bottom padding** `pb-16 lg:pb-0` so the fixed mobile
+   footer (h-[45px], `lg:hidden`) doesn't cover content on small screens.
+   (c) **Avatar "Customize Your Avatar" dialog was clipped**: the dialog had
+   `max-h-[90vh] overflow-hidden` but no explicit height, so the inner
+   `flex h-full` row grew to ~4000px and was clipped with no scroll (preview
+   and buttons unreachable; verified via Playwright getBoundingClientRect).
+   Fix: `h-[90vh] flex flex-col` on Dialog.Content + `flex-1 min-h-0` on the
+   row; controls column scrolls. Also wired handleSaveAvatar (was a stub) to
+   persist the encoded avatar in localStorage
+   (`evonext_avatar_<identityId>`), restore on mount, and clear on Reset —
+   the active contract has NO avatar document type, so on-chain avatar
+   storage is not possible yet. Verified in browser: dialog 810px, preview
+   canvas renders, 32 sliders.
+   (d) **Font floor raised**: Tailwind fontSize overrides xs 12->13px,
+   sm 14->15px, new `text-2xs` (11px) for intentionally tiny text; button
+   `sm` size text-xs -> text-sm (Edit profile button 12 -> 15px); right
+   sidebar footer links moved to text-2xs.
+   (e) **Right sidebar Stats were hardcoded mock data** ("2 hours ago", 7-day
+   streak, 342 followers, 128 posts, 1234 likes, 12.3%). Now REAL, from the
+   Yappr social contract on testnet `EWR695MsqPUuW8EnTbYzD4KybNQD5n7CUDWydJY
+   Ng63F` (post/follow/like types; indices ownerAndTime, followers,
+   postOwnerLikes verified on-chain). Queries via get_documents, limit 100
+   (Dash Platform per-query cap) with '+' suffix when truncated; posting
+   streak computed from post $createdAt day-set; engagement = likes/posts
+   (shown as em-dash when truncated). NOTE: network guard is
+   `network === 'mainnet'` (NOT !== 'testnet') because NetworkProvider's
+   default case sets network to the raw host string on localhost/IPFS.
+   Verified live: Yappr user 9Hah95qN... = 100+ posts (last Jan 27), 2
+   followers, 100+ likes; user ADtgYG2... = 1 post (Jun 25), 2 likes,
+   0 followers. tsc 0, eslint 0, 63/63.
 2. Pending decisions: shielded-balance UI, DIP-17 platform-address features, biometric
    settings integration, react-hooks v6 cleanup pass.
 3. Known unverified: the -20.33B credit fee breakdown (F25).

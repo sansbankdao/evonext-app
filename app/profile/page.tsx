@@ -66,13 +66,31 @@ function ProfilePage() {
     const [location, setLocation] = useState('')
     const [website, setWebsite] = useState('')
     const [isSavingProfile, setIsSavingProfile] = useState(false)
+    const [profileJoinedAt, setProfileJoinedAt] = useState<Date | null>(null)
 
     // Avatar customization states
     const [avatarFeatures, setAvatarFeatures] = useState<AvatarFeaturesV2>(
         generateAvatarV2(user?.identityId || 'default')
     )
 
-    const joinDate = new Date() // TODO: Get from identity registration
+    // Joined date: the on-chain profile's creation time (IUser.joinedAt is
+    // set from the profile document's $createdAt). Falls back to now if the
+    // profile hasn't loaded.
+    const joinDate = profileJoinedAt || new Date()
+
+    // Restore a locally saved avatar customization, if any
+    useEffect(() => {
+        if (!user || typeof window === 'undefined') return
+
+        const saved = localStorage.getItem(`evonext_avatar_${user.identityId}`)
+        if (saved) {
+            try {
+                setAvatarFeatures(decodeAvatarFeaturesV2(saved))
+            } catch (error) {
+                console.error('Failed to restore saved avatar:', error)
+            }
+        }
+    }, [user])
 
     // Load the user's on-chain profile
     useEffect(() => {
@@ -90,6 +108,9 @@ function ProfilePage() {
                 setBio(profile?.bio || '')
                 setLocation(profile?.location || '')
                 setWebsite(profile?.website || '')
+                if (profile?.joinedAt) {
+                    setProfileJoinedAt(new Date(profile.joinedAt))
+                }
             } catch (error) {
                 console.error('Failed to load profile:', error)
             }
@@ -193,8 +214,14 @@ console.log('PROFILE CONTRACT ID', getContractId(network!))
     }
 
     const handleSaveAvatar = () => {
-        const encodedAvatar = encodeAvatarFeaturesV2(avatarFeatures)
-        // Save avatar data
+        // Persist locally: the active contract has no avatar document type,
+        // so on-chain avatar storage is not possible yet (the customization
+        // still applies across reloads via localStorage).
+        if (typeof window !== 'undefined' && user) {
+            const encodedAvatar = encodeAvatarFeaturesV2(avatarFeatures)
+            localStorage.setItem(`evonext_avatar_${user.identityId}`, encodedAvatar)
+        }
+
         toast.success('Avatar updated successfully')
         setIsEditingAvatar(false)
     }
@@ -207,6 +234,9 @@ console.log('PROFILE CONTRACT ID', getContractId(network!))
     const handleResetAvatar = () => {
         const defaultFeatures = generateAvatarV2(user?.identityId || 'default')
         setAvatarFeatures(defaultFeatures)
+        if (typeof window !== 'undefined' && user) {
+            localStorage.removeItem(`evonext_avatar_${user.identityId}`)
+        }
         toast.success('Avatar reset to default')
     }
 
@@ -229,7 +259,8 @@ console.log('PROFILE CONTRACT ID', getContractId(network!))
         <div className="min-h-screen flex">
             <Sidebar />
 
-            <main className="flex-1 border-x border-gray-200 dark:border-gray-800 h-screen overflow-y-scroll">
+            {/* pb clears the fixed mobile footer (h-[45px], hidden on lg+) */}
+            <main className="flex-1 border-x border-gray-200 dark:border-gray-800 h-screen overflow-y-scroll pb-16 lg:pb-0">
                 {/* Header */}
                 <header className="sticky top-0 z-30 bg-white/80 dark:bg-black/80 backdrop-blur-xl">
                     <div className="flex items-center gap-4 px-4 py-3">
@@ -477,8 +508,8 @@ console.log('PROFILE CONTRACT ID', getContractId(network!))
                 <Dialog.Portal>
                     <Dialog.Overlay className="fixed inset-0 bg-black/50 z-40" />
 
-                    <Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-5xl max-h-[90vh] bg-white dark:bg-black rounded-2xl shadow-xl z-40 overflow-hidden">
-                        <div className="flex h-full">
+                    <Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-5xl h-[90vh] bg-white dark:bg-black rounded-2xl shadow-xl z-40 overflow-hidden flex flex-col">
+                        <div className="flex flex-1 min-h-0">
                         {/* Fixed Preview Side */}
                             <div className="w-1/3 bg-gray-50 dark:bg-gray-950 p-8 flex flex-col items-center justify-center sticky top-0">
                                 <h3 className="text-lg font-semibold mb-6">Live Preview</h3>
