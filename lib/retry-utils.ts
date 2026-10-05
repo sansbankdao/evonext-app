@@ -102,7 +102,11 @@ export async function retryAsync<T>(
                 attempts: attempt
             }
         } catch (error) {
-            lastError = error instanceof Error ? error : new Error(String(error))
+            // WasmSdkError and similar are plain objects with a .message,
+            // not Error instances — String() would yield "[object Object]".
+            lastError = error instanceof Error
+                ? error
+                : new Error((error as any)?.message || String(error))
             console.warn(`Attempt ${attempt} failed:`, lastError.message)
 
             // Don't retry if this is the last attempt or if error is not retryable

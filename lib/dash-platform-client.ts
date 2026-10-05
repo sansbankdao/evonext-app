@@ -226,62 +226,37 @@ console.log('CONTRACT ID', this.contractId)
 
             console.log('Creating post with data:', postData)
 
-            // Generate entropy (32 bytes)
-            const entropy = new Uint8Array(32)
+            // Create the document through the state transition service, which
+            // assembles the 4.1.1 transition (Document instance + owner
+            // identity key matched to the WIF + IdentitySigner). The raw
+            // positional documentCreate call used here previously is gone in
+            // the 4.1.1 bindings and failed with "failed to read 'document'
+            // from options: Reflect.get called on non-object".
+            const { stateTransitionService } = await import('./services/state-transition-service')
 
-            crypto.getRandomValues(entropy)
+            const result = await stateTransitionService.createDocument(
+                this.contractId!,
+                'post',
+                identityId,
+                postData
+            )
 
-            const entropyHex = Array.from(entropy)
-                .map(b => b.toString(16).padStart(2, '0'))
-                .join('')
-
-            // Create the document using the SDK
-            let result
-console.log('DOCUMENT CREATE', {
-    contractId: this.contractId,
-    identityId,
-    postData,
-    entropyHex,
-    privateKeyWIF
-})
-            try {
-                result = await this.sdk.documentCreate(
-                    this.contractId,
-                    'post',
-                    identityId,
-                    JSON.stringify(postData),
-                    entropyHex,
-                    privateKeyWIF
-                )
-            } catch (sdkError) {
-                console.error('SDK documentCreate error:', sdkError)
-                console.error('Error type:', typeof sdkError)
-                console.error('Error details:', {
-                    message: sdkError instanceof Error ? sdkError.message : String(sdkError),
-                    stack: sdkError instanceof Error ? sdkError.stack : undefined,
-                    keys: sdkError && typeof sdkError === 'object' ? Object.keys(sdkError) : []
-                })
-
-                throw sdkError
+            if (!result.success) {
+                throw new Error(result.error || 'Post creation failed')
             }
 
             console.log('Post created successfully!')
-
-            // Check if we got a valid result
-            if (!result) {
-                console.error('WASM SDK returned undefined/null result')
-                throw new Error('Post creation failed - no result returned from SDK')
-            }
 
             // Invalidate posts cache since we created a new post
             this.postsCache.clear()
 
             // Convert result if needed
-            if (result && typeof result.toJSON === 'function') {
-                return result.toJSON()
+            const document = result.document
+            if (document && typeof document.toJSON === 'function') {
+                return document.toJSON()
             }
 
-            return result
+            return document
         } catch (error) {
             console.error('Failed to create post:', error)
             throw error

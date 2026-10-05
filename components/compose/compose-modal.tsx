@@ -96,7 +96,9 @@ export function ComposeModal() {
         } catch (error) {
             console.error('Failed to create post:', error)
 
-            const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+            const errorMessage = error instanceof Error
+                ? error.message
+                : ((error as any)?.message || 'Unknown error')
 
             if (errorMessage.includes('no available addresses') || errorMessage.includes('Missing response message')) {
                 toast.error('Dash Platform is temporarily unavailable. Please try again in a few moments.')
