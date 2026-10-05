@@ -100,24 +100,45 @@ class StateTransitionService {
             try {
                 const privKey = PrivateKeyWASM.fromWIF(privateKey)
                 const hashHex = privKey.getPublicKeyHash()
+                const hashB64 = Buffer.from(hashHex, 'hex').toString('base64')
                 let compressedHex: string | undefined
+                let compressedB64: string | undefined
                 try {
-                    compressedHex = Buffer.from(privKey.getPublicKey().bytes()).toString('hex')
+                    const compressed = privKey.getPublicKey().bytes()
+                    compressedHex = Buffer.from(compressed).toString('hex')
+                    compressedB64 = Buffer.from(compressed).toString('base64')
                 } catch {
                     /* type-0 matching unavailable */
                 }
+                // The raw IdentityPublicKey class exposes keyType as a STRING
+                // ("ECDSA_HASH160") plus keyTypeNumber; plain/JSON objects use
+                // the numeric `type`. Support both shapes. `data` is hex on the
+                // class getter and base64 in toJSON() — compare both.
+                const isHash160 = (k: any) =>
+                    k.keyType === 'ECDSA_HASH160' || k.keyTypeNumber === 2 || k.type === 2
+                const isSecp256k1 = (k: any) =>
+                    k.keyType === 'ECDSA_SECP256K1' || k.keyTypeNumber === 0 || k.type === 0
                 const matched = keys.find((k: any) => !k.disabledAt && (
-                    (k.type === 2 && k.data === hashHex) ||
-                    (k.type === 0 && compressedHex !== undefined && k.data === compressedHex)))
+                    (isHash160(k) && (k.data === hashHex || k.data === hashB64)) ||
+                    (isSecp256k1(k) && compressedHex !== undefined &&
+                        (k.data === compressedHex || k.data === compressedB64))))
                 if (matched) {
                     return matched
                 }
-            } catch {
-                /* fall through to the heuristic below */
+                console.warn('getSigningKey: no identity key matches the stored WIF')
+            } catch (e) {
+                console.warn('getSigningKey: WIF material match failed:', e)
             }
         }
+        // Fallback heuristics: document transitions require CRITICAL | HIGH,
+        // so prefer those; a MASTER key would be rejected anyway.
+        const isAuth = (k: any) => k.purpose === 'AUTHENTICATION' || k.purpose === 0
+        const isCritOrHigh = (k: any) =>
+            k.securityLevel === 'CRITICAL' || k.securityLevel === 1 ||
+            k.securityLevel === 'HIGH' || k.securityLevel === 2
         return (
-            keys.find((k: any) => k.purpose === 'AUTHENTICATION' && !k.disabledAt) ||
+            keys.find((k: any) => isAuth(k) && isCritOrHigh(k) && !k.disabledAt) ||
+            keys.find((k: any) => isAuth(k) && !k.disabledAt) ||
             keys[0]
         )
     }

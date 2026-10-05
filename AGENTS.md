@@ -220,6 +220,21 @@ history of this file (see log below for commit hashes) — keep only load-bearin
    `secure-storage.ts` beforeunload/pagehide handler clears stored keys on
    every page unload — suspected cause of the reported "disconnect on Edit"
    (unconfirmed; not reproduced).
+6. **F26g — getSigningKey material match was DEAD on the raw class; FIXED
+   (2026-10-05)**: user's profile edit failed with `Invalid public key security
+   level MASTER`. Root cause: the F26e match required `k.type === 2`, but the
+   raw IdentityPublicKey class exposes `keyType` ("ECDSA_HASH160") /
+   `keyTypeNumber` — `k.type` is UNDEFINED, so the match never fired and the
+   fallback picked the first AUTH key = MASTER (id 0). (The F26e Node
+   verification matched on `.data` only, which masked the dead condition.)
+   Fix: type predicate accepts keyType string / keyTypeNumber / numeric type;
+   `data` compared as hex AND base64 (class getter is hex, toJSON is base64);
+   fallback now prefers AUTH keys with CRITICAL|HIGH (MASTER is rejected for
+   documents anyway) and warns instead of failing silently. Verified against
+   the user's real identity keys (old condition matches nothing, old fallback
+   = MASTER id 0 — exactly the reported error) and end-to-end with a real WIF:
+   matched id 1 CRITICAL, create succeeded, probe cleaned up. tsc 0, eslint 0,
+   63/63.
 2. Pending decisions: shielded-balance UI, DIP-17 platform-address features, biometric
    settings integration, react-hooks v6 cleanup pass.
 3. Known unverified: the -20.33B credit fee breakdown (F25).
