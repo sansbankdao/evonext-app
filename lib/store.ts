@@ -1,10 +1,9 @@
 /* Import modules. */
 import { create } from 'zustand'
 import { IAppState } from './types'
-import { generateAvatarV2, encodeAvatarFeaturesV2 } from './avatar-generator-v2'
+import { encodeAvatarData, DEFAULT_AVATAR_STYLE } from './avatar-dicebear'
 
-const currentUserAvatarFeatures = generateAvatarV2('londynnlee')
-const currentUserAvatarData = encodeAvatarFeaturesV2(currentUserAvatarFeatures)
+const currentUserAvatarData = encodeAvatarData('londynnlee', DEFAULT_AVATAR_STYLE)
 
 export const useAppStore = create<IAppState>((set) => ({
     currentUser: {

@@ -17,17 +17,19 @@ import { Sidebar } from '@/components/layout/sidebar'
 import { RightSidebar } from '@/components/layout/right-sidebar'
 import { Button } from '@/components/ui/button'
 import { useAppStore } from '@/lib/store'
+import { useRouter } from 'next/navigation'
 import { formatNumber, cn } from '@/lib/utils'
 import * as Dialog from '@radix-ui/react-dialog'
-import * as Slider from '@radix-ui/react-slider'
 import {
-    AvatarFeaturesV2,
-    AVATAR_PROPERTIES,
-    generateAvatarV2,
-    encodeAvatarFeaturesV2,
-    decodeAvatarFeaturesV2,
-    getAvatarDataURL
-} from '@/lib/avatar-generator-v2'
+    AvatarConfig,
+    DICEBEAR_STYLES,
+    DICEBEAR_STYLE_LABELS,
+    DEFAULT_AVATAR_STYLE,
+    generateAvatarDataUri,
+    generateRandomSeed,
+    encodeAvatarData,
+    parseAvatarConfig
+} from '@/lib/avatar-dicebear'
 import { AvatarCanvas } from '@/components/ui/avatar-canvas'
 import toast from 'react-hot-toast'
 import { withAuth, useAuth } from '@/contexts/auth-context'
@@ -58,6 +60,7 @@ function ProfilePage() {
     const [isEditingAvatar, setIsEditingAvatar] = useState(false)
     const [userPosts, setUserPosts] = useState<any[]>([])
     const [isLoadingPosts, setIsLoadingPosts] = useState(true)
+    const router = useRouter()
 
     // Profile edit states
     const [displayName, setDisplayName] = useState('')
@@ -67,9 +70,9 @@ function ProfilePage() {
     const [isSavingProfile, setIsSavingProfile] = useState(false)
     const [profileJoinedAt, setProfileJoinedAt] = useState<Date | null>(null)
 
-    // Avatar customization states
-    const [avatarFeatures, setAvatarFeatures] = useState<AvatarFeaturesV2>(
-        generateAvatarV2(user?.identityId || 'default')
+    // Avatar customization states (DiceBear style + seed, Yappr encoding)
+    const [avatarConfig, setAvatarConfig] = useState<AvatarConfig>(
+        { style: DEFAULT_AVATAR_STYLE, seed: user?.identityId || 'default' }
     )
 
     // Joined date: the on-chain profile's creation time (IUser.joinedAt is
@@ -83,10 +86,11 @@ function ProfilePage() {
 
         const saved = localStorage.getItem(`evonext_avatar_${user.identityId}`)
         if (saved) {
-            try {
-                setAvatarFeatures(decodeAvatarFeaturesV2(saved))
-            } catch (error) {
-                console.error('Failed to restore saved avatar:', error)
+            const config = parseAvatarConfig(saved)
+            if (config) {
+                setAvatarConfig(config)
+            } else {
+                console.error('Failed to restore saved avatar: unrecognized encoding')
             }
         }
     }, [user])
@@ -217,7 +221,7 @@ console.log('PROFILE CONTRACT ID', getContractId(network!))
         // so on-chain avatar storage is not possible yet (the customization
         // still applies across reloads via localStorage).
         if (typeof window !== 'undefined' && user) {
-            const encodedAvatar = encodeAvatarFeaturesV2(avatarFeatures)
+            const encodedAvatar = encodeAvatarData(avatarConfig.seed, avatarConfig.style)
             localStorage.setItem(`evonext_avatar_${user.identityId}`, encodedAvatar)
         }
 
@@ -225,34 +229,35 @@ console.log('PROFILE CONTRACT ID', getContractId(network!))
         setIsEditingAvatar(false)
     }
 
+    // Share Profile: copy the profile link to the clipboard
+    const handleShareProfile = async () => {
+        const profileUrl = `${window.location.origin}/profile`
+
+        try {
+            await navigator.clipboard.writeText(profileUrl)
+            toast.success('Profile link copied to clipboard')
+        } catch (error) {
+            console.error('Failed to copy profile link:', error)
+            toast.error('Failed to copy profile link')
+        }
+    }
+
+    // Account Settings: open the settings page
+    const handleAccountSettings = () => {
+        router.push('/settings')
+    }
+
     const handleRandomizeAvatar = () => {
-        const randomFeatures = generateAvatarV2(Math.random().toString())
-        setAvatarFeatures(randomFeatures)
+        setAvatarConfig(prev => ({ ...prev, seed: generateRandomSeed() }))
     }
 
     const handleResetAvatar = () => {
-        const defaultFeatures = generateAvatarV2(user?.identityId || 'default')
-        setAvatarFeatures(defaultFeatures)
+        setAvatarConfig({ style: DEFAULT_AVATAR_STYLE, seed: user?.identityId || 'default' })
         if (typeof window !== 'undefined' && user) {
             localStorage.removeItem(`evonext_avatar_${user.identityId}`)
         }
         toast.success('Avatar reset to default')
     }
-
-    const updateAvatarFeature = (key: keyof AvatarFeaturesV2, value: number) => {
-        setAvatarFeatures(prev => ({ ...prev, [key]: value }))
-    }
-
-    // Group properties by category
-    const propertiesByCategory = Object.entries(AVATAR_PROPERTIES).reduce((acc, [key, config]) => {
-        if (!acc[config.category]) {
-            acc[config.category] = []
-        }
-
-        acc[config.category].push({ key: key as keyof AvatarFeaturesV2, ...config })
-
-        return acc
-    }, {} as Record<string, Array<{ key: keyof AvatarFeaturesV2 } & typeof AVATAR_PROPERTIES[keyof AvatarFeaturesV2]>>)
 
     return (
         <div className="min-h-screen flex">
@@ -288,7 +293,7 @@ console.log('PROFILE CONTRACT ID', getContractId(network!))
                         <div className="relative">
                             <div className="h-32 w-32 rounded-full bg-white dark:bg-black p-1">
                                 <div className="h-full w-full rounded-full overflow-hidden bg-gray-100 relative group">
-                                    <AvatarCanvas features={avatarFeatures} size={128} />
+                                    <AvatarCanvas seed={avatarConfig.seed} style={avatarConfig.style} size={128} />
 
                                     <button
                                         onClick={() => setIsEditingAvatar(true)}
@@ -464,7 +469,7 @@ console.log('PROFILE CONTRACT ID', getContractId(network!))
                             className="w-full p-4 rounded-lg border border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-950 transition-colors flex items-center gap-3"
                         >
                             <div className="h-10 w-10 rounded-full overflow-hidden bg-gray-100">
-                                <AvatarCanvas features={avatarFeatures} size={40} />
+                                <AvatarCanvas seed={avatarConfig.seed} style={avatarConfig.style} size={40} />
                             </div>
 
                             <div className="flex-1 text-left">
@@ -475,7 +480,10 @@ console.log('PROFILE CONTRACT ID', getContractId(network!))
                             <PencilIcon className="h-5 w-5 text-gray-400" />
                         </button>
 
-                        <button className="w-full p-4 rounded-lg border border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-950 transition-colors flex items-center gap-3">
+                        <button
+                            onClick={handleShareProfile}
+                            className="w-full p-4 rounded-lg border border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-950 transition-colors flex items-center gap-3"
+                        >
                             <div className="h-10 w-10 rounded-lg bg-evonext-100 dark:bg-evonext-950 flex items-center justify-center">
                                 <LinkIcon className="h-5 w-5 text-evonext-500" />
                             </div>
@@ -486,7 +494,10 @@ console.log('PROFILE CONTRACT ID', getContractId(network!))
                             </div>
                         </button>
 
-                        <button className="w-full p-4 rounded-lg border border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-950 transition-colors flex items-center gap-3">
+                        <button
+                            onClick={handleAccountSettings}
+                            className="w-full p-4 rounded-lg border border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-950 transition-colors flex items-center gap-3"
+                        >
                             <div className="h-10 w-10 rounded-lg bg-gray-100 dark:bg-gray-900 flex items-center justify-center">
                                 <Cog6ToothIcon className="h-5 w-5 text-gray-600" />
                             </div>
@@ -514,7 +525,7 @@ console.log('PROFILE CONTRACT ID', getContractId(network!))
                                 <h3 className="text-lg font-semibold mb-6">Live Preview</h3>
 
                                 <div className="w-56 h-56 rounded-full overflow-hidden bg-white shadow-lg mb-6">
-                                    <AvatarCanvas features={avatarFeatures} size={224} />
+                                    <AvatarCanvas seed={avatarConfig.seed} style={avatarConfig.style} size={224} />
                                 </div>
 
                                 <p className="text-sm text-gray-500 mb-4">Your avatar updates in real-time</p>
@@ -550,56 +561,73 @@ console.log('PROFILE CONTRACT ID', getContractId(network!))
                                 </div>
 
                                 <div className="space-y-8">
-                                    {Object.entries(propertiesByCategory).map(([category, properties]) => (
-                                        <div key={category} className="bg-gray-50 dark:bg-gray-950 rounded-lg p-4">
-                                            <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
-                                                {category}
-                                                <span className="text-xs text-gray-500">({properties.length} options)</span>
-                                            </h3>
+                                    {/* Style Selection (same approach as the Yappr repo) */}
+                                    <div>
+                                        <label className="text-sm font-medium mb-3 block">Style</label>
 
-                                            <div className="space-y-4">
-                                                {properties.map(({ key, label, min, max, step }) => {
-                                                    const defaultValue = generateAvatarV2(user?.identityId || 'default')[key]
-                                                    const isModified = avatarFeatures[key] !== defaultValue
+                                        <div className="grid grid-cols-4 sm:grid-cols-5 gap-2">
+                                            {DICEBEAR_STYLES.map((s) => {
+                                                const isSelected = avatarConfig.style === s
+                                                const stylePreview = generateAvatarDataUri(s, avatarConfig.seed || 'preview')
 
-                                                    return (
-                                                        <div key={key} className={cn(
-                                                            "p-3 rounded-lg transition-colors",
-                                                            isModified && "bg-evonext-50 dark:bg-evonext-950/20"
-                                                        )}>
-                                                            <div className="flex items-center justify-between mb-2">
-                                                                <label className="text-sm font-medium flex items-center gap-2">
-                                                                    {label}
-                                                                    {isModified && (
-                                                                        <span className="text-xs text-evonext-500">• modified</span>
-                                                                    )}
-                                                                </label>
+                                                return (
+                                                    <button
+                                                        key={s}
+                                                        onClick={() => setAvatarConfig(prev => ({ ...prev, style: s }))}
+                                                        className={`relative p-2 rounded-lg border-2 transition-all ${
+                                                            isSelected
+                                                                ? 'border-evonext-500 bg-evonext-50 dark:bg-evonext-950/20'
+                                                                : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                                                        }`}
+                                                        title={DICEBEAR_STYLE_LABELS[s]}
+                                                    >
+                                                        {/* eslint-disable-next-line @next/next/no-img-element -- local data URI */}
+                                                        <img
+                                                            src={stylePreview}
+                                                            alt={DICEBEAR_STYLE_LABELS[s]}
+                                                            width={48}
+                                                            height={48}
+                                                            className="w-full aspect-square rounded"
+                                                        />
 
-                                                                <span className="text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 px-2 py-1 rounded">
-                                                                    {avatarFeatures[key]}
-                                                                </span>
-                                                            </div>
-
-                                                            <Slider.Root
-                                                                className="relative flex items-center select-none touch-none w-full h-5"
-                                                                value={[avatarFeatures[key]]}
-                                                                onValueChange={([value]) => updateAvatarFeature(key, value)}
-                                                                max={max}
-                                                                min={min}
-                                                                step={step}
-                                                            >
-                                                                <Slider.Track className="bg-gray-200 dark:bg-gray-800 relative grow rounded-full h-2">
-                                                                    <Slider.Range className="absolute bg-evonext-500 rounded-full h-full" />
-                                                                </Slider.Track>
-
-                                                                <Slider.Thumb className="block w-8 h-8 bg-white dark:bg-gray-200 shadow-lg rounded-full hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-evonext-500 cursor-grab active:cursor-grabbing" />
-                                                            </Slider.Root>
-                                                        </div>
-                                                    )
-                                                })}
-                                            </div>
+                                                        <p className="text-2xs text-center mt-1 truncate">{DICEBEAR_STYLE_LABELS[s]}</p>
+                                                    </button>
+                                                )
+                                            })}
                                         </div>
-                                    ))}
+                                    </div>
+
+                                    {/* Seed Input */}
+                                    <div>
+                                        <label className="text-sm font-medium mb-2 block">Custom Seed</label>
+
+                                        <div className="flex gap-2">
+                                            <input
+                                                type="text"
+                                                value={avatarConfig.seed}
+                                                onChange={(e) => setAvatarConfig(prev => ({ ...prev, seed: e.target.value }))}
+                                                placeholder="Enter custom seed..."
+                                                className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-transparent focus:outline-none focus:ring-2 focus:ring-evonext-500"
+                                                maxLength={100}
+                                            />
+
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={handleRandomizeAvatar}
+                                                className="px-3"
+                                                title="Generate random seed"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
+                                                </svg>
+                                            </Button>
+                                        </div>
+
+                                        <p className="text-xs text-gray-500 mt-1">
+                                            Change the seed to generate a unique avatar
+                                        </p>
+                                    </div>
                                 </div>
 
                                 <div className="flex gap-3 mt-8 pt-6 border-t border-gray-200 dark:border-gray-800">

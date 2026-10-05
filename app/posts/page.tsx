@@ -13,7 +13,6 @@ import { getInitials } from '@/lib/utils'
 import * as Tabs from '@radix-ui/react-tabs'
 import { withAuth, useAuth } from '@/contexts/auth-context'
 import { AvatarCanvas } from '@/components/ui/avatar-canvas'
-import { generateAvatarV2 } from '@/lib/avatar-generator-v2'
 import { LoadingState, useAsyncState } from '@/components/ui/loading-state'
 import ErrorBoundary from '@/components/error-boundary'
 import { getDashPlatformClient } from '@/lib/dash-platform-client'
@@ -52,7 +51,7 @@ function FeedPage() {
     }, [])
 
     // Generate avatar based on identity ID (only after hydration)
-    const avatarFeatures = user && isHydrated ? generateAvatarV2(user.identityId) : null
+    const avatarSeed = user && isHydrated ? user.identityId : null
 
     // Load posts function - using real WASM SDK with updated version
     const loadPosts = useCallback(async (forceRefresh: boolean = false) => {
@@ -259,8 +258,8 @@ console.log('***LOADING POSTS-CREATE-REMOVE')
                             {activeTab !== 'your-posts' && (
                                 <div className="h-12 w-12 rounded-full overflow-hidden bg-gray-100">
                                     {isHydrated ? (
-                                        avatarFeatures ? (
-                                            <AvatarCanvas features={avatarFeatures} size={48} />
+                                        avatarSeed ? (
+                                            <AvatarCanvas seed={avatarSeed} size={48} />
                                         ) : user ? (
                                             <Avatar>
                                                 <AvatarFallback>

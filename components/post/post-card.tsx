@@ -28,7 +28,7 @@ import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import * as Tooltip from '@radix-ui/react-tooltip'
 import toast from 'react-hot-toast'
 import { AvatarCanvas } from '@/components/ui/avatar-canvas'
-import { decodeAvatarFeaturesV2, generateAvatarV2 } from '@/lib/avatar-generator-v2'
+import { parseAvatarConfig, DEFAULT_AVATAR_STYLE } from '@/lib/avatar-dicebear'
 import { LikesModal } from './likes-modal'
 
 interface PostCardProps {
@@ -47,9 +47,7 @@ export function PostCard({ post, hideAvatar = false, isOwnPost = false }: PostCa
     const [showLikesModal, setShowLikesModal] = useState(false)
     const { setReplyingTo, setComposeOpen } = useAppStore()
 
-    const avatarFeatures = post.author.avatarData
-        ? decodeAvatarFeaturesV2(post.author.avatarData)
-        : generateAvatarV2(post.author.username)
+    const avatarConfig = parseAvatarConfig(post.author.avatarData) || { style: DEFAULT_AVATAR_STYLE, seed: post.author.username }
 
     const handleLike = (e: React.MouseEvent) => {
 console.log('HANDLE LIKE')
@@ -122,7 +120,7 @@ console.log('HANDLE SHARE')
                                 className="w-full h-full object-cover"
                             />
                         ) : (
-                            <AvatarCanvas features={avatarFeatures} size={48} />
+                            <AvatarCanvas seed={avatarConfig.seed} style={avatarConfig.style} size={48} />
                         )}
                     </div>
                 )}

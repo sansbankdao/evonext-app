@@ -17,7 +17,6 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { withAuth, useAuth } from '@/contexts/auth-context'
 import { AvatarCanvas } from '@/components/ui/avatar-canvas'
-import { generateAvatarV2 } from '@/lib/avatar-generator-v2'
 import { formatDistanceToNow } from 'date-fns'
 
 interface Message {
@@ -209,7 +208,7 @@ function MessagesPage() {
                                     }`}
                                 >
                                     <div className="h-12 w-12 rounded-full overflow-hidden bg-gray-100 flex-shrink-0">
-                                        <AvatarCanvas features={generateAvatarV2(conversation.participantId)} size={48} />
+                                        <AvatarCanvas seed={conversation.participantId} size={48} />
                                     </div>
 
                                     <div className="flex-1 text-left">
@@ -249,7 +248,7 @@ function MessagesPage() {
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-3">
                                     <div className="h-10 w-10 rounded-full overflow-hidden bg-gray-100">
-                                        <AvatarCanvas features={generateAvatarV2(selectedConversation.participantId)} size={40} />
+                                        <AvatarCanvas seed={selectedConversation.participantId} size={40} />
                                     </div>
 
                                     <div>

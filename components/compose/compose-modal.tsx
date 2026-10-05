@@ -12,7 +12,6 @@ import { motion, AnimatePresence } from 'framer-motion'
 import toast from 'react-hot-toast'
 import { useAuth } from '@/contexts/auth-context'
 import { AvatarCanvas } from '@/components/ui/avatar-canvas'
-import { generateAvatarV2 } from '@/lib/avatar-generator-v2'
 import { useNetwork } from '@/contexts/network-context'
 import {
     EVONEXT_CONTRACT_ID_MAINNET,
@@ -44,7 +43,7 @@ export function ComposeModal() {
     const textareaRef = useRef<HTMLTextAreaElement>(null)
 
     // Generate avatar based on identity ID
-    const avatarFeatures = user ? generateAvatarV2(user.identityId) : null
+    const avatarSeed = user ? user.identityId : null
 
     const characterLimit = 500
     const remainingCharacters = characterLimit - content.length
@@ -184,8 +183,8 @@ export function ComposeModal() {
 
                                     <div className="flex gap-3">
                                         <div className="h-12 w-12 rounded-full overflow-hidden bg-gray-100">
-                                            {avatarFeatures ? (
-                                                <AvatarCanvas features={avatarFeatures} size={48} />
+                                            {avatarSeed ? (
+                                                <AvatarCanvas seed={avatarSeed} size={48} />
                                             ) : (
                                                 <Avatar>
                                                     <AvatarFallback>

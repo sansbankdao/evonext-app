@@ -15,13 +15,85 @@ import { useNetwork } from '@/contexts/network-context'
 import {
     EVONEXT_CONTRACT_ID_MAINNET,
     EVONEXT_CONTRACT_ID_TESTNET,
+    YAPPR_CONTRACT_ID_TESTNET,
 } from '@/lib/constants'
 import { getWasmSdk } from '@/lib/services/wasm-sdk-service'
 import { get_documents } from '@/lib/dash-wasm/compat'
 
-// The Yappr social contract on testnet — the live dataset for real stats
-// (posts, likes, follows all live here).
-const YAPP_CONTRACT_ID_TESTNET = 'EWR695MsqPUuW8EnTbYzD4KybNQD5n7CUDWydJYNg63F'
+// Network-wide stats for the Yappr social contract. The contract has no
+// countable indexes, so totals are computed by paginating every document
+// (100 per query) and cached in localStorage to avoid rescanning often.
+interface NetworkStats {
+    totalPosts: number
+    totalLikes: number
+    totalFollows: number
+    totalReplies: number
+    uniquePosters: number
+    posts24h: number
+    lastPostAt: number | null
+}
+
+const NETWORK_STATS_CACHE_KEY = 'evonext_network_stats_testnet'
+const NETWORK_STATS_TTL_MS = 60 * 60 * 1000 // 1 hour
+
+// Count all documents of a type by paginating (orderBy $id asc + startAfter).
+// Optionally accumulates per-document data via onDocs (called per page).
+async function countAllDocuments(
+    contractId: string,
+    documentType: string,
+    onDocs?: (docs: any[]) => void,
+): Promise<{ total: number; complete: boolean }> {
+    let total = 0
+    let after: string | undefined
+
+    for (let page = 0; page < 100; page++) {
+        const { docs } = await fetchDocs(
+            contractId, documentType, null,
+            [['$id', 'asc']], after,
+        )
+
+        if (onDocs) onDocs(docs)
+
+        total += docs.length
+
+        if (docs.length < 100) return { total, complete: true }
+
+        after = String(docs[docs.length - 1].$id)
+    }
+
+    return { total, complete: false }
+}
+
+async function loadNetworkStats(contractId: string): Promise<NetworkStats> {
+    const owners = new Set<string>()
+    let posts24h = 0
+    let lastPostAt: number | null = null
+    const dayAgo = Date.now() - 24 * 60 * 60 * 1000
+
+    const [posts, likes, follows, replies] = await Promise.all([
+        countAllDocuments(contractId, 'post', (docs) => {
+            for (const d of docs) {
+                owners.add(String(d.$ownerId))
+                const t = Number(d.$createdAt)
+                if (t >= dayAgo) posts24h += 1
+                if (lastPostAt === null || t > lastPostAt) lastPostAt = t
+            }
+        }),
+        countAllDocuments(contractId, 'like'),
+        countAllDocuments(contractId, 'follow'),
+        countAllDocuments(contractId, 'reply'),
+    ])
+
+    return {
+        totalPosts: posts.total,
+        totalLikes: likes.total,
+        totalFollows: follows.total,
+        totalReplies: replies.total,
+        uniquePosters: owners.size,
+        posts24h,
+        lastPostAt,
+    }
+}
 
 interface YappStats {
     totalPosts: number
@@ -52,10 +124,11 @@ async function fetchDocs(
     documentType: string,
     where: unknown[][] | null,
     orderBy: [string, 'asc' | 'desc'][] | null,
+    startAfter?: string,
 ): Promise<{ docs: any[]; truncated: boolean }> {
     const sdk = await getWasmSdk()
     const response = await get_documents(
-        sdk, contractId, documentType, where, orderBy, 100, null, null
+        sdk, contractId, documentType, where, orderBy, 100, startAfter || null, null
     )
     let docs: any[] = []
     if (Array.isArray(response)) {
@@ -112,6 +185,63 @@ export function RightSidebar() {
     const [stats, setStats] = useState<YappStats | null>(null)
     const [statsLoading, setStatsLoading] = useState(false)
 
+    // Network-wide stats (paginated counts, cached for an hour).
+    const [statsTab, setStatsTab] = useState<'my' | 'network'>('my')
+    const [networkStats, setNetworkStats] = useState<NetworkStats | null>(null)
+    const [networkStatsLoading, setNetworkStatsLoading] = useState(false)
+    const [networkStatsStale, setNetworkStatsStale] = useState(false)
+
+    useEffect(() => {
+        let cancelled = false
+
+        const refresh = async () => {
+            setNetworkStatsLoading(true)
+
+            try {
+                const data = await loadNetworkStats(YAPPR_CONTRACT_ID_TESTNET)
+
+                if (cancelled) return
+
+                setNetworkStats(data)
+                setNetworkStatsStale(false)
+                localStorage.setItem(
+                    NETWORK_STATS_CACHE_KEY,
+                    JSON.stringify({ ts: Date.now(), data })
+                )
+            } catch (error) {
+                console.error('Failed to load network stats:', error)
+            } finally {
+                if (!cancelled) setNetworkStatsLoading(false)
+            }
+        }
+
+        // The app convention: anything that is not 'mainnet' runs against
+        // testnet (localhost/IPFS hosts resolve to a raw host string).
+        if (network === 'mainnet') return
+
+        // Serve from cache when fresh; refresh in the background when stale.
+        try {
+            const raw = localStorage.getItem(NETWORK_STATS_CACHE_KEY)
+
+            if (raw) {
+                const { ts, data } = JSON.parse(raw)
+                setNetworkStats(data)
+
+                if (Date.now() - ts > NETWORK_STATS_TTL_MS) {
+                    setNetworkStatsStale(true)
+                    refresh()
+                }
+
+                return
+            }
+        } catch {
+            /* corrupt cache entry — fall through to a full refresh */
+        }
+
+        refresh()
+        return () => { cancelled = true }
+    }, [network])
+
     useEffect(() => {
         let cancelled = false
 
@@ -129,17 +259,17 @@ export function RightSidebar() {
                 const me = user.identityId
 
                 const posts = await fetchDocs(
-                    YAPP_CONTRACT_ID_TESTNET, 'post',
+                    YAPPR_CONTRACT_ID_TESTNET, 'post',
                     [['$ownerId', '==', me]],
                     [['$createdAt', 'desc']],
                 )
                 const followers = await fetchDocs(
-                    YAPP_CONTRACT_ID_TESTNET, 'follow',
+                    YAPPR_CONTRACT_ID_TESTNET, 'follow',
                     [['followingId', '==', me]],
                     null,
                 )
                 const likes = await fetchDocs(
-                    YAPP_CONTRACT_ID_TESTNET, 'like',
+                    YAPPR_CONTRACT_ID_TESTNET, 'like',
                     [['postOwnerId', '==', me]],
                     null,
                 )
@@ -216,7 +346,37 @@ export function RightSidebar() {
                         Stats
                     </h2>
 
-                    <div className="px-4 py-3 space-y-3">
+                    {/* My Stats / Network Stats tabs */}
+                    <div className="flex border-b border-gray-200 dark:border-gray-700">
+                        <button
+                            onClick={() => setStatsTab('my')}
+                            className={`flex-1 py-2 px-4 text-sm font-medium transition-colors relative ${
+                                statsTab === 'my'
+                                    ? 'text-evonext-600 dark:text-evonext-400'
+                                    : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                            }`}
+                        >
+                            My Stats
+                            {statsTab === 'my' && (
+                                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-evonext-500" />
+                            )}
+                        </button>
+                        <button
+                            onClick={() => setStatsTab('network')}
+                            className={`flex-1 py-2 px-4 text-sm font-medium transition-colors relative ${
+                                statsTab === 'network'
+                                    ? 'text-evonext-600 dark:text-evonext-400'
+                                    : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                            }`}
+                        >
+                            Network Stats
+                            {statsTab === 'network' && (
+                                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-evonext-500" />
+                            )}
+                        </button>
+                    </div>
+
+                    {statsTab === 'my' ? (<div className="px-4 py-3 space-y-3">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
                                 <ClockIcon className="h-4 w-4 text-gray-500" />
@@ -290,7 +450,65 @@ export function RightSidebar() {
                         <p className="text-2xs text-gray-400">
                             Live from the Yappr social contract (testnet). Counts capped at 100 per query.
                         </p>
-                    </div>
+                        </div>
+                    ) : (
+                        <div className="px-4 py-3 space-y-3">
+                            <div className="flex items-center justify-between">
+                                <p className="text-sm text-gray-600 dark:text-gray-400">Total Posts</p>
+                                <p className="text-sm font-medium">
+                                    {networkStats ? formatNumber(networkStats.totalPosts) : (networkStatsLoading ? '...' : '—')}
+                                </p>
+                            </div>
+
+                            <div className="flex items-center justify-between">
+                                <p className="text-sm text-gray-600 dark:text-gray-400">Posts (24h)</p>
+                                <p className="text-sm font-medium">
+                                    {networkStats ? formatNumber(networkStats.posts24h) : (networkStatsLoading ? '...' : '—')}
+                                </p>
+                            </div>
+
+                            <div className="flex items-center justify-between">
+                                <p className="text-sm text-gray-600 dark:text-gray-400">Posters</p>
+                                <p className="text-sm font-medium">
+                                    {networkStats ? formatNumber(networkStats.uniquePosters) : (networkStatsLoading ? '...' : '—')}
+                                </p>
+                            </div>
+
+                            <div className="border-t border-gray-200 dark:border-gray-800 pt-3 space-y-2">
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-gray-600 dark:text-gray-400">Total Likes</span>
+                                    <span className="font-medium">
+                                        {networkStats ? formatNumber(networkStats.totalLikes) : (networkStatsLoading ? '...' : '—')}
+                                    </span>
+                                </div>
+
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-gray-600 dark:text-gray-400">Total Follows</span>
+                                    <span className="font-medium">
+                                        {networkStats ? formatNumber(networkStats.totalFollows) : (networkStatsLoading ? '...' : '—')}
+                                    </span>
+                                </div>
+
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-gray-600 dark:text-gray-400">Total Replies</span>
+                                    <span className="font-medium">
+                                        {networkStats ? formatNumber(networkStats.totalReplies) : (networkStatsLoading ? '...' : '—')}
+                                    </span>
+                                </div>
+
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-gray-600 dark:text-gray-400">Last Post</span>
+                                    <span className="font-medium">
+                                        {networkStats?.lastPostAt ? formatTime(new Date(networkStats.lastPostAt)) : (networkStatsLoading ? '...' : '—')}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <p className="text-2xs text-gray-400">
+                                Live from the Yappr social contract (testnet){networkStatsStale ? ' — refreshing…' : ''}: {YAPPR_CONTRACT_ID_TESTNET.slice(0, 6)}…{YAPPR_CONTRACT_ID_TESTNET.slice(-6)}
+                            </p>
+                        </div>
+                    )}
                 </div>
             )}
 

@@ -45,7 +45,6 @@ import { useAppStore } from '@/lib/store'
 import { getInitials } from '@/lib/utils'
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import { AvatarCanvas } from '@/components/ui/avatar-canvas'
-import { generateAvatarV2, decodeAvatarFeaturesV2 } from '@/lib/avatar-generator-v2'
 import { useAuth } from '@/contexts/auth-context'
 
 const getNavigation = (isLoggedIn: boolean) => {
@@ -85,7 +84,7 @@ export function Sidebar() {
     const navigation = getNavigation(isHydrated ? !!user : false)
 
     // Generate avatar based on identity ID
-    const avatarFeatures = user && isHydrated ? generateAvatarV2(user.identityId) : null
+    const avatarSeed = user && isHydrated ? user.identityId : null
 
     // Format identity ID for display (show first 6 and last 4 chars)
     const formatIdentityId = (id: string) => {
@@ -176,8 +175,8 @@ export function Sidebar() {
                         <DropdownMenu.Trigger asChild>
                             <button className="flex items-center gap-3 p-3 rounded-full hover:bg-gray-100 dark:hover:bg-gray-900 transition-colors w-full">
                                 <div className="h-10 w-10 rounded-full overflow-hidden bg-gray-100">
-                                    {avatarFeatures ? (
-                                        <AvatarCanvas features={avatarFeatures} size={40} />
+                                    {avatarSeed ? (
+                                        <AvatarCanvas seed={avatarSeed} size={40} />
                                     ) : (
                                         <Avatar>
                                             <AvatarFallback>

@@ -13,7 +13,6 @@ import ErrorBoundary from '@/components/error-boundary'
 import { followService, dpnsService, profileService } from '@/lib/services'
 import { cacheManager } from '@/lib/cache-manager'
 import { AvatarCanvas } from '@/components/ui/avatar-canvas'
-import { generateAvatarV2 } from '@/lib/avatar-generator-v2'
 import { Button } from '@/components/ui/button'
 import { formatNumber } from '@/lib/utils'
 import { Input } from '@/components/ui/input'
@@ -434,7 +433,7 @@ function FollowingPage() {
                                             >
                                                 <div className="flex items-start gap-3">
                                                     <div className="h-12 w-12 rounded-full overflow-hidden bg-gray-100">
-                                                        <AvatarCanvas features={generateAvatarV2(searchUser.id)} size={48} />
+                                                        <AvatarCanvas seed={searchUser.id} size={48} />
                                                     </div>
 
                                                     <div className="flex-1">
@@ -531,7 +530,7 @@ function FollowingPage() {
                                         >
                                             <div className="flex items-start gap-3">
                                                 <div className="h-12 w-12 rounded-full overflow-hidden bg-gray-100">
-                                                    <AvatarCanvas features={generateAvatarV2(followingUser.id)} size={48} />
+                                                    <AvatarCanvas seed={followingUser.id} size={48} />
                                                 </div>
 
                                                 <div className="flex-1">

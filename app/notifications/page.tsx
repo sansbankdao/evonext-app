@@ -17,7 +17,6 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { withAuth, useAuth } from '@/contexts/auth-context'
 import { AvatarCanvas } from '@/components/ui/avatar-canvas'
-import { generateAvatarV2 } from '@/lib/avatar-generator-v2'
 import Link from 'next/link'
 
 type NotificationType = 'like' | 'remix' | 'reply' | 'follow' | 'mention'
@@ -205,7 +204,7 @@ function NotificationsPage() {
                                     <div className="flex-1">
                                         <div className="flex items-start gap-3">
                                             <div className="h-10 w-10 rounded-full overflow-hidden bg-gray-100">
-                                                <AvatarCanvas features={generateAvatarV2(notification.actorId)} size={40} />
+                                                <AvatarCanvas seed={notification.actorId} size={40} />
                                             </div>
 
                                             <div className="flex-1">

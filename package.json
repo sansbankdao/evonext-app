@@ -20,6 +20,8 @@
   },
   "dependencies": {
     "@dashevo/dashcore-lib": "0.25.0",
+    "@dicebear/collection": "9.2.4",
+    "@dicebear/core": "9.2.4",
     "@headlessui/react": "2.2.8",
     "@heroicons/react": "2.1.1",
     "@nexajs/crypto": "24.9.5",

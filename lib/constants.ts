@@ -42,7 +42,7 @@ export const EVONEXT_CONTRACT_ID_TESTNET = '465jdPpFCZefhb4g2k2FpCcrKpPYhJJskDqb
 
 /* YAPPR Contract IDs */
 export const YAPPR_CONTRACT_ID_MAINNET = '' // Mainnet
-export const YAPPR_CONTRACT_ID_TESTNET = 'AyWK6nDVfb8d1ZmkM5MmZZrThbUyWyso1aMeGuuVSfxf' // Testnet
+export const YAPPR_CONTRACT_ID_TESTNET = 'EWR695MsqPUuW8EnTbYzD4KybNQD5n7CUDWydJYNg63F' // Testnet (latest, per yap.pr/about)
 
 // Network configuration
 export const DEFAULT_NETWORK = 'testnet'
