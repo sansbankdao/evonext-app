@@ -42,7 +42,10 @@ function FeedPage() {
     const [activeTab, setActiveTab] = useState('for-you')
     const [isHydrated, setIsHydrated] = useState(false)
     const { setComposeOpen } = useAppStore()
-    const postsState = useAsyncState<any[]>([])
+    // Start in the loading state so the "No posts yet" empty state can never
+    // flash before the first load resolves (useAsyncState defaults to
+    // loading:false, which made the empty state render during the gap).
+    const postsState = useAsyncState<any[]>([], true)
 
     // Prevent hydration mismatches
     useEffect(() => {
@@ -57,9 +60,8 @@ function FeedPage() {
         // Use the setter functions directly, not the whole postsState object
         const { setLoading, setError, setData } = postsState
 console.log('***LOADING POSTS-1')
-        // setLoading(true)
-        // setError(null)
-// return
+        setLoading(true)
+        setError(null)
         try {
             console.log('Feed: Loading posts from Dash Platform...')
             const dashClient = getDashPlatformClient(getContractId(network!))
@@ -75,8 +77,8 @@ console.log('***LOADING POSTS-2', forceRefresh)
 console.log('***CACHED', cached)
                 if (cached) {
                     console.log('Feed: Using cached data')
-                    // setData(cached)
-                    // setLoading(false)
+                    setData(cached)
+                    setLoading(false)
 
                     return
                 }
@@ -106,11 +108,14 @@ console.log('***LOADING POSTS-4')
                 // Extract the document data
                 const data = doc.data || doc
 
-                // Get the author ID from ownerId (SDK returns without $ prefix)
-                const authorIdStr = doc.ownerId || 'unknown'
+                // The 4.1.1 SDK documents use $-prefixed system fields
+                // ($id, $ownerId, $createdAt); keep the plain fallbacks.
+                const authorIdStr = doc.ownerId || doc.$ownerId || 'unknown'
+                const docId = doc.id || doc.$id || Math.random().toString(36).substr(2, 9)
+                const createdAtMs = Number(doc.createdAt ?? doc.$createdAt ?? Date.now())
 
                 return {
-                    id: doc.id || Math.random().toString(36).substr(2, 9),
+                    id: docId,
                     content: data.content || 'No content',
                     author: {
                         id: authorIdStr,
@@ -119,7 +124,9 @@ console.log('***LOADING POSTS-4')
                         displayName: `User ${authorIdStr.slice(-6)}`,
                         verified: false
                     },
-                    createdAt: doc.createdAt ? new Date(doc.createdAt).toISOString() : new Date().toISOString(),
+                    // PostCard renders new Date(post.createdAt * 1000), so the
+                    // canonical unit here is epoch SECONDS.
+                    createdAt: Math.floor(createdAtMs / 1000),
                     likes: Math.floor(Math.random() * 50), // Placeholder until we implement likes
                     replies: Math.floor(Math.random() * 20), // Placeholder until we implement replies
                     remixes: Math.floor(Math.random() * 10), // Placeholder until we implement remixes
@@ -170,11 +177,16 @@ console.log('SORTED POSTS', sortedPosts)
                 setError(errorMessage)
             }
         } finally {
-            // setLoading(false)
+            setLoading(false)
         }
     }, [
         network,
-        postsState,
+        // The individual setters are stable useCallbacks; depending on the
+        // whole postsState object (new identity every render) re-created
+        // loadPosts on every state change and re-triggered the load effect.
+        postsState.setData,
+        postsState.setLoading,
+        postsState.setError,
         // postsState.setLoading,
         // postsState.setError,
         // postsState.setData,

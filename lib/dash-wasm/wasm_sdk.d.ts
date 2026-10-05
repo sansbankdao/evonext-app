@@ -24,6 +24,58 @@ export type PlatformAddressLikeArray = Array<PlatformAddressLike>;
 
 
 /**
+ * A chained document query — a provable semi-join:
+ * `SELECT * FROM <outerDocumentType> WHERE $id IN
+ *   (SELECT <joinProperty> FROM <innerDocumentType> WHERE ...)`.
+ *
+ * The inner query must target an indexOnly document type and resolve to
+ * an index carrying `joinProperty`, and `joinProperty` must declare a
+ * same-contract `refersTo: permanentDocument` targeting
+ * `outerDocumentType` ("posts I liked": inner `like` through `byLiker`,
+ * join `postId`, outer `post`). There are no outer-side clauses by
+ * design — the verifier derives the outer query from the proven inner
+ * results.
+ */
+interface ChainedDocumentsQuery {
+    /** The contract both document types live in. */
+    dataContractId: string | Uint8Array;
+    /** The indexOnly document type queried directly (e.g. "like"). */
+    innerDocumentType: string;
+    /** Inner where clauses, same shape as a documents query's `where`. */
+    where?: any[];
+    /** Inner ordering, same shape as a documents query's `orderBy`. */
+    orderBy?: any[];
+    /**
+     * REQUIRED page size of the inner query — it bounds the derived
+     * outer query, so there is no server-default fallback.
+     */
+    innerLimit: number;
+    /** The inner property whose proven values become the outer `$id`s. */
+    joinProperty: string;
+    /** The joined document type — the `refersTo` target (e.g. "post"). */
+    outerDocumentType: string;
+}
+
+/**
+ * Both halves of a verified chained query, in inner-proof order.
+ */
+interface ChainedDocumentsResult {
+    /**
+     * The inner projections exactly as the inner query alone would
+     * return them; the last one's join property is the pagination
+     * cursor.
+     */
+    innerDocuments: Document[];
+    /**
+     * The joined outer documents, ordered by first appearance of their
+     * id among the inner projections (deduplicated).
+     */
+    outerDocuments: Document[];
+}
+
+
+
+/**
  * Address witness for P2PKH spending in Object form.
  */
 export interface AddressWitnessP2pkhObject {
@@ -841,6 +893,58 @@ export interface ShieldFromAssetLockTransitionJSON {
 
 
 /**
+ * Options for constructing a ShieldFromIdentityTransition (identity balance to shielded pool).
+ * The bundle is an outputs-only Orchard bundle; the transition is identity-signed with a
+ * TRANSFER key after construction.
+ */
+export interface ShieldFromIdentityTransitionOptions {
+    identityId: IdentifierLike;
+    amount: bigint;
+    actions: SerializedOrchardAction[];
+    anchor: Uint8Array;
+    proof: Uint8Array;
+    bindingSignature: Uint8Array;
+    nonce: bigint;
+    userFeeIncrease?: number;
+}
+
+/**
+ * ShieldFromIdentityTransition serialized as a plain object.
+ */
+export interface ShieldFromIdentityTransitionObject {
+    $formatVersion: string;
+    identityId: Uint8Array;
+    amount: bigint;
+    actions: SerializedOrchardActionObject[];
+    anchor: Uint8Array;
+    proof: Uint8Array;
+    bindingSignature: Uint8Array;
+    nonce: bigint;
+    userFeeIncrease: number;
+    signaturePublicKeyId: number;
+    signature: Uint8Array;
+}
+
+/**
+ * ShieldFromIdentityTransition serialized as JSON (human-readable).
+ */
+export interface ShieldFromIdentityTransitionJSON {
+    $formatVersion: string;
+    identityId: string;
+    amount: number | string;
+    actions: SerializedOrchardActionJSON[];
+    anchor: string;
+    proof: string;
+    bindingSignature: string;
+    nonce: number | string;
+    userFeeIncrease: number;
+    signaturePublicKeyId: number;
+    signature: string;
+}
+
+
+
+/**
  * Options for constructing a ShieldTransition.
  * Uses WASM instance types for complex fields.
  */
@@ -1024,6 +1128,42 @@ export interface IdentityCreateFromShieldedPoolTransitionJSON {
     bindingSignature: string;
     sendToAddressOnCreationFailure: string;
     identityId: string;
+}
+
+
+
+/**
+ * Options for constructing an IdentityTopUpFromShieldedPoolTransition (shielded pool to an
+ * existing identity's balance). The bundle is an Orchard spend whose binding signature commits
+ * to identityId and topUpAmount; there is no platform signature.
+ */
+export interface IdentityTopUpFromShieldedPoolTransitionOptions {
+    identityId: IdentifierLike;
+    actions: SerializedOrchardAction[];
+    topUpAmount: bigint;
+    anchor: Uint8Array;
+    proof: Uint8Array;
+    bindingSignature: Uint8Array;
+}
+
+export interface IdentityTopUpFromShieldedPoolTransitionObject {
+    $formatVersion: string;
+    identityId: Uint8Array;
+    actions: SerializedOrchardActionObject[];
+    topUpAmount: bigint;
+    anchor: Uint8Array;
+    proof: Uint8Array;
+    bindingSignature: Uint8Array;
+}
+
+export interface IdentityTopUpFromShieldedPoolTransitionJSON {
+    $formatVersion: string;
+    identityId: string;
+    actions: SerializedOrchardActionJSON[];
+    topUpAmount: number | string;
+    anchor: string;
+    proof: string;
+    bindingSignature: string;
 }
 
 
@@ -2827,6 +2967,40 @@ export interface ContestedResourceVotersForIdentityQuery {
 
 
 /**
+ * Query parameters for one page of the contract enumeration (`getDataContractsByRange`).
+ *
+ * Pages are ordered by ascending contract id. Pass `{}` for the first page, then the last
+ * key of each page as `startAfter` until a page comes back shorter than `limit`.
+ */
+export interface DataContractsByRangeQuery {
+    /**
+     * Maximum number of contracts in the page, 1..=100.
+     * @default 100
+     */
+    limit?: number;
+
+    /**
+     * Contract id to resume after (exclusive). Mutually exclusive with `startAt`.
+     * @default undefined
+     */
+    startAfter?: IdentifierLike;
+
+    /**
+     * Contract id to start at (inclusive). Mutually exclusive with `startAfter`.
+     * @default undefined
+     */
+    startAt?: IdentifierLike;
+
+    /**
+     * Return contract ids only: every map value is `undefined` and the proof is much smaller.
+     * @default false
+     */
+    idsOnly?: boolean;
+}
+
+
+
+/**
  * Query parameters for retrieving DPNS usernames.
  */
 export interface DpnsUsernamesQuery {
@@ -3080,6 +3254,27 @@ export interface VotePollsByEndDateQuery {
      * @default true
      */
     orderAscending?: boolean;
+}
+
+
+
+/**
+ * Query parameters for the current versions of data contracts
+ * (`getDataContractsLatestVersions`): the cheap check that contracts held locally are still
+ * current.
+ */
+export interface DataContractsLatestVersionsQuery {
+    /**
+     * Data contract identifiers, at least one and at most 100.
+     */
+    contractIds: IdentifierLike[]
+
+    /**
+     * Also return the contracts. Off by default: the query exists to learn the versions without
+     * transferring the contracts.
+     * @default false
+     */
+    includeContracts?: boolean;
 }
 
 
@@ -3391,6 +3586,39 @@ export interface DocumentsQuery {
      * @default []
      */
     groupBy?: string[];
+
+    /**
+     * Time-range bucket selections for "trending"-style queries. Each entry
+     * picks a single bucket of a timestamp field covered by a `timeRange`
+     * index. For the relative selectors the server resolves the bucket from
+     * the current block time and the proof verifier re-derives it from the
+     * signed response metadata; `"byStart"` names the bucket absolutely, so
+     * both sides read it straight from the query. Provable either way.
+     * Requires protocol version 14+ (the first version whose contract
+     * grammar hosts `timeRange` indexes).
+     *
+     * - `selector: "oldest"` → the oldest still-active range (a near-full
+     *   trailing window of ~`range`; best for "trending over the last window").
+     * - `selector: "newest"` → the freshest started range (latest partial slice).
+     * - `selector: "byStart"` → the range starting exactly at `startMs` — any
+     *   window, current or historic. `startMs` is then required and must be a
+     *   window start on the grid (`phase + k * step`, in milliseconds); an
+     *   off-grid start is rejected rather than snapped, and an empty window
+     *   is a provable empty answer. The relative selectors must not carry
+     *   `startMs`.
+     *
+     * `grid` names one of the field's grids in the contract's own declared
+     * seconds (`{ range, step, phase? }`) — required when the contract buckets
+     * the field with more than one `timeRange` grid, where the bare selector
+     * is ambiguous and rejected. A zero phase is spelled by omission.
+     * @default []
+     */
+    timeRange?: {
+        field: string;
+        selector: "newest" | "oldest" | "byStart";
+        startMs?: number;
+        grid?: { range: number; step: number; phase?: number };
+    }[];
 }
 
 /**
@@ -3429,6 +3657,410 @@ export interface DocumentHistoryQuery {
      * @default undefined
      */
     offset?: number;
+}
+
+
+
+/**
+ * The per-group aggregate a ranked / having-range query ranks and
+ * filters on.
+ *
+ * `count` is `COUNT(*)` and takes no property — the count axis counts
+ * documents per group. `COUNT(<property>)` is not a ranked axis and is
+ * rejected. `sum` / `avg` name the covering index's `summable` property.
+ *
+ * The covering index must opt in with the matching contract keyword
+ * (document meta-schema v3, protocol version 14+): `rankedCountable`,
+ * `rankedSummable` or `rankedAverageable`. Without it the node refuses
+ * the query and names the keyword the contract has to add.
+ */
+export type DocumentsAggregateSelect =
+| { type: 'count' }
+| { type: 'sum'; property: string }
+| { type: 'avg'; property: string };
+
+/**
+ * One pin on a compound ranked index's leading property, spelled like a
+ * `DocumentsQuery` where clause: `[property, '==', value]`, or
+ * `[property, 'in', values]`.
+ *
+ * A compound ranked index keeps one ordered secondary per prefix value,
+ * with no global ordering across prefixes — so a ranked read has to name
+ * the prefixes it descends into. `==` names exactly one; `in` names one
+ * per element, each walked separately and merged into a single proved
+ * page. That means: one pin per leading index property, each on a
+ * distinct property, and none on the `groupBy` property itself. A
+ * single-property ranked index takes no pins at all.
+ *
+ * At most **one** pin across the request may be a branching `in`, and it
+ * carries 2..=`maxPrefixInBranches()` elements — several `in`s would
+ * multiply into a cartesian product of prefix walks inside one proof. A
+ * single-element `in` is normalized to `==` and never spends that
+ * budget. Entries merged from an `in` carry `branchKeyHex` to say which
+ * branch they came from.
+ *
+ * A branching `in` cannot combine with a non-zero `offset` — see
+ * `DocumentsRankedQuery.offset`.
+ *
+ * A `null` value is legal and addresses the subtree the write path
+ * creates for an *absent* optional value.
+ *
+ * `>` / `<` / `between` / `startsWith` are all rejected: a range cannot
+ * pin one prefix.
+ */
+export type DocumentsIndexPin =
+| [string, '==' | '=', unknown]
+| [string, 'in' | 'In', unknown[]];
+
+/** How a ranked / having-range walk runs along the aggregate axis. */
+export type DocumentsRankDirection = 'asc' | 'desc';
+
+/**
+ * `SELECT <aggregate> GROUP BY <property> ORDER BY <that aggregate> LIMIT n [OFFSET m]`
+ * — the ranked (top-K) surface, protocol version 14+.
+ *
+ * Answers "which n groups score highest (or lowest) on an aggregate?"
+ * with a proof, by reading a pre-sorted per-axis secondary rather than
+ * walking every group's value tree.
+ *
+ * There is deliberately no `orderBy` here: a ranked query takes exactly
+ * one ordering clause and it is always "the selected aggregate", so
+ * `direction` is the only free choice. There is no `startAt` /
+ * `startAfter` either — a document id does not appear anywhere in a
+ * keyspace sorted by aggregate, so a cursor is rejected rather than
+ * ignored.
+ *
+ * @example
+ * // The three best restaurants by average grade.
+ * const page = await sdk.getDocumentsRanked({
+ *   dataContractId: RESTAURANTS,
+ *   documentTypeName: 'review',
+ *   groupBy: 'restaurantId',
+ *   aggregate: { type: 'avg', property: 'grade' },
+ *   limit: 3,
+ * });
+ *
+ * @example
+ * // The 5th-best restaurant: skip the four above it, take one.
+ * const fifth = await sdk.getDocumentsRanked({
+ *   dataContractId: RESTAURANTS,
+ *   documentTypeName: 'review',
+ *   groupBy: 'restaurantId',
+ *   aggregate: { type: 'avg', property: 'grade' },
+ *   limit: 1,
+ *   offset: 4,
+ * });
+ */
+export interface DocumentsRankedQuery {
+    /** Data contract identifier. */
+    dataContractId: IdentifierLike;
+
+    /** Document type name. */
+    documentTypeName: string;
+
+    /**
+     * The single `GROUP BY` property — the covering ranked index's
+     * *trailing* property, whose distinct values are the ranking's group
+     * keys. A compound ranked index ranks each prefix separately: pin
+     * every leading property through `where`, and group by the trailing
+     * one.
+     */
+    groupBy: string;
+
+    /** Which aggregate the groups are ranked by. */
+    aggregate: DocumentsAggregateSelect;
+
+    /**
+     * The ranking's `n`. Required, and `1 <= limit <= 100`.
+     *
+     * This is a hard ceiling, not a clamp: the limit is echoed inside the
+     * proof envelope and re-checked when the client reconstructs the page,
+     * so an oversized request is rejected rather than truncated.
+     */
+    limit: number;
+
+    /**
+     * `'desc'` walks from the largest aggregate down — the "top n"
+     * reading, where entry 0 is the highest-scoring group. `'asc'` is the
+     * "bottom n" reading.
+     * @default 'desc'
+     */
+    direction?: DocumentsRankDirection;
+
+    /**
+     * How many ranks to skip before the returned page. There is
+     * deliberately no ceiling: the skipped region is attested from counted
+     * subtree commitments rather than walked, so a deep offset costs what
+     * a shallow one does.
+     *
+     * An offset past the end of the ranking is a legitimate answer rather
+     * than an error — the page comes back empty and `startingRank` is the
+     * ranking's whole attested population.
+     *
+     * Cannot combine with a branching `in` pin: that attestation is per
+     * secondary, and an `in` merges several with no counted structure over
+     * the union. Page one prefix at a time (`==` pin plus `offset`), or
+     * drop the offset. `0` stays legal as the offset-free spelling.
+     * @default undefined
+     */
+    offset?: number;
+
+    /**
+     * Pins on the covering compound index's leading properties — `==`, or
+     * one bounded `in`. Omit entirely for a single-property ranked index.
+     * @default []
+     */
+    where?: DocumentsIndexPin[];
+
+    /**
+     * Optional time-range bucket selection — at most one entry, pinning the
+     * covering bucketed index's window (same shape and semantics as
+     * `DocumentsQuery.timeRange`). `"newest"`/`"oldest"` rank the current
+     * window; `"byStart"` ranks any window, current or historic, named by
+     * its grid-aligned start in milliseconds.
+     * @default []
+     */
+    timeRange?: {
+        field: string;
+        selector: "newest" | "oldest" | "byStart";
+        startMs?: number;
+        grid?: { range: number; step: number; phase?: number };
+    }[];
+}
+
+/**
+ * The `HAVING` bound: one contiguous range over the selected aggregate.
+ *
+ * The aggregate is not restated here. The grammar requires a having
+ * clause to bound the same aggregate the query selects, so it is derived
+ * from `aggregate` and there is no way to write the mismatch the server
+ * would reject.
+ *
+ * `!=` and `in` describe non-contiguous ranges and are not expressible:
+ * a having-range query *is* one contiguous slice of one axis secondary.
+ *
+ * Operand types follow the axis — `count` bounds are non-negative
+ * integers, `sum` bounds are integers in `i64` range, `avg` bounds are
+ * numbers in the natural (unscaled) domain of the averaged property.
+ * Pass a `bigint` for magnitudes past `Number.MAX_SAFE_INTEGER`.
+ *
+ * A bound that resolves to an empty range (above the axis maximum, or a
+ * `between` whose lower bound exceeds its upper) is rejected rather than
+ * silently proving an empty page.
+ */
+export type DocumentsHavingBound =
+| { operator: '==' | '=' | '>' | '>=' | '<' | '<='; value: number | bigint }
+| {
+    operator:
+    | 'Between'
+    | 'between'
+    | 'BetweenExcludeBounds'
+    | 'BetweenExcludeLeft'
+    | 'BetweenExcludeRight';
+    value: [number | bigint, number | bigint];
+};
+
+/**
+ * `SELECT <aggregate> GROUP BY <property> HAVING <that aggregate> <op> <value> LIMIT n`
+ * — the having-range surface, protocol version 14+.
+ *
+ * Answers "which groups' aggregate falls in this range?", served as a
+ * value-bounded range read of the same axis secondary the ranked surface
+ * reads. Verification covers completeness: an in-range group the node
+ * omitted fails the proof.
+ *
+ * Pagination caveat — there is no offset and no cursor. Continuing a
+ * page means re-issuing with a tightened bound, which advances past
+ * *distinct* aggregate values only, so a page cut inside a tie cannot be
+ * continued. Size `limit` above the widest tie you expect.
+ *
+ * @example
+ * // Hashtags with more than 100 posts, biggest first.
+ * const hot = await sdk.getDocumentsHaving({
+ *   dataContractId: SOCIAL,
+ *   documentTypeName: 'post',
+ *   groupBy: 'hashtag',
+ *   aggregate: { type: 'count' },
+ *   having: { operator: '>', value: 100 },
+ *   direction: 'desc',
+ *   limit: 100,
+ * });
+ */
+export interface DocumentsHavingQuery {
+    /** Data contract identifier. */
+    dataContractId: IdentifierLike;
+
+    /** Document type name. */
+    documentTypeName: string;
+
+    /** The single `GROUP BY` property. Same contract as `DocumentsRankedQuery`. */
+    groupBy: string;
+
+    /** Which aggregate the bound applies to. */
+    aggregate: DocumentsAggregateSelect;
+
+    /** The one bound. Exactly one clause — multi-clause `AND` is rejected. */
+    having: DocumentsHavingBound;
+
+    /** Required, `1 <= limit <= 100`. Same hard-ceiling semantics as ranked. */
+    limit: number;
+
+    /**
+     * Walk direction along the axis inside the bound. Optional here,
+     * unlike ranked, where the ordering *is* the query.
+     * @default 'asc'
+     */
+    direction?: DocumentsRankDirection;
+
+    /**
+     * Pins on the covering compound index's leading properties — `==`, or
+     * one bounded `in`. A having-range query has no `offset`, so the
+     * ranked surface's offset-versus-`in` exclusion does not arise here.
+     * @default []
+     */
+    where?: DocumentsIndexPin[];
+
+    /**
+     * Optional time-range bucket selection — at most one entry, pinning the
+     * covering bucketed index's window (same shape and semantics as
+     * `DocumentsQuery.timeRange`). `"newest"`/`"oldest"` rank the current
+     * window; `"byStart"` ranks any window, current or historic, named by
+     * its grid-aligned start in milliseconds.
+     * @default []
+     */
+    timeRange?: {
+        field: string;
+        selector: "newest" | "oldest" | "byStart";
+        startMs?: number;
+        grid?: { range: number; step: number; phase?: number };
+    }[];
+}
+
+/** Which axis a returned aggregate value came from. */
+export type DocumentsAggregateKind = 'count' | 'sum' | 'avg';
+
+/** One group in a ranked / having-range result. */
+export interface DocumentsGroupEntry {
+    /**
+     * Hex-encoded raw index-key bytes of the group's value — byte for byte
+     * the same key `getDocumentsCount` / `getDocumentsSum` /
+     * `getDocumentsAverage` use for the same grouping, so results
+     * correlate across the surfaces. Always present, even when
+     * `groupValue` could not be produced.
+     */
+    groupKeyHex: string;
+
+    /**
+     * The group key decoded back to its typed value using the contract's
+     * document type. Identifiers arrive base58-encoded and byte
+     * properties base64-encoded, matching the document JSON convention
+     * used elsewhere in this SDK.
+     *
+     * `null` when the index key is empty — how the write path stores an
+     * *absent* optional group-by value. `undefined` when the bytes exist
+     * but do not decode as the group-by property's type. `groupKeyHex` is
+     * always the lossless fallback.
+     */
+    groupValue: unknown;
+
+    /**
+     * The group's aggregate as an exact integer.
+     *
+     * - `count` — the document count.
+     * - `sum` — the running sum, signed.
+     * - `avg` — the *fixed-point* average. Divide by `valueScale` on the
+     *   enclosing result; never by a hardcoded literal, because the scale
+     *   is a build-time constant that has already changed once.
+     *
+     * A `bigint` because none of the three fit a JS `number` in general
+     * and the average's fixed point is 128-bit. On a proved fetch this is
+     * exactly the integer the proof commits to — keep it for comparing
+     * groups, reproducing a ranking, or storing. On an unproved fetch the
+     * average is reconstructed from the wire's `double`, so digits past
+     * f64's ~15 significant decimals are noise. Ranking *order* is exact
+     * either way.
+     */
+    value: bigint;
+
+    /**
+     * `value` rendered as a `number`, with the average axis already
+     * divided by the scale. A display helper: lossy past 2^53 for counts
+     * and sums, and for every average. Two groups whose exact aggregates
+     * differ can round to the same `number`, so never compare with this.
+     */
+    valueAsNumber: number;
+
+    /**
+     * Hex-encoded index-key segment of the `in` branch this entry was
+     * merged in from — the pinned value's own encoding, or empty bytes for
+     * the `null` branch.
+     *
+     * Present only when the request carried a branching `in` pin, because
+     * only then is the page a merge of several prefixes and only then can
+     * one `groupKeyHex` legitimately appear twice. Absent — not
+     * `undefined`-valued — on every single-prefix page.
+     */
+    branchKeyHex?: string;
+}
+
+/** One group in a ranked result, pinned to its absolute position. */
+export interface DocumentsRankedEntry extends DocumentsGroupEntry {
+    /**
+     * The group's 0-based absolute rank, `startingRank + index`. This is
+     * what makes `limit: 1, offset: 4` mean "the 5th best" rather than
+     * "some entry".
+     */
+    rank: bigint;
+}
+
+/** Result of a ranked (top-K) query. */
+export interface DocumentsRankedResult {
+    /**
+     * The 0-based rank of `entries[0]` — the query's offset as actually
+     * honoured. On the proved path this is re-derived from the proof's
+     * counted subtree commitments rather than trusted from the node.
+     *
+     * When `entries` is empty this is a proof that the ranking holds
+     * exactly this many groups in total.
+     */
+    startingRank: bigint;
+
+    /** The groups on this page, in ranking order. Do not re-sort. */
+    entries: DocumentsRankedEntry[];
+
+    /** Which axis `entry.value` came from; echoes the request's `aggregate.type`. */
+    aggregate: DocumentsAggregateKind;
+
+    /** The request's `groupBy` property, echoed so a result is self-describing. */
+    groupBy: string;
+
+    /**
+     * Fixed-point divisor for `entry.value`: `1n` for `count` and `sum`,
+     * and the build's average scale for `avg`. Returned rather than
+     * documented precisely so callers never hardcode it.
+     * `Number(e.value) / Number(scale)` is `e.valueAsNumber`; use a
+     * decimal library on the two bigints when you need better.
+     */
+    valueScale: bigint;
+}
+
+/** Result of a having-range query. */
+export interface DocumentsHavingResult {
+    /**
+     * The matching groups, in axis order along `direction`. Do not
+     * re-sort. There is no rank: a having-range read bounds values, it
+     * does not count positions.
+     */
+    entries: DocumentsGroupEntry[];
+
+    /** Which axis `entry.value` came from. */
+    aggregate: DocumentsAggregateKind;
+
+    /** The request's `groupBy` property. */
+    groupBy: string;
+
+    /** Same contract as `DocumentsRankedResult.valueScale`. */
+    valueScale: bigint;
 }
 
 
@@ -3602,6 +4234,184 @@ export interface VoteJSON {
     $formatVersion: string;
     votePoll: VotePollJSON;
     resourceVoteChoice: ResourceVoteChoiceJSON;
+}
+
+
+
+/**
+ * What a `refersTo` declaration points at.
+ *
+ * Mirrors the `refersTo` keyword of the v3 document meta-schema, which is
+ * active from protocol version 14. The field names are the schema keyword's
+ * own, so what `contract.toJSON()` shows under `refersTo` and what these
+ * accessors return line up key for key.
+ */
+export type DocumentPropertyReferenceTarget =
+| { type: 'identity' }
+| { type: 'contract' }
+| { type: 'token' }
+| {
+    type: 'permanentDocument';
+    /**
+     * The contract the referenced document type lives in.
+     *
+     * Always present. When the schema omits `contractId` the declaration
+     * targets the declaring contract itself, and this field reports the
+     * declaring contract's own id — consensus resolves the two cases
+     * identically, so a caller never has to special-case an absent value.
+     * `ref.contractId.equals(contract.id)` is the self-reference test.
+     */
+    contractId: Identifier;
+    /**
+     * Name of the referenced document type. It must declare
+     * `canBeDeleted: false`, which is what makes the reference
+     * permanent — a target that could be deleted would leave the
+     * reference dangling.
+     */
+    documentType: string;
+    /**
+     * Write-time equality bindings between the two documents:
+     * `{ <referring property path>: <referenced property path> }`.
+     * Consensus refuses a write whose referring property does not equal
+     * the referenced document's property (code 40127). Absent — not
+     * `{}`-valued — when the declaration carries none.
+     */
+    propertyAgreement?: Record<string, string>;
+}
+| {
+    type: 'identityPublicKey';
+    /**
+     * Property of the same document type whose value carries the
+     * referenced key id. The declaring property's own value carries the
+     * identity id. A dotted path when the property is nested.
+     */
+    keyIdProperty: string;
+};
+
+/**
+ * A single `refersTo` declaration on a document type.
+ */
+export type DocumentPropertyReference = {
+    /**
+     * Dotted path of the declaring property within the document type — for
+     * example `"author"`, or `"meta.parentId"` for a nested one.
+     *
+     * This is the same string consensus reports in the `path` field of the
+     * document-write reference errors (codes 40120-40125). Note that contract
+     * *registration* errors prefix it with the document type name
+     * (`"<documentType>.<path>"`) while document *write* errors do not.
+     */
+    path: string;
+} & DocumentPropertyReferenceTarget;
+
+
+
+/**
+ * Where a sub-query's derived values come from: `'page'` for the page's
+ * proven documents, or the index of an earlier `documents` sub-query.
+ */
+export type CompositeBindSource = 'page' | number;
+
+/**
+ * The derived clause of a sub-query: `<field> IN <values>`, the values
+ * read off the source's proven documents. The request never names them.
+ */
+export interface CompositeBind {
+    /** Defaults to `'page'`. */
+    source?: CompositeBindSource;
+    /**
+     * The source property read off each document: `$id`, `$ownerId`, or an
+     * identifier-typed property (dotted paths reach nested properties).
+     */
+    sourceProperty: string;
+    /**
+     * The sub-query field receiving the `IN` clause. `$id` makes this a
+     * by-id JOIN (the source property must declare `refersTo:
+     * permanentDocument` targeting the sub-query's document type, so a
+     * missing document is a verification error); otherwise `$ownerId` or an
+     * indexed property (a LOOKUP, where absence is a proven fact).
+     */
+    field: string;
+}
+
+/**
+ * One sub-query of a composite request.
+ */
+export interface CompositeSubQuery {
+    /** Defaults to the page's contract. Any contract works (profiles keyed by owner, names by identity). */
+    dataContractId?: string | Uint8Array;
+    documentType: string;
+    /** `'documents'` (default) returns the matching documents; `'counts'` one count per derived value. */
+    kind?: 'documents' | 'counts';
+    /** The FIXED clauses, same shape as a documents query's `where`. Must not name the bound field. */
+    where?: any[];
+    /**
+     * Ordering (documents only), same shape as a documents query's `orderBy`.
+     * Every component walks in the page's direction: leave the bound field
+     * unordered and it inherits that direction; an ordering that disagrees
+     * with the page's direction is refused.
+     */
+    orderBy?: any[];
+    /**
+     * Required for a documents lookup on a non-unique index: caps the rows the
+     * lookup returns in total, in walk order, like an ordinary query's limit
+     * (at most 100). Forbidden for a lookup already bounded by its values, a
+     * by-id join, and a count.
+     */
+    limit?: number;
+    /** The derived clause. Omit for a SIBLING: an independent documents query proven under the same root. */
+    bind?: CompositeBind;
+}
+
+/**
+ * A composite document query: the page plus its sub-queries, in binding
+ * order (a sub-query may bind only the page or an earlier `documents`
+ * sub-query). Paginate with a range clause on the page's ordering
+ * property; there is no cursor on this surface.
+ */
+export interface CompositeDocumentsQuery {
+    dataContractId: string | Uint8Array;
+    documentType: string;
+    /** Page where clauses, same shape as a documents query's `where`. */
+    where?: any[];
+    /** Page ordering, same shape as a documents query's `orderBy`. */
+    orderBy?: any[];
+    /** REQUIRED page size — it bounds every derived clause, so there is no server-default fallback. */
+    limit: number;
+    /** Between 1 and 10. */
+    subQueries: CompositeSubQuery[];
+}
+
+/**
+ * A verified `documents` sub-result: a by-id join in first-appearance
+ * order of the derived ids among the source documents; a lookup or
+ * sibling in query order.
+ */
+export interface CompositeDocumentsSubResult {
+    kind: 'documents';
+    documents: Document[];
+}
+
+/**
+ * A verified `counts` sub-result: one entry per derived value that has a
+ * count, keyed by the value's base58 identifier. A value with no entry
+ * counts zero.
+ */
+export interface CompositeCountsSubResult {
+    kind: 'counts';
+    counts: Map<string, bigint>;
+}
+
+export type CompositeSubResult = CompositeDocumentsSubResult | CompositeCountsSubResult;
+
+/**
+ * A verified composite result.
+ */
+export interface CompositeDocumentsResult {
+    /** The page, exactly as the page query alone would return it. */
+    pageDocuments: Document[];
+    /** One result per sub-query, in request order. */
+    subResults: CompositeSubResult[];
 }
 
 
@@ -4575,13 +5385,21 @@ export type GroveElementType =
 | "provableCountTree"
 | "itemWithSumItem"
 | "referenceWithSumItem"
+| "bidirectionalReference"
+| "itemWithBackwardsReferences"
+| "sumItemWithBackwardsReferences"
+| "itemWithSumItemWithBackwardsReferences"
 | "provableCountSumTree"
 | "provableCountProvableSumTree"
 | "provableSumTree"
+| "provableSumIndexedTree"
+| "provableCountIndexedTree"
+| "provableCountProvableSumIndexedTree"
 | "commitmentTree"
 | "mmrTree"
 | "bulkAppendTree"
 | "denseAppendOnlyFixedSizeTree"
+| "privateDocumentStore"
 | "nonCountedItem"
 | "nonCountedReference"
 | "nonCountedTree"
@@ -4596,10 +5414,14 @@ export type GroveElementType =
 | "nonCountedProvableCountSumTree"
 | "nonCountedProvableCountProvableSumTree"
 | "nonCountedProvableSumTree"
+| "nonCountedProvableSumIndexedTree"
+| "nonCountedProvableCountIndexedTree"
+| "nonCountedProvableCountProvableSumIndexedTree"
 | "nonCountedCommitmentTree"
 | "nonCountedMmrTree"
 | "nonCountedBulkAppendTree"
 | "nonCountedDenseAppendOnlyFixedSizeTree"
+| "nonCountedPrivateDocumentStore"
 | "notSummedSumTree"
 | "notSummedBigSumTree"
 | "notSummedCountSumTree"
@@ -4950,6 +5772,7 @@ export enum BatchType {
     Purchase = 4,
     UpdatePrice = 5,
     IgnoreWhileBumpingRevision = 6,
+    IndexOnlyDelete = 7,
 }
 
 export class BatchedTransition {
@@ -5025,6 +5848,19 @@ export class ConsensusError {
     free(): void;
     [Symbol.dispose](): void;
     static deserialize(error: Uint8Array): ConsensusError;
+    /**
+     * The consensus error code.
+     *
+     * This is the same number that reaches JS as `WasmSdkError.code` when
+     * a state transition is rejected. See [`DocumentReferenceErrorCodeWasm`]
+     * for the reference-validation range.
+     */
+    readonly code: number;
+    /**
+     * The reference-validation error this is, or `undefined` when it is
+     * not one of codes 40120-40125.
+     */
+    readonly documentReferenceErrorCode: DocumentReferenceErrorCode | undefined;
     readonly message: string;
     static readonly __struct: string;
     readonly __type: string;
@@ -5172,6 +6008,22 @@ export class DataContract {
     free(): void;
     [Symbol.dispose](): void;
     constructor(options: DataContractOptions);
+    /**
+     * All `refersTo` declarations of one document type, in schema property
+     * order.
+     *
+     * Returns an empty array when the document type declares none. Throws
+     * when the contract has no document type by that name — an empty array
+     * would conflate "no such type" with "no references".
+     *
+     * Reference declarations are only parsed from protocol version 14
+     * onward. A contract deserialized against an earlier platform version
+     * reports none, which is exactly what consensus enforced at that
+     * version — but note the trap: `DataContract.fromBytes(bytes, false, 1)`
+     * yields `[]` even for a contract whose raw schema does carry
+     * `refersTo`, and `toJSON()` still shows the raw keyword either way.
+     */
+    documentTypeReferences(documentTypeName: string): Array<DocumentPropertyReference>;
     static fromBase64(base64: string, full_validation: boolean, platform_version: PlatformVersionLike): DataContract;
     static fromBytes(bytes: Uint8Array, full_validation: boolean, platform_version: PlatformVersionLike): DataContract;
     static fromHex(hex: string, full_validation: boolean, platform_version: PlatformVersionLike): DataContract;
@@ -5186,6 +6038,14 @@ export class DataContract {
     toJSON(platform_version: PlatformVersionLike): DataContractJSON;
     toObject(platformVersion: PlatformVersionLike): DataContractObject;
     readonly config: DataContractConfig;
+    /**
+     * Every document type that declares at least one reference, keyed by
+     * document type name.
+     *
+     * Document types with no declarations are omitted, so an empty `Map`
+     * means "this contract declares no references at all".
+     */
+    readonly documentReferences: Map<string, Array<DocumentPropertyReference>>;
     groups: Record<number, Group>;
     get id(): Identifier;
     set id(value: IdentifierLike);
@@ -5222,6 +6082,24 @@ export class DataContractCreateTransition {
     readonly identityNonce: bigint;
     static readonly __struct: string;
     readonly __type: string;
+}
+
+/**
+ * The current version of one data contract, with the contract only when the query asked
+ * for it.
+ */
+export class DataContractLatestVersion {
+    private constructor();
+    free(): void;
+    [Symbol.dispose](): void;
+    /**
+     * The contract itself, only when the query set `includeContracts`.
+     */
+    readonly dataContract: DataContract | undefined;
+    /**
+     * The contract's current version number.
+     */
+    readonly version: number;
 }
 
 export class DataContractUpdateTransition {
@@ -5561,6 +6439,59 @@ export class DocumentPurchaseTransition {
     revision: bigint;
     static readonly __struct: string;
     readonly __type: string;
+}
+
+/**
+ * Consensus error codes emitted by `refersTo` reference validation, which
+ * runs from protocol version 14 onward.
+ *
+ * Branch on an error's `code` against these instead of matching its
+ * message. Both directions work — `DocumentReferenceErrorCode[40123]` is
+ * `"ReferencedIdentityKeyNotFound"`.
+ *
+ * These reach JS on the state-transition broadcast path, where the
+ * consensus code is carried through to `WasmSdkError.code`:
+ *
+ * ```js
+ * try {
+ *   await sdk.documents.create({ document, identityKey, signer });
+ * } catch (e) {
+ *   if (e.code === DocumentReferenceErrorCode.ReferencedIdentityKeyDisabled) {
+ *     // the referenced key exists but was disabled
+ *   }
+ * }
+ * ```
+ */
+export enum DocumentReferenceErrorCode {
+    /**
+     * The referenced identity, contract, token or permanent document does
+     * not exist.
+     */
+    ReferencedEntityNotFound = 40120,
+    /**
+     * A `permanentDocument` reference names a document type the referenced
+     * contract does not define, or the contract itself is missing.
+     */
+    ReferencedDocumentTypeNotFound = 40121,
+    /**
+     * The referenced document type allows deletion. Only types declaring
+     * `canBeDeleted: false` may be the target of a `permanentDocument`
+     * reference — otherwise the reference could be left dangling.
+     */
+    ReferencedDocumentTypeDeletable = 40122,
+    /**
+     * The referenced identity public key does not exist.
+     */
+    ReferencedIdentityKeyNotFound = 40123,
+    /**
+     * The referenced identity public key exists but is disabled.
+     */
+    ReferencedIdentityKeyDisabled = 40124,
+    /**
+     * The declaration's `keyIdProperty` is missing from the document type,
+     * or names a property that is not an integer.
+     */
+    ReferencedKeyIdPropertyInvalid = 40125,
 }
 
 export class DocumentReplaceTransition {
@@ -6355,6 +7286,44 @@ export class IdentityTopUpFromAddressesTransition {
     set output(value: PlatformAddressOutput | null | undefined);
     userFeeIncrease: number;
     static readonly __struct: string;
+    readonly __type: string;
+}
+
+export class IdentityTopUpFromShieldedPoolTransition {
+    free(): void;
+    [Symbol.dispose](): void;
+    static fromBase64(base64: string): IdentityTopUpFromShieldedPoolTransition;
+    static fromBytes(bytes: Uint8Array): IdentityTopUpFromShieldedPoolTransition;
+    static fromHex(hex: string): IdentityTopUpFromShieldedPoolTransition;
+    static fromJSON(js: IdentityTopUpFromShieldedPoolTransitionJSON): IdentityTopUpFromShieldedPoolTransition;
+    static fromObject(obj: IdentityTopUpFromShieldedPoolTransitionObject): IdentityTopUpFromShieldedPoolTransition;
+    static fromStateTransition(st: StateTransition): IdentityTopUpFromShieldedPoolTransition;
+    getModifiedDataIds(): Identifier[];
+    constructor(options: IdentityTopUpFromShieldedPoolTransitionOptions);
+    toBase64(): string;
+    toBytes(): Uint8Array;
+    toHex(): string;
+    toJSON(): IdentityTopUpFromShieldedPoolTransitionJSON;
+    toObject(): IdentityTopUpFromShieldedPoolTransitionObject;
+    toStateTransition(): StateTransition;
+    /**
+     * Returns the serialized Orchard actions.
+     */
+    readonly actions: SerializedOrchardAction[];
+    readonly anchor: Uint8Array;
+    readonly bindingSignature: Uint8Array;
+    /**
+     * The identity whose balance receives the top-up. Read-only: the identity id
+     * and the gross amount are committed into the Orchard binding signature, so a
+     * wrapper that changed them would produce a transition consensus must reject.
+     */
+    readonly identityId: Identifier;
+    readonly proof: Uint8Array;
+    static readonly __struct: string;
+    /**
+     * Gross credits leaving the pool; the identity receives this minus the flat fee.
+     */
+    readonly topUpAmount: bigint;
     readonly __type: string;
 }
 
@@ -7211,6 +8180,56 @@ export class ShieldFromAssetLockTransition {
      * Returns the net value balance.
      */
     readonly valueBalance: bigint;
+}
+
+export class ShieldFromIdentityTransition {
+    free(): void;
+    [Symbol.dispose](): void;
+    static fromBase64(base64: string): ShieldFromIdentityTransition;
+    static fromBytes(bytes: Uint8Array): ShieldFromIdentityTransition;
+    static fromHex(hex: string): ShieldFromIdentityTransition;
+    static fromJSON(js: ShieldFromIdentityTransitionJSON): ShieldFromIdentityTransition;
+    static fromObject(obj: ShieldFromIdentityTransitionObject): ShieldFromIdentityTransition;
+    static fromStateTransition(st: StateTransition): ShieldFromIdentityTransition;
+    getModifiedDataIds(): Identifier[];
+    constructor(options: ShieldFromIdentityTransitionOptions);
+    toBase64(): string;
+    toBytes(): Uint8Array;
+    toHex(): string;
+    toJSON(): ShieldFromIdentityTransitionJSON;
+    toObject(): ShieldFromIdentityTransitionObject;
+    toStateTransition(): StateTransition;
+    /**
+     * Returns the serialized Orchard actions.
+     */
+    readonly actions: SerializedOrchardAction[];
+    /**
+     * Credits leaving the identity balance and entering the pool.
+     */
+    readonly amount: bigint;
+    /**
+     * Returns the anchor (32-byte Merkle root).
+     */
+    readonly anchor: Uint8Array;
+    /**
+     * Returns the RedPallas binding signature (64 bytes).
+     */
+    readonly bindingSignature: Uint8Array;
+    /**
+     * The identity whose balance funds the shield.
+     */
+    get identityId(): Identifier;
+    set identityId(value: IdentifierLike);
+    nonce: bigint;
+    /**
+     * Returns the Halo2 proof bytes.
+     */
+    readonly proof: Uint8Array;
+    signature: Uint8Array;
+    signaturePublicKeyId: number;
+    userFeeIncrease: number;
+    static readonly __struct: string;
+    readonly __type: string;
 }
 
 export class ShieldTransition {
@@ -9150,6 +10169,16 @@ export class WasmSdk {
     free(): void;
     [Symbol.dispose](): void;
     /**
+     * Seed the contract cache with a contract the caller already holds: a
+     * snapshot bundled with the app, or one it just published. Queries against
+     * it then need no contract fetch, and it is persisted like a fetched one.
+     * Pair with `getDataContractsLatestVersions` (off the critical path) to
+     * learn whether the held contract is still the network's current version.
+     *
+     * Returns false when the SDK has no trusted context to cache into.
+     */
+    addKnownContract(contract: DataContract): boolean;
+    /**
      * Fund Platform addresses from an asset lock.
      *
      * This method handles the complete funding flow:
@@ -9189,10 +10218,10 @@ export class WasmSdk {
     /**
      * Broadcasts a state transition and waits for the result.
      *
-     * This method broadcasts the transition and waits for confirmation from the network.
-     * Returns once the transition has been processed or fails.
-     * This is equivalent to calling `broadcastStateTransition` followed by
-     * `waitForResponse`.
+     * This method prepares proof context, broadcasts the transition, and waits
+     * for confirmation from the network. Returns once the transition has been
+     * processed or fails. Unlike separate broadcast and wait calls, proof
+     * context preparation happens before broadcasting.
      *
      * @param stateTransition - The state transition to broadcast
      * @param settings - Optional put settings (retries, timeout, waitTimeoutMs)
@@ -9320,9 +10349,15 @@ export class WasmSdk {
      * 4. Broadcasts and waits for confirmation
      *
      * @param options - Creation options including document, identity key, and signer
-     * @returns Promise that resolves when the document is created
+     * @returns Promise resolving to the confirmed Document as Platform
+     *          committed it — consensus-populated system fields
+     *          (`$createdAt` and friends) included. Keep THIS instance
+     *          when you later intend to delete an indexOnly document
+     *          whose type requires `$createdAt`: the delete carries the
+     *          document's values, and the pre-broadcast wrapper never
+     *          learns the block timestamp Platform assigned.
      */
-    documentCreate(options: DocumentCreateOptions): Promise<void>;
+    documentCreate(options: DocumentCreateOptions): Promise<Document>;
     /**
      * Delete a document from Dash Platform.
      *
@@ -9464,6 +10499,39 @@ export class WasmSdk {
      * @returns ProofMetadataResponse containing Map of PlatformAddress to PlatformAddressInfo
      */
     getAddressesInfosWithProofInfo(addresses: PlatformAddressLikeArray): Promise<ProofMetadataResponseTyped<Map<string, PlatformAddressInfo | undefined>>>;
+    /**
+     * Run a chained document query (provable semi-join) and return
+     * both verified halves.
+     *
+     * The composition is always proof-verified: one merged grovedb
+     * proof commits to one quorum-signed root, and the proven outer
+     * documents must match the proven inner join values exactly (a
+     * missing referenced document is a verification error, not an
+     * absence).
+     */
+    getChainedDocuments(query: ChainedDocumentsQuery): Promise<ChainedDocumentsResult>;
+    /**
+     * [`Self::get_chained_documents`] with the response metadata and
+     * proof envelope attached.
+     */
+    getChainedDocumentsWithProofInfo(query: ChainedDocumentsQuery): Promise<ProofMetadataResponseTyped<ChainedDocumentsResult>>;
+    /**
+     * Run a composite document query (a page plus the sub-queries
+     * derived from it) and return the verified page and every
+     * sub-result.
+     *
+     * The composition is always proof-verified: one merged grovedb
+     * proof commits to one quorum-signed root, every sub-query is
+     * re-derived from the proven page, and a by-id join whose
+     * referenced document is missing is a verification error, not an
+     * absence.
+     */
+    getCompositeDocuments(query: CompositeDocumentsQuery): Promise<CompositeDocumentsResult>;
+    /**
+     * [`Self::get_composite_documents`] with the response metadata and
+     * proof envelope attached.
+     */
+    getCompositeDocumentsWithProofInfo(query: CompositeDocumentsQuery): Promise<ProofMetadataResponseTyped<CompositeDocumentsResult>>;
     getContestedResourceIdentityVotes(query: ContestedResourceIdentityVotesQuery): Promise<Map<string, ResourceVote>>;
     getContestedResourceIdentityVotesWithProofInfo(query: ContestedResourceIdentityVotesQuery): Promise<ProofMetadataResponseTyped<Map<string, ResourceVote>>>;
     getContestedResourceVoteState(query: ContestedResourceVoteStateQuery): Promise<ContestedResourceVoteState>;
@@ -9480,6 +10548,31 @@ export class WasmSdk {
     getDataContractHistoryWithProofInfo(query: DataContractHistoryQuery): Promise<ProofMetadataResponseTyped<Map<bigint, DataContract>>>;
     getDataContractWithProofInfo(contractId: IdentifierLike): Promise<ProofMetadataResponseTyped<DataContract>>;
     getDataContracts(ids: IdentifierLikeArray): Promise<Map<string, DataContract | undefined>>;
+    /**
+     * One page of the contract enumeration, ordered by ascending contract id.
+     * Pass `{}` for the first page; the last key of a page is the next `startAfter`.
+     */
+    getDataContractsByRange(query: DataContractsByRangeQuery): Promise<Map<string, DataContract | undefined>>;
+    /**
+     * One page of the contract enumeration together with its proof and metadata.
+     */
+    getDataContractsByRangeWithProofInfo(query: DataContractsByRangeQuery): Promise<ProofMetadataResponseTyped<Map<string, DataContract | undefined>>>;
+    /**
+     * The current versions of data contracts: the cheap check that contracts held locally
+     * are still current. One map entry per requested id, `undefined` for an id no contract
+     * has; contracts come back only with `includeContracts`.
+     *
+     * This SDK verifies the answer. From protocol version 14, without `includeContracts`,
+     * the proof covers the four-byte version item each contract carries in state, a few
+     * hundred bytes of hash path per contract. With `includeContracts`, and on earlier
+     * protocol versions, the proof is the multi-contract proof, so the call costs as much
+     * as `getDataContracts`.
+     */
+    getDataContractsLatestVersions(query: DataContractsLatestVersionsQuery): Promise<Map<string, DataContractLatestVersion | undefined>>;
+    /**
+     * The current versions of data contracts together with their proof and metadata.
+     */
+    getDataContractsLatestVersionsWithProofInfo(query: DataContractsLatestVersionsQuery): Promise<ProofMetadataResponseTyped<Map<string, DataContractLatestVersion | undefined>>>;
     getDataContractsWithProofInfo(ids: IdentifierLikeArray): Promise<ProofMetadataResponseTyped<Map<string, DataContract | undefined>>>;
     getDocument(dataContractId: IdentifierLike, documentType: string, documentId: IdentifierLike): Promise<Document | undefined>;
     getDocumentHistory(query: DocumentHistoryQuery): Promise<Map<bigint, Document>>;
@@ -9554,6 +10647,44 @@ export class WasmSdk {
      */
     getDocumentsCount(query: DocumentsQuery): Promise<Map<string, bigint>>;
     getDocumentsCountWithProofInfo(query: DocumentsQuery): Promise<ProofMetadataResponseTyped<Map<string, bigint>>>;
+    /**
+     * Return the groups whose aggregate falls inside a bound.
+     *
+     * `SELECT <aggregate> GROUP BY <property> HAVING <that aggregate>
+     * <op> <value> LIMIT n`, served from protocol version 14 against
+     * the same ranked indexes [`Self::get_documents_ranked`] reads.
+     * Verification covers completeness — an in-range group the node
+     * omitted fails the proof.
+     *
+     * There is no offset and no cursor: continue a page by tightening
+     * the bound, and size `limit` above the widest expected tie, since
+     * a page cut inside a tie cannot be continued.
+     */
+    getDocumentsHaving(query: DocumentsHavingQuery): Promise<DocumentsHavingResult>;
+    /**
+     * [`Self::get_documents_having`] with the proof and block metadata
+     * the answer was verified against.
+     */
+    getDocumentsHavingWithProofInfo(query: DocumentsHavingQuery): Promise<ProofMetadataResponseTyped<DocumentsHavingResult>>;
+    /**
+     * Rank groups by an aggregate and return the top (or bottom) `n`.
+     *
+     * `SELECT <aggregate> GROUP BY <property> ORDER BY <that aggregate>
+     * LIMIT n [OFFSET m]`, served from protocol version 14 against a
+     * contract index that declares the matching `rankedCountable` /
+     * `rankedSummable` / `rankedAverageable` keyword. A node on an
+     * earlier protocol version, or a contract whose index does not opt
+     * in, rejects the query and names what is missing.
+     *
+     * Entries come back in ranking order and must not be re-sorted;
+     * `startingRank` plus the entry's position is its absolute rank.
+     */
+    getDocumentsRanked(query: DocumentsRankedQuery): Promise<DocumentsRankedResult>;
+    /**
+     * [`Self::get_documents_ranked`] with the proof and block metadata
+     * the answer was verified against.
+     */
+    getDocumentsRankedWithProofInfo(query: DocumentsRankedQuery): Promise<ProofMetadataResponseTyped<DocumentsRankedResult>>;
     /**
      * Get aggregated sums of an integer property across documents
      * matching a query, optionally grouped by an index field.
@@ -9872,6 +11003,19 @@ export class WasmSdk {
      */
     masternodeVote(options: MasternodeVoteOptions): Promise<void>;
     /**
+     * Hard ceiling on the element count of a branching `in` prefix pin.
+     *
+     * Each element is its own secondary walk and its own branch of the
+     * proof, so this bounds the fan-out a single request can ask for.
+     * A pin above it is rejected, not truncated — split the request.
+     */
+    static maxPrefixInBranches(): number;
+    /**
+     * Hard ceiling on a ranked / having-range `limit`. A request above
+     * it is rejected, not truncated.
+     */
+    static maxRankedLimit(): number;
+    /**
      * Derive a seed from a mnemonic phrase
      */
     static mnemonicToSeed(mnemonic: string, passphrase?: string | null): Uint8Array;
@@ -9879,6 +11023,15 @@ export class WasmSdk {
      * Get address from public key
      */
     static pubkeyToAddress(pubkeyHex: string, network: NetworkLike): string;
+    /**
+     * The fixed-point divisor the `avg` axis sorts by.
+     *
+     * Exposed so a caller who persisted a `DocumentsGroupEntry.value`
+     * can re-render it later without holding on to the result object
+     * that produced it. Never hardcode the number — it is a build-time
+     * constant that has already changed once.
+     */
+    static rankedAverageScale(): bigint;
     /**
      * Forces reload of the identity nonce from Platform on the next state transition.
      */
@@ -10289,143 +11442,26 @@ export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembl
 
 export interface InitOutput {
     readonly memory: WebAssembly.Memory;
-    readonly wasmsdk_getContestedResourceVotersForIdentity: (a: number, b: any) => any;
-    readonly wasmsdk_getContestedResourceVotersForIdentityWithProofInfo: (a: number, b: any) => any;
-    readonly __wbg_proofinfo_free: (a: number, b: number) => void;
-    readonly __wbg_proofmetadataresponse_free: (a: number, b: number) => void;
-    readonly __wbg_responsemetadata_free: (a: number, b: number) => void;
-    readonly __wbg_wasmcontext_free: (a: number, b: number) => void;
-    readonly __wbg_wasmtrustedcontext_free: (a: number, b: number) => void;
-    readonly proofinfo_block_id_hash: (a: number) => any;
-    readonly proofinfo_constructor: (a: any, b: any, c: any, d: number, e: any, f: number) => number;
-    readonly proofinfo_fromJSON: (a: any) => [number, number, number];
-    readonly proofinfo_fromObject: (a: any) => [number, number, number];
-    readonly proofinfo_grovedb_proof: (a: number) => any;
-    readonly proofinfo_quorum_hash: (a: number) => any;
-    readonly proofinfo_quorum_type: (a: number) => number;
-    readonly proofinfo_round: (a: number) => number;
-    readonly proofinfo_setBlockIdHash: (a: number, b: any) => void;
-    readonly proofinfo_setGrovedbProof: (a: number, b: any) => void;
-    readonly proofinfo_setQuorumHash: (a: number, b: any) => void;
-    readonly proofinfo_setSignature: (a: number, b: any) => void;
-    readonly proofinfo_signature: (a: number) => any;
-    readonly proofinfo_toJSON: (a: number) => [number, number, number];
-    readonly proofinfo_toObject: (a: number) => [number, number, number];
-    readonly proofmetadataresponse_constructor: (a: any, b: number, c: number) => number;
-    readonly proofmetadataresponse_data: (a: number) => any;
-    readonly proofmetadataresponse_fromJSON: (a: any) => [number, number, number];
-    readonly proofmetadataresponse_fromObject: (a: any) => [number, number, number];
-    readonly proofmetadataresponse_metadata: (a: number) => number;
-    readonly proofmetadataresponse_proof: (a: number) => number;
-    readonly proofmetadataresponse_setData: (a: number, b: any) => void;
-    readonly proofmetadataresponse_setMetadata: (a: number, b: number) => void;
-    readonly proofmetadataresponse_setProof: (a: number, b: number) => void;
-    readonly proofmetadataresponse_toJSON: (a: number) => [number, number, number];
-    readonly proofmetadataresponse_toObject: (a: number) => [number, number, number];
-    readonly responsemetadata_chain_id: (a: number) => any;
-    readonly responsemetadata_constructor: (a: bigint, b: number, c: number, d: bigint, e: number, f: any) => number;
-    readonly responsemetadata_core_chain_locked_height: (a: number) => number;
-    readonly responsemetadata_epoch: (a: number) => number;
-    readonly responsemetadata_fromJSON: (a: any) => [number, number, number];
-    readonly responsemetadata_fromObject: (a: any) => [number, number, number];
-    readonly responsemetadata_height: (a: number) => bigint;
-    readonly responsemetadata_protocol_version: (a: number) => number;
-    readonly responsemetadata_setChainId: (a: number, b: any) => void;
-    readonly responsemetadata_time_ms: (a: number) => bigint;
-    readonly responsemetadata_toJSON: (a: number) => [number, number, number];
-    readonly responsemetadata_toObject: (a: number) => [number, number, number];
-    readonly wasmsdk_getCurrentEpoch: (a: number) => any;
-    readonly wasmsdk_getCurrentEpochWithProofInfo: (a: number) => any;
-    readonly wasmsdk_getEpochsInfo: (a: number, b: any) => any;
-    readonly wasmsdk_getEpochsInfoWithProofInfo: (a: number, b: any) => any;
-    readonly wasmsdk_getEvonodesProposedEpochBlocksByIds: (a: number, b: number, c: any) => any;
-    readonly wasmsdk_getEvonodesProposedEpochBlocksByIdsWithProofInfo: (a: number, b: number, c: any) => any;
-    readonly wasmsdk_getEvonodesProposedEpochBlocksByRange: (a: number, b: any) => any;
-    readonly wasmsdk_getEvonodesProposedEpochBlocksByRangeWithProofInfo: (a: number, b: any) => any;
-    readonly wasmsdk_getFinalizedEpochInfos: (a: number, b: any) => any;
-    readonly wasmsdk_getFinalizedEpochInfosWithProofInfo: (a: number, b: any) => any;
-    readonly wasmtrustedcontext_prefetchDevnet: (a: number, b: number) => any;
-    readonly wasmtrustedcontext_prefetchDevnetWithUrl: (a: number, b: number) => any;
-    readonly wasmtrustedcontext_prefetchLocal: () => any;
-    readonly wasmtrustedcontext_prefetchLocalWithUrl: (a: number, b: number) => any;
-    readonly wasmtrustedcontext_prefetchMainnet: () => any;
-    readonly wasmtrustedcontext_prefetchMainnetWithUrl: (a: number, b: number) => any;
-    readonly wasmtrustedcontext_prefetchTestnet: () => any;
-    readonly wasmtrustedcontext_prefetchTestnetWithUrl: (a: number, b: number) => any;
-    readonly __wbg_get_identitycontractkeys_identityId: (a: number) => number;
-    readonly __wbg_get_identitycontractkeys_keys: (a: number) => [number, number];
-    readonly __wbg_identitybalanceandrevision_free: (a: number, b: number) => void;
-    readonly __wbg_identitycontractkeys_free: (a: number, b: number) => void;
-    readonly __wbg_set_identitycontractkeys_identityId: (a: number, b: number) => void;
-    readonly __wbg_set_identitycontractkeys_keys: (a: number, b: number, c: number) => void;
-    readonly __wbg_shieldedencryptednote_free: (a: number, b: number) => void;
-    readonly __wbg_shieldednullifierstatus_free: (a: number, b: number) => void;
-    readonly identitybalanceandrevision_balance: (a: number) => any;
-    readonly identitybalanceandrevision_fromJSON: (a: any) => [number, number, number];
-    readonly identitybalanceandrevision_fromObject: (a: any) => [number, number, number];
-    readonly identitybalanceandrevision_revision: (a: number) => bigint;
-    readonly identitybalanceandrevision_toJSON: (a: number) => [number, number, number];
-    readonly identitybalanceandrevision_toObject: (a: number) => [number, number, number];
-    readonly shieldedencryptednote_cmx: (a: number) => any;
-    readonly shieldedencryptednote_cv_net: (a: number) => any;
-    readonly shieldedencryptednote_encrypted_note: (a: number) => any;
-    readonly shieldedencryptednote_fromJSON: (a: any) => [number, number, number];
-    readonly shieldedencryptednote_fromObject: (a: any) => [number, number, number];
-    readonly shieldedencryptednote_nullifier: (a: number) => any;
-    readonly shieldedencryptednote_toJSON: (a: number) => [number, number, number];
-    readonly shieldedencryptednote_toObject: (a: number) => [number, number, number];
-    readonly shieldednullifierstatus_fromJSON: (a: any) => [number, number, number];
-    readonly shieldednullifierstatus_fromObject: (a: any) => [number, number, number];
-    readonly shieldednullifierstatus_is_spent: (a: number) => number;
-    readonly shieldednullifierstatus_nullifier: (a: number) => any;
-    readonly shieldednullifierstatus_toJSON: (a: number) => [number, number, number];
-    readonly shieldednullifierstatus_toObject: (a: number) => [number, number, number];
-    readonly wasmsdk_getIdentitiesBalances: (a: number, b: any) => any;
-    readonly wasmsdk_getIdentitiesBalancesWithProofInfo: (a: number, b: any) => any;
-    readonly wasmsdk_getIdentitiesContractKeys: (a: number, b: any) => any;
-    readonly wasmsdk_getIdentitiesContractKeysWithProofInfo: (a: number, b: any) => any;
-    readonly wasmsdk_getIdentity: (a: number, b: any) => any;
-    readonly wasmsdk_getIdentityBalance: (a: number, b: any) => any;
-    readonly wasmsdk_getIdentityBalanceAndRevision: (a: number, b: any) => any;
-    readonly wasmsdk_getIdentityBalanceAndRevisionWithProofInfo: (a: number, b: any) => any;
-    readonly wasmsdk_getIdentityBalanceWithProofInfo: (a: number, b: any) => any;
-    readonly wasmsdk_getIdentityByNonUniquePublicKeyHash: (a: number, b: any, c: any) => any;
-    readonly wasmsdk_getIdentityByNonUniquePublicKeyHashWithProofInfo: (a: number, b: any, c: any) => any;
-    readonly wasmsdk_getIdentityByPublicKeyHash: (a: number, b: any) => any;
-    readonly wasmsdk_getIdentityByPublicKeyHashWithProofInfo: (a: number, b: any) => any;
-    readonly wasmsdk_getIdentityContractNonce: (a: number, b: any, c: any) => any;
-    readonly wasmsdk_getIdentityContractNonceWithProofInfo: (a: number, b: any, c: any) => any;
-    readonly wasmsdk_getIdentityKeys: (a: number, b: any) => any;
-    readonly wasmsdk_getIdentityKeysWithProofInfo: (a: number, b: any) => any;
-    readonly wasmsdk_getIdentityNonce: (a: number, b: any) => any;
-    readonly wasmsdk_getIdentityNonceWithProofInfo: (a: number, b: any) => any;
-    readonly wasmsdk_getIdentityTokenBalances: (a: number, b: any, c: any) => any;
-    readonly wasmsdk_getIdentityTokenBalancesWithProofInfo: (a: number, b: any, c: any) => any;
-    readonly wasmsdk_getIdentityUnproved: (a: number, b: any) => any;
-    readonly wasmsdk_getIdentityWithProofInfo: (a: number, b: any) => any;
-    readonly wasmsdk_getMostRecentShieldedAnchor: (a: number) => any;
-    readonly wasmsdk_getMostRecentShieldedAnchorWithProofInfo: (a: number) => any;
-    readonly wasmsdk_getShieldedAnchors: (a: number) => any;
-    readonly wasmsdk_getShieldedAnchorsWithProofInfo: (a: number) => any;
-    readonly wasmsdk_getShieldedEncryptedNotes: (a: number, b: bigint, c: number) => any;
-    readonly wasmsdk_getShieldedEncryptedNotesWithProofInfo: (a: number, b: bigint, c: number) => any;
-    readonly wasmsdk_getShieldedNullifiers: (a: number, b: any) => any;
-    readonly wasmsdk_getShieldedNullifiersWithProofInfo: (a: number, b: any) => any;
-    readonly wasmsdk_getShieldedPoolState: (a: number) => any;
-    readonly wasmsdk_getShieldedPoolStateWithProofInfo: (a: number) => any;
-    readonly wasmsdk_documentCreate: (a: number, b: any) => any;
-    readonly wasmsdk_documentDelete: (a: number, b: any) => any;
-    readonly wasmsdk_documentPurchase: (a: number, b: any) => any;
-    readonly wasmsdk_documentReplace: (a: number, b: any) => any;
-    readonly wasmsdk_documentSetPrice: (a: number, b: any) => any;
-    readonly wasmsdk_documentTransfer: (a: number, b: any) => any;
     readonly __wbg_currentquorumsinfo_free: (a: number, b: number) => void;
+    readonly __wbg_datacontractlatestversion_free: (a: number, b: number) => void;
+    readonly __wbg_dpnsusernameinfo_free: (a: number, b: number) => void;
+    readonly __wbg_get_dpnsusernameinfo_documentId: (a: number) => number;
+    readonly __wbg_get_dpnsusernameinfo_identityId: (a: number) => number;
+    readonly __wbg_get_dpnsusernameinfo_username: (a: number) => [number, number];
+    readonly __wbg_get_keypair_address: (a: number) => [number, number];
+    readonly __wbg_get_keypair_network: (a: number) => [number, number];
+    readonly __wbg_get_keypair_privateKeyHex: (a: number) => [number, number];
+    readonly __wbg_get_keypair_privateKeyWif: (a: number) => [number, number];
+    readonly __wbg_get_keypair_publicKey: (a: number) => [number, number];
     readonly __wbg_get_pathelement_value: (a: number) => [number, number];
     readonly __wbg_get_quoruminfo_isVerified: (a: number) => number;
     readonly __wbg_get_quoruminfo_memberCount: (a: number) => number;
     readonly __wbg_get_quoruminfo_quorumHash: (a: number) => [number, number];
     readonly __wbg_get_quoruminfo_quorumType: (a: number) => [number, number];
     readonly __wbg_get_quoruminfo_threshold: (a: number) => number;
+    readonly __wbg_get_registerdpnsnameresult_domainDocumentId: (a: number) => number;
+    readonly __wbg_get_registerdpnsnameresult_fullDomainName: (a: number) => [number, number];
+    readonly __wbg_get_registerdpnsnameresult_preorderDocumentId: (a: number) => number;
     readonly __wbg_get_statetransitionresult_error: (a: number) => [number, number];
     readonly __wbg_get_statetransitionresult_state_transition_hash: (a: number) => [number, number];
     readonly __wbg_get_statetransitionresult_status: (a: number) => [number, number];
@@ -10470,14 +11506,24 @@ export interface InitOutput {
     readonly __wbg_get_statustime_local: (a: number) => [number, number];
     readonly __wbg_get_statusversion_protocol: (a: number) => number;
     readonly __wbg_get_statusversion_software: (a: number) => number;
+    readonly __wbg_keypair_free: (a: number, b: number) => void;
     readonly __wbg_pathelement_free: (a: number, b: number) => void;
     readonly __wbg_prefundedspecializedbalance_free: (a: number, b: number) => void;
+    readonly __wbg_proofinfo_free: (a: number, b: number) => void;
+    readonly __wbg_proofmetadataresponse_free: (a: number, b: number) => void;
     readonly __wbg_quoruminfo_free: (a: number, b: number) => void;
+    readonly __wbg_registerdpnsnameresult_free: (a: number, b: number) => void;
+    readonly __wbg_responsemetadata_free: (a: number, b: number) => void;
+    readonly __wbg_set_dpnsusernameinfo_documentId: (a: number, b: number) => void;
+    readonly __wbg_set_dpnsusernameinfo_identityId: (a: number, b: number) => void;
+    readonly __wbg_set_dpnsusernameinfo_username: (a: number, b: number, c: number) => void;
+    readonly __wbg_set_keypair_address: (a: number, b: number, c: number) => void;
+    readonly __wbg_set_keypair_network: (a: number, b: number, c: number) => void;
+    readonly __wbg_set_keypair_privateKeyHex: (a: number, b: number, c: number) => void;
+    readonly __wbg_set_keypair_publicKey: (a: number, b: number, c: number) => void;
     readonly __wbg_set_pathelement_value: (a: number, b: number, c: number) => void;
     readonly __wbg_set_quoruminfo_isVerified: (a: number, b: number) => void;
     readonly __wbg_set_quoruminfo_memberCount: (a: number, b: number) => void;
-    readonly __wbg_set_quoruminfo_quorumHash: (a: number, b: number, c: number) => void;
-    readonly __wbg_set_quoruminfo_quorumType: (a: number, b: number, c: number) => void;
     readonly __wbg_set_quoruminfo_threshold: (a: number, b: number) => void;
     readonly __wbg_set_statetransitionresult_error: (a: number, b: number, c: number) => void;
     readonly __wbg_set_statuschain_core_chain_locked_height: (a: number, b: number) => void;
@@ -10504,9 +11550,6 @@ export interface InitOutput {
     readonly __wbg_set_statussoftware_drive: (a: number, b: number, c: number) => void;
     readonly __wbg_set_statusstatesync_backfill_blocks_total: (a: number, b: number, c: number) => void;
     readonly __wbg_set_statusstatesync_backfilled_blocks: (a: number, b: number, c: number) => void;
-    readonly __wbg_set_statusstatesync_chunk_process_avg_time: (a: number, b: number, c: number) => void;
-    readonly __wbg_set_statusstatesync_snapshot_chunks_count: (a: number, b: number, c: number) => void;
-    readonly __wbg_set_statusstatesync_snapshot_height: (a: number, b: number, c: number) => void;
     readonly __wbg_set_statusstatesync_total_snapshots: (a: number, b: number) => void;
     readonly __wbg_set_statustime_block: (a: number, b: number, c: number) => void;
     readonly __wbg_set_statustime_genesis: (a: number, b: number, c: number) => void;
@@ -10521,16 +11564,29 @@ export interface InitOutput {
     readonly __wbg_statusresponse_free: (a: number, b: number) => void;
     readonly __wbg_statussoftware_free: (a: number, b: number) => void;
     readonly __wbg_statusstatesync_free: (a: number, b: number) => void;
+    readonly __wbg_statustenderdashprotocol_free: (a: number, b: number) => void;
     readonly __wbg_statustime_free: (a: number, b: number) => void;
     readonly __wbg_statusversion_free: (a: number, b: number) => void;
     readonly __wbg_wasmsdk_free: (a: number, b: number) => void;
     readonly __wbg_wasmsdkbuilder_free: (a: number, b: number) => void;
+    readonly __wbg_wasmsdkerror_free: (a: number, b: number) => void;
     readonly currentquorumsinfo_fromJSON: (a: any) => [number, number, number];
     readonly currentquorumsinfo_fromObject: (a: any) => [number, number, number];
     readonly currentquorumsinfo_height: (a: number) => bigint;
     readonly currentquorumsinfo_quorums: (a: number) => any;
     readonly currentquorumsinfo_toJSON: (a: number) => [number, number, number];
     readonly currentquorumsinfo_toObject: (a: number) => [number, number, number];
+    readonly datacontractlatestversion_data_contract: (a: number) => number;
+    readonly datacontractlatestversion_version: (a: number) => number;
+    readonly dpnsusernameinfo_constructor: (a: number, b: number, c: number, d: number) => number;
+    readonly dpnsusernameinfo_fromJSON: (a: any) => [number, number, number];
+    readonly dpnsusernameinfo_fromObject: (a: any) => [number, number, number];
+    readonly dpnsusernameinfo_toJSON: (a: number) => [number, number, number];
+    readonly dpnsusernameinfo_toObject: (a: number) => [number, number, number];
+    readonly keypair_fromJSON: (a: any) => [number, number, number];
+    readonly keypair_fromObject: (a: any) => [number, number, number];
+    readonly keypair_toJSON: (a: number) => [number, number, number];
+    readonly keypair_toObject: (a: number) => [number, number, number];
     readonly pathelement_element_type: (a: number) => [number, number];
     readonly pathelement_fromJSON: (a: any) => [number, number, number];
     readonly pathelement_fromObject: (a: any) => [number, number, number];
@@ -10549,10 +11605,52 @@ export interface InitOutput {
     readonly prefundedspecializedbalance_identity_id: (a: number) => number;
     readonly prefundedspecializedbalance_toJSON: (a: number) => [number, number, number];
     readonly prefundedspecializedbalance_toObject: (a: number) => [number, number, number];
+    readonly proofinfo_block_id_hash: (a: number) => any;
+    readonly proofinfo_constructor: (a: any, b: any, c: any, d: number, e: any, f: number) => number;
+    readonly proofinfo_fromJSON: (a: any) => [number, number, number];
+    readonly proofinfo_fromObject: (a: any) => [number, number, number];
+    readonly proofinfo_grovedb_proof: (a: number) => any;
+    readonly proofinfo_quorum_hash: (a: number) => any;
+    readonly proofinfo_quorum_type: (a: number) => number;
+    readonly proofinfo_round: (a: number) => number;
+    readonly proofinfo_setBlockIdHash: (a: number, b: any) => void;
+    readonly proofinfo_setGrovedbProof: (a: number, b: any) => void;
+    readonly proofinfo_setQuorumHash: (a: number, b: any) => void;
+    readonly proofinfo_setSignature: (a: number, b: any) => void;
+    readonly proofinfo_signature: (a: number) => any;
+    readonly proofinfo_toJSON: (a: number) => [number, number, number];
+    readonly proofinfo_toObject: (a: number) => [number, number, number];
+    readonly proofmetadataresponse_constructor: (a: any, b: number, c: number) => number;
+    readonly proofmetadataresponse_data: (a: number) => any;
+    readonly proofmetadataresponse_fromJSON: (a: any) => [number, number, number];
+    readonly proofmetadataresponse_fromObject: (a: any) => [number, number, number];
+    readonly proofmetadataresponse_metadata: (a: number) => number;
+    readonly proofmetadataresponse_proof: (a: number) => number;
+    readonly proofmetadataresponse_setData: (a: number, b: any) => void;
+    readonly proofmetadataresponse_setMetadata: (a: number, b: number) => void;
+    readonly proofmetadataresponse_setProof: (a: number, b: number) => void;
+    readonly proofmetadataresponse_toJSON: (a: number) => [number, number, number];
+    readonly proofmetadataresponse_toObject: (a: number) => [number, number, number];
     readonly quoruminfo_fromJSON: (a: any) => [number, number, number];
     readonly quoruminfo_fromObject: (a: any) => [number, number, number];
     readonly quoruminfo_toJSON: (a: number) => [number, number, number];
     readonly quoruminfo_toObject: (a: number) => [number, number, number];
+    readonly registerdpnsnameresult_fromJSON: (a: any) => [number, number, number];
+    readonly registerdpnsnameresult_fromObject: (a: any) => [number, number, number];
+    readonly registerdpnsnameresult_toJSON: (a: number) => [number, number, number];
+    readonly registerdpnsnameresult_toObject: (a: number) => [number, number, number];
+    readonly responsemetadata_chain_id: (a: number) => any;
+    readonly responsemetadata_constructor: (a: bigint, b: number, c: number, d: bigint, e: number, f: any) => number;
+    readonly responsemetadata_core_chain_locked_height: (a: number) => number;
+    readonly responsemetadata_epoch: (a: number) => number;
+    readonly responsemetadata_fromJSON: (a: any) => [number, number, number];
+    readonly responsemetadata_fromObject: (a: any) => [number, number, number];
+    readonly responsemetadata_height: (a: number) => bigint;
+    readonly responsemetadata_protocol_version: (a: number) => number;
+    readonly responsemetadata_setChainId: (a: number, b: any) => void;
+    readonly responsemetadata_time_ms: (a: number) => bigint;
+    readonly responsemetadata_toJSON: (a: number) => [number, number, number];
+    readonly responsemetadata_toObject: (a: number) => [number, number, number];
     readonly statetransitionresult_fromJSON: (a: any) => [number, number, number];
     readonly statetransitionresult_fromObject: (a: any) => [number, number, number];
     readonly statetransitionresult_toJSON: (a: number) => [number, number, number];
@@ -10603,7 +11701,33 @@ export interface InitOutput {
     readonly statusversion_fromObject: (a: any) => [number, number, number];
     readonly statusversion_toJSON: (a: number) => [number, number, number];
     readonly statusversion_toObject: (a: number) => [number, number, number];
+    readonly wasmsdk_addKnownContract: (a: number, b: number) => number;
+    readonly wasmsdk_dpnsConvertToHomographSafe: (a: number, b: number) => [number, number];
+    readonly wasmsdk_dpnsIsContestedUsername: (a: number, b: number) => number;
+    readonly wasmsdk_dpnsIsNameAvailable: (a: number, b: number, c: number) => any;
+    readonly wasmsdk_dpnsIsValidUsername: (a: number, b: number) => number;
+    readonly wasmsdk_dpnsRegisterName: (a: number, b: any) => any;
+    readonly wasmsdk_dpnsResolveName: (a: number, b: number, c: number) => any;
+    readonly wasmsdk_generateKeyPair: (a: any) => [number, number, number];
+    readonly wasmsdk_generateKeyPairs: (a: any, b: number) => [number, number, number, number];
+    readonly wasmsdk_generateTestIdentityKeys: (a: bigint) => [number, number, number];
     readonly wasmsdk_getCurrentQuorumsInfo: (a: number) => any;
+    readonly wasmsdk_getDataContract: (a: number, b: any) => any;
+    readonly wasmsdk_getDataContractHistory: (a: number, b: any) => any;
+    readonly wasmsdk_getDataContractHistoryWithProofInfo: (a: number, b: any) => any;
+    readonly wasmsdk_getDataContractWithProofInfo: (a: number, b: any) => any;
+    readonly wasmsdk_getDataContracts: (a: number, b: any) => any;
+    readonly wasmsdk_getDataContractsByRange: (a: number, b: any) => any;
+    readonly wasmsdk_getDataContractsByRangeWithProofInfo: (a: number, b: any) => any;
+    readonly wasmsdk_getDataContractsLatestVersions: (a: number, b: any) => any;
+    readonly wasmsdk_getDataContractsLatestVersionsWithProofInfo: (a: number, b: any) => any;
+    readonly wasmsdk_getDataContractsWithProofInfo: (a: number, b: any) => any;
+    readonly wasmsdk_getDpnsUsername: (a: number, b: any) => any;
+    readonly wasmsdk_getDpnsUsernameByName: (a: number, b: number, c: number) => any;
+    readonly wasmsdk_getDpnsUsernameByNameWithProofInfo: (a: number, b: number, c: number) => any;
+    readonly wasmsdk_getDpnsUsernameWithProofInfo: (a: number, b: any) => any;
+    readonly wasmsdk_getDpnsUsernames: (a: number, b: any) => any;
+    readonly wasmsdk_getDpnsUsernamesWithProofInfo: (a: number, b: any) => any;
     readonly wasmsdk_getPathElements: (a: number, b: any, c: any) => any;
     readonly wasmsdk_getPathElementsWithProofInfo: (a: number, b: any, c: any) => any;
     readonly wasmsdk_getPrefundedSpecializedBalance: (a: number, b: any) => any;
@@ -10611,9 +11735,14 @@ export interface InitOutput {
     readonly wasmsdk_getStatus: (a: number) => any;
     readonly wasmsdk_getTotalCreditsInPlatform: (a: number) => any;
     readonly wasmsdk_getTotalCreditsInPlatformWithProofInfo: (a: number) => any;
+    readonly wasmsdk_keyPairFromHex: (a: number, b: number, c: any) => [number, number, number];
+    readonly wasmsdk_keyPairFromWif: (a: number, b: number) => [number, number, number];
+    readonly wasmsdk_pubkeyToAddress: (a: number, b: number, c: any) => [number, number, number, number];
     readonly wasmsdk_refreshIdentityNonce: (a: number, b: number) => any;
     readonly wasmsdk_removeCachedContract: (a: number, b: number) => number;
     readonly wasmsdk_setLogLevel: (a: number, b: number) => [number, number];
+    readonly wasmsdk_signMessage: (a: number, b: number, c: number, d: number) => [number, number, number, number];
+    readonly wasmsdk_validateAddress: (a: number, b: number, c: any) => number;
     readonly wasmsdk_version: (a: number) => number;
     readonly wasmsdk_waitForStateTransitionResult: (a: number, b: number, c: number) => any;
     readonly wasmsdkbuilder_build: (a: number) => [number, number, number];
@@ -10634,216 +11763,79 @@ export interface InitOutput {
     readonly wasmsdkerror_kind: (a: number) => number;
     readonly wasmsdkerror_message: (a: number) => [number, number];
     readonly wasmsdkerror_name: (a: number) => [number, number];
-    readonly __wbg_set_statustenderdashprotocol_block: (a: number, b: number) => void;
-    readonly __wbg_set_statustenderdashprotocol_p2p: (a: number, b: number) => void;
-    readonly __wbg_set_statussoftware_tenderdash: (a: number, b: number, c: number) => void;
-    readonly __wbg_set_statustime_epoch: (a: number, b: number) => void;
+    readonly __wbg_set_keypair_privateKeyWif: (a: number, b: number, c: number) => void;
+    readonly __wbg_set_quoruminfo_quorumHash: (a: number, b: number, c: number) => void;
+    readonly __wbg_set_quoruminfo_quorumType: (a: number, b: number, c: number) => void;
+    readonly __wbg_set_registerdpnsnameresult_fullDomainName: (a: number, b: number, c: number) => void;
     readonly __wbg_set_statetransitionresult_state_transition_hash: (a: number, b: number, c: number) => void;
     readonly __wbg_set_statetransitionresult_status: (a: number, b: number, c: number) => void;
     readonly __wbg_set_statusnetwork_chain_id: (a: number, b: number, c: number) => void;
     readonly __wbg_set_statussoftware_dapi: (a: number, b: number, c: number) => void;
+    readonly __wbg_set_statusstatesync_chunk_process_avg_time: (a: number, b: number, c: number) => void;
     readonly __wbg_set_statusstatesync_remaining_time: (a: number, b: number, c: number) => void;
+    readonly __wbg_set_statusstatesync_snapshot_chunks_count: (a: number, b: number, c: number) => void;
+    readonly __wbg_set_statusstatesync_snapshot_height: (a: number, b: number, c: number) => void;
     readonly __wbg_set_statusstatesync_total_synced_time: (a: number, b: number, c: number) => void;
     readonly __wbg_set_statustime_local: (a: number, b: number, c: number) => void;
-    readonly __wbg_statustenderdashprotocol_free: (a: number, b: number) => void;
-    readonly __wbg_wasmsdkerror_free: (a: number, b: number) => void;
-    readonly __wbg_platformaddressinfo_free: (a: number, b: number) => void;
-    readonly platformaddressinfo_address: (a: number) => number;
-    readonly platformaddressinfo_balance: (a: number) => any;
-    readonly platformaddressinfo_fromJSON: (a: any) => [number, number, number];
-    readonly platformaddressinfo_fromObject: (a: any) => [number, number, number];
-    readonly platformaddressinfo_nonce: (a: number) => any;
-    readonly platformaddressinfo_toJSON: (a: number) => [number, number, number];
-    readonly platformaddressinfo_toObject: (a: number) => [number, number, number];
+    readonly __wbg_set_registerdpnsnameresult_domainDocumentId: (a: number, b: number) => void;
+    readonly __wbg_set_registerdpnsnameresult_preorderDocumentId: (a: number, b: number) => void;
+    readonly __wbg_set_statussoftware_tenderdash: (a: number, b: number, c: number) => void;
+    readonly __wbg_set_statustenderdashprotocol_block: (a: number, b: number) => void;
+    readonly __wbg_set_statustenderdashprotocol_p2p: (a: number, b: number) => void;
+    readonly __wbg_set_statustime_epoch: (a: number, b: number) => void;
     readonly wasmsdk_broadcastAndWait: (a: number, b: number, c: number) => any;
     readonly wasmsdk_broadcastAndWaitForAffectedState: (a: number, b: number, c: number) => any;
     readonly wasmsdk_broadcastStateTransition: (a: number, b: number, c: number) => any;
-    readonly wasmsdk_getAddressInfo: (a: number, b: any) => any;
-    readonly wasmsdk_getAddressInfoWithProofInfo: (a: number, b: any) => any;
-    readonly wasmsdk_getAddressesInfos: (a: number, b: any) => any;
-    readonly wasmsdk_getAddressesInfosWithProofInfo: (a: number, b: any) => any;
     readonly wasmsdk_waitForAffectedState: (a: number, b: number, c: number) => any;
     readonly wasmsdk_waitForResponse: (a: number, b: number, c: number) => any;
-    readonly start: () => void;
-    readonly __wbg_contestedresourcecontender_free: (a: number, b: number) => void;
-    readonly __wbg_contestedresourcevotestate_free: (a: number, b: number) => void;
-    readonly __wbg_contestedresourcevotewinner_free: (a: number, b: number) => void;
-    readonly __wbg_get_contestedresourcecontender_contender: (a: number) => number;
-    readonly __wbg_get_contestedresourcevotestate_abstainVoteTally: (a: number) => number;
-    readonly __wbg_get_contestedresourcevotestate_contenders: (a: number) => any;
-    readonly __wbg_get_contestedresourcevotestate_lockVoteTally: (a: number) => number;
-    readonly __wbg_get_contestedresourcevotestate_winner: (a: number) => number;
-    readonly __wbg_get_contestedresourcevotewinner_block: (a: number) => number;
-    readonly __wbg_get_contestedresourcevotewinner_info: (a: number) => number;
-    readonly __wbg_set_contestedresourcecontender_contender: (a: number, b: number) => void;
-    readonly __wbg_set_contestedresourcevotestate_abstainVoteTally: (a: number, b: number) => void;
-    readonly __wbg_set_contestedresourcevotestate_contenders: (a: number, b: any) => void;
-    readonly __wbg_set_contestedresourcevotestate_lockVoteTally: (a: number, b: number) => void;
-    readonly __wbg_set_contestedresourcevotestate_winner: (a: number, b: number) => void;
-    readonly __wbg_set_contestedresourcevotewinner_block: (a: number, b: number) => void;
-    readonly __wbg_set_contestedresourcevotewinner_info: (a: number, b: number) => void;
-    readonly contestedresourcecontender_identity_id: (a: number) => number;
-    readonly contestedresourcecontender_serialized_document: (a: number) => any;
-    readonly contestedresourcecontender_vote_tally: (a: number) => number;
-    readonly contestedresourcevotewinner_identity_id: (a: number) => number;
-    readonly contestedresourcevotewinner_kind: (a: number) => [number, number];
-    readonly wasmsdk_contractPublish: (a: number, b: any) => any;
-    readonly wasmsdk_contractUpdate: (a: number, b: any) => any;
-    readonly wasmsdk_getContestedResourceIdentityVotes: (a: number, b: any) => any;
-    readonly wasmsdk_getContestedResourceIdentityVotesWithProofInfo: (a: number, b: any) => any;
-    readonly wasmsdk_getContestedResourceVoteState: (a: number, b: any) => any;
-    readonly wasmsdk_getContestedResourceVoteStateWithProofInfo: (a: number, b: any) => any;
-    readonly wasmsdk_getContestedResources: (a: number, b: any) => any;
-    readonly wasmsdk_getContestedResourcesWithProofInfo: (a: number, b: any) => any;
-    readonly __wbg_identitycredittransferresult_free: (a: number, b: number) => void;
-    readonly identitycredittransferresult_recipient_balance: (a: number) => any;
-    readonly identitycredittransferresult_sender_balance: (a: number) => any;
-    readonly wasmsdk_getDataContract: (a: number, b: any) => any;
-    readonly wasmsdk_getDataContractHistory: (a: number, b: any) => any;
-    readonly wasmsdk_getDataContractHistoryWithProofInfo: (a: number, b: any) => any;
-    readonly wasmsdk_getDataContractWithProofInfo: (a: number, b: any) => any;
-    readonly wasmsdk_getDataContracts: (a: number, b: any) => any;
-    readonly wasmsdk_getDataContractsWithProofInfo: (a: number, b: any) => any;
-    readonly wasmsdk_identityCreate: (a: number, b: any) => any;
-    readonly wasmsdk_identityCreditTransfer: (a: number, b: any) => any;
-    readonly wasmsdk_identityCreditWithdrawal: (a: number, b: any) => any;
-    readonly wasmsdk_identityTopUp: (a: number, b: any) => any;
-    readonly wasmsdk_identityUpdate: (a: number, b: any) => any;
-    readonly wasmsdk_masternodeVote: (a: number, b: any) => any;
-    readonly __wbg_dashpaycontactkeyinfo_free: (a: number, b: number) => void;
+    readonly wasmsdk_getContestedResourceVotersForIdentity: (a: number, b: any) => any;
+    readonly wasmsdk_getContestedResourceVotersForIdentityWithProofInfo: (a: number, b: any) => any;
     readonly __wbg_derivationpathinfo_free: (a: number, b: number) => void;
-    readonly __wbg_derivedkeyinfo_free: (a: number, b: number) => void;
     readonly __wbg_dip13derivationpathinfo_free: (a: number, b: number) => void;
-    readonly __wbg_dpnsusernameinfo_free: (a: number, b: number) => void;
-    readonly __wbg_get_dashpaycontactkeyinfo_account: (a: number) => number;
-    readonly __wbg_get_dashpaycontactkeyinfo_address: (a: number) => [number, number];
-    readonly __wbg_get_dashpaycontactkeyinfo_addressIndex: (a: number) => number;
-    readonly __wbg_get_dashpaycontactkeyinfo_dipStandard: (a: number) => [number, number];
-    readonly __wbg_get_dashpaycontactkeyinfo_network: (a: number) => [number, number];
-    readonly __wbg_get_dashpaycontactkeyinfo_path: (a: number) => [number, number];
-    readonly __wbg_get_dashpaycontactkeyinfo_privateKeyHex: (a: number) => [number, number];
-    readonly __wbg_get_dashpaycontactkeyinfo_privateKeyWif: (a: number) => [number, number];
-    readonly __wbg_get_dashpaycontactkeyinfo_publicKey: (a: number) => [number, number];
-    readonly __wbg_get_dashpaycontactkeyinfo_purpose: (a: number) => [number, number];
-    readonly __wbg_get_dashpaycontactkeyinfo_receiverIdentity: (a: number) => [number, number];
-    readonly __wbg_get_dashpaycontactkeyinfo_senderIdentity: (a: number) => [number, number];
-    readonly __wbg_get_dashpaycontactkeyinfo_xprv: (a: number) => [number, number];
-    readonly __wbg_get_dashpaycontactkeyinfo_xpub: (a: number) => [number, number];
     readonly __wbg_get_derivationpathinfo_account: (a: number) => number;
     readonly __wbg_get_derivationpathinfo_change: (a: number) => number;
     readonly __wbg_get_derivationpathinfo_coinType: (a: number) => number;
     readonly __wbg_get_derivationpathinfo_index: (a: number) => number;
+    readonly __wbg_get_derivationpathinfo_path: (a: number) => [number, number];
     readonly __wbg_get_derivationpathinfo_purpose: (a: number) => number;
     readonly __wbg_get_dip13derivationpathinfo_account: (a: number) => number;
-    readonly __wbg_get_dpnsusernameinfo_documentId: (a: number) => number;
-    readonly __wbg_get_dpnsusernameinfo_identityId: (a: number) => number;
-    readonly __wbg_get_identitygroupinfo_dataContractId: (a: number) => [number, number];
-    readonly __wbg_get_identitygroupinfo_role: (a: number) => [number, number];
-    readonly __wbg_get_tokenburnresult_document: (a: number) => number;
-    readonly __wbg_get_tokenburnresult_groupActionStatus: (a: number) => [number, number];
-    readonly __wbg_get_tokenburnresult_groupPower: (a: number) => number;
-    readonly __wbg_get_tokenburnresult_ownerId: (a: number) => number;
-    readonly __wbg_get_tokenclaimresult_document: (a: number) => number;
-    readonly __wbg_get_tokenclaimresult_groupPower: (a: number) => number;
-    readonly __wbg_get_tokendirectpurchaseresult_buyerId: (a: number) => number;
-    readonly __wbg_get_tokenfreezeresult_frozenIdentityId: (a: number) => number;
+    readonly __wbg_get_dip13derivationpathinfo_description: (a: number) => [number, number];
+    readonly __wbg_get_pathderivedkeyinfo_address: (a: number) => [number, number];
+    readonly __wbg_get_pathderivedkeyinfo_network: (a: number) => [number, number];
+    readonly __wbg_get_pathderivedkeyinfo_privateKeyHex: (a: number) => [number, number];
+    readonly __wbg_get_pathderivedkeyinfo_publicKey: (a: number) => [number, number];
     readonly __wbg_get_tokenpriceinfo_tokenId: (a: number) => number;
-    readonly __wbg_get_tokensetpriceresult_pricingSchedule: (a: number) => number;
-    readonly __wbg_get_tokentransferresult_document: (a: number) => number;
-    readonly __wbg_get_tokentransferresult_groupPower: (a: number) => number;
-    readonly __wbg_identitycreatefromaddressesresult_free: (a: number, b: number) => void;
-    readonly __wbg_identitygroupinfo_free: (a: number, b: number) => void;
-    readonly __wbg_identitytopupfromaddressesresult_free: (a: number, b: number) => void;
-    readonly __wbg_identitytransfertoaddressesresult_free: (a: number, b: number) => void;
-    readonly __wbg_keypair_free: (a: number, b: number) => void;
+    readonly __wbg_identitycredittransferresult_free: (a: number, b: number) => void;
     readonly __wbg_pathderivedkeyinfo_free: (a: number, b: number) => void;
     readonly __wbg_protocolversionupgradestate_free: (a: number, b: number) => void;
     readonly __wbg_protocolversionupgradevotestatus_free: (a: number, b: number) => void;
-    readonly __wbg_registerdpnsnameresult_free: (a: number, b: number) => void;
     readonly __wbg_rewarddistributionmoment_free: (a: number, b: number) => void;
     readonly __wbg_seedphrasekeyinfo_free: (a: number, b: number) => void;
-    readonly __wbg_set_dashpaycontactkeyinfo_account: (a: number, b: number) => void;
-    readonly __wbg_set_dashpaycontactkeyinfo_address: (a: number, b: number, c: number) => void;
-    readonly __wbg_set_dashpaycontactkeyinfo_addressIndex: (a: number, b: number) => void;
-    readonly __wbg_set_dashpaycontactkeyinfo_dipStandard: (a: number, b: number, c: number) => void;
-    readonly __wbg_set_dashpaycontactkeyinfo_network: (a: number, b: number, c: number) => void;
-    readonly __wbg_set_dashpaycontactkeyinfo_path: (a: number, b: number, c: number) => void;
-    readonly __wbg_set_dashpaycontactkeyinfo_privateKeyHex: (a: number, b: number, c: number) => void;
-    readonly __wbg_set_dashpaycontactkeyinfo_privateKeyWif: (a: number, b: number, c: number) => void;
-    readonly __wbg_set_dashpaycontactkeyinfo_publicKey: (a: number, b: number, c: number) => void;
-    readonly __wbg_set_dashpaycontactkeyinfo_purpose: (a: number, b: number, c: number) => void;
-    readonly __wbg_set_dashpaycontactkeyinfo_receiverIdentity: (a: number, b: number, c: number) => void;
-    readonly __wbg_set_dashpaycontactkeyinfo_senderIdentity: (a: number, b: number, c: number) => void;
-    readonly __wbg_set_dashpaycontactkeyinfo_xprv: (a: number, b: number, c: number) => void;
-    readonly __wbg_set_dashpaycontactkeyinfo_xpub: (a: number, b: number, c: number) => void;
     readonly __wbg_set_derivationpathinfo_account: (a: number, b: number) => void;
     readonly __wbg_set_derivationpathinfo_change: (a: number, b: number) => void;
     readonly __wbg_set_derivationpathinfo_coinType: (a: number, b: number) => void;
     readonly __wbg_set_derivationpathinfo_index: (a: number, b: number) => void;
+    readonly __wbg_set_derivationpathinfo_path: (a: number, b: number, c: number) => void;
     readonly __wbg_set_derivationpathinfo_purpose: (a: number, b: number) => void;
     readonly __wbg_set_dip13derivationpathinfo_account: (a: number, b: number) => void;
-    readonly __wbg_set_dpnsusernameinfo_documentId: (a: number, b: number) => void;
-    readonly __wbg_set_dpnsusernameinfo_identityId: (a: number, b: number) => void;
-    readonly __wbg_set_identitygroupinfo_dataContractId: (a: number, b: number, c: number) => void;
-    readonly __wbg_set_identitygroupinfo_role: (a: number, b: number, c: number) => void;
-    readonly __wbg_set_tokenburnresult_document: (a: number, b: number) => void;
-    readonly __wbg_set_tokenburnresult_groupActionStatus: (a: number, b: number, c: number) => void;
-    readonly __wbg_set_tokenburnresult_groupPower: (a: number, b: number) => void;
-    readonly __wbg_set_tokenburnresult_ownerId: (a: number, b: number) => void;
-    readonly __wbg_set_tokenclaimresult_document: (a: number, b: number) => void;
-    readonly __wbg_set_tokenclaimresult_groupPower: (a: number, b: number) => void;
-    readonly __wbg_set_tokendirectpurchaseresult_buyerId: (a: number, b: number) => void;
-    readonly __wbg_set_tokenfreezeresult_frozenIdentityId: (a: number, b: number) => void;
+    readonly __wbg_set_dip13derivationpathinfo_description: (a: number, b: number, c: number) => void;
+    readonly __wbg_set_pathderivedkeyinfo_address: (a: number, b: number, c: number) => void;
+    readonly __wbg_set_pathderivedkeyinfo_network: (a: number, b: number, c: number) => void;
+    readonly __wbg_set_pathderivedkeyinfo_privateKeyHex: (a: number, b: number, c: number) => void;
+    readonly __wbg_set_pathderivedkeyinfo_publicKey: (a: number, b: number, c: number) => void;
     readonly __wbg_set_tokenpriceinfo_tokenId: (a: number, b: number) => void;
-    readonly __wbg_set_tokensetpriceresult_pricingSchedule: (a: number, b: number) => void;
-    readonly __wbg_set_tokentransferresult_document: (a: number, b: number) => void;
-    readonly __wbg_set_tokentransferresult_groupPower: (a: number, b: number) => void;
-    readonly __wbg_tokenburnresult_free: (a: number, b: number) => void;
-    readonly __wbg_tokenclaimresult_free: (a: number, b: number) => void;
-    readonly __wbg_tokenconfigupdateresult_free: (a: number, b: number) => void;
-    readonly __wbg_tokendestroyfrozenresult_free: (a: number, b: number) => void;
-    readonly __wbg_tokendirectpurchaseresult_free: (a: number, b: number) => void;
-    readonly __wbg_tokenemergencyactionresult_free: (a: number, b: number) => void;
-    readonly __wbg_tokenfreezeresult_free: (a: number, b: number) => void;
-    readonly __wbg_tokenmintresult_free: (a: number, b: number) => void;
     readonly __wbg_tokenpriceinfo_free: (a: number, b: number) => void;
-    readonly __wbg_tokensetpriceresult_free: (a: number, b: number) => void;
     readonly __wbg_tokentotalsupply_free: (a: number, b: number) => void;
-    readonly __wbg_tokentransferresult_free: (a: number, b: number) => void;
-    readonly __wbg_tokenunfreezeresult_free: (a: number, b: number) => void;
-    readonly __wbg_votepollsbyenddateentry_free: (a: number, b: number) => void;
-    readonly dashpaycontactkeyinfo_fromJSON: (a: any) => [number, number, number];
-    readonly dashpaycontactkeyinfo_fromObject: (a: any) => [number, number, number];
-    readonly dashpaycontactkeyinfo_toJSON: (a: number) => [number, number, number];
-    readonly dashpaycontactkeyinfo_toObject: (a: number) => [number, number, number];
     readonly derivationpathinfo_fromJSON: (a: any) => [number, number, number];
     readonly derivationpathinfo_fromObject: (a: any) => [number, number, number];
     readonly derivationpathinfo_toJSON: (a: number) => [number, number, number];
     readonly derivationpathinfo_toObject: (a: number) => [number, number, number];
-    readonly derivedkeyinfo_fromJSON: (a: any) => [number, number, number];
-    readonly derivedkeyinfo_fromObject: (a: any) => [number, number, number];
-    readonly derivedkeyinfo_toJSON: (a: number) => [number, number, number];
-    readonly derivedkeyinfo_toObject: (a: number) => [number, number, number];
     readonly dip13derivationpathinfo_fromJSON: (a: any) => [number, number, number];
     readonly dip13derivationpathinfo_fromObject: (a: any) => [number, number, number];
     readonly dip13derivationpathinfo_toJSON: (a: number) => [number, number, number];
     readonly dip13derivationpathinfo_toObject: (a: number) => [number, number, number];
-    readonly dpnsusernameinfo_constructor: (a: number, b: number, c: number, d: number) => number;
-    readonly dpnsusernameinfo_fromJSON: (a: any) => [number, number, number];
-    readonly dpnsusernameinfo_fromObject: (a: any) => [number, number, number];
-    readonly dpnsusernameinfo_toJSON: (a: number) => [number, number, number];
-    readonly dpnsusernameinfo_toObject: (a: number) => [number, number, number];
-    readonly identitycreatefromaddressesresult_address_infos: (a: number) => any;
-    readonly identitycreatefromaddressesresult_identity: (a: number) => number;
-    readonly identitygroupinfo_power: (a: number) => any;
-    readonly identitytopupfromaddressesresult_address_infos: (a: number) => any;
-    readonly identitytopupfromaddressesresult_new_balance: (a: number) => any;
-    readonly identitytransfertoaddressesresult_address_infos: (a: number) => any;
-    readonly identitytransfertoaddressesresult_new_balance: (a: number) => any;
-    readonly keypair_fromJSON: (a: any) => [number, number, number];
-    readonly keypair_fromObject: (a: any) => [number, number, number];
-    readonly keypair_toJSON: (a: number) => [number, number, number];
-    readonly keypair_toObject: (a: number) => [number, number, number];
+    readonly identitycredittransferresult_recipient_balance: (a: number) => any;
+    readonly identitycredittransferresult_sender_balance: (a: number) => any;
     readonly pathderivedkeyinfo_fromJSON: (a: any) => [number, number, number];
     readonly pathderivedkeyinfo_fromObject: (a: any) => [number, number, number];
     readonly pathderivedkeyinfo_toJSON: (a: number) => [number, number, number];
@@ -10857,10 +11849,6 @@ export interface InitOutput {
     readonly protocolversionupgradestate_vote_count: (a: number) => [number, bigint];
     readonly protocolversionupgradevotestatus_pro_tx_hash: (a: number) => number;
     readonly protocolversionupgradevotestatus_version: (a: number) => number;
-    readonly registerdpnsnameresult_fromJSON: (a: any) => [number, number, number];
-    readonly registerdpnsnameresult_fromObject: (a: any) => [number, number, number];
-    readonly registerdpnsnameresult_toJSON: (a: number) => [number, number, number];
-    readonly registerdpnsnameresult_toObject: (a: number) => [number, number, number];
     readonly rewarddistributionmoment_block_height: (a: number) => [number, bigint];
     readonly rewarddistributionmoment_epoch_index: (a: number) => number;
     readonly rewarddistributionmoment_moment_type: (a: number) => [number, number];
@@ -10869,6 +11857,262 @@ export interface InitOutput {
     readonly seedphrasekeyinfo_fromObject: (a: any) => [number, number, number];
     readonly seedphrasekeyinfo_toJSON: (a: number) => [number, number, number];
     readonly seedphrasekeyinfo_toObject: (a: number) => [number, number, number];
+    readonly tokenpriceinfo_fromJSON: (a: any) => [number, number, number];
+    readonly tokenpriceinfo_fromObject: (a: any) => [number, number, number];
+    readonly tokenpriceinfo_toJSON: (a: number) => [number, number, number];
+    readonly tokenpriceinfo_toObject: (a: number) => [number, number, number];
+    readonly tokentotalsupply_fromJSON: (a: any) => [number, number, number];
+    readonly tokentotalsupply_fromObject: (a: any) => [number, number, number];
+    readonly tokentotalsupply_toJSON: (a: number) => [number, number, number];
+    readonly tokentotalsupply_toObject: (a: number) => [number, number, number];
+    readonly tokentotalsupply_total_supply: (a: number) => any;
+    readonly wasmsdk_calculateTokenIdFromContract: (a: any, b: number) => [number, number, number, number];
+    readonly wasmsdk_derivationPathBip44Mainnet: (a: number, b: number, c: number) => number;
+    readonly wasmsdk_derivationPathBip44Testnet: (a: number, b: number, c: number) => number;
+    readonly wasmsdk_derivationPathDip13Mainnet: (a: number) => number;
+    readonly wasmsdk_derivationPathDip13Testnet: (a: number) => number;
+    readonly wasmsdk_derivationPathDip9Mainnet: (a: number, b: number, c: number) => number;
+    readonly wasmsdk_derivationPathDip9Testnet: (a: number, b: number, c: number) => number;
+    readonly wasmsdk_deriveChildPublicKey: (a: number, b: number, c: number, d: number) => [number, number, number, number];
+    readonly wasmsdk_deriveKeyFromSeedPhrase: (a: any) => [number, number, number];
+    readonly wasmsdk_deriveKeyFromSeedWithPath: (a: any) => [number, number, number];
+    readonly wasmsdk_generateMnemonic: (a: number) => [number, number, number, number];
+    readonly wasmsdk_getIdentitiesTokenBalances: (a: number, b: any, c: any) => any;
+    readonly wasmsdk_getIdentitiesTokenBalancesWithProofInfo: (a: number, b: any, c: any) => any;
+    readonly wasmsdk_getIdentitiesTokenInfos: (a: number, b: any, c: any) => any;
+    readonly wasmsdk_getIdentitiesTokenInfosWithProofInfo: (a: number, b: any, c: any) => any;
+    readonly wasmsdk_getIdentityTokenInfos: (a: number, b: any, c: any) => any;
+    readonly wasmsdk_getIdentityTokenInfosWithProofInfo: (a: number, b: any, c: any) => any;
+    readonly wasmsdk_getProtocolVersionUpgradeState: (a: number) => any;
+    readonly wasmsdk_getProtocolVersionUpgradeStateWithProofInfo: (a: number) => any;
+    readonly wasmsdk_getProtocolVersionUpgradeVoteStatus: (a: number, b: any, c: number) => any;
+    readonly wasmsdk_getProtocolVersionUpgradeVoteStatusWithProofInfo: (a: number, b: any, c: number) => any;
+    readonly wasmsdk_getTokenContractInfo: (a: number, b: any) => any;
+    readonly wasmsdk_getTokenContractInfoWithProofInfo: (a: number, b: any) => any;
+    readonly wasmsdk_getTokenDirectPurchasePrices: (a: number, b: any) => any;
+    readonly wasmsdk_getTokenDirectPurchasePricesWithProofInfo: (a: number, b: any) => any;
+    readonly wasmsdk_getTokenPerpetualDistributionLastClaim: (a: number, b: any, c: any) => any;
+    readonly wasmsdk_getTokenPerpetualDistributionLastClaimWithProofInfo: (a: number, b: any, c: any) => any;
+    readonly wasmsdk_getTokenPriceByContract: (a: number, b: any, c: number) => any;
+    readonly wasmsdk_getTokenStatuses: (a: number, b: any) => any;
+    readonly wasmsdk_getTokenStatusesWithProofInfo: (a: number, b: any) => any;
+    readonly wasmsdk_getTokenTotalSupply: (a: number, b: any) => any;
+    readonly wasmsdk_getTokenTotalSupplyWithProofInfo: (a: number, b: any) => any;
+    readonly wasmsdk_identityCreate: (a: number, b: any) => any;
+    readonly wasmsdk_identityCreditTransfer: (a: number, b: any) => any;
+    readonly wasmsdk_identityCreditWithdrawal: (a: number, b: any) => any;
+    readonly wasmsdk_identityTopUp: (a: number, b: any) => any;
+    readonly wasmsdk_identityUpdate: (a: number, b: any) => any;
+    readonly wasmsdk_masternodeVote: (a: number, b: any) => any;
+    readonly wasmsdk_mnemonicToSeed: (a: number, b: number, c: number, d: number) => [number, number, number, number];
+    readonly wasmsdk_validateMnemonic: (a: number, b: number, c: number, d: number) => number;
+    readonly wasmsdk_xprvToXpub: (a: number, b: number) => [number, number, number, number];
+    readonly __wbg_set_dip13derivationpathinfo_path: (a: number, b: number, c: number) => void;
+    readonly __wbg_set_pathderivedkeyinfo_path: (a: number, b: number, c: number) => void;
+    readonly __wbg_set_pathderivedkeyinfo_privateKeyWif: (a: number, b: number, c: number) => void;
+    readonly __wbg_set_seedphrasekeyinfo_address: (a: number, b: number, c: number) => void;
+    readonly __wbg_set_seedphrasekeyinfo_network: (a: number, b: number, c: number) => void;
+    readonly __wbg_set_seedphrasekeyinfo_privateKeyHex: (a: number, b: number, c: number) => void;
+    readonly __wbg_set_seedphrasekeyinfo_privateKeyWif: (a: number, b: number, c: number) => void;
+    readonly __wbg_set_seedphrasekeyinfo_publicKey: (a: number, b: number, c: number) => void;
+    readonly __wbg_set_tokenpriceinfo_basePrice: (a: number, b: number, c: number) => void;
+    readonly __wbg_set_tokenpriceinfo_currentPrice: (a: number, b: number, c: number) => void;
+    readonly __wbg_get_dip13derivationpathinfo_path: (a: number) => [number, number];
+    readonly __wbg_get_pathderivedkeyinfo_path: (a: number) => [number, number];
+    readonly __wbg_get_pathderivedkeyinfo_privateKeyWif: (a: number) => [number, number];
+    readonly __wbg_get_seedphrasekeyinfo_address: (a: number) => [number, number];
+    readonly __wbg_get_seedphrasekeyinfo_network: (a: number) => [number, number];
+    readonly __wbg_get_seedphrasekeyinfo_privateKeyHex: (a: number) => [number, number];
+    readonly __wbg_get_seedphrasekeyinfo_privateKeyWif: (a: number) => [number, number];
+    readonly __wbg_get_seedphrasekeyinfo_publicKey: (a: number) => [number, number];
+    readonly __wbg_get_tokenpriceinfo_basePrice: (a: number) => [number, number];
+    readonly __wbg_get_tokenpriceinfo_currentPrice: (a: number) => [number, number];
+    readonly __wbg_set_dip13derivationpathinfo_coinType: (a: number, b: number) => void;
+    readonly __wbg_set_dip13derivationpathinfo_purpose: (a: number, b: number) => void;
+    readonly __wbg_get_dip13derivationpathinfo_coinType: (a: number) => number;
+    readonly __wbg_get_dip13derivationpathinfo_purpose: (a: number) => number;
+    readonly __wbg_contestedresourcecontender_free: (a: number, b: number) => void;
+    readonly __wbg_contestedresourcevotestate_free: (a: number, b: number) => void;
+    readonly __wbg_contestedresourcevotewinner_free: (a: number, b: number) => void;
+    readonly __wbg_get_contestedresourcecontender_contender: (a: number) => number;
+    readonly __wbg_get_contestedresourcevotestate_abstainVoteTally: (a: number) => number;
+    readonly __wbg_get_contestedresourcevotestate_contenders: (a: number) => any;
+    readonly __wbg_get_contestedresourcevotestate_lockVoteTally: (a: number) => number;
+    readonly __wbg_get_contestedresourcevotestate_winner: (a: number) => number;
+    readonly __wbg_get_contestedresourcevotewinner_block: (a: number) => number;
+    readonly __wbg_get_contestedresourcevotewinner_info: (a: number) => number;
+    readonly __wbg_identitycreatefromaddressesresult_free: (a: number, b: number) => void;
+    readonly __wbg_identitytopupfromaddressesresult_free: (a: number, b: number) => void;
+    readonly __wbg_identitytransfertoaddressesresult_free: (a: number, b: number) => void;
+    readonly __wbg_set_contestedresourcecontender_contender: (a: number, b: number) => void;
+    readonly __wbg_set_contestedresourcevotestate_abstainVoteTally: (a: number, b: number) => void;
+    readonly __wbg_set_contestedresourcevotestate_contenders: (a: number, b: any) => void;
+    readonly __wbg_set_contestedresourcevotestate_lockVoteTally: (a: number, b: number) => void;
+    readonly __wbg_set_contestedresourcevotestate_winner: (a: number, b: number) => void;
+    readonly __wbg_set_contestedresourcevotewinner_block: (a: number, b: number) => void;
+    readonly __wbg_set_contestedresourcevotewinner_info: (a: number, b: number) => void;
+    readonly __wbg_votepollsbyenddateentry_free: (a: number, b: number) => void;
+    readonly contestedresourcecontender_identity_id: (a: number) => number;
+    readonly contestedresourcecontender_serialized_document: (a: number) => any;
+    readonly contestedresourcecontender_vote_tally: (a: number) => number;
+    readonly contestedresourcevotewinner_identity_id: (a: number) => number;
+    readonly contestedresourcevotewinner_kind: (a: number) => [number, number];
+    readonly identitycreatefromaddressesresult_address_infos: (a: number) => any;
+    readonly identitycreatefromaddressesresult_identity: (a: number) => number;
+    readonly identitytopupfromaddressesresult_address_infos: (a: number) => any;
+    readonly identitytopupfromaddressesresult_new_balance: (a: number) => any;
+    readonly identitytransfertoaddressesresult_address_infos: (a: number) => any;
+    readonly identitytransfertoaddressesresult_new_balance: (a: number) => any;
+    readonly votepollsbyenddateentry_timestamp_ms: (a: number) => any;
+    readonly votepollsbyenddateentry_vote_polls: (a: number) => any;
+    readonly wasmsdk_addressFundingFromAssetLock: (a: number, b: any) => any;
+    readonly wasmsdk_addressFundsTransfer: (a: number, b: any) => any;
+    readonly wasmsdk_addressFundsWithdraw: (a: number, b: any) => any;
+    readonly wasmsdk_getContestedResourceVoteState: (a: number, b: any) => any;
+    readonly wasmsdk_getContestedResourceVoteStateWithProofInfo: (a: number, b: any) => any;
+    readonly wasmsdk_getVotePollsByEndDate: (a: number, b: number) => any;
+    readonly wasmsdk_getVotePollsByEndDateWithProofInfo: (a: number, b: number) => any;
+    readonly wasmsdk_identityCreateFromAddresses: (a: number, b: any) => any;
+    readonly wasmsdk_identityTopUpFromAddresses: (a: number, b: any) => any;
+    readonly wasmsdk_identityTransferToAddresses: (a: number, b: any) => any;
+    readonly __wbg_get_identitycontractkeys_identityId: (a: number) => number;
+    readonly __wbg_get_identitycontractkeys_keys: (a: number) => [number, number];
+    readonly __wbg_identitybalanceandrevision_free: (a: number, b: number) => void;
+    readonly __wbg_identitycontractkeys_free: (a: number, b: number) => void;
+    readonly __wbg_set_identitycontractkeys_identityId: (a: number, b: number) => void;
+    readonly __wbg_set_identitycontractkeys_keys: (a: number, b: number, c: number) => void;
+    readonly identitybalanceandrevision_balance: (a: number) => any;
+    readonly identitybalanceandrevision_fromJSON: (a: any) => [number, number, number];
+    readonly identitybalanceandrevision_fromObject: (a: any) => [number, number, number];
+    readonly identitybalanceandrevision_revision: (a: number) => bigint;
+    readonly identitybalanceandrevision_toJSON: (a: number) => [number, number, number];
+    readonly identitybalanceandrevision_toObject: (a: number) => [number, number, number];
+    readonly wasmsdk_getChainedDocuments: (a: number, b: any) => any;
+    readonly wasmsdk_getChainedDocumentsWithProofInfo: (a: number, b: any) => any;
+    readonly wasmsdk_getCompositeDocuments: (a: number, b: any) => any;
+    readonly wasmsdk_getCompositeDocumentsWithProofInfo: (a: number, b: any) => any;
+    readonly wasmsdk_getIdentitiesBalances: (a: number, b: any) => any;
+    readonly wasmsdk_getIdentitiesBalancesWithProofInfo: (a: number, b: any) => any;
+    readonly wasmsdk_getIdentitiesContractKeys: (a: number, b: any) => any;
+    readonly wasmsdk_getIdentitiesContractKeysWithProofInfo: (a: number, b: any) => any;
+    readonly wasmsdk_getIdentity: (a: number, b: any) => any;
+    readonly wasmsdk_getIdentityBalance: (a: number, b: any) => any;
+    readonly wasmsdk_getIdentityBalanceAndRevision: (a: number, b: any) => any;
+    readonly wasmsdk_getIdentityBalanceAndRevisionWithProofInfo: (a: number, b: any) => any;
+    readonly wasmsdk_getIdentityBalanceWithProofInfo: (a: number, b: any) => any;
+    readonly wasmsdk_getIdentityByNonUniquePublicKeyHash: (a: number, b: any, c: any) => any;
+    readonly wasmsdk_getIdentityByNonUniquePublicKeyHashWithProofInfo: (a: number, b: any, c: any) => any;
+    readonly wasmsdk_getIdentityByPublicKeyHash: (a: number, b: any) => any;
+    readonly wasmsdk_getIdentityByPublicKeyHashWithProofInfo: (a: number, b: any) => any;
+    readonly wasmsdk_getIdentityContractNonce: (a: number, b: any, c: any) => any;
+    readonly wasmsdk_getIdentityContractNonceWithProofInfo: (a: number, b: any, c: any) => any;
+    readonly wasmsdk_getIdentityKeys: (a: number, b: any) => any;
+    readonly wasmsdk_getIdentityKeysWithProofInfo: (a: number, b: any) => any;
+    readonly wasmsdk_getIdentityNonce: (a: number, b: any) => any;
+    readonly wasmsdk_getIdentityNonceWithProofInfo: (a: number, b: any) => any;
+    readonly wasmsdk_getIdentityTokenBalances: (a: number, b: any, c: any) => any;
+    readonly wasmsdk_getIdentityTokenBalancesWithProofInfo: (a: number, b: any, c: any) => any;
+    readonly wasmsdk_getIdentityUnproved: (a: number, b: any) => any;
+    readonly wasmsdk_getIdentityWithProofInfo: (a: number, b: any) => any;
+    readonly wasmsdk_getContestedResources: (a: number, b: any) => any;
+    readonly wasmsdk_getContestedResourcesWithProofInfo: (a: number, b: any) => any;
+    readonly __wbg_get_identitygroupinfo_dataContractId: (a: number) => [number, number];
+    readonly __wbg_get_identitygroupinfo_groupContractPosition: (a: number) => number;
+    readonly __wbg_get_identitygroupinfo_role: (a: number) => [number, number];
+    readonly __wbg_identitygroupinfo_free: (a: number, b: number) => void;
+    readonly __wbg_set_identitygroupinfo_dataContractId: (a: number, b: number, c: number) => void;
+    readonly __wbg_set_identitygroupinfo_groupContractPosition: (a: number, b: number) => void;
+    readonly __wbg_set_identitygroupinfo_role: (a: number, b: number, c: number) => void;
+    readonly identitygroupinfo_power: (a: number) => any;
+    readonly wasmsdk_documentCreate: (a: number, b: any) => any;
+    readonly wasmsdk_documentDelete: (a: number, b: any) => any;
+    readonly wasmsdk_documentPurchase: (a: number, b: any) => any;
+    readonly wasmsdk_documentReplace: (a: number, b: any) => any;
+    readonly wasmsdk_documentSetPrice: (a: number, b: any) => any;
+    readonly wasmsdk_documentTransfer: (a: number, b: any) => any;
+    readonly wasmsdk_getContestedResourceIdentityVotes: (a: number, b: any) => any;
+    readonly wasmsdk_getContestedResourceIdentityVotesWithProofInfo: (a: number, b: any) => any;
+    readonly wasmsdk_getDocument: (a: number, b: any, c: number, d: number, e: any) => any;
+    readonly wasmsdk_getDocumentHistory: (a: number, b: any) => any;
+    readonly wasmsdk_getDocumentHistoryWithProofInfo: (a: number, b: any) => any;
+    readonly wasmsdk_getDocumentWithProofInfo: (a: number, b: any, c: number, d: number, e: any) => any;
+    readonly wasmsdk_getDocuments: (a: number, b: any) => any;
+    readonly wasmsdk_getDocumentsAverage: (a: number, b: any, c: number, d: number) => any;
+    readonly wasmsdk_getDocumentsAverageWithProofInfo: (a: number, b: any, c: number, d: number) => any;
+    readonly wasmsdk_getDocumentsCount: (a: number, b: any) => any;
+    readonly wasmsdk_getDocumentsCountWithProofInfo: (a: number, b: any) => any;
+    readonly wasmsdk_getDocumentsSum: (a: number, b: any, c: number, d: number) => any;
+    readonly wasmsdk_getDocumentsSumWithProofInfo: (a: number, b: any, c: number, d: number) => any;
+    readonly wasmsdk_getDocumentsWithProofInfo: (a: number, b: any) => any;
+    readonly wasmsdk_getGroupActionSigners: (a: number, b: any) => any;
+    readonly wasmsdk_getGroupActionSignersWithProofInfo: (a: number, b: any) => any;
+    readonly wasmsdk_getGroupActions: (a: number, b: any) => any;
+    readonly wasmsdk_getGroupActionsWithProofInfo: (a: number, b: any) => any;
+    readonly wasmsdk_getGroupInfo: (a: number, b: any, c: number) => any;
+    readonly wasmsdk_getGroupInfoWithProofInfo: (a: number, b: any, c: number) => any;
+    readonly wasmsdk_getGroupInfos: (a: number, b: any) => any;
+    readonly wasmsdk_getGroupInfosWithProofInfo: (a: number, b: any) => any;
+    readonly wasmsdk_getGroupMembers: (a: number, b: any) => any;
+    readonly wasmsdk_getGroupMembersWithProofInfo: (a: number, b: any) => any;
+    readonly wasmsdk_getGroupsDataContracts: (a: number, b: any) => any;
+    readonly wasmsdk_getGroupsDataContractsWithProofInfo: (a: number, b: any) => any;
+    readonly wasmsdk_getIdentityGroups: (a: number, b: any) => any;
+    readonly wasmsdk_getIdentityGroupsWithProofInfo: (a: number, b: any) => any;
+    readonly __wbg_get_tokenburnresult_document: (a: number) => number;
+    readonly __wbg_get_tokenburnresult_groupActionStatus: (a: number) => [number, number];
+    readonly __wbg_get_tokenburnresult_groupPower: (a: number) => number;
+    readonly __wbg_get_tokenburnresult_ownerId: (a: number) => number;
+    readonly __wbg_get_tokenclaimresult_document: (a: number) => number;
+    readonly __wbg_get_tokenclaimresult_groupPower: (a: number) => number;
+    readonly __wbg_get_tokenconfigupdateresult_document: (a: number) => number;
+    readonly __wbg_get_tokenconfigupdateresult_groupPower: (a: number) => number;
+    readonly __wbg_get_tokendestroyfrozenresult_document: (a: number) => number;
+    readonly __wbg_get_tokendestroyfrozenresult_groupPower: (a: number) => number;
+    readonly __wbg_get_tokendirectpurchaseresult_buyerId: (a: number) => number;
+    readonly __wbg_get_tokendirectpurchaseresult_document: (a: number) => number;
+    readonly __wbg_get_tokendirectpurchaseresult_groupPower: (a: number) => number;
+    readonly __wbg_get_tokenemergencyactionresult_document: (a: number) => number;
+    readonly __wbg_get_tokenemergencyactionresult_groupPower: (a: number) => number;
+    readonly __wbg_get_tokenfreezeresult_document: (a: number) => number;
+    readonly __wbg_get_tokenfreezeresult_frozenIdentityId: (a: number) => number;
+    readonly __wbg_get_tokenfreezeresult_groupPower: (a: number) => number;
+    readonly __wbg_get_tokenmintresult_document: (a: number) => number;
+    readonly __wbg_get_tokenmintresult_groupActionStatus: (a: number) => [number, number];
+    readonly __wbg_get_tokenmintresult_groupPower: (a: number) => number;
+    readonly __wbg_get_tokenmintresult_recipientId: (a: number) => number;
+    readonly __wbg_get_tokensetpriceresult_document: (a: number) => number;
+    readonly __wbg_get_tokensetpriceresult_groupActionStatus: (a: number) => [number, number];
+    readonly __wbg_get_tokensetpriceresult_groupPower: (a: number) => number;
+    readonly __wbg_get_tokensetpriceresult_ownerId: (a: number) => number;
+    readonly __wbg_get_tokensetpriceresult_pricingSchedule: (a: number) => number;
+    readonly __wbg_get_tokentransferresult_document: (a: number) => number;
+    readonly __wbg_get_tokentransferresult_groupPower: (a: number) => number;
+    readonly __wbg_get_tokenunfreezeresult_document: (a: number) => number;
+    readonly __wbg_get_tokenunfreezeresult_groupPower: (a: number) => number;
+    readonly __wbg_get_tokenunfreezeresult_unfrozenIdentityId: (a: number) => number;
+    readonly __wbg_set_tokenburnresult_document: (a: number, b: number) => void;
+    readonly __wbg_set_tokenburnresult_groupActionStatus: (a: number, b: number, c: number) => void;
+    readonly __wbg_set_tokenburnresult_groupPower: (a: number, b: number) => void;
+    readonly __wbg_set_tokenburnresult_ownerId: (a: number, b: number) => void;
+    readonly __wbg_set_tokenclaimresult_document: (a: number, b: number) => void;
+    readonly __wbg_set_tokenclaimresult_groupPower: (a: number, b: number) => void;
+    readonly __wbg_set_tokendirectpurchaseresult_buyerId: (a: number, b: number) => void;
+    readonly __wbg_set_tokenfreezeresult_frozenIdentityId: (a: number, b: number) => void;
+    readonly __wbg_set_tokensetpriceresult_pricingSchedule: (a: number, b: number) => void;
+    readonly __wbg_set_tokentransferresult_document: (a: number, b: number) => void;
+    readonly __wbg_set_tokentransferresult_groupPower: (a: number, b: number) => void;
+    readonly __wbg_tokenburnresult_free: (a: number, b: number) => void;
+    readonly __wbg_tokenclaimresult_free: (a: number, b: number) => void;
+    readonly __wbg_tokenconfigupdateresult_free: (a: number, b: number) => void;
+    readonly __wbg_tokendestroyfrozenresult_free: (a: number, b: number) => void;
+    readonly __wbg_tokendirectpurchaseresult_free: (a: number, b: number) => void;
+    readonly __wbg_tokenemergencyactionresult_free: (a: number, b: number) => void;
+    readonly __wbg_tokenfreezeresult_free: (a: number, b: number) => void;
+    readonly __wbg_tokenmintresult_free: (a: number, b: number) => void;
+    readonly __wbg_tokensetpriceresult_free: (a: number, b: number) => void;
+    readonly __wbg_tokentransferresult_free: (a: number, b: number) => void;
+    readonly __wbg_tokenunfreezeresult_free: (a: number, b: number) => void;
+    readonly start: () => void;
     readonly tokenburnresult_fromJSON: (a: any, b: any) => [number, number, number];
     readonly tokenburnresult_fromObject: (a: any, b: any) => [number, number, number];
     readonly tokenburnresult_remaining_balance: (a: number) => any;
@@ -10904,19 +12148,10 @@ export interface InitOutput {
     readonly tokenmintresult_new_balance: (a: number) => any;
     readonly tokenmintresult_toJSON: (a: number, b: any) => [number, number, number];
     readonly tokenmintresult_toObject: (a: number) => [number, number, number];
-    readonly tokenpriceinfo_fromJSON: (a: any) => [number, number, number];
-    readonly tokenpriceinfo_fromObject: (a: any) => [number, number, number];
-    readonly tokenpriceinfo_toJSON: (a: number) => [number, number, number];
-    readonly tokenpriceinfo_toObject: (a: number) => [number, number, number];
     readonly tokensetpriceresult_fromJSON: (a: any, b: any) => [number, number, number];
     readonly tokensetpriceresult_fromObject: (a: any, b: any) => [number, number, number];
     readonly tokensetpriceresult_toJSON: (a: number, b: any) => [number, number, number];
     readonly tokensetpriceresult_toObject: (a: number) => [number, number, number];
-    readonly tokentotalsupply_fromJSON: (a: any) => [number, number, number];
-    readonly tokentotalsupply_fromObject: (a: any) => [number, number, number];
-    readonly tokentotalsupply_toJSON: (a: number) => [number, number, number];
-    readonly tokentotalsupply_toObject: (a: number) => [number, number, number];
-    readonly tokentotalsupply_total_supply: (a: number) => any;
     readonly tokentransferresult_fromJSON: (a: any, b: any) => [number, number, number];
     readonly tokentransferresult_fromObject: (a: any, b: any) => [number, number, number];
     readonly tokentransferresult_recipient_balance: (a: number) => any;
@@ -10927,96 +12162,18 @@ export interface InitOutput {
     readonly tokenunfreezeresult_fromObject: (a: any, b: any) => [number, number, number];
     readonly tokenunfreezeresult_toJSON: (a: number, b: any) => [number, number, number];
     readonly tokenunfreezeresult_toObject: (a: number) => [number, number, number];
-    readonly votepollsbyenddateentry_timestamp_ms: (a: number) => any;
-    readonly votepollsbyenddateentry_vote_polls: (a: number) => any;
-    readonly wasmsdk_addressFundingFromAssetLock: (a: number, b: any) => any;
-    readonly wasmsdk_addressFundsTransfer: (a: number, b: any) => any;
-    readonly wasmsdk_addressFundsWithdraw: (a: number, b: any) => any;
-    readonly wasmsdk_calculateTokenIdFromContract: (a: any, b: number) => [number, number, number, number];
-    readonly wasmsdk_derivationPathBip44Mainnet: (a: number, b: number, c: number) => number;
-    readonly wasmsdk_derivationPathBip44Testnet: (a: number, b: number, c: number) => number;
-    readonly wasmsdk_derivationPathDip13Mainnet: (a: number) => number;
-    readonly wasmsdk_derivationPathDip13Testnet: (a: number) => number;
-    readonly wasmsdk_derivationPathDip9Mainnet: (a: number, b: number, c: number) => number;
-    readonly wasmsdk_derivationPathDip9Testnet: (a: number, b: number, c: number) => number;
-    readonly wasmsdk_deriveChildPublicKey: (a: number, b: number, c: number, d: number) => [number, number, number, number];
-    readonly wasmsdk_deriveDashpayContactKey: (a: any) => [number, number, number];
-    readonly wasmsdk_deriveKeyFromSeedPhrase: (a: any) => [number, number, number];
-    readonly wasmsdk_deriveKeyFromSeedWithExtendedPath: (a: any) => [number, number, number];
-    readonly wasmsdk_deriveKeyFromSeedWithPath: (a: any) => [number, number, number];
-    readonly wasmsdk_dpnsConvertToHomographSafe: (a: number, b: number) => [number, number];
-    readonly wasmsdk_dpnsIsContestedUsername: (a: number, b: number) => number;
-    readonly wasmsdk_dpnsIsNameAvailable: (a: number, b: number, c: number) => any;
-    readonly wasmsdk_dpnsIsValidUsername: (a: number, b: number) => number;
-    readonly wasmsdk_dpnsRegisterName: (a: number, b: any) => any;
-    readonly wasmsdk_dpnsResolveName: (a: number, b: number, c: number) => any;
-    readonly wasmsdk_generateKeyPair: (a: any) => [number, number, number];
-    readonly wasmsdk_generateKeyPairs: (a: any, b: number) => [number, number, number, number];
-    readonly wasmsdk_generateMnemonic: (a: number) => [number, number, number, number];
-    readonly wasmsdk_generateTestIdentityKeys: (a: bigint) => [number, number, number];
-    readonly wasmsdk_getDocument: (a: number, b: any, c: number, d: number, e: any) => any;
-    readonly wasmsdk_getDocumentHistory: (a: number, b: any) => any;
-    readonly wasmsdk_getDocumentHistoryWithProofInfo: (a: number, b: any) => any;
-    readonly wasmsdk_getDocumentWithProofInfo: (a: number, b: any, c: number, d: number, e: any) => any;
-    readonly wasmsdk_getDocuments: (a: number, b: any) => any;
-    readonly wasmsdk_getDocumentsAverage: (a: number, b: any, c: number, d: number) => any;
-    readonly wasmsdk_getDocumentsAverageWithProofInfo: (a: number, b: any, c: number, d: number) => any;
-    readonly wasmsdk_getDocumentsCount: (a: number, b: any) => any;
-    readonly wasmsdk_getDocumentsCountWithProofInfo: (a: number, b: any) => any;
-    readonly wasmsdk_getDocumentsSum: (a: number, b: any, c: number, d: number) => any;
-    readonly wasmsdk_getDocumentsSumWithProofInfo: (a: number, b: any, c: number, d: number) => any;
-    readonly wasmsdk_getDocumentsWithProofInfo: (a: number, b: any) => any;
-    readonly wasmsdk_getDpnsUsername: (a: number, b: any) => any;
-    readonly wasmsdk_getDpnsUsernameByName: (a: number, b: number, c: number) => any;
-    readonly wasmsdk_getDpnsUsernameByNameWithProofInfo: (a: number, b: number, c: number) => any;
-    readonly wasmsdk_getDpnsUsernameWithProofInfo: (a: number, b: any) => any;
-    readonly wasmsdk_getDpnsUsernames: (a: number, b: any) => any;
-    readonly wasmsdk_getDpnsUsernamesWithProofInfo: (a: number, b: any) => any;
-    readonly wasmsdk_getGroupActionSigners: (a: number, b: any) => any;
-    readonly wasmsdk_getGroupActionSignersWithProofInfo: (a: number, b: any) => any;
-    readonly wasmsdk_getGroupActions: (a: number, b: any) => any;
-    readonly wasmsdk_getGroupActionsWithProofInfo: (a: number, b: any) => any;
-    readonly wasmsdk_getGroupInfo: (a: number, b: any, c: number) => any;
-    readonly wasmsdk_getGroupInfoWithProofInfo: (a: number, b: any, c: number) => any;
-    readonly wasmsdk_getGroupInfos: (a: number, b: any) => any;
-    readonly wasmsdk_getGroupInfosWithProofInfo: (a: number, b: any) => any;
-    readonly wasmsdk_getGroupMembers: (a: number, b: any) => any;
-    readonly wasmsdk_getGroupMembersWithProofInfo: (a: number, b: any) => any;
-    readonly wasmsdk_getGroupsDataContracts: (a: number, b: any) => any;
-    readonly wasmsdk_getGroupsDataContractsWithProofInfo: (a: number, b: any) => any;
-    readonly wasmsdk_getIdentitiesTokenBalances: (a: number, b: any, c: any) => any;
-    readonly wasmsdk_getIdentitiesTokenBalancesWithProofInfo: (a: number, b: any, c: any) => any;
-    readonly wasmsdk_getIdentitiesTokenInfos: (a: number, b: any, c: any) => any;
-    readonly wasmsdk_getIdentitiesTokenInfosWithProofInfo: (a: number, b: any, c: any) => any;
-    readonly wasmsdk_getIdentityGroups: (a: number, b: any) => any;
-    readonly wasmsdk_getIdentityGroupsWithProofInfo: (a: number, b: any) => any;
-    readonly wasmsdk_getIdentityTokenInfos: (a: number, b: any, c: any) => any;
-    readonly wasmsdk_getIdentityTokenInfosWithProofInfo: (a: number, b: any, c: any) => any;
-    readonly wasmsdk_getProtocolVersionUpgradeState: (a: number) => any;
-    readonly wasmsdk_getProtocolVersionUpgradeStateWithProofInfo: (a: number) => any;
-    readonly wasmsdk_getProtocolVersionUpgradeVoteStatus: (a: number, b: any, c: number) => any;
-    readonly wasmsdk_getProtocolVersionUpgradeVoteStatusWithProofInfo: (a: number, b: any, c: number) => any;
-    readonly wasmsdk_getTokenContractInfo: (a: number, b: any) => any;
-    readonly wasmsdk_getTokenContractInfoWithProofInfo: (a: number, b: any) => any;
-    readonly wasmsdk_getTokenDirectPurchasePrices: (a: number, b: any) => any;
-    readonly wasmsdk_getTokenDirectPurchasePricesWithProofInfo: (a: number, b: any) => any;
-    readonly wasmsdk_getTokenPerpetualDistributionLastClaim: (a: number, b: any, c: any) => any;
-    readonly wasmsdk_getTokenPerpetualDistributionLastClaimWithProofInfo: (a: number, b: any, c: any) => any;
-    readonly wasmsdk_getTokenPriceByContract: (a: number, b: any, c: number) => any;
-    readonly wasmsdk_getTokenStatuses: (a: number, b: any) => any;
-    readonly wasmsdk_getTokenStatusesWithProofInfo: (a: number, b: any) => any;
-    readonly wasmsdk_getTokenTotalSupply: (a: number, b: any) => any;
-    readonly wasmsdk_getTokenTotalSupplyWithProofInfo: (a: number, b: any) => any;
-    readonly wasmsdk_getVotePollsByEndDate: (a: number, b: number) => any;
-    readonly wasmsdk_getVotePollsByEndDateWithProofInfo: (a: number, b: number) => any;
-    readonly wasmsdk_identityCreateFromAddresses: (a: number, b: any) => any;
-    readonly wasmsdk_identityTopUpFromAddresses: (a: number, b: any) => any;
-    readonly wasmsdk_identityTransferToAddresses: (a: number, b: any) => any;
-    readonly wasmsdk_keyPairFromHex: (a: number, b: number, c: any) => [number, number, number];
-    readonly wasmsdk_keyPairFromWif: (a: number, b: number) => [number, number, number];
-    readonly wasmsdk_mnemonicToSeed: (a: number, b: number, c: number, d: number) => [number, number, number, number];
-    readonly wasmsdk_pubkeyToAddress: (a: number, b: number, c: any) => [number, number, number, number];
-    readonly wasmsdk_signMessage: (a: number, b: number, c: number, d: number) => [number, number, number, number];
+    readonly wasmsdk_contractPublish: (a: number, b: any) => any;
+    readonly wasmsdk_contractUpdate: (a: number, b: any) => any;
+    readonly wasmsdk_getCurrentEpoch: (a: number) => any;
+    readonly wasmsdk_getCurrentEpochWithProofInfo: (a: number) => any;
+    readonly wasmsdk_getEpochsInfo: (a: number, b: any) => any;
+    readonly wasmsdk_getEpochsInfoWithProofInfo: (a: number, b: any) => any;
+    readonly wasmsdk_getEvonodesProposedEpochBlocksByIds: (a: number, b: number, c: any) => any;
+    readonly wasmsdk_getEvonodesProposedEpochBlocksByIdsWithProofInfo: (a: number, b: number, c: any) => any;
+    readonly wasmsdk_getEvonodesProposedEpochBlocksByRange: (a: number, b: any) => any;
+    readonly wasmsdk_getEvonodesProposedEpochBlocksByRangeWithProofInfo: (a: number, b: any) => any;
+    readonly wasmsdk_getFinalizedEpochInfos: (a: number, b: any) => any;
+    readonly wasmsdk_getFinalizedEpochInfosWithProofInfo: (a: number, b: any) => any;
     readonly wasmsdk_tokenBurn: (a: number, b: any) => any;
     readonly wasmsdk_tokenClaim: (a: number, b: any) => any;
     readonly wasmsdk_tokenConfigUpdate: (a: number, b: any) => any;
@@ -11028,100 +12185,11 @@ export interface InitOutput {
     readonly wasmsdk_tokenSetPrice: (a: number, b: any) => any;
     readonly wasmsdk_tokenTransfer: (a: number, b: any) => any;
     readonly wasmsdk_tokenUnfreeze: (a: number, b: any) => any;
-    readonly wasmsdk_validateAddress: (a: number, b: number, c: any) => number;
-    readonly wasmsdk_validateMnemonic: (a: number, b: number, c: number, d: number) => number;
-    readonly wasmsdk_xprvToXpub: (a: number, b: number) => [number, number, number, number];
+    readonly __wbg_set_tokenmintresult_groupActionStatus: (a: number, b: number, c: number) => void;
+    readonly __wbg_set_tokensetpriceresult_groupActionStatus: (a: number, b: number, c: number) => void;
     readonly __wbg_set_tokenmintresult_recipientId: (a: number, b: number) => void;
     readonly __wbg_set_tokensetpriceresult_ownerId: (a: number, b: number) => void;
     readonly __wbg_set_tokenunfreezeresult_unfrozenIdentityId: (a: number, b: number) => void;
-    readonly __wbg_get_tokenmintresult_recipientId: (a: number) => number;
-    readonly __wbg_get_tokensetpriceresult_ownerId: (a: number) => number;
-    readonly __wbg_get_tokenunfreezeresult_unfrozenIdentityId: (a: number) => number;
-    readonly __wbg_set_dip13derivationpathinfo_coinType: (a: number, b: number) => void;
-    readonly __wbg_set_dip13derivationpathinfo_purpose: (a: number, b: number) => void;
-    readonly __wbg_set_identitygroupinfo_groupContractPosition: (a: number, b: number) => void;
-    readonly __wbg_get_tokenconfigupdateresult_groupPower: (a: number) => number;
-    readonly __wbg_get_tokendestroyfrozenresult_groupPower: (a: number) => number;
-    readonly __wbg_get_tokendirectpurchaseresult_groupPower: (a: number) => number;
-    readonly __wbg_get_tokenemergencyactionresult_groupPower: (a: number) => number;
-    readonly __wbg_get_tokenfreezeresult_groupPower: (a: number) => number;
-    readonly __wbg_get_tokenmintresult_groupPower: (a: number) => number;
-    readonly __wbg_get_tokensetpriceresult_groupPower: (a: number) => number;
-    readonly __wbg_get_tokenunfreezeresult_groupPower: (a: number) => number;
-    readonly __wbg_set_tokenconfigupdateresult_document: (a: number, b: number) => void;
-    readonly __wbg_set_tokendestroyfrozenresult_document: (a: number, b: number) => void;
-    readonly __wbg_set_tokendirectpurchaseresult_document: (a: number, b: number) => void;
-    readonly __wbg_set_tokenemergencyactionresult_document: (a: number, b: number) => void;
-    readonly __wbg_set_tokenfreezeresult_document: (a: number, b: number) => void;
-    readonly __wbg_set_tokenmintresult_document: (a: number, b: number) => void;
-    readonly __wbg_set_tokensetpriceresult_document: (a: number, b: number) => void;
-    readonly __wbg_set_tokenunfreezeresult_document: (a: number, b: number) => void;
-    readonly __wbg_set_derivationpathinfo_path: (a: number, b: number, c: number) => void;
-    readonly __wbg_set_derivedkeyinfo_address: (a: number, b: number, c: number) => void;
-    readonly __wbg_set_derivedkeyinfo_network: (a: number, b: number, c: number) => void;
-    readonly __wbg_set_derivedkeyinfo_path: (a: number, b: number, c: number) => void;
-    readonly __wbg_set_derivedkeyinfo_privateKeyHex: (a: number, b: number, c: number) => void;
-    readonly __wbg_set_derivedkeyinfo_privateKeyWif: (a: number, b: number, c: number) => void;
-    readonly __wbg_set_derivedkeyinfo_publicKey: (a: number, b: number, c: number) => void;
-    readonly __wbg_set_derivedkeyinfo_xprv: (a: number, b: number, c: number) => void;
-    readonly __wbg_set_derivedkeyinfo_xpub: (a: number, b: number, c: number) => void;
-    readonly __wbg_set_dip13derivationpathinfo_description: (a: number, b: number, c: number) => void;
-    readonly __wbg_set_dip13derivationpathinfo_path: (a: number, b: number, c: number) => void;
-    readonly __wbg_set_dpnsusernameinfo_username: (a: number, b: number, c: number) => void;
-    readonly __wbg_set_keypair_address: (a: number, b: number, c: number) => void;
-    readonly __wbg_set_keypair_network: (a: number, b: number, c: number) => void;
-    readonly __wbg_set_keypair_privateKeyHex: (a: number, b: number, c: number) => void;
-    readonly __wbg_set_keypair_privateKeyWif: (a: number, b: number, c: number) => void;
-    readonly __wbg_set_keypair_publicKey: (a: number, b: number, c: number) => void;
-    readonly __wbg_set_pathderivedkeyinfo_address: (a: number, b: number, c: number) => void;
-    readonly __wbg_set_pathderivedkeyinfo_network: (a: number, b: number, c: number) => void;
-    readonly __wbg_set_pathderivedkeyinfo_path: (a: number, b: number, c: number) => void;
-    readonly __wbg_set_pathderivedkeyinfo_privateKeyHex: (a: number, b: number, c: number) => void;
-    readonly __wbg_set_pathderivedkeyinfo_privateKeyWif: (a: number, b: number, c: number) => void;
-    readonly __wbg_set_pathderivedkeyinfo_publicKey: (a: number, b: number, c: number) => void;
-    readonly __wbg_set_registerdpnsnameresult_fullDomainName: (a: number, b: number, c: number) => void;
-    readonly __wbg_set_seedphrasekeyinfo_address: (a: number, b: number, c: number) => void;
-    readonly __wbg_set_seedphrasekeyinfo_network: (a: number, b: number, c: number) => void;
-    readonly __wbg_set_seedphrasekeyinfo_privateKeyHex: (a: number, b: number, c: number) => void;
-    readonly __wbg_set_seedphrasekeyinfo_privateKeyWif: (a: number, b: number, c: number) => void;
-    readonly __wbg_set_seedphrasekeyinfo_publicKey: (a: number, b: number, c: number) => void;
-    readonly __wbg_set_tokenpriceinfo_basePrice: (a: number, b: number, c: number) => void;
-    readonly __wbg_set_tokenpriceinfo_currentPrice: (a: number, b: number, c: number) => void;
-    readonly __wbg_set_tokenmintresult_groupActionStatus: (a: number, b: number, c: number) => void;
-    readonly __wbg_set_tokensetpriceresult_groupActionStatus: (a: number, b: number, c: number) => void;
-    readonly __wbg_get_derivationpathinfo_path: (a: number) => [number, number];
-    readonly __wbg_get_derivedkeyinfo_address: (a: number) => [number, number];
-    readonly __wbg_get_derivedkeyinfo_network: (a: number) => [number, number];
-    readonly __wbg_get_derivedkeyinfo_path: (a: number) => [number, number];
-    readonly __wbg_get_derivedkeyinfo_privateKeyHex: (a: number) => [number, number];
-    readonly __wbg_get_derivedkeyinfo_privateKeyWif: (a: number) => [number, number];
-    readonly __wbg_get_derivedkeyinfo_publicKey: (a: number) => [number, number];
-    readonly __wbg_get_derivedkeyinfo_xprv: (a: number) => [number, number];
-    readonly __wbg_get_derivedkeyinfo_xpub: (a: number) => [number, number];
-    readonly __wbg_get_dip13derivationpathinfo_description: (a: number) => [number, number];
-    readonly __wbg_get_dip13derivationpathinfo_path: (a: number) => [number, number];
-    readonly __wbg_get_dpnsusernameinfo_username: (a: number) => [number, number];
-    readonly __wbg_get_keypair_address: (a: number) => [number, number];
-    readonly __wbg_get_keypair_network: (a: number) => [number, number];
-    readonly __wbg_get_keypair_privateKeyHex: (a: number) => [number, number];
-    readonly __wbg_get_keypair_privateKeyWif: (a: number) => [number, number];
-    readonly __wbg_get_keypair_publicKey: (a: number) => [number, number];
-    readonly __wbg_get_pathderivedkeyinfo_address: (a: number) => [number, number];
-    readonly __wbg_get_pathderivedkeyinfo_network: (a: number) => [number, number];
-    readonly __wbg_get_pathderivedkeyinfo_path: (a: number) => [number, number];
-    readonly __wbg_get_pathderivedkeyinfo_privateKeyHex: (a: number) => [number, number];
-    readonly __wbg_get_pathderivedkeyinfo_privateKeyWif: (a: number) => [number, number];
-    readonly __wbg_get_pathderivedkeyinfo_publicKey: (a: number) => [number, number];
-    readonly __wbg_get_registerdpnsnameresult_fullDomainName: (a: number) => [number, number];
-    readonly __wbg_get_seedphrasekeyinfo_address: (a: number) => [number, number];
-    readonly __wbg_get_seedphrasekeyinfo_network: (a: number) => [number, number];
-    readonly __wbg_get_seedphrasekeyinfo_privateKeyHex: (a: number) => [number, number];
-    readonly __wbg_get_seedphrasekeyinfo_privateKeyWif: (a: number) => [number, number];
-    readonly __wbg_get_seedphrasekeyinfo_publicKey: (a: number) => [number, number];
-    readonly __wbg_get_tokenpriceinfo_basePrice: (a: number) => [number, number];
-    readonly __wbg_get_tokenpriceinfo_currentPrice: (a: number) => [number, number];
-    readonly __wbg_get_tokenmintresult_groupActionStatus: (a: number) => [number, number];
-    readonly __wbg_get_tokensetpriceresult_groupActionStatus: (a: number) => [number, number];
     readonly __wbg_set_tokenconfigupdateresult_groupPower: (a: number, b: number) => void;
     readonly __wbg_set_tokendestroyfrozenresult_groupPower: (a: number, b: number) => void;
     readonly __wbg_set_tokendirectpurchaseresult_groupPower: (a: number, b: number) => void;
@@ -11130,40 +12198,287 @@ export interface InitOutput {
     readonly __wbg_set_tokenmintresult_groupPower: (a: number, b: number) => void;
     readonly __wbg_set_tokensetpriceresult_groupPower: (a: number, b: number) => void;
     readonly __wbg_set_tokenunfreezeresult_groupPower: (a: number, b: number) => void;
-    readonly __wbg_get_tokenconfigupdateresult_document: (a: number) => number;
-    readonly __wbg_get_tokendestroyfrozenresult_document: (a: number) => number;
-    readonly __wbg_get_tokendirectpurchaseresult_document: (a: number) => number;
-    readonly __wbg_get_tokenemergencyactionresult_document: (a: number) => number;
-    readonly __wbg_get_tokenfreezeresult_document: (a: number) => number;
-    readonly __wbg_get_tokenmintresult_document: (a: number) => number;
-    readonly __wbg_get_tokensetpriceresult_document: (a: number) => number;
-    readonly __wbg_get_tokenunfreezeresult_document: (a: number) => number;
-    readonly __wbg_get_registerdpnsnameresult_domainDocumentId: (a: number) => number;
-    readonly __wbg_get_registerdpnsnameresult_preorderDocumentId: (a: number) => number;
-    readonly __wbg_get_dip13derivationpathinfo_coinType: (a: number) => number;
-    readonly __wbg_get_dip13derivationpathinfo_purpose: (a: number) => number;
-    readonly __wbg_get_identitygroupinfo_groupContractPosition: (a: number) => number;
-    readonly __wbg_set_registerdpnsnameresult_domainDocumentId: (a: number, b: number) => void;
-    readonly __wbg_set_registerdpnsnameresult_preorderDocumentId: (a: number, b: number) => void;
-    readonly __wbg_actiontaker_free: (a: number, b: number) => void;
+    readonly __wbg_set_tokenconfigupdateresult_document: (a: number, b: number) => void;
+    readonly __wbg_set_tokendestroyfrozenresult_document: (a: number, b: number) => void;
+    readonly __wbg_set_tokendirectpurchaseresult_document: (a: number, b: number) => void;
+    readonly __wbg_set_tokenemergencyactionresult_document: (a: number, b: number) => void;
+    readonly __wbg_set_tokenfreezeresult_document: (a: number, b: number) => void;
+    readonly __wbg_set_tokenmintresult_document: (a: number, b: number) => void;
+    readonly __wbg_set_tokensetpriceresult_document: (a: number, b: number) => void;
+    readonly __wbg_set_tokenunfreezeresult_document: (a: number, b: number) => void;
+    readonly __wbg_platformaddressinfo_free: (a: number, b: number) => void;
+    readonly __wbg_shieldedencryptednote_free: (a: number, b: number) => void;
+    readonly __wbg_shieldednullifierstatus_free: (a: number, b: number) => void;
+    readonly __wbg_wasmcontext_free: (a: number, b: number) => void;
+    readonly __wbg_wasmtrustedcontext_free: (a: number, b: number) => void;
+    readonly platformaddressinfo_address: (a: number) => number;
+    readonly platformaddressinfo_balance: (a: number) => any;
+    readonly platformaddressinfo_fromJSON: (a: any) => [number, number, number];
+    readonly platformaddressinfo_fromObject: (a: any) => [number, number, number];
+    readonly platformaddressinfo_nonce: (a: number) => any;
+    readonly platformaddressinfo_toJSON: (a: number) => [number, number, number];
+    readonly platformaddressinfo_toObject: (a: number) => [number, number, number];
+    readonly shieldedencryptednote_cmx: (a: number) => any;
+    readonly shieldedencryptednote_cv_net: (a: number) => any;
+    readonly shieldedencryptednote_encrypted_note: (a: number) => any;
+    readonly shieldedencryptednote_fromJSON: (a: any) => [number, number, number];
+    readonly shieldedencryptednote_fromObject: (a: any) => [number, number, number];
+    readonly shieldedencryptednote_nullifier: (a: number) => any;
+    readonly shieldedencryptednote_toJSON: (a: number) => [number, number, number];
+    readonly shieldedencryptednote_toObject: (a: number) => [number, number, number];
+    readonly shieldednullifierstatus_fromJSON: (a: any) => [number, number, number];
+    readonly shieldednullifierstatus_fromObject: (a: any) => [number, number, number];
+    readonly shieldednullifierstatus_is_spent: (a: number) => number;
+    readonly shieldednullifierstatus_nullifier: (a: number) => any;
+    readonly shieldednullifierstatus_toJSON: (a: number) => [number, number, number];
+    readonly shieldednullifierstatus_toObject: (a: number) => [number, number, number];
+    readonly wasmsdk_getAddressInfo: (a: number, b: any) => any;
+    readonly wasmsdk_getAddressInfoWithProofInfo: (a: number, b: any) => any;
+    readonly wasmsdk_getAddressesInfos: (a: number, b: any) => any;
+    readonly wasmsdk_getAddressesInfosWithProofInfo: (a: number, b: any) => any;
+    readonly wasmsdk_getMostRecentShieldedAnchor: (a: number) => any;
+    readonly wasmsdk_getMostRecentShieldedAnchorWithProofInfo: (a: number) => any;
+    readonly wasmsdk_getShieldedAnchors: (a: number) => any;
+    readonly wasmsdk_getShieldedAnchorsWithProofInfo: (a: number) => any;
+    readonly wasmsdk_getShieldedEncryptedNotes: (a: number, b: bigint, c: number) => any;
+    readonly wasmsdk_getShieldedEncryptedNotesWithProofInfo: (a: number, b: bigint, c: number) => any;
+    readonly wasmsdk_getShieldedNullifiers: (a: number, b: any) => any;
+    readonly wasmsdk_getShieldedNullifiersWithProofInfo: (a: number, b: any) => any;
+    readonly wasmsdk_getShieldedPoolState: (a: number) => any;
+    readonly wasmsdk_getShieldedPoolStateWithProofInfo: (a: number) => any;
+    readonly wasmtrustedcontext_prefetchDevnet: (a: number, b: number) => any;
+    readonly wasmtrustedcontext_prefetchDevnetWithUrl: (a: number, b: number) => any;
+    readonly wasmtrustedcontext_prefetchLocal: () => any;
+    readonly wasmtrustedcontext_prefetchLocalWithUrl: (a: number, b: number) => any;
+    readonly wasmtrustedcontext_prefetchMainnet: () => any;
+    readonly wasmtrustedcontext_prefetchMainnetWithUrl: (a: number, b: number) => any;
+    readonly wasmtrustedcontext_prefetchTestnet: () => any;
+    readonly wasmtrustedcontext_prefetchTestnetWithUrl: (a: number, b: number) => any;
+    readonly __wbg_dashpaycontactkeyinfo_free: (a: number, b: number) => void;
+    readonly __wbg_derivedkeyinfo_free: (a: number, b: number) => void;
+    readonly __wbg_get_dashpaycontactkeyinfo_account: (a: number) => number;
+    readonly __wbg_get_dashpaycontactkeyinfo_address: (a: number) => [number, number];
+    readonly __wbg_get_dashpaycontactkeyinfo_addressIndex: (a: number) => number;
+    readonly __wbg_get_dashpaycontactkeyinfo_dipStandard: (a: number) => [number, number];
+    readonly __wbg_get_dashpaycontactkeyinfo_network: (a: number) => [number, number];
+    readonly __wbg_get_dashpaycontactkeyinfo_path: (a: number) => [number, number];
+    readonly __wbg_get_dashpaycontactkeyinfo_privateKeyHex: (a: number) => [number, number];
+    readonly __wbg_get_dashpaycontactkeyinfo_privateKeyWif: (a: number) => [number, number];
+    readonly __wbg_get_dashpaycontactkeyinfo_publicKey: (a: number) => [number, number];
+    readonly __wbg_get_dashpaycontactkeyinfo_purpose: (a: number) => [number, number];
+    readonly __wbg_get_dashpaycontactkeyinfo_receiverIdentity: (a: number) => [number, number];
+    readonly __wbg_get_dashpaycontactkeyinfo_senderIdentity: (a: number) => [number, number];
+    readonly __wbg_get_dashpaycontactkeyinfo_xprv: (a: number) => [number, number];
+    readonly __wbg_get_dashpaycontactkeyinfo_xpub: (a: number) => [number, number];
+    readonly __wbg_get_derivedkeyinfo_address: (a: number) => [number, number];
+    readonly __wbg_get_derivedkeyinfo_network: (a: number) => [number, number];
+    readonly __wbg_get_derivedkeyinfo_path: (a: number) => [number, number];
+    readonly __wbg_get_derivedkeyinfo_privateKeyHex: (a: number) => [number, number];
+    readonly __wbg_get_derivedkeyinfo_privateKeyWif: (a: number) => [number, number];
+    readonly __wbg_get_derivedkeyinfo_publicKey: (a: number) => [number, number];
+    readonly __wbg_get_derivedkeyinfo_xprv: (a: number) => [number, number];
+    readonly __wbg_get_derivedkeyinfo_xpub: (a: number) => [number, number];
+    readonly __wbg_set_dashpaycontactkeyinfo_account: (a: number, b: number) => void;
+    readonly __wbg_set_dashpaycontactkeyinfo_address: (a: number, b: number, c: number) => void;
+    readonly __wbg_set_dashpaycontactkeyinfo_addressIndex: (a: number, b: number) => void;
+    readonly __wbg_set_dashpaycontactkeyinfo_dipStandard: (a: number, b: number, c: number) => void;
+    readonly __wbg_set_dashpaycontactkeyinfo_network: (a: number, b: number, c: number) => void;
+    readonly __wbg_set_dashpaycontactkeyinfo_path: (a: number, b: number, c: number) => void;
+    readonly __wbg_set_dashpaycontactkeyinfo_privateKeyHex: (a: number, b: number, c: number) => void;
+    readonly __wbg_set_dashpaycontactkeyinfo_privateKeyWif: (a: number, b: number, c: number) => void;
+    readonly __wbg_set_dashpaycontactkeyinfo_publicKey: (a: number, b: number, c: number) => void;
+    readonly __wbg_set_dashpaycontactkeyinfo_purpose: (a: number, b: number, c: number) => void;
+    readonly __wbg_set_dashpaycontactkeyinfo_receiverIdentity: (a: number, b: number, c: number) => void;
+    readonly __wbg_set_dashpaycontactkeyinfo_senderIdentity: (a: number, b: number, c: number) => void;
+    readonly __wbg_set_dashpaycontactkeyinfo_xprv: (a: number, b: number, c: number) => void;
+    readonly __wbg_set_dashpaycontactkeyinfo_xpub: (a: number, b: number, c: number) => void;
+    readonly dashpaycontactkeyinfo_fromJSON: (a: any) => [number, number, number];
+    readonly dashpaycontactkeyinfo_fromObject: (a: any) => [number, number, number];
+    readonly dashpaycontactkeyinfo_toJSON: (a: number) => [number, number, number];
+    readonly dashpaycontactkeyinfo_toObject: (a: number) => [number, number, number];
+    readonly derivedkeyinfo_fromJSON: (a: any) => [number, number, number];
+    readonly derivedkeyinfo_fromObject: (a: any) => [number, number, number];
+    readonly derivedkeyinfo_toJSON: (a: number) => [number, number, number];
+    readonly derivedkeyinfo_toObject: (a: number) => [number, number, number];
+    readonly wasmsdk_deriveDashpayContactKey: (a: any) => [number, number, number];
+    readonly wasmsdk_deriveKeyFromSeedWithExtendedPath: (a: any) => [number, number, number];
+    readonly wasmsdk_getDocumentsHaving: (a: number, b: any) => any;
+    readonly wasmsdk_getDocumentsHavingWithProofInfo: (a: number, b: any) => any;
+    readonly wasmsdk_getDocumentsRanked: (a: number, b: any) => any;
+    readonly wasmsdk_getDocumentsRankedWithProofInfo: (a: number, b: any) => any;
+    readonly wasmsdk_maxPrefixInBranches: () => number;
+    readonly wasmsdk_maxRankedLimit: () => number;
+    readonly wasmsdk_rankedAverageScale: () => any;
+    readonly __wbg_set_derivedkeyinfo_address: (a: number, b: number, c: number) => void;
+    readonly __wbg_set_derivedkeyinfo_network: (a: number, b: number, c: number) => void;
+    readonly __wbg_set_derivedkeyinfo_path: (a: number, b: number, c: number) => void;
+    readonly __wbg_set_derivedkeyinfo_privateKeyHex: (a: number, b: number, c: number) => void;
+    readonly __wbg_set_derivedkeyinfo_privateKeyWif: (a: number, b: number, c: number) => void;
+    readonly __wbg_set_derivedkeyinfo_publicKey: (a: number, b: number, c: number) => void;
+    readonly __wbg_set_derivedkeyinfo_xprv: (a: number, b: number, c: number) => void;
+    readonly __wbg_set_derivedkeyinfo_xpub: (a: number, b: number, c: number) => void;
+    readonly __wbg_documentpurchasetransition_free: (a: number, b: number) => void;
+    readonly __wbg_identitysigner_free: (a: number, b: number) => void;
+    readonly __wbg_platformaddressinput_free: (a: number, b: number) => void;
+    readonly __wbg_platformaddressoutput_free: (a: number, b: number) => void;
+    readonly __wbg_platformaddresssigner_free: (a: number, b: number) => void;
+    readonly __wbg_privateencryptednote_free: (a: number, b: number) => void;
+    readonly __wbg_privatekey_free: (a: number, b: number) => void;
+    readonly __wbg_shieldedwithdrawaltransition_free: (a: number, b: number) => void;
+    readonly __wbg_tokenburntransition_free: (a: number, b: number) => void;
+    readonly __wbg_tokendirectpurchasetransition_free: (a: number, b: number) => void;
+    readonly __wbg_tokenkeepshistoryrules_free: (a: number, b: number) => void;
+    readonly documentpurchasetransition_base: (a: number) => number;
+    readonly documentpurchasetransition_constructor: (a: any) => [number, number, number];
+    readonly documentpurchasetransition_fromDocumentTransition: (a: number) => [number, number, number];
+    readonly documentpurchasetransition_price: (a: number) => bigint;
+    readonly documentpurchasetransition_revision: (a: number) => bigint;
+    readonly documentpurchasetransition_set_base: (a: number, b: number) => void;
+    readonly documentpurchasetransition_set_price: (a: number, b: any) => [number, number];
+    readonly documentpurchasetransition_set_revision: (a: number, b: any) => [number, number];
+    readonly documentpurchasetransition_struct_name: () => [number, number];
+    readonly documentpurchasetransition_toDocumentTransition: (a: number) => number;
+    readonly documentpurchasetransition_type_name: (a: number) => [number, number];
+    readonly identitysigner_addKey: (a: number, b: number) => [number, number];
+    readonly identitysigner_addKeyFromWif: (a: number, b: number, c: number) => [number, number];
+    readonly identitysigner_constructor: () => number;
+    readonly identitysigner_key_count: (a: number) => number;
+    readonly identitysigner_struct_name: () => [number, number];
+    readonly identitysigner_type_name: (a: number) => [number, number];
+    readonly platformaddressinput_address: (a: number) => number;
+    readonly platformaddressinput_amount: (a: number) => any;
+    readonly platformaddressinput_constructor: (a: any, b: number, c: any) => [number, number, number];
+    readonly platformaddressinput_nonce: (a: number) => number;
+    readonly platformaddressinput_struct_name: () => [number, number];
+    readonly platformaddressinput_type_name: (a: number) => [number, number];
+    readonly platformaddressoutput_address: (a: number) => number;
+    readonly platformaddressoutput_amount: (a: number) => any;
+    readonly platformaddressoutput_constructor: (a: any, b: number) => [number, number, number];
+    readonly platformaddressoutput_struct_name: () => [number, number];
+    readonly platformaddressoutput_type_name: (a: number) => [number, number];
+    readonly platformaddresssigner_addKey: (a: number, b: number) => [number, number, number];
+    readonly platformaddresssigner_getPrivateKeysBytes: (a: number) => [number, number, number];
+    readonly platformaddresssigner_hasKey: (a: number, b: any) => [number, number, number];
+    readonly platformaddresssigner_key_count: (a: number) => number;
+    readonly platformaddresssigner_struct_name: () => [number, number];
+    readonly platformaddresssigner_type_name: (a: number) => [number, number];
+    readonly privateencryptednote_constructor: (a: number, b: number, c: number, d: number) => number;
+    readonly privateencryptednote_derivation_encryption_key_index: (a: number) => number;
+    readonly privateencryptednote_root_encryption_key_index: (a: number) => number;
+    readonly privateencryptednote_set_derivation_encryption_key_index: (a: number, b: number) => void;
+    readonly privateencryptednote_set_root_encryption_key_index: (a: number, b: number) => void;
+    readonly privateencryptednote_set_value: (a: number, b: number, c: number) => void;
+    readonly privateencryptednote_struct_name: () => [number, number];
+    readonly privateencryptednote_type_name: (a: number) => [number, number];
+    readonly privateencryptednote_value: (a: number) => [number, number];
+    readonly privatekey_fromBytes: (a: number, b: number, c: any) => [number, number, number];
+    readonly privatekey_fromHex: (a: number, b: number, c: any) => [number, number, number];
+    readonly privatekey_fromWIF: (a: number, b: number) => [number, number, number];
+    readonly privatekey_getPublicKey: (a: number) => number;
+    readonly privatekey_getPublicKeyHash: (a: number) => [number, number];
+    readonly privatekey_struct_name: () => [number, number];
+    readonly privatekey_toBytes: (a: number) => [number, number];
+    readonly privatekey_toHex: (a: number) => [number, number];
+    readonly privatekey_toWIF: (a: number) => [number, number];
+    readonly privatekey_type_name: (a: number) => [number, number];
+    readonly shieldedwithdrawaltransition_actions: (a: number) => [number, number];
+    readonly shieldedwithdrawaltransition_anchor: (a: number) => [number, number];
+    readonly shieldedwithdrawaltransition_binding_signature: (a: number) => [number, number];
+    readonly shieldedwithdrawaltransition_core_fee_per_byte: (a: number) => number;
+    readonly shieldedwithdrawaltransition_fromBytes: (a: number, b: number) => [number, number, number];
+    readonly shieldedwithdrawaltransition_fromJSON: (a: any) => [number, number, number];
+    readonly shieldedwithdrawaltransition_fromObject: (a: any) => [number, number, number];
+    readonly shieldedwithdrawaltransition_getModifiedDataIds: (a: number) => [number, number];
+    readonly shieldedwithdrawaltransition_new: (a: any) => [number, number, number];
+    readonly shieldedwithdrawaltransition_output_script: (a: number) => number;
+    readonly shieldedwithdrawaltransition_pooling: (a: number) => [number, number];
+    readonly shieldedwithdrawaltransition_proof: (a: number) => [number, number];
+    readonly shieldedwithdrawaltransition_struct_name: () => [number, number];
+    readonly shieldedwithdrawaltransition_toBytes: (a: number) => [number, number, number, number];
+    readonly shieldedwithdrawaltransition_toJSON: (a: number) => [number, number, number];
+    readonly shieldedwithdrawaltransition_toObject: (a: number) => [number, number, number];
+    readonly shieldedwithdrawaltransition_toStateTransition: (a: number) => number;
+    readonly shieldedwithdrawaltransition_type_name: (a: number) => [number, number];
+    readonly shieldedwithdrawaltransition_unshielding_amount: (a: number) => bigint;
+    readonly tokenburntransition_base: (a: number) => number;
+    readonly tokenburntransition_burn_amount: (a: number) => bigint;
+    readonly tokenburntransition_constructor: (a: any) => [number, number, number];
+    readonly tokenburntransition_public_note: (a: number) => [number, number];
+    readonly tokenburntransition_set_base: (a: number, b: number) => void;
+    readonly tokenburntransition_set_burn_amount: (a: number, b: any) => [number, number];
+    readonly tokenburntransition_set_public_note: (a: number, b: number, c: number) => void;
+    readonly tokenburntransition_struct_name: () => [number, number];
+    readonly tokenburntransition_type_name: (a: number) => [number, number];
+    readonly tokendirectpurchasetransition_base: (a: number) => number;
+    readonly tokendirectpurchasetransition_constructor: (a: any) => [number, number, number];
+    readonly tokendirectpurchasetransition_set_base: (a: number, b: number) => void;
+    readonly tokendirectpurchasetransition_set_token_count: (a: number, b: bigint) => void;
+    readonly tokendirectpurchasetransition_set_total_agreed_price: (a: number, b: bigint) => void;
+    readonly tokendirectpurchasetransition_struct_name: () => [number, number];
+    readonly tokendirectpurchasetransition_token_count: (a: number) => bigint;
+    readonly tokendirectpurchasetransition_total_agreed_price: (a: number) => bigint;
+    readonly tokendirectpurchasetransition_type_name: (a: number) => [number, number];
+    readonly tokenkeepshistoryrules_constructor: (a: any) => [number, number, number];
+    readonly tokenkeepshistoryrules_is_keeping_burning_history: (a: number) => number;
+    readonly tokenkeepshistoryrules_is_keeping_direct_pricing_history: (a: number) => number;
+    readonly tokenkeepshistoryrules_is_keeping_direct_purchase_history: (a: number) => number;
+    readonly tokenkeepshistoryrules_is_keeping_freezing_history: (a: number) => number;
+    readonly tokenkeepshistoryrules_is_keeping_minting_history: (a: number) => number;
+    readonly tokenkeepshistoryrules_is_keeping_transfer_history: (a: number) => number;
+    readonly tokenkeepshistoryrules_set_is_keeping_burning_history: (a: number, b: number) => void;
+    readonly tokenkeepshistoryrules_set_is_keeping_direct_pricing_history: (a: number, b: number) => void;
+    readonly tokenkeepshistoryrules_set_is_keeping_direct_purchase_history: (a: number, b: number) => void;
+    readonly tokenkeepshistoryrules_set_is_keeping_freezing_history: (a: number, b: number) => void;
+    readonly tokenkeepshistoryrules_set_is_keeping_minting_history: (a: number, b: number) => void;
+    readonly tokenkeepshistoryrules_set_is_keeping_transfer_history: (a: number, b: number) => void;
+    readonly tokenkeepshistoryrules_struct_name: () => [number, number];
+    readonly tokenkeepshistoryrules_type_name: (a: number) => [number, number];
+    readonly platformaddresssigner_constructor: () => number;
+    readonly __wbg_addressfundstransfertransition_free: (a: number, b: number) => void;
+    readonly __wbg_batchedtransition_free: (a: number, b: number) => void;
     readonly __wbg_changecontrolrules_free: (a: number, b: number) => void;
-    readonly __wbg_distributionexponential_free: (a: number, b: number) => void;
-    readonly __wbg_distributionfixedamount_free: (a: number, b: number) => void;
-    readonly __wbg_distributioninvertedlogarithmic_free: (a: number, b: number) => void;
-    readonly __wbg_distributionlinear_free: (a: number, b: number) => void;
-    readonly __wbg_distributionlogarithmic_free: (a: number, b: number) => void;
-    readonly __wbg_distributionpolynomial_free: (a: number, b: number) => void;
-    readonly __wbg_distributionrandom_free: (a: number, b: number) => void;
-    readonly __wbg_distributionstepdecreasingamount_free: (a: number, b: number) => void;
-    readonly __wbg_groupstatetransitioninfo_free: (a: number, b: number) => void;
-    readonly __wbg_identitypublickey_free: (a: number, b: number) => void;
-    readonly __wbg_prefundedvotingbalance_free: (a: number, b: number) => void;
-    readonly actiontaker_constructor: (a: any) => [number, number, number];
-    readonly actiontaker_set_value: (a: number, b: any) => [number, number];
-    readonly actiontaker_struct_name: () => [number, number];
-    readonly actiontaker_taker_type: (a: number) => [number, number];
-    readonly actiontaker_type_name: (a: number) => [number, number];
-    readonly actiontaker_value: (a: number) => any;
+    readonly __wbg_datacontract_free: (a: number, b: number) => void;
+    readonly __wbg_datacontractcreatetransition_free: (a: number, b: number) => void;
+    readonly __wbg_datacontractupdatetransition_free: (a: number, b: number) => void;
+    readonly __wbg_documenttransfertransition_free: (a: number, b: number) => void;
+    readonly __wbg_documenttransition_free: (a: number, b: number) => void;
+    readonly __wbg_documentupdatepricetransition_free: (a: number, b: number) => void;
+    readonly __wbg_get_verifieddatacontract_dataContract: (a: number) => number;
+    readonly __wbg_identitycredittransfer_free: (a: number, b: number) => void;
+    readonly __wbg_instantassetlockproof_free: (a: number, b: number) => void;
+    readonly __wbg_set_verifieddatacontract_dataContract: (a: number, b: number) => void;
+    readonly __wbg_shieldfromidentitytransition_free: (a: number, b: number) => void;
+    readonly __wbg_tokenconfigurationlocalization_free: (a: number, b: number) => void;
+    readonly __wbg_tokensetpricefordirectpurchasetransition_free: (a: number, b: number) => void;
+    readonly __wbg_verifieddatacontract_free: (a: number, b: number) => void;
+    readonly __wbg_verifieddocuments_free: (a: number, b: number) => void;
+    readonly addressfundstransfertransition_constructor: (a: any) => [number, number, number];
+    readonly addressfundstransfertransition_fromBase64: (a: number, b: number) => [number, number, number];
+    readonly addressfundstransfertransition_fromBytes: (a: number, b: number) => [number, number, number];
+    readonly addressfundstransfertransition_fromHex: (a: number, b: number) => [number, number, number];
+    readonly addressfundstransfertransition_fromJSON: (a: any) => [number, number, number];
+    readonly addressfundstransfertransition_fromObject: (a: any) => [number, number, number];
+    readonly addressfundstransfertransition_fromStateTransition: (a: number) => [number, number, number];
+    readonly addressfundstransfertransition_inputs: (a: number) => [number, number];
+    readonly addressfundstransfertransition_outputs: (a: number) => [number, number];
+    readonly addressfundstransfertransition_set_inputs: (a: number, b: number, c: number) => [number, number];
+    readonly addressfundstransfertransition_set_outputs: (a: number, b: number, c: number) => [number, number];
+    readonly addressfundstransfertransition_set_user_fee_increase: (a: number, b: any) => [number, number];
+    readonly addressfundstransfertransition_struct_name: () => [number, number];
+    readonly addressfundstransfertransition_toBase64: (a: number) => [number, number, number, number];
+    readonly addressfundstransfertransition_toBytes: (a: number) => [number, number, number, number];
+    readonly addressfundstransfertransition_toHex: (a: number) => [number, number, number, number];
+    readonly addressfundstransfertransition_toJSON: (a: number) => [number, number, number];
+    readonly addressfundstransfertransition_toObject: (a: number) => [number, number, number];
+    readonly addressfundstransfertransition_toStateTransition: (a: number) => number;
+    readonly addressfundstransfertransition_type_name: (a: number) => [number, number];
+    readonly addressfundstransfertransition_user_fee_increase: (a: number) => number;
+    readonly batchedtransition_constructor: (a: any) => [number, number, number];
+    readonly batchedtransition_data_contract_id: (a: number) => number;
+    readonly batchedtransition_set_data_contract_id: (a: number, b: any) => [number, number];
+    readonly batchedtransition_struct_name: () => [number, number];
+    readonly batchedtransition_toTransition: (a: number) => any;
+    readonly batchedtransition_type_name: (a: number) => [number, number];
     readonly changecontrolrules_admin_action_takers: (a: number) => number;
     readonly changecontrolrules_authorized_to_make_change: (a: number) => number;
     readonly changecontrolrules_canChangeAdminActionTakers: (a: number, b: any) => [number, number, number];
@@ -11178,6 +12493,1391 @@ export interface InitOutput {
     readonly changecontrolrules_set_is_self_changing_admin_action_takers_allowed: (a: number, b: number) => void;
     readonly changecontrolrules_struct_name: () => [number, number];
     readonly changecontrolrules_type_name: (a: number) => [number, number];
+    readonly datacontract_config: (a: number) => [number, number, number];
+    readonly datacontract_constructor: (a: any) => [number, number, number];
+    readonly datacontract_documentTypeReferences: (a: number, b: number, c: number) => [number, number, number];
+    readonly datacontract_document_references: (a: number) => [number, number, number];
+    readonly datacontract_fromBase64: (a: number, b: number, c: number, d: any) => [number, number, number];
+    readonly datacontract_fromBytes: (a: number, b: number, c: number, d: any) => [number, number, number];
+    readonly datacontract_fromHex: (a: number, b: number, c: number, d: any) => [number, number, number];
+    readonly datacontract_fromJSON: (a: any, b: number, c: any) => [number, number, number];
+    readonly datacontract_fromObject: (a: any, b: number, c: any) => [number, number, number];
+    readonly datacontract_generateId: (a: any, b: bigint) => [number, number, number];
+    readonly datacontract_groups: (a: number) => [number, number, number];
+    readonly datacontract_id: (a: number) => number;
+    readonly datacontract_owner_id: (a: number) => number;
+    readonly datacontract_schemas: (a: number) => [number, number, number];
+    readonly datacontract_setConfig: (a: number, b: any, c: any) => [number, number];
+    readonly datacontract_setSchemas: (a: number, b: any, c: number, d: number, e: any) => [number, number];
+    readonly datacontract_set_groups: (a: number, b: any) => [number, number];
+    readonly datacontract_set_id: (a: number, b: any) => [number, number];
+    readonly datacontract_set_owner_id: (a: number, b: any) => [number, number];
+    readonly datacontract_set_tokens: (a: number, b: any) => [number, number];
+    readonly datacontract_set_version: (a: number, b: any) => [number, number];
+    readonly datacontract_struct_name: () => [number, number];
+    readonly datacontract_toBase64: (a: number, b: any) => [number, number, number, number];
+    readonly datacontract_toBytes: (a: number, b: any) => [number, number, number, number];
+    readonly datacontract_toHex: (a: number, b: any) => [number, number, number, number];
+    readonly datacontract_toJSON: (a: number, b: any) => [number, number, number];
+    readonly datacontract_toObject: (a: number, b: any) => [number, number, number];
+    readonly datacontract_tokens: (a: number) => [number, number, number];
+    readonly datacontract_type_name: (a: number) => [number, number];
+    readonly datacontract_version: (a: number) => number;
+    readonly datacontractcreatetransition_constructor: (a: number, b: bigint, c: any) => [number, number, number];
+    readonly datacontractcreatetransition_feature_version: (a: number) => number;
+    readonly datacontractcreatetransition_fromBase64: (a: number, b: number) => [number, number, number];
+    readonly datacontractcreatetransition_fromBytes: (a: number, b: number) => [number, number, number];
+    readonly datacontractcreatetransition_fromHex: (a: number, b: number) => [number, number, number];
+    readonly datacontractcreatetransition_fromJSON: (a: any) => [number, number, number];
+    readonly datacontractcreatetransition_fromObject: (a: any) => [number, number, number];
+    readonly datacontractcreatetransition_fromStateTransition: (a: number) => [number, number, number];
+    readonly datacontractcreatetransition_getDataContract: (a: number, b: any, c: number) => [number, number, number];
+    readonly datacontractcreatetransition_identity_nonce: (a: number) => bigint;
+    readonly datacontractcreatetransition_setDataContract: (a: number, b: number, c: any) => [number, number];
+    readonly datacontractcreatetransition_struct_name: () => [number, number];
+    readonly datacontractcreatetransition_toBase64: (a: number) => [number, number, number, number];
+    readonly datacontractcreatetransition_toBytes: (a: number) => [number, number, number, number];
+    readonly datacontractcreatetransition_toHex: (a: number) => [number, number, number, number];
+    readonly datacontractcreatetransition_toJSON: (a: number) => [number, number, number];
+    readonly datacontractcreatetransition_toObject: (a: number) => [number, number, number];
+    readonly datacontractcreatetransition_toStateTransition: (a: number) => number;
+    readonly datacontractcreatetransition_type_name: (a: number) => [number, number];
+    readonly datacontractcreatetransition_verifyProtocolVersion: (a: number, b: number) => [number, number, number];
+    readonly datacontractupdatetransition_constructor: (a: number, b: bigint, c: any) => [number, number, number];
+    readonly datacontractupdatetransition_feature_version: (a: number) => number;
+    readonly datacontractupdatetransition_fromBase64: (a: number, b: number) => [number, number, number];
+    readonly datacontractupdatetransition_fromBytes: (a: number, b: number) => [number, number, number];
+    readonly datacontractupdatetransition_fromHex: (a: number, b: number) => [number, number, number];
+    readonly datacontractupdatetransition_fromJSON: (a: any) => [number, number, number];
+    readonly datacontractupdatetransition_fromObject: (a: any) => [number, number, number];
+    readonly datacontractupdatetransition_fromStateTransition: (a: number) => [number, number, number];
+    readonly datacontractupdatetransition_getDataContract: (a: number, b: number, c: any) => [number, number, number];
+    readonly datacontractupdatetransition_identity_contract_nonce: (a: number) => bigint;
+    readonly datacontractupdatetransition_setDataContract: (a: number, b: number, c: any) => [number, number];
+    readonly datacontractupdatetransition_struct_name: () => [number, number];
+    readonly datacontractupdatetransition_toBase64: (a: number) => [number, number, number, number];
+    readonly datacontractupdatetransition_toBytes: (a: number) => [number, number, number, number];
+    readonly datacontractupdatetransition_toHex: (a: number) => [number, number, number, number];
+    readonly datacontractupdatetransition_toJSON: (a: number) => [number, number, number];
+    readonly datacontractupdatetransition_toObject: (a: number) => [number, number, number];
+    readonly datacontractupdatetransition_toStateTransition: (a: number) => number;
+    readonly datacontractupdatetransition_type_name: (a: number) => [number, number];
+    readonly datacontractupdatetransition_verifyProtocolVersion: (a: number, b: number) => [number, number, number];
+    readonly documenttransfertransition_base: (a: number) => number;
+    readonly documenttransfertransition_constructor: (a: any) => [number, number, number];
+    readonly documenttransfertransition_fromDocumentTransition: (a: number) => [number, number, number];
+    readonly documenttransfertransition_recipient_owner_id: (a: number) => number;
+    readonly documenttransfertransition_set_base: (a: number, b: number) => void;
+    readonly documenttransfertransition_set_recipient_owner_id: (a: number, b: any) => [number, number];
+    readonly documenttransfertransition_struct_name: () => [number, number];
+    readonly documenttransfertransition_toDocumentTransition: (a: number) => number;
+    readonly documenttransfertransition_type_name: (a: number) => [number, number];
+    readonly documenttransition_action_type: (a: number) => [number, number];
+    readonly documenttransition_action_type_number: (a: number) => number;
+    readonly documenttransition_create_transition: (a: number) => [number, number, number];
+    readonly documenttransition_data_contract_id: (a: number) => number;
+    readonly documenttransition_delete_transition: (a: number) => [number, number, number];
+    readonly documenttransition_document_type_name: (a: number) => [number, number];
+    readonly documenttransition_entropy: (a: number) => [number, number];
+    readonly documenttransition_id: (a: number) => number;
+    readonly documenttransition_identity_contract_nonce: (a: number) => bigint;
+    readonly documenttransition_purchase_transition: (a: number) => [number, number, number];
+    readonly documenttransition_replace_transition: (a: number) => [number, number, number];
+    readonly documenttransition_revision: (a: number) => [number, bigint];
+    readonly documenttransition_set_data_contract_id: (a: number, b: any) => [number, number];
+    readonly documenttransition_set_identity_contract_nonce: (a: number, b: any) => [number, number];
+    readonly documenttransition_set_revision: (a: number, b: any) => [number, number];
+    readonly documenttransition_struct_name: () => [number, number];
+    readonly documenttransition_transfer_transition: (a: number) => [number, number, number];
+    readonly documenttransition_type_name: (a: number) => [number, number];
+    readonly documenttransition_update_price_transition: (a: number) => [number, number, number];
+    readonly documentupdatepricetransition_base: (a: number) => number;
+    readonly documentupdatepricetransition_constructor: (a: any) => [number, number, number];
+    readonly documentupdatepricetransition_fromDocumentTransition: (a: number) => [number, number, number];
+    readonly documentupdatepricetransition_price: (a: number) => bigint;
+    readonly documentupdatepricetransition_set_base: (a: number, b: number) => void;
+    readonly documentupdatepricetransition_set_price: (a: number, b: any) => [number, number];
+    readonly documentupdatepricetransition_struct_name: () => [number, number];
+    readonly documentupdatepricetransition_toDocumentTransition: (a: number) => number;
+    readonly documentupdatepricetransition_type_name: (a: number) => [number, number];
+    readonly identitycredittransfer_amount: (a: number) => bigint;
+    readonly identitycredittransfer_constructor: (a: any) => [number, number, number];
+    readonly identitycredittransfer_fromBase64: (a: number, b: number) => [number, number, number];
+    readonly identitycredittransfer_fromBytes: (a: number, b: number) => [number, number, number];
+    readonly identitycredittransfer_fromHex: (a: number, b: number) => [number, number, number];
+    readonly identitycredittransfer_fromJSON: (a: any) => [number, number, number];
+    readonly identitycredittransfer_fromObject: (a: any) => [number, number, number];
+    readonly identitycredittransfer_fromStateTransition: (a: number) => [number, number, number];
+    readonly identitycredittransfer_nonce: (a: number) => bigint;
+    readonly identitycredittransfer_recipient_id: (a: number) => number;
+    readonly identitycredittransfer_sender_id: (a: number) => number;
+    readonly identitycredittransfer_set_amount: (a: number, b: any) => [number, number];
+    readonly identitycredittransfer_set_nonce: (a: number, b: any) => [number, number];
+    readonly identitycredittransfer_set_recipient_id: (a: number, b: any) => [number, number];
+    readonly identitycredittransfer_set_sender_id: (a: number, b: any) => [number, number];
+    readonly identitycredittransfer_set_signature: (a: number, b: number, c: number) => void;
+    readonly identitycredittransfer_set_signature_public_key_id: (a: number, b: any) => [number, number];
+    readonly identitycredittransfer_set_user_fee_increase: (a: number, b: any) => [number, number];
+    readonly identitycredittransfer_signature: (a: number) => [number, number];
+    readonly identitycredittransfer_signature_public_key_id: (a: number) => number;
+    readonly identitycredittransfer_struct_name: () => [number, number];
+    readonly identitycredittransfer_toBase64: (a: number) => [number, number, number, number];
+    readonly identitycredittransfer_toBytes: (a: number) => [number, number, number, number];
+    readonly identitycredittransfer_toHex: (a: number) => [number, number, number, number];
+    readonly identitycredittransfer_toJSON: (a: number) => [number, number, number];
+    readonly identitycredittransfer_toObject: (a: number) => [number, number, number];
+    readonly identitycredittransfer_toStateTransition: (a: number) => number;
+    readonly identitycredittransfer_type_name: (a: number) => [number, number];
+    readonly identitycredittransfer_user_fee_increase: (a: number) => number;
+    readonly instantassetlockproof_constructor: (a: number, b: number, c: number, d: number, e: number) => [number, number, number];
+    readonly instantassetlockproof_createIdentityId: (a: number) => [number, number, number];
+    readonly instantassetlockproof_fromJSON: (a: any) => [number, number, number];
+    readonly instantassetlockproof_fromObject: (a: any) => [number, number, number];
+    readonly instantassetlockproof_instant_lock: (a: number) => [number, number];
+    readonly instantassetlockproof_out_point: (a: number) => number;
+    readonly instantassetlockproof_output: (a: number) => [number, number];
+    readonly instantassetlockproof_output_index: (a: number) => number;
+    readonly instantassetlockproof_set_instant_lock: (a: number, b: number, c: number) => [number, number];
+    readonly instantassetlockproof_set_output_index: (a: number, b: any) => [number, number];
+    readonly instantassetlockproof_struct_name: () => [number, number];
+    readonly instantassetlockproof_toJSON: (a: number) => [number, number, number];
+    readonly instantassetlockproof_toObject: (a: number) => [number, number, number];
+    readonly instantassetlockproof_transaction: (a: number) => [number, number];
+    readonly instantassetlockproof_type_name: (a: number) => [number, number];
+    readonly shieldfromidentitytransition_actions: (a: number) => [number, number];
+    readonly shieldfromidentitytransition_amount: (a: number) => bigint;
+    readonly shieldfromidentitytransition_anchor: (a: number) => [number, number];
+    readonly shieldfromidentitytransition_binding_signature: (a: number) => [number, number];
+    readonly shieldfromidentitytransition_fromBase64: (a: number, b: number) => [number, number, number];
+    readonly shieldfromidentitytransition_fromBytes: (a: number, b: number) => [number, number, number];
+    readonly shieldfromidentitytransition_fromHex: (a: number, b: number) => [number, number, number];
+    readonly shieldfromidentitytransition_fromJSON: (a: any) => [number, number, number];
+    readonly shieldfromidentitytransition_fromObject: (a: any) => [number, number, number];
+    readonly shieldfromidentitytransition_fromStateTransition: (a: number) => [number, number, number];
+    readonly shieldfromidentitytransition_getModifiedDataIds: (a: number) => [number, number];
+    readonly shieldfromidentitytransition_identity_id: (a: number) => number;
+    readonly shieldfromidentitytransition_new: (a: any) => [number, number, number];
+    readonly shieldfromidentitytransition_nonce: (a: number) => bigint;
+    readonly shieldfromidentitytransition_proof: (a: number) => [number, number];
+    readonly shieldfromidentitytransition_set_identity_id: (a: number, b: any) => [number, number];
+    readonly shieldfromidentitytransition_set_nonce: (a: number, b: any) => [number, number];
+    readonly shieldfromidentitytransition_set_signature: (a: number, b: number, c: number) => void;
+    readonly shieldfromidentitytransition_set_signature_public_key_id: (a: number, b: any) => [number, number];
+    readonly shieldfromidentitytransition_set_user_fee_increase: (a: number, b: any) => [number, number];
+    readonly shieldfromidentitytransition_signature: (a: number) => [number, number];
+    readonly shieldfromidentitytransition_signature_public_key_id: (a: number) => number;
+    readonly shieldfromidentitytransition_struct_name: () => [number, number];
+    readonly shieldfromidentitytransition_toBase64: (a: number) => [number, number, number, number];
+    readonly shieldfromidentitytransition_toBytes: (a: number) => [number, number, number, number];
+    readonly shieldfromidentitytransition_toHex: (a: number) => [number, number, number, number];
+    readonly shieldfromidentitytransition_toJSON: (a: number) => [number, number, number];
+    readonly shieldfromidentitytransition_toObject: (a: number) => [number, number, number];
+    readonly shieldfromidentitytransition_toStateTransition: (a: number) => number;
+    readonly shieldfromidentitytransition_type_name: (a: number) => [number, number];
+    readonly shieldfromidentitytransition_user_fee_increase: (a: number) => number;
+    readonly tokenconfigurationchangeitem_NewTokensDestinationIdentityAdminGroupItem: (a: number) => number;
+    readonly tokenconfigurationchangeitem_NewTokensDestinationIdentityControlGroupItem: (a: number) => number;
+    readonly tokenconfigurationchangeitem_NewTokensDestinationIdentityItem: (a: any) => [number, number, number];
+    readonly tokenconfigurationlocalization_constructor: (a: number, b: number, c: number, d: number, e: number) => number;
+    readonly tokenconfigurationlocalization_fromJSON: (a: any) => [number, number, number];
+    readonly tokenconfigurationlocalization_fromObject: (a: any) => [number, number, number];
+    readonly tokenconfigurationlocalization_plural_form: (a: number) => [number, number];
+    readonly tokenconfigurationlocalization_set_plural_form: (a: number, b: number, c: number) => void;
+    readonly tokenconfigurationlocalization_set_should_capitalize: (a: number, b: number) => void;
+    readonly tokenconfigurationlocalization_set_singular_form: (a: number, b: number, c: number) => void;
+    readonly tokenconfigurationlocalization_should_capitalize: (a: number) => number;
+    readonly tokenconfigurationlocalization_singular_form: (a: number) => [number, number];
+    readonly tokenconfigurationlocalization_struct_name: () => [number, number];
+    readonly tokenconfigurationlocalization_toJSON: (a: number) => [number, number, number];
+    readonly tokenconfigurationlocalization_toObject: (a: number) => [number, number, number];
+    readonly tokenconfigurationlocalization_type_name: (a: number) => [number, number];
+    readonly tokensetpricefordirectpurchasetransition_base: (a: number) => number;
+    readonly tokensetpricefordirectpurchasetransition_constructor: (a: any) => [number, number, number];
+    readonly tokensetpricefordirectpurchasetransition_price: (a: number) => number;
+    readonly tokensetpricefordirectpurchasetransition_public_note: (a: number) => [number, number];
+    readonly tokensetpricefordirectpurchasetransition_set_base: (a: number, b: number) => void;
+    readonly tokensetpricefordirectpurchasetransition_set_price: (a: number, b: number) => void;
+    readonly tokensetpricefordirectpurchasetransition_set_public_note: (a: number, b: number, c: number) => void;
+    readonly tokensetpricefordirectpurchasetransition_struct_name: () => [number, number];
+    readonly tokensetpricefordirectpurchasetransition_type_name: (a: number) => [number, number];
+    readonly verifieddatacontract_fromJSON: (a: any, b: any) => [number, number, number];
+    readonly verifieddatacontract_fromObject: (a: any, b: any) => [number, number, number];
+    readonly verifieddatacontract_struct_name: () => [number, number];
+    readonly verifieddatacontract_toJSON: (a: number, b: any) => [number, number, number];
+    readonly verifieddatacontract_toObject: (a: number, b: any) => [number, number, number];
+    readonly verifieddatacontract_type_name: (a: number) => [number, number];
+    readonly verifieddocuments_documents: (a: number) => any;
+    readonly verifieddocuments_fromJSON: (a: any) => [number, number, number];
+    readonly verifieddocuments_fromObject: (a: any) => [number, number, number];
+    readonly verifieddocuments_struct_name: () => [number, number];
+    readonly verifieddocuments_toJSON: (a: number) => [number, number, number];
+    readonly verifieddocuments_toObject: (a: number) => any;
+    readonly verifieddocuments_type_name: (a: number) => [number, number];
+    readonly __wbg_get_verifiedassetlockconsumed_status: (a: number) => [number, number];
+    readonly __wbg_get_verifiedidentitywithshieldednullifiers_identity: (a: number) => number;
+    readonly __wbg_identifier_free: (a: number, b: number) => void;
+    readonly __wbg_identitycreatefromshieldedpooltransition_free: (a: number, b: number) => void;
+    readonly __wbg_serializedorchardaction_free: (a: number, b: number) => void;
+    readonly __wbg_set_verifiedassetlockconsumed_status: (a: number, b: number, c: number) => void;
+    readonly __wbg_set_verifiedidentitywithshieldednullifiers_identity: (a: number, b: number) => void;
+    readonly __wbg_verifiedassetlockconsumed_free: (a: number, b: number) => void;
+    readonly __wbg_verifiedassetlockconsumedwithaddressinfos_free: (a: number, b: number) => void;
+    readonly __wbg_verifiedidentitywithshieldednullifiers_free: (a: number, b: number) => void;
+    readonly __wbg_verifiedshieldednullifiers_free: (a: number, b: number) => void;
+    readonly __wbg_verifiedshieldednullifierswithaddressinfos_free: (a: number, b: number) => void;
+    readonly __wbg_verifiedshieldednullifierswithwithdrawaldocument_free: (a: number, b: number) => void;
+    readonly __wbg_verifiedshieldedpoolstate_free: (a: number, b: number) => void;
+    readonly computePlatformSighash: (a: number, b: number, c: number, d: number) => [number, number, number, number];
+    readonly identifier_constructor: (a: any) => [number, number, number];
+    readonly identifier_fromBase58: (a: number, b: number) => [number, number, number];
+    readonly identifier_fromBase64: (a: number, b: number) => [number, number, number];
+    readonly identifier_fromBytes: (a: number, b: number) => [number, number, number];
+    readonly identifier_fromHex: (a: number, b: number) => [number, number, number];
+    readonly identifier_struct_name: () => [number, number];
+    readonly identifier_toBase58: (a: number) => [number, number];
+    readonly identifier_toBase64: (a: number) => [number, number];
+    readonly identifier_toBytes: (a: number) => [number, number];
+    readonly identifier_toHex: (a: number) => [number, number];
+    readonly identifier_type_name: (a: number) => [number, number];
+    readonly identitycreatefromshieldedpooltransition_actions: (a: number) => [number, number];
+    readonly identitycreatefromshieldedpooltransition_anchor: (a: number) => [number, number];
+    readonly identitycreatefromshieldedpooltransition_binding_signature: (a: number) => [number, number];
+    readonly identitycreatefromshieldedpooltransition_denomination: (a: number) => bigint;
+    readonly identitycreatefromshieldedpooltransition_fromBytes: (a: number, b: number) => [number, number, number];
+    readonly identitycreatefromshieldedpooltransition_fromJSON: (a: any) => [number, number, number];
+    readonly identitycreatefromshieldedpooltransition_fromObject: (a: any) => [number, number, number];
+    readonly identitycreatefromshieldedpooltransition_getModifiedDataIds: (a: number) => [number, number];
+    readonly identitycreatefromshieldedpooltransition_identity_id: (a: number) => number;
+    readonly identitycreatefromshieldedpooltransition_new: (a: any) => [number, number, number];
+    readonly identitycreatefromshieldedpooltransition_proof: (a: number) => [number, number];
+    readonly identitycreatefromshieldedpooltransition_public_keys: (a: number) => [number, number];
+    readonly identitycreatefromshieldedpooltransition_send_to_address_on_creation_failure: (a: number) => number;
+    readonly identitycreatefromshieldedpooltransition_struct_name: () => [number, number];
+    readonly identitycreatefromshieldedpooltransition_toBytes: (a: number) => [number, number, number, number];
+    readonly identitycreatefromshieldedpooltransition_toJSON: (a: number) => [number, number, number];
+    readonly identitycreatefromshieldedpooltransition_toObject: (a: number) => [number, number, number];
+    readonly identitycreatefromshieldedpooltransition_toStateTransition: (a: number) => number;
+    readonly identitycreatefromshieldedpooltransition_type_name: (a: number) => [number, number];
+    readonly serializedorchardaction_cmx: (a: number) => [number, number];
+    readonly serializedorchardaction_constructor: (a: any) => [number, number, number];
+    readonly serializedorchardaction_cv_net: (a: number) => [number, number];
+    readonly serializedorchardaction_encrypted_note: (a: number) => [number, number];
+    readonly serializedorchardaction_fromJSON: (a: any) => [number, number, number];
+    readonly serializedorchardaction_fromObject: (a: any) => [number, number, number];
+    readonly serializedorchardaction_nullifier: (a: number) => [number, number];
+    readonly serializedorchardaction_rk: (a: number) => [number, number];
+    readonly serializedorchardaction_spend_auth_sig: (a: number) => [number, number];
+    readonly serializedorchardaction_struct_name: () => [number, number];
+    readonly serializedorchardaction_toJSON: (a: number) => [number, number, number];
+    readonly serializedorchardaction_toObject: (a: number) => [number, number, number];
+    readonly serializedorchardaction_type_name: (a: number) => [number, number];
+    readonly testJsValueToJson: (a: any) => [number, number, number];
+    readonly verifiedassetlockconsumed_fromJSON: (a: any) => [number, number, number];
+    readonly verifiedassetlockconsumed_fromObject: (a: any) => [number, number, number];
+    readonly verifiedassetlockconsumed_initialCreditValue: (a: number) => any;
+    readonly verifiedassetlockconsumed_remainingCreditValue: (a: number) => any;
+    readonly verifiedassetlockconsumed_struct_name: () => [number, number];
+    readonly verifiedassetlockconsumed_toJSON: (a: number) => [number, number, number];
+    readonly verifiedassetlockconsumed_toObject: (a: number) => [number, number, number];
+    readonly verifiedassetlockconsumed_type_name: (a: number) => [number, number];
+    readonly verifiedassetlockconsumedwithaddressinfos_address_infos: (a: number) => any;
+    readonly verifiedassetlockconsumedwithaddressinfos_fromJSON: (a: any) => [number, number, number];
+    readonly verifiedassetlockconsumedwithaddressinfos_initialCreditValue: (a: number) => any;
+    readonly verifiedassetlockconsumedwithaddressinfos_remainingCreditValue: (a: number) => any;
+    readonly verifiedassetlockconsumedwithaddressinfos_status: (a: number) => [number, number];
+    readonly verifiedassetlockconsumedwithaddressinfos_struct_name: () => [number, number];
+    readonly verifiedassetlockconsumedwithaddressinfos_toJSON: (a: number) => [number, number, number];
+    readonly verifiedassetlockconsumedwithaddressinfos_toObject: (a: number) => any;
+    readonly verifiedassetlockconsumedwithaddressinfos_type_name: (a: number) => [number, number];
+    readonly verifiedidentitywithshieldednullifiers_fromJSON: (a: any) => [number, number, number];
+    readonly verifiedidentitywithshieldednullifiers_fromObject: (a: any) => [number, number, number];
+    readonly verifiedidentitywithshieldednullifiers_nullifiers: (a: number) => any;
+    readonly verifiedidentitywithshieldednullifiers_struct_name: () => [number, number];
+    readonly verifiedidentitywithshieldednullifiers_toJSON: (a: number) => [number, number, number];
+    readonly verifiedidentitywithshieldednullifiers_toObject: (a: number) => [number, number, number];
+    readonly verifiedidentitywithshieldednullifiers_type_name: (a: number) => [number, number];
+    readonly verifiedshieldednullifiers_fromJSON: (a: any) => [number, number, number];
+    readonly verifiedshieldednullifiers_fromObject: (a: any) => [number, number, number];
+    readonly verifiedshieldednullifiers_nullifiers: (a: number) => any;
+    readonly verifiedshieldednullifiers_struct_name: () => [number, number];
+    readonly verifiedshieldednullifiers_toJSON: (a: number) => [number, number, number];
+    readonly verifiedshieldednullifiers_toObject: (a: number) => any;
+    readonly verifiedshieldednullifiers_type_name: (a: number) => [number, number];
+    readonly verifiedshieldednullifierswithaddressinfos_address_infos: (a: number) => any;
+    readonly verifiedshieldednullifierswithaddressinfos_fromJSON: (a: any) => [number, number, number];
+    readonly verifiedshieldednullifierswithaddressinfos_nullifiers: (a: number) => any;
+    readonly verifiedshieldednullifierswithaddressinfos_struct_name: () => [number, number];
+    readonly verifiedshieldednullifierswithaddressinfos_toJSON: (a: number) => [number, number, number];
+    readonly verifiedshieldednullifierswithaddressinfos_toObject: (a: number) => any;
+    readonly verifiedshieldednullifierswithaddressinfos_type_name: (a: number) => [number, number];
+    readonly verifiedshieldednullifierswithwithdrawaldocument_documents: (a: number) => any;
+    readonly verifiedshieldednullifierswithwithdrawaldocument_fromJSON: (a: any) => [number, number, number];
+    readonly verifiedshieldednullifierswithwithdrawaldocument_nullifiers: (a: number) => any;
+    readonly verifiedshieldednullifierswithwithdrawaldocument_struct_name: () => [number, number];
+    readonly verifiedshieldednullifierswithwithdrawaldocument_toJSON: (a: number) => [number, number, number];
+    readonly verifiedshieldednullifierswithwithdrawaldocument_toObject: (a: number) => any;
+    readonly verifiedshieldednullifierswithwithdrawaldocument_type_name: (a: number) => [number, number];
+    readonly verifiedshieldedpoolstate_fromJSON: (a: any) => [number, number, number];
+    readonly verifiedshieldedpoolstate_fromObject: (a: any) => [number, number, number];
+    readonly verifiedshieldedpoolstate_poolBalance: (a: number) => any;
+    readonly verifiedshieldedpoolstate_struct_name: () => [number, number];
+    readonly verifiedshieldedpoolstate_toJSON: (a: number) => [number, number, number];
+    readonly verifiedshieldedpoolstate_toObject: (a: number) => [number, number, number];
+    readonly verifiedshieldedpoolstate_type_name: (a: number) => [number, number];
+    readonly identifier_toJSON: (a: number) => [number, number];
+    readonly identifier_toString: (a: number) => [number, number];
+    readonly verifiedshieldednullifierswithaddressinfos_fromObject: (a: any) => [number, number, number];
+    readonly verifiedshieldednullifierswithwithdrawaldocument_fromObject: (a: any) => [number, number, number];
+    readonly verifiedassetlockconsumedwithaddressinfos_fromObject: (a: any) => [number, number, number];
+    readonly __wbg_addressfundingfromassetlocktransition_free: (a: number, b: number) => void;
+    readonly __wbg_documentbasetransition_free: (a: number, b: number) => void;
+    readonly __wbg_documentcreatetransition_free: (a: number, b: number) => void;
+    readonly __wbg_documentdeletetransition_free: (a: number, b: number) => void;
+    readonly __wbg_documentreplacetransition_free: (a: number, b: number) => void;
+    readonly __wbg_finalizedepochinfo_free: (a: number, b: number) => void;
+    readonly __wbg_groupstatetransitioninfostatus_free: (a: number, b: number) => void;
+    readonly __wbg_prefundedvotingbalance_free: (a: number, b: number) => void;
+    readonly __wbg_publickey_free: (a: number, b: number) => void;
+    readonly __wbg_resourcevote_free: (a: number, b: number) => void;
+    readonly __wbg_tokendestroyfrozenfundstransition_free: (a: number, b: number) => void;
+    readonly __wbg_tokenemergencyactiontransition_free: (a: number, b: number) => void;
+    readonly __wbg_votepoll_free: (a: number, b: number) => void;
+    readonly __wbg_wasmdpperror_free: (a: number, b: number) => void;
+    readonly addressfundingfromassetlocktransition_asset_lock_proof: (a: number) => number;
+    readonly addressfundingfromassetlocktransition_constructor: (a: any) => [number, number, number];
+    readonly addressfundingfromassetlocktransition_fromBase64: (a: number, b: number) => [number, number, number];
+    readonly addressfundingfromassetlocktransition_fromBytes: (a: number, b: number) => [number, number, number];
+    readonly addressfundingfromassetlocktransition_fromHex: (a: number, b: number) => [number, number, number];
+    readonly addressfundingfromassetlocktransition_fromJSON: (a: any) => [number, number, number];
+    readonly addressfundingfromassetlocktransition_fromObject: (a: any) => [number, number, number];
+    readonly addressfundingfromassetlocktransition_fromStateTransition: (a: number) => [number, number, number];
+    readonly addressfundingfromassetlocktransition_inputs: (a: number) => [number, number];
+    readonly addressfundingfromassetlocktransition_outputs: (a: number) => [number, number];
+    readonly addressfundingfromassetlocktransition_set_asset_lock_proof: (a: number, b: number) => void;
+    readonly addressfundingfromassetlocktransition_set_inputs: (a: number, b: number, c: number) => [number, number];
+    readonly addressfundingfromassetlocktransition_set_outputs: (a: number, b: number, c: number) => [number, number];
+    readonly addressfundingfromassetlocktransition_set_user_fee_increase: (a: number, b: any) => [number, number];
+    readonly addressfundingfromassetlocktransition_struct_name: () => [number, number];
+    readonly addressfundingfromassetlocktransition_toBase64: (a: number) => [number, number, number, number];
+    readonly addressfundingfromassetlocktransition_toBytes: (a: number) => [number, number, number, number];
+    readonly addressfundingfromassetlocktransition_toHex: (a: number) => [number, number, number, number];
+    readonly addressfundingfromassetlocktransition_toJSON: (a: number) => [number, number, number];
+    readonly addressfundingfromassetlocktransition_toObject: (a: number) => [number, number, number];
+    readonly addressfundingfromassetlocktransition_toStateTransition: (a: number) => number;
+    readonly addressfundingfromassetlocktransition_type_name: (a: number) => [number, number];
+    readonly addressfundingfromassetlocktransition_user_fee_increase: (a: number) => number;
+    readonly documentbasetransition_constructor: (a: any) => [number, number, number];
+    readonly documentbasetransition_data_contract_id: (a: number) => number;
+    readonly documentbasetransition_document_type_name: (a: number) => [number, number];
+    readonly documentbasetransition_id: (a: number) => number;
+    readonly documentbasetransition_identity_contract_nonce: (a: number) => bigint;
+    readonly documentbasetransition_set_data_contract_id: (a: number, b: any) => [number, number];
+    readonly documentbasetransition_set_document_type_name: (a: number, b: number, c: number) => void;
+    readonly documentbasetransition_set_id: (a: number, b: any) => [number, number];
+    readonly documentbasetransition_set_identity_contract_nonce: (a: number, b: any) => [number, number];
+    readonly documentbasetransition_set_token_payment_info: (a: number, b: number) => void;
+    readonly documentbasetransition_struct_name: () => [number, number];
+    readonly documentbasetransition_token_payment_info: (a: number) => number;
+    readonly documentbasetransition_type_name: (a: number) => [number, number];
+    readonly documentcreatetransition_base: (a: number) => number;
+    readonly documentcreatetransition_clearPrefundedVotingBalance: (a: number) => void;
+    readonly documentcreatetransition_constructor: (a: any) => [number, number, number];
+    readonly documentcreatetransition_data: (a: number) => [number, number, number];
+    readonly documentcreatetransition_entropy: (a: number) => [number, number];
+    readonly documentcreatetransition_fromDocumentTransition: (a: number) => [number, number, number];
+    readonly documentcreatetransition_prefunded_voting_balance: (a: number) => number;
+    readonly documentcreatetransition_set_base: (a: number, b: number) => void;
+    readonly documentcreatetransition_set_data: (a: number, b: any) => [number, number];
+    readonly documentcreatetransition_set_entropy: (a: number, b: number, c: number) => [number, number];
+    readonly documentcreatetransition_set_prefunded_voting_balance: (a: number, b: number) => void;
+    readonly documentcreatetransition_struct_name: () => [number, number];
+    readonly documentcreatetransition_toDocumentTransition: (a: number) => number;
+    readonly documentcreatetransition_type_name: (a: number) => [number, number];
+    readonly documentdeletetransition_base: (a: number) => number;
+    readonly documentdeletetransition_constructor: (a: any) => [number, number, number];
+    readonly documentdeletetransition_fromDocumentTransition: (a: number) => [number, number, number];
+    readonly documentdeletetransition_set_base: (a: number, b: number) => void;
+    readonly documentdeletetransition_struct_name: () => [number, number];
+    readonly documentdeletetransition_toDocumentTransition: (a: number) => number;
+    readonly documentdeletetransition_type_name: (a: number) => [number, number];
+    readonly documentreplacetransition_base: (a: number) => number;
+    readonly documentreplacetransition_constructor: (a: any) => [number, number, number];
+    readonly documentreplacetransition_data: (a: number) => [number, number, number];
+    readonly documentreplacetransition_fromDocumentTransition: (a: number) => [number, number, number];
+    readonly documentreplacetransition_revision: (a: number) => bigint;
+    readonly documentreplacetransition_set_base: (a: number, b: number) => void;
+    readonly documentreplacetransition_set_data: (a: number, b: any) => [number, number];
+    readonly documentreplacetransition_set_revision: (a: number, b: any) => [number, number];
+    readonly documentreplacetransition_struct_name: () => [number, number];
+    readonly documentreplacetransition_toDocumentTransition: (a: number) => number;
+    readonly documentreplacetransition_type_name: (a: number) => [number, number];
+    readonly finalizedepochinfo_block_proposers: (a: number) => any;
+    readonly finalizedepochinfo_constructor: (a: any) => [number, number, number];
+    readonly finalizedepochinfo_core_block_rewards: (a: number) => any;
+    readonly finalizedepochinfo_fee_multiplier: (a: number) => number;
+    readonly finalizedepochinfo_fee_multiplier_permille: (a: number) => bigint;
+    readonly finalizedepochinfo_first_block_height: (a: number) => any;
+    readonly finalizedepochinfo_first_block_time: (a: number) => any;
+    readonly finalizedepochinfo_first_core_block_height: (a: number) => number;
+    readonly finalizedepochinfo_fromJSON: (a: any) => [number, number, number];
+    readonly finalizedepochinfo_fromObject: (a: any) => [number, number, number];
+    readonly finalizedepochinfo_next_epoch_start_core_block_height: (a: number) => number;
+    readonly finalizedepochinfo_protocol_version: (a: number) => number;
+    readonly finalizedepochinfo_set_block_proposers: (a: number, b: any) => [number, number];
+    readonly finalizedepochinfo_set_core_block_rewards: (a: number, b: bigint) => void;
+    readonly finalizedepochinfo_set_fee_multiplier_permille: (a: number, b: bigint) => void;
+    readonly finalizedepochinfo_set_first_block_height: (a: number, b: bigint) => void;
+    readonly finalizedepochinfo_set_first_block_time: (a: number, b: bigint) => void;
+    readonly finalizedepochinfo_set_first_core_block_height: (a: number, b: number) => void;
+    readonly finalizedepochinfo_set_next_epoch_start_core_block_height: (a: number, b: number) => void;
+    readonly finalizedepochinfo_set_protocol_version: (a: number, b: number) => void;
+    readonly finalizedepochinfo_set_total_blocks_in_epoch: (a: number, b: bigint) => void;
+    readonly finalizedepochinfo_set_total_created_storage_fees: (a: number, b: bigint) => void;
+    readonly finalizedepochinfo_set_total_distributed_storage_fees: (a: number, b: bigint) => void;
+    readonly finalizedepochinfo_set_total_processing_fees: (a: number, b: bigint) => void;
+    readonly finalizedepochinfo_struct_name: () => [number, number];
+    readonly finalizedepochinfo_toJSON: (a: number) => [number, number, number];
+    readonly finalizedepochinfo_toObject: (a: number) => [number, number, number];
+    readonly finalizedepochinfo_total_blocks_in_epoch: (a: number) => any;
+    readonly finalizedepochinfo_total_created_storage_fees: (a: number) => any;
+    readonly finalizedepochinfo_total_distributed_storage_fees: (a: number) => any;
+    readonly finalizedepochinfo_total_processing_fees: (a: number) => any;
+    readonly finalizedepochinfo_type_name: (a: number) => [number, number];
+    readonly groupstatetransitioninfostatus_action_id: (a: number) => number;
+    readonly groupstatetransitioninfostatus_group_contract_position: (a: number) => number;
+    readonly groupstatetransitioninfostatus_is_proposer: (a: number) => number;
+    readonly groupstatetransitioninfostatus_otherSigner: (a: number, b: any) => [number, number, number];
+    readonly groupstatetransitioninfostatus_proposer: (a: number) => number;
+    readonly groupstatetransitioninfostatus_struct_name: () => [number, number];
+    readonly groupstatetransitioninfostatus_toInfo: (a: number) => number;
+    readonly groupstatetransitioninfostatus_type_name: (a: number) => [number, number];
+    readonly prefundedvotingbalance_constructor: (a: any) => [number, number, number];
+    readonly prefundedvotingbalance_credits: (a: number) => bigint;
+    readonly prefundedvotingbalance_indexName: (a: number) => [number, number];
+    readonly prefundedvotingbalance_struct_name: () => [number, number];
+    readonly prefundedvotingbalance_type_name: (a: number) => [number, number];
+    readonly publickey_compressed: (a: number) => number;
+    readonly publickey_constructor: (a: number, b: number, c: number) => [number, number, number];
+    readonly publickey_fromBytes: (a: number, b: number) => [number, number, number];
+    readonly publickey_getPublicKeyHash: (a: number) => [number, number];
+    readonly publickey_inner: (a: number) => [number, number];
+    readonly publickey_set_compressed: (a: number, b: number) => void;
+    readonly publickey_set_inner: (a: number, b: number, c: number) => [number, number];
+    readonly publickey_struct_name: () => [number, number];
+    readonly publickey_toBytes: (a: number) => [number, number];
+    readonly publickey_type_name: (a: number) => [number, number];
+    readonly resourcevote_choice: (a: number) => number;
+    readonly resourcevote_constructor: (a: number, b: number) => number;
+    readonly resourcevote_fromJSON: (a: any) => [number, number, number];
+    readonly resourcevote_fromObject: (a: any) => [number, number, number];
+    readonly resourcevote_poll: (a: number) => number;
+    readonly resourcevote_set_choice: (a: number, b: number) => void;
+    readonly resourcevote_set_poll: (a: number, b: number) => void;
+    readonly resourcevote_struct_name: () => [number, number];
+    readonly resourcevote_toJSON: (a: number) => [number, number, number];
+    readonly resourcevote_toObject: (a: number) => [number, number, number];
+    readonly resourcevote_type_name: (a: number) => [number, number];
+    readonly tokencontractinfo_contract_id: (a: number) => number;
+    readonly tokencontractinfo_fromJSON: (a: any) => [number, number, number];
+    readonly tokencontractinfo_fromObject: (a: any) => [number, number, number];
+    readonly tokencontractinfo_struct_name: () => [number, number];
+    readonly tokencontractinfo_toJSON: (a: number) => [number, number, number];
+    readonly tokencontractinfo_toObject: (a: number) => [number, number, number];
+    readonly tokencontractinfo_token_contract_position: (a: number) => number;
+    readonly tokencontractinfo_type_name: (a: number) => [number, number];
+    readonly tokendestroyfrozenfundstransition_base: (a: number) => number;
+    readonly tokendestroyfrozenfundstransition_constructor: (a: any) => [number, number, number];
+    readonly tokendestroyfrozenfundstransition_frozen_identity_id: (a: number) => number;
+    readonly tokendestroyfrozenfundstransition_public_note: (a: number) => [number, number];
+    readonly tokendestroyfrozenfundstransition_set_base: (a: number, b: number) => void;
+    readonly tokendestroyfrozenfundstransition_set_frozen_identity_id: (a: number, b: any) => [number, number];
+    readonly tokendestroyfrozenfundstransition_set_public_note: (a: number, b: number, c: number) => void;
+    readonly tokendestroyfrozenfundstransition_struct_name: () => [number, number];
+    readonly tokendestroyfrozenfundstransition_type_name: (a: number) => [number, number];
+    readonly tokenemergencyactiontransition_base: (a: number) => number;
+    readonly tokenemergencyactiontransition_constructor: (a: any) => [number, number, number];
+    readonly tokenemergencyactiontransition_emergency_action: (a: number) => [number, number];
+    readonly tokenemergencyactiontransition_public_note: (a: number) => [number, number];
+    readonly tokenemergencyactiontransition_set_base: (a: number, b: number) => void;
+    readonly tokenemergencyactiontransition_set_emergency_action: (a: number, b: number) => void;
+    readonly tokenemergencyactiontransition_set_public_note: (a: number, b: number, c: number) => void;
+    readonly tokenemergencyactiontransition_struct_name: () => [number, number];
+    readonly tokenemergencyactiontransition_type_name: (a: number) => [number, number];
+    readonly votepoll_constructor: (a: any) => [number, number, number];
+    readonly votepoll_contract_id: (a: number) => number;
+    readonly votepoll_document_type_name: (a: number) => [number, number];
+    readonly votepoll_fromJSON: (a: any) => [number, number, number];
+    readonly votepoll_fromObject: (a: any) => [number, number, number];
+    readonly votepoll_index_name: (a: number) => [number, number];
+    readonly votepoll_index_values: (a: number) => [number, number, number];
+    readonly votepoll_set_contract_id: (a: number, b: any) => [number, number];
+    readonly votepoll_set_document_type_name: (a: number, b: number, c: number) => void;
+    readonly votepoll_set_index_name: (a: number, b: number, c: number) => void;
+    readonly votepoll_set_index_values: (a: number, b: any) => [number, number];
+    readonly votepoll_struct_name: () => [number, number];
+    readonly votepoll_toJSON: (a: number) => [number, number, number];
+    readonly votepoll_toObject: (a: number) => [number, number, number];
+    readonly votepoll_toString: (a: number) => [number, number];
+    readonly votepoll_type_name: (a: number) => [number, number];
+    readonly wasmdpperror_code: (a: number) => number;
+    readonly wasmdpperror_kind: (a: number) => number;
+    readonly wasmdpperror_message: (a: number) => [number, number];
+    readonly wasmdpperror_name: (a: number) => [number, number];
+    readonly __wbg_tokencontractinfo_free: (a: number, b: number) => void;
+    readonly __wbg_addresswitness_free: (a: number, b: number) => void;
+    readonly __wbg_contenderwithserializeddocument_free: (a: number, b: number) => void;
+    readonly __wbg_extendedepochinfo_free: (a: number, b: number) => void;
+    readonly __wbg_get_verifiedmasternodevote_vote: (a: number) => number;
+    readonly __wbg_get_verifiednextdistribution_vote: (a: number) => number;
+    readonly __wbg_identitypublickeyincreation_free: (a: number, b: number) => void;
+    readonly __wbg_set_verifiedmasternodevote_vote: (a: number, b: number) => void;
+    readonly __wbg_shieldtransition_free: (a: number, b: number) => void;
+    readonly __wbg_verifiedmasternodevote_free: (a: number, b: number) => void;
+    readonly __wbg_verifiednextdistribution_free: (a: number, b: number) => void;
+    readonly addresswitness_fromJSON: (a: any) => [number, number, number];
+    readonly addresswitness_fromObject: (a: any) => [number, number, number];
+    readonly addresswitness_isP2pkh: (a: number) => number;
+    readonly addresswitness_isP2sh: (a: number) => number;
+    readonly addresswitness_kind: (a: number) => [number, number];
+    readonly addresswitness_p2pkh: (a: number, b: number) => number;
+    readonly addresswitness_p2sh: (a: any, b: number, c: number) => [number, number, number];
+    readonly addresswitness_redeemScript: (a: number) => [number, number];
+    readonly addresswitness_signature: (a: number) => [number, number];
+    readonly addresswitness_signatures: (a: number) => [number, number];
+    readonly addresswitness_struct_name: () => [number, number];
+    readonly addresswitness_toJSON: (a: number) => [number, number, number];
+    readonly addresswitness_toObject: (a: number) => [number, number, number];
+    readonly addresswitness_type_name: (a: number) => [number, number];
+    readonly contenderwithserializeddocument_constructor: (a: any, b: number, c: number, d: number) => [number, number, number];
+    readonly contenderwithserializeddocument_fromJSON: (a: any) => [number, number, number];
+    readonly contenderwithserializeddocument_fromObject: (a: any) => [number, number, number];
+    readonly contenderwithserializeddocument_identity_id: (a: number) => number;
+    readonly contenderwithserializeddocument_serialized_document: (a: number) => any;
+    readonly contenderwithserializeddocument_struct_name: () => [number, number];
+    readonly contenderwithserializeddocument_toJSON: (a: number) => [number, number, number];
+    readonly contenderwithserializeddocument_toObject: (a: number) => [number, number, number];
+    readonly contenderwithserializeddocument_type_name: (a: number) => [number, number];
+    readonly contenderwithserializeddocument_vote_tally: (a: number) => number;
+    readonly extendedepochinfo_constructor: (a: any) => [number, number, number];
+    readonly extendedepochinfo_fee_multiplier: (a: number) => number;
+    readonly extendedepochinfo_fee_multiplier_permille: (a: number) => bigint;
+    readonly extendedepochinfo_first_block_height: (a: number) => any;
+    readonly extendedepochinfo_first_block_time: (a: number) => any;
+    readonly extendedepochinfo_first_core_block_height: (a: number) => number;
+    readonly extendedepochinfo_fromJSON: (a: any) => [number, number, number];
+    readonly extendedepochinfo_fromObject: (a: any) => [number, number, number];
+    readonly extendedepochinfo_index: (a: number) => number;
+    readonly extendedepochinfo_protocol_version: (a: number) => number;
+    readonly extendedepochinfo_set_fee_multiplier_permille: (a: number, b: bigint) => void;
+    readonly extendedepochinfo_set_first_block_height: (a: number, b: any) => [number, number];
+    readonly extendedepochinfo_set_first_block_time: (a: number, b: any) => [number, number];
+    readonly extendedepochinfo_set_first_core_block_height: (a: number, b: any) => [number, number];
+    readonly extendedepochinfo_set_index: (a: number, b: any) => [number, number];
+    readonly extendedepochinfo_set_protocol_version: (a: number, b: number) => void;
+    readonly extendedepochinfo_struct_name: () => [number, number];
+    readonly extendedepochinfo_toJSON: (a: number) => [number, number, number];
+    readonly extendedepochinfo_toObject: (a: number) => [number, number, number];
+    readonly extendedepochinfo_type_name: (a: number) => [number, number];
+    readonly identitypublickeyincreation_constructor: (a: any) => [number, number, number];
+    readonly identitypublickeyincreation_contract_bounds: (a: number) => number;
+    readonly identitypublickeyincreation_data: (a: number) => [number, number];
+    readonly identitypublickeyincreation_fromJSON: (a: any) => [number, number, number];
+    readonly identitypublickeyincreation_fromObject: (a: any) => [number, number, number];
+    readonly identitypublickeyincreation_getHash: (a: number) => [number, number, number, number];
+    readonly identitypublickeyincreation_is_read_only: (a: number) => number;
+    readonly identitypublickeyincreation_key_id: (a: number) => number;
+    readonly identitypublickeyincreation_key_type: (a: number) => [number, number];
+    readonly identitypublickeyincreation_purpose: (a: number) => [number, number];
+    readonly identitypublickeyincreation_security_level: (a: number) => [number, number];
+    readonly identitypublickeyincreation_set_contract_bounds: (a: number, b: number) => void;
+    readonly identitypublickeyincreation_set_data: (a: number, b: number, c: number) => void;
+    readonly identitypublickeyincreation_set_is_read_only: (a: number, b: number) => void;
+    readonly identitypublickeyincreation_set_key_id: (a: number, b: any) => [number, number];
+    readonly identitypublickeyincreation_set_key_type: (a: number, b: any) => [number, number];
+    readonly identitypublickeyincreation_set_purpose: (a: number, b: any) => [number, number];
+    readonly identitypublickeyincreation_set_security_level: (a: number, b: any) => [number, number];
+    readonly identitypublickeyincreation_set_signature: (a: number, b: number, c: number) => void;
+    readonly identitypublickeyincreation_signature: (a: number) => [number, number];
+    readonly identitypublickeyincreation_struct_name: () => [number, number];
+    readonly identitypublickeyincreation_toIdentityPublicKey: (a: number) => number;
+    readonly identitypublickeyincreation_toJSON: (a: number) => [number, number, number];
+    readonly identitypublickeyincreation_toObject: (a: number) => [number, number, number];
+    readonly identitypublickeyincreation_type_name: (a: number) => [number, number];
+    readonly shieldtransition_actions: (a: number) => [number, number];
+    readonly shieldtransition_amount: (a: number) => bigint;
+    readonly shieldtransition_anchor: (a: number) => [number, number];
+    readonly shieldtransition_binding_signature: (a: number) => [number, number];
+    readonly shieldtransition_fee_strategy: (a: number) => [number, number];
+    readonly shieldtransition_fromBytes: (a: number, b: number) => [number, number, number];
+    readonly shieldtransition_fromJSON: (a: any) => [number, number, number];
+    readonly shieldtransition_fromObject: (a: any) => [number, number, number];
+    readonly shieldtransition_getModifiedDataIds: (a: number) => [number, number];
+    readonly shieldtransition_input_witnesses: (a: number) => [number, number];
+    readonly shieldtransition_inputs: (a: number) => [number, number];
+    readonly shieldtransition_new: (a: any) => [number, number, number];
+    readonly shieldtransition_proof: (a: number) => [number, number];
+    readonly shieldtransition_struct_name: () => [number, number];
+    readonly shieldtransition_toBytes: (a: number) => [number, number, number, number];
+    readonly shieldtransition_toJSON: (a: number) => [number, number, number];
+    readonly shieldtransition_toObject: (a: number) => [number, number, number];
+    readonly shieldtransition_toStateTransition: (a: number) => number;
+    readonly shieldtransition_type_name: (a: number) => [number, number];
+    readonly shieldtransition_user_fee_increase: (a: number) => number;
+    readonly verifiedmasternodevote_fromJSON: (a: any) => [number, number, number];
+    readonly verifiedmasternodevote_fromObject: (a: any) => [number, number, number];
+    readonly verifiedmasternodevote_struct_name: () => [number, number];
+    readonly verifiedmasternodevote_toJSON: (a: number) => [number, number, number];
+    readonly verifiedmasternodevote_toObject: (a: number) => [number, number, number];
+    readonly verifiedmasternodevote_type_name: (a: number) => [number, number];
+    readonly verifiednextdistribution_fromJSON: (a: any) => [number, number, number];
+    readonly verifiednextdistribution_fromObject: (a: any) => [number, number, number];
+    readonly verifiednextdistribution_struct_name: () => [number, number];
+    readonly verifiednextdistribution_toJSON: (a: number) => [number, number, number];
+    readonly verifiednextdistribution_toObject: (a: number) => [number, number, number];
+    readonly verifiednextdistribution_type_name: (a: number) => [number, number];
+    readonly __wbg_set_verifiednextdistribution_vote: (a: number, b: number) => void;
+    readonly __wbg_assetlockproof_free: (a: number, b: number) => void;
+    readonly __wbg_batchtransition_free: (a: number, b: number) => void;
+    readonly __wbg_identitycreditwithdrawaltransition_free: (a: number, b: number) => void;
+    readonly __wbg_identitytopupfromshieldedpooltransition_free: (a: number, b: number) => void;
+    readonly __wbg_identityupdatetransition_free: (a: number, b: number) => void;
+    readonly __wbg_masternodevotetransition_free: (a: number, b: number) => void;
+    readonly __wbg_outpoint_free: (a: number, b: number) => void;
+    readonly __wbg_platformversion_free: (a: number, b: number) => void;
+    readonly __wbg_resourcevotechoice_free: (a: number, b: number) => void;
+    readonly __wbg_tokentransfertransition_free: (a: number, b: number) => void;
+    readonly __wbg_tokentransition_free: (a: number, b: number) => void;
+    readonly __wbg_vote_free: (a: number, b: number) => void;
+    readonly assetlockproof_chain_lock_proof: (a: number) => number;
+    readonly assetlockproof_constructor: (a: any) => [number, number, number];
+    readonly assetlockproof_createChainAssetLockProof: (a: number, b: number) => [number, number, number];
+    readonly assetlockproof_createIdentityId: (a: number) => [number, number, number];
+    readonly assetlockproof_createInstantAssetLockProof: (a: number, b: number, c: number, d: number, e: number) => [number, number, number];
+    readonly assetlockproof_fromBytes: (a: number, b: number) => [number, number, number];
+    readonly assetlockproof_fromHex: (a: number, b: number) => [number, number, number];
+    readonly assetlockproof_fromJSON: (a: any) => [number, number, number];
+    readonly assetlockproof_fromObject: (a: any) => [number, number, number];
+    readonly assetlockproof_instant_lock_proof: (a: number) => number;
+    readonly assetlockproof_lock_type: (a: number) => [number, number];
+    readonly assetlockproof_out_point: (a: number) => number;
+    readonly assetlockproof_struct_name: () => [number, number];
+    readonly assetlockproof_toBytes: (a: number) => [number, number, number, number];
+    readonly assetlockproof_toHex: (a: number) => [number, number, number, number];
+    readonly assetlockproof_toJSON: (a: number) => [number, number, number];
+    readonly assetlockproof_toObject: (a: number) => [number, number, number];
+    readonly assetlockproof_type_name: (a: number) => [number, number];
+    readonly batchtransition_all_conflicting_index_collateral_voting_funds: (a: number) => [number, bigint, number, number];
+    readonly batchtransition_all_purchases_amount: (a: number) => [number, bigint, number, number];
+    readonly batchtransition_batched_transitions: (a: number) => [number, number];
+    readonly batchtransition_fromBase64: (a: number, b: number) => [number, number, number];
+    readonly batchtransition_fromBatchedTransitions: (a: any, b: any, c: number) => [number, number, number];
+    readonly batchtransition_fromBytes: (a: number, b: number) => [number, number, number];
+    readonly batchtransition_fromHex: (a: number, b: number) => [number, number, number];
+    readonly batchtransition_fromJSON: (a: any) => [number, number, number];
+    readonly batchtransition_fromObject: (a: any) => [number, number, number];
+    readonly batchtransition_fromStateTransition: (a: number) => [number, number, number];
+    readonly batchtransition_modified_data_ids: (a: number) => [number, number];
+    readonly batchtransition_owner_id: (a: number) => number;
+    readonly batchtransition_setIdentityContractNonce: (a: number, b: any) => [number, number];
+    readonly batchtransition_set_signature: (a: number, b: number, c: number) => void;
+    readonly batchtransition_set_signature_public_key_id: (a: number, b: any) => [number, number];
+    readonly batchtransition_set_transitions: (a: number, b: any) => [number, number];
+    readonly batchtransition_signature: (a: number) => [number, number];
+    readonly batchtransition_signature_public_key_id: (a: number) => number;
+    readonly batchtransition_struct_name: () => [number, number];
+    readonly batchtransition_toBase64: (a: number) => [number, number, number, number];
+    readonly batchtransition_toBytes: (a: number) => [number, number, number, number];
+    readonly batchtransition_toHex: (a: number) => [number, number, number, number];
+    readonly batchtransition_toJSON: (a: number) => [number, number, number];
+    readonly batchtransition_toObject: (a: number) => [number, number, number];
+    readonly batchtransition_toStateTransition: (a: number) => number;
+    readonly batchtransition_type_name: (a: number) => [number, number];
+    readonly identitycreditwithdrawaltransition_amount: (a: number) => bigint;
+    readonly identitycreditwithdrawaltransition_constructor: (a: any) => [number, number, number];
+    readonly identitycreditwithdrawaltransition_core_fee_per_byte: (a: number) => number;
+    readonly identitycreditwithdrawaltransition_fromBase64: (a: number, b: number) => [number, number, number];
+    readonly identitycreditwithdrawaltransition_fromBytes: (a: number, b: number) => [number, number, number];
+    readonly identitycreditwithdrawaltransition_fromHex: (a: number, b: number) => [number, number, number];
+    readonly identitycreditwithdrawaltransition_fromJSON: (a: any) => [number, number, number];
+    readonly identitycreditwithdrawaltransition_fromObject: (a: any) => [number, number, number];
+    readonly identitycreditwithdrawaltransition_fromStateTransition: (a: number) => [number, number, number];
+    readonly identitycreditwithdrawaltransition_identity_id: (a: number) => number;
+    readonly identitycreditwithdrawaltransition_modified_data_ids: (a: number) => [number, number];
+    readonly identitycreditwithdrawaltransition_nonce: (a: number) => bigint;
+    readonly identitycreditwithdrawaltransition_optional_asset_lock_proof: (a: number) => number;
+    readonly identitycreditwithdrawaltransition_output_script: (a: number) => number;
+    readonly identitycreditwithdrawaltransition_pooling: (a: number) => [number, number];
+    readonly identitycreditwithdrawaltransition_purpose_requirement: (a: number) => [number, number];
+    readonly identitycreditwithdrawaltransition_set_amount: (a: number, b: any) => [number, number];
+    readonly identitycreditwithdrawaltransition_set_core_fee_per_byte: (a: number, b: any) => [number, number];
+    readonly identitycreditwithdrawaltransition_set_identity_id: (a: number, b: any) => [number, number];
+    readonly identitycreditwithdrawaltransition_set_nonce: (a: number, b: any) => [number, number];
+    readonly identitycreditwithdrawaltransition_set_output_script: (a: number, b: any) => [number, number];
+    readonly identitycreditwithdrawaltransition_set_pooling: (a: number, b: any) => [number, number];
+    readonly identitycreditwithdrawaltransition_set_signature: (a: number, b: number, c: number) => void;
+    readonly identitycreditwithdrawaltransition_set_signature_public_key_id: (a: number, b: number) => void;
+    readonly identitycreditwithdrawaltransition_set_user_fee_increase: (a: number, b: any) => [number, number];
+    readonly identitycreditwithdrawaltransition_signature: (a: number) => [number, number];
+    readonly identitycreditwithdrawaltransition_signature_public_key_id: (a: number) => number;
+    readonly identitycreditwithdrawaltransition_struct_name: () => [number, number];
+    readonly identitycreditwithdrawaltransition_toBase64: (a: number) => [number, number, number, number];
+    readonly identitycreditwithdrawaltransition_toBytes: (a: number) => [number, number, number, number];
+    readonly identitycreditwithdrawaltransition_toHex: (a: number) => [number, number, number, number];
+    readonly identitycreditwithdrawaltransition_toJSON: (a: number) => [number, number, number];
+    readonly identitycreditwithdrawaltransition_toObject: (a: number) => [number, number, number];
+    readonly identitycreditwithdrawaltransition_toStateTransition: (a: number) => number;
+    readonly identitycreditwithdrawaltransition_type_name: (a: number) => [number, number];
+    readonly identitycreditwithdrawaltransition_user_fee_increase: (a: number) => number;
+    readonly identitytopupfromshieldedpooltransition_actions: (a: number) => [number, number];
+    readonly identitytopupfromshieldedpooltransition_anchor: (a: number) => [number, number];
+    readonly identitytopupfromshieldedpooltransition_binding_signature: (a: number) => [number, number];
+    readonly identitytopupfromshieldedpooltransition_fromBase64: (a: number, b: number) => [number, number, number];
+    readonly identitytopupfromshieldedpooltransition_fromBytes: (a: number, b: number) => [number, number, number];
+    readonly identitytopupfromshieldedpooltransition_fromHex: (a: number, b: number) => [number, number, number];
+    readonly identitytopupfromshieldedpooltransition_fromJSON: (a: any) => [number, number, number];
+    readonly identitytopupfromshieldedpooltransition_fromObject: (a: any) => [number, number, number];
+    readonly identitytopupfromshieldedpooltransition_fromStateTransition: (a: number) => [number, number, number];
+    readonly identitytopupfromshieldedpooltransition_getModifiedDataIds: (a: number) => [number, number];
+    readonly identitytopupfromshieldedpooltransition_identity_id: (a: number) => number;
+    readonly identitytopupfromshieldedpooltransition_new: (a: any) => [number, number, number];
+    readonly identitytopupfromshieldedpooltransition_proof: (a: number) => [number, number];
+    readonly identitytopupfromshieldedpooltransition_struct_name: () => [number, number];
+    readonly identitytopupfromshieldedpooltransition_toBase64: (a: number) => [number, number, number, number];
+    readonly identitytopupfromshieldedpooltransition_toBytes: (a: number) => [number, number, number, number];
+    readonly identitytopupfromshieldedpooltransition_toHex: (a: number) => [number, number, number, number];
+    readonly identitytopupfromshieldedpooltransition_toJSON: (a: number) => [number, number, number];
+    readonly identitytopupfromshieldedpooltransition_toObject: (a: number) => [number, number, number];
+    readonly identitytopupfromshieldedpooltransition_toStateTransition: (a: number) => number;
+    readonly identitytopupfromshieldedpooltransition_top_up_amount: (a: number) => bigint;
+    readonly identitytopupfromshieldedpooltransition_type_name: (a: number) => [number, number];
+    readonly identityupdatetransition_constructor: (a: any) => [number, number, number];
+    readonly identityupdatetransition_fromBase64: (a: number, b: number) => [number, number, number];
+    readonly identityupdatetransition_fromBytes: (a: number, b: number) => [number, number, number];
+    readonly identityupdatetransition_fromHex: (a: number, b: number) => [number, number, number];
+    readonly identityupdatetransition_fromJSON: (a: any) => [number, number, number];
+    readonly identityupdatetransition_fromObject: (a: any) => [number, number, number];
+    readonly identityupdatetransition_fromStateTransition: (a: number) => [number, number, number];
+    readonly identityupdatetransition_identity_identifier: (a: number) => number;
+    readonly identityupdatetransition_modified_data_ids: (a: number) => [number, number];
+    readonly identityupdatetransition_nonce: (a: number) => bigint;
+    readonly identityupdatetransition_optional_asset_lock_proof: (a: number) => number;
+    readonly identityupdatetransition_public_key_ids_to_add: (a: number) => [number, number];
+    readonly identityupdatetransition_public_key_ids_to_disable: (a: number) => [number, number];
+    readonly identityupdatetransition_purpose_requirement: (a: number) => [number, number];
+    readonly identityupdatetransition_revision: (a: number) => bigint;
+    readonly identityupdatetransition_set_identity_identifier: (a: number, b: any) => [number, number];
+    readonly identityupdatetransition_set_nonce: (a: number, b: any) => [number, number];
+    readonly identityupdatetransition_set_public_key_ids_to_add: (a: number, b: any) => [number, number];
+    readonly identityupdatetransition_set_public_key_ids_to_disable: (a: number, b: number, c: number) => void;
+    readonly identityupdatetransition_set_revision: (a: number, b: any) => [number, number];
+    readonly identityupdatetransition_set_signature: (a: number, b: number, c: number) => void;
+    readonly identityupdatetransition_set_signature_public_key_id: (a: number, b: number) => void;
+    readonly identityupdatetransition_set_user_fee_increase: (a: number, b: number) => void;
+    readonly identityupdatetransition_signature: (a: number) => [number, number];
+    readonly identityupdatetransition_signature_public_key_id: (a: number) => number;
+    readonly identityupdatetransition_struct_name: () => [number, number];
+    readonly identityupdatetransition_toBase64: (a: number) => [number, number, number, number];
+    readonly identityupdatetransition_toBytes: (a: number) => [number, number, number, number];
+    readonly identityupdatetransition_toHex: (a: number) => [number, number, number, number];
+    readonly identityupdatetransition_toJSON: (a: number) => [number, number, number];
+    readonly identityupdatetransition_toObject: (a: number) => [number, number, number];
+    readonly identityupdatetransition_toStateTransition: (a: number) => number;
+    readonly identityupdatetransition_type_name: (a: number) => [number, number];
+    readonly identityupdatetransition_user_fee_increase: (a: number) => number;
+    readonly masternodevotetransition_asset_lock_proof: (a: number) => number;
+    readonly masternodevotetransition_constructor: (a: any) => [number, number, number];
+    readonly masternodevotetransition_fromBase64: (a: number, b: number) => [number, number, number];
+    readonly masternodevotetransition_fromBytes: (a: number, b: number) => [number, number, number];
+    readonly masternodevotetransition_fromHex: (a: number, b: number) => [number, number, number];
+    readonly masternodevotetransition_fromJSON: (a: any) => [number, number, number];
+    readonly masternodevotetransition_fromObject: (a: any) => [number, number, number];
+    readonly masternodevotetransition_fromStateTransition: (a: number) => [number, number, number];
+    readonly masternodevotetransition_modified_data_ids: (a: number) => [number, number];
+    readonly masternodevotetransition_nonce: (a: number) => bigint;
+    readonly masternodevotetransition_pro_tx_hash: (a: number) => number;
+    readonly masternodevotetransition_set_nonce: (a: number, b: any) => [number, number];
+    readonly masternodevotetransition_set_pro_tx_hash: (a: number, b: any) => [number, number];
+    readonly masternodevotetransition_set_signature: (a: number, b: number, c: number) => void;
+    readonly masternodevotetransition_set_signature_public_key_id: (a: number, b: any) => [number, number];
+    readonly masternodevotetransition_set_user_fee_increase: (a: number, b: any) => [number, number];
+    readonly masternodevotetransition_set_vote: (a: number, b: number) => void;
+    readonly masternodevotetransition_set_voter_identity_id: (a: number, b: any) => [number, number];
+    readonly masternodevotetransition_signature: (a: number) => [number, number];
+    readonly masternodevotetransition_signature_public_key_id: (a: number) => number;
+    readonly masternodevotetransition_struct_name: () => [number, number];
+    readonly masternodevotetransition_toBase64: (a: number) => [number, number, number, number];
+    readonly masternodevotetransition_toBytes: (a: number) => [number, number, number, number];
+    readonly masternodevotetransition_toHex: (a: number) => [number, number, number, number];
+    readonly masternodevotetransition_toJSON: (a: number) => [number, number, number];
+    readonly masternodevotetransition_toObject: (a: number) => [number, number, number];
+    readonly masternodevotetransition_toStateTransition: (a: number) => number;
+    readonly masternodevotetransition_type_name: (a: number) => [number, number];
+    readonly masternodevotetransition_vote: (a: number) => number;
+    readonly masternodevotetransition_voter_identity_id: (a: number) => number;
+    readonly outpoint_constructor: (a: number, b: number, c: number) => [number, number, number];
+    readonly outpoint_fromBase64: (a: number, b: number) => [number, number, number];
+    readonly outpoint_fromBytes: (a: number, b: number) => [number, number, number];
+    readonly outpoint_fromHex: (a: number, b: number) => [number, number, number];
+    readonly outpoint_struct_name: () => [number, number];
+    readonly outpoint_toBase64: (a: number) => [number, number];
+    readonly outpoint_toBytes: (a: number) => [number, number];
+    readonly outpoint_toHex: (a: number) => [number, number];
+    readonly outpoint_txid: (a: number) => [number, number];
+    readonly outpoint_type_name: (a: number) => [number, number];
+    readonly outpoint_vout: (a: number) => number;
+    readonly platformversion_current: () => number;
+    readonly platformversion_first: () => number;
+    readonly platformversion_new: (a: number) => [number, number, number];
+    readonly platformversion_struct_name: () => [number, number];
+    readonly platformversion_type_name: (a: number) => [number, number];
+    readonly platformversion_version: (a: number) => number;
+    readonly resourcevotechoice_Abstain: () => number;
+    readonly resourcevotechoice_Lock: () => number;
+    readonly resourcevotechoice_TowardsIdentity: (a: any) => [number, number, number];
+    readonly resourcevotechoice_fromJSON: (a: any) => [number, number, number];
+    readonly resourcevotechoice_fromObject: (a: any) => [number, number, number];
+    readonly resourcevotechoice_struct_name: () => [number, number];
+    readonly resourcevotechoice_toJSON: (a: number) => [number, number, number];
+    readonly resourcevotechoice_toObject: (a: number) => [number, number, number];
+    readonly resourcevotechoice_type_name: (a: number) => [number, number];
+    readonly resourcevotechoice_value: (a: number) => number;
+    readonly resourcevotechoice_vote_type: (a: number) => [number, number];
+    readonly tokentransfertransition_amount: (a: number) => bigint;
+    readonly tokentransfertransition_base: (a: number) => number;
+    readonly tokentransfertransition_constructor: (a: any) => [number, number, number];
+    readonly tokentransfertransition_private_encrypted_note: (a: number) => number;
+    readonly tokentransfertransition_public_note: (a: number) => [number, number];
+    readonly tokentransfertransition_recipient_id: (a: number) => number;
+    readonly tokentransfertransition_set_amount: (a: number, b: any) => [number, number];
+    readonly tokentransfertransition_set_base: (a: number, b: number) => void;
+    readonly tokentransfertransition_set_private_encrypted_note: (a: number, b: any) => [number, number];
+    readonly tokentransfertransition_set_public_note: (a: number, b: number, c: number) => void;
+    readonly tokentransfertransition_set_recipient_id: (a: number, b: any) => [number, number];
+    readonly tokentransfertransition_set_shared_encrypted_note: (a: number, b: any) => [number, number];
+    readonly tokentransfertransition_shared_encrypted_note: (a: number) => number;
+    readonly tokentransfertransition_struct_name: () => [number, number];
+    readonly tokentransfertransition_type_name: (a: number) => [number, number];
+    readonly tokentransition_constructor: (a: any) => [number, number, number];
+    readonly tokentransition_contract_id: (a: number) => number;
+    readonly tokentransition_getHistoricalDocumentId: (a: number, b: any) => [number, number, number];
+    readonly tokentransition_historical_document_type_name: (a: number) => [number, number];
+    readonly tokentransition_identity_contract_nonce: (a: number) => bigint;
+    readonly tokentransition_set_contract_id: (a: number, b: any) => [number, number];
+    readonly tokentransition_set_identity_contract_nonce: (a: number, b: any) => [number, number];
+    readonly tokentransition_set_token_id: (a: number, b: any) => [number, number];
+    readonly tokentransition_struct_name: () => [number, number];
+    readonly tokentransition_token_id: (a: number) => number;
+    readonly tokentransition_transition: (a: number) => any;
+    readonly tokentransition_transition_type: (a: number) => [number, number];
+    readonly tokentransition_transition_type_number: (a: number) => number;
+    readonly tokentransition_type_name: (a: number) => [number, number];
+    readonly vote_choice: (a: number) => number;
+    readonly vote_constructor: (a: number, b: number) => number;
+    readonly vote_fromJSON: (a: any) => [number, number, number];
+    readonly vote_fromObject: (a: any) => [number, number, number];
+    readonly vote_poll: (a: number) => number;
+    readonly vote_set_choice: (a: number, b: number) => void;
+    readonly vote_set_poll: (a: number, b: number) => void;
+    readonly vote_struct_name: () => [number, number];
+    readonly vote_toJSON: (a: number) => [number, number, number];
+    readonly vote_toObject: (a: number) => [number, number, number];
+    readonly vote_type_name: (a: number) => [number, number];
+    readonly masternodevotetransition_user_fee_increase: (a: number) => number;
+    readonly platformversion_latest: () => number;
+    readonly __wbg_chainassetlockproof_free: (a: number, b: number) => void;
+    readonly __wbg_document_free: (a: number, b: number) => void;
+    readonly __wbg_get_verifiedtokenactionwithdocument_document: (a: number) => number;
+    readonly __wbg_get_verifiedtokenbalance_tokenId: (a: number) => number;
+    readonly __wbg_get_verifiedtokenbalanceabsence_tokenId: (a: number) => number;
+    readonly __wbg_get_verifiedtokengroupactionwithdocument_document: (a: number) => number;
+    readonly __wbg_get_verifiedtokengroupactionwithdocument_groupPower: (a: number) => number;
+    readonly __wbg_get_verifiedtokengroupactionwithtokenbalance_actionStatus: (a: number) => [number, number];
+    readonly __wbg_get_verifiedtokengroupactionwithtokenbalance_groupPower: (a: number) => number;
+    readonly __wbg_get_verifiedtokengroupactionwithtokenidentityinfo_actionStatus: (a: number) => [number, number];
+    readonly __wbg_get_verifiedtokengroupactionwithtokenidentityinfo_groupPower: (a: number) => number;
+    readonly __wbg_get_verifiedtokengroupactionwithtokenidentityinfo_tokenInfo: (a: number) => number;
+    readonly __wbg_get_verifiedtokengroupactionwithtokenpricingschedule_actionStatus: (a: number) => [number, number];
+    readonly __wbg_get_verifiedtokengroupactionwithtokenpricingschedule_groupPower: (a: number) => number;
+    readonly __wbg_get_verifiedtokengroupactionwithtokenpricingschedule_pricingSchedule: (a: number) => number;
+    readonly __wbg_get_verifiedtokenidentityinfo_tokenId: (a: number) => number;
+    readonly __wbg_get_verifiedtokenidentityinfo_tokenInfo: (a: number) => number;
+    readonly __wbg_get_verifiedtokenpricingschedule_pricingSchedule: (a: number) => number;
+    readonly __wbg_get_verifiedtokenpricingschedule_tokenId: (a: number) => number;
+    readonly __wbg_get_verifiedtokenstatus_tokenStatus: (a: number) => number;
+    readonly __wbg_partialidentity_free: (a: number, b: number) => void;
+    readonly __wbg_set_verifiedtokenactionwithdocument_document: (a: number, b: number) => void;
+    readonly __wbg_set_verifiedtokenbalance_tokenId: (a: number, b: number) => void;
+    readonly __wbg_set_verifiedtokenbalanceabsence_tokenId: (a: number, b: number) => void;
+    readonly __wbg_set_verifiedtokengroupactionwithdocument_document: (a: number, b: number) => void;
+    readonly __wbg_set_verifiedtokengroupactionwithdocument_groupPower: (a: number, b: number) => void;
+    readonly __wbg_set_verifiedtokengroupactionwithtokenbalance_actionStatus: (a: number, b: number, c: number) => void;
+    readonly __wbg_set_verifiedtokengroupactionwithtokenbalance_groupPower: (a: number, b: number) => void;
+    readonly __wbg_set_verifiedtokengroupactionwithtokenidentityinfo_actionStatus: (a: number, b: number, c: number) => void;
+    readonly __wbg_set_verifiedtokengroupactionwithtokenidentityinfo_groupPower: (a: number, b: number) => void;
+    readonly __wbg_set_verifiedtokengroupactionwithtokenidentityinfo_tokenInfo: (a: number, b: number) => void;
+    readonly __wbg_set_verifiedtokengroupactionwithtokenpricingschedule_pricingSchedule: (a: number, b: number) => void;
+    readonly __wbg_set_verifiedtokenidentityinfo_tokenId: (a: number, b: number) => void;
+    readonly __wbg_set_verifiedtokenidentityinfo_tokenInfo: (a: number, b: number) => void;
+    readonly __wbg_set_verifiedtokenpricingschedule_tokenId: (a: number, b: number) => void;
+    readonly __wbg_set_verifiedtokenstatus_tokenStatus: (a: number, b: number) => void;
+    readonly __wbg_tokenpaymentinfo_free: (a: number, b: number) => void;
+    readonly __wbg_verifiedtokenactionwithdocument_free: (a: number, b: number) => void;
+    readonly __wbg_verifiedtokenbalance_free: (a: number, b: number) => void;
+    readonly __wbg_verifiedtokenbalanceabsence_free: (a: number, b: number) => void;
+    readonly __wbg_verifiedtokengroupactionwithdocument_free: (a: number, b: number) => void;
+    readonly __wbg_verifiedtokengroupactionwithtokenbalance_free: (a: number, b: number) => void;
+    readonly __wbg_verifiedtokengroupactionwithtokenidentityinfo_free: (a: number, b: number) => void;
+    readonly __wbg_verifiedtokengroupactionwithtokenpricingschedule_free: (a: number, b: number) => void;
+    readonly __wbg_verifiedtokenidentitiesbalances_free: (a: number, b: number) => void;
+    readonly __wbg_verifiedtokenidentityinfo_free: (a: number, b: number) => void;
+    readonly __wbg_verifiedtokenpricingschedule_free: (a: number, b: number) => void;
+    readonly __wbg_verifiedtokenstatus_free: (a: number, b: number) => void;
+    readonly chainassetlockproof_constructor: (a: number, b: number) => [number, number, number];
+    readonly chainassetlockproof_core_chain_locked_height: (a: number) => number;
+    readonly chainassetlockproof_createIdentityId: (a: number) => number;
+    readonly chainassetlockproof_fromBytes: (a: number, b: number) => [number, number, number];
+    readonly chainassetlockproof_fromJSON: (a: any) => [number, number, number];
+    readonly chainassetlockproof_fromObject: (a: any) => [number, number, number];
+    readonly chainassetlockproof_out_point: (a: number) => number;
+    readonly chainassetlockproof_set_core_chain_locked_height: (a: number, b: number) => void;
+    readonly chainassetlockproof_set_out_point: (a: number, b: number) => void;
+    readonly chainassetlockproof_struct_name: () => [number, number];
+    readonly chainassetlockproof_toBytes: (a: number) => [number, number, number, number];
+    readonly chainassetlockproof_toJSON: (a: number) => [number, number, number];
+    readonly chainassetlockproof_toObject: (a: number) => [number, number, number];
+    readonly chainassetlockproof_type_name: (a: number) => [number, number];
+    readonly document_constructor: (a: any) => [number, number, number];
+    readonly document_created_at: (a: number) => [number, bigint];
+    readonly document_created_at_block_height: (a: number) => [number, bigint];
+    readonly document_created_at_core_block_height: (a: number) => number;
+    readonly document_data_contract_id: (a: number) => number;
+    readonly document_document_type_name: (a: number) => [number, number];
+    readonly document_entropy: (a: number) => [number, number];
+    readonly document_fromBase64: (a: number, b: number, c: number, d: number, e: number, f: any) => [number, number, number];
+    readonly document_fromBytes: (a: number, b: number, c: number, d: number, e: number, f: any) => [number, number, number];
+    readonly document_fromHex: (a: number, b: number, c: number, d: number, e: number, f: any) => [number, number, number];
+    readonly document_fromJSON: (a: any, b: any) => [number, number, number];
+    readonly document_fromObject: (a: any, b: any) => [number, number, number];
+    readonly document_generateId: (a: number, b: number, c: any, d: any, e: number, f: number) => [number, number, number, number];
+    readonly document_id: (a: number) => number;
+    readonly document_owner_id: (a: number) => number;
+    readonly document_properties: (a: number) => [number, number, number];
+    readonly document_revision: (a: number) => [number, bigint];
+    readonly document_set_created_at: (a: number, b: number, c: bigint) => void;
+    readonly document_set_created_at_block_height: (a: number, b: number, c: bigint) => void;
+    readonly document_set_created_at_core_block_height: (a: number, b: number) => void;
+    readonly document_set_data_contract_id_js: (a: number, b: any) => [number, number];
+    readonly document_set_document_type_name: (a: number, b: number, c: number) => void;
+    readonly document_set_entropy: (a: number, b: number, c: number) => [number, number];
+    readonly document_set_id: (a: number, b: any) => [number, number];
+    readonly document_set_owner_id: (a: number, b: any) => [number, number];
+    readonly document_set_properties: (a: number, b: any) => [number, number];
+    readonly document_set_revision: (a: number, b: number, c: bigint) => void;
+    readonly document_set_transferred_at: (a: number, b: number, c: bigint) => void;
+    readonly document_set_transferred_at_block_height: (a: number, b: number, c: bigint) => void;
+    readonly document_set_transferred_at_core_block_height: (a: number, b: number) => void;
+    readonly document_set_updated_at: (a: number, b: number, c: bigint) => void;
+    readonly document_set_updated_at_block_height: (a: number, b: number, c: bigint) => void;
+    readonly document_set_updated_at_core_block_height: (a: number, b: number) => void;
+    readonly document_struct_name: () => [number, number];
+    readonly document_toBase64: (a: number, b: number, c: any) => [number, number, number, number];
+    readonly document_toBytes: (a: number, b: number, c: any) => [number, number, number, number];
+    readonly document_toHex: (a: number, b: number, c: any) => [number, number, number, number];
+    readonly document_toJSON: (a: number, b: any) => [number, number, number];
+    readonly document_toObject: (a: number) => [number, number, number];
+    readonly document_transferred_at: (a: number) => [number, bigint];
+    readonly document_transferred_at_block_height: (a: number) => [number, bigint];
+    readonly document_transferred_at_core_block_height: (a: number) => number;
+    readonly document_type_name: (a: number) => [number, number];
+    readonly document_updated_at: (a: number) => [number, bigint];
+    readonly document_updated_at_block_height: (a: number) => [number, bigint];
+    readonly document_updated_at_core_block_height: (a: number) => number;
+    readonly partialidentity_balance: (a: number) => [number, bigint];
+    readonly partialidentity_constructor: (a: any) => [number, number, number];
+    readonly partialidentity_fromJSON: (a: any, b: any) => [number, number, number];
+    readonly partialidentity_fromObject: (a: any, b: any) => [number, number, number];
+    readonly partialidentity_id: (a: number) => number;
+    readonly partialidentity_loaded_public_keys: (a: number) => [number, number, number];
+    readonly partialidentity_not_found_public_keys: (a: number) => any;
+    readonly partialidentity_revision: (a: number) => [number, bigint];
+    readonly partialidentity_set_balance: (a: number, b: number, c: bigint) => void;
+    readonly partialidentity_set_id: (a: number, b: any) => [number, number];
+    readonly partialidentity_set_loaded_public_keys: (a: number, b: any) => [number, number];
+    readonly partialidentity_set_not_found_public_keys: (a: number, b: number) => [number, number];
+    readonly partialidentity_set_revision: (a: number, b: number, c: bigint) => void;
+    readonly partialidentity_struct_name: () => [number, number];
+    readonly partialidentity_toJSON: (a: number) => [number, number, number];
+    readonly partialidentity_toObject: (a: number) => [number, number, number];
+    readonly partialidentity_type_name: (a: number) => [number, number];
+    readonly tokenpaymentinfo_constructor: (a: any) => [number, number, number];
+    readonly tokenpaymentinfo_fromJSON: (a: any) => [number, number, number];
+    readonly tokenpaymentinfo_fromObject: (a: any) => [number, number, number];
+    readonly tokenpaymentinfo_gas_fees_paid_by: (a: number) => [number, number];
+    readonly tokenpaymentinfo_maximum_token_cost: (a: number) => [number, bigint];
+    readonly tokenpaymentinfo_minimum_token_cost: (a: number) => [number, bigint];
+    readonly tokenpaymentinfo_payment_token_contract_id: (a: number) => number;
+    readonly tokenpaymentinfo_set_gas_fees_paid_by: (a: number, b: any) => [number, number];
+    readonly tokenpaymentinfo_set_maximum_token_cost: (a: number, b: number, c: bigint) => void;
+    readonly tokenpaymentinfo_set_minimum_token_cost: (a: number, b: number, c: bigint) => void;
+    readonly tokenpaymentinfo_set_payment_token_contract_id: (a: number, b: any) => [number, number];
+    readonly tokenpaymentinfo_set_token_contract_position: (a: number, b: number) => void;
+    readonly tokenpaymentinfo_struct_name: () => [number, number];
+    readonly tokenpaymentinfo_toJSON: (a: number) => [number, number, number];
+    readonly tokenpaymentinfo_toObject: (a: number) => [number, number, number];
+    readonly tokenpaymentinfo_token_contract_position: (a: number) => number;
+    readonly tokenpaymentinfo_type_name: (a: number) => [number, number];
+    readonly verifiedtokenactionwithdocument_fromJSON: (a: any) => [number, number, number];
+    readonly verifiedtokenactionwithdocument_fromObject: (a: any) => [number, number, number];
+    readonly verifiedtokenactionwithdocument_struct_name: () => [number, number];
+    readonly verifiedtokenactionwithdocument_toJSON: (a: number) => [number, number, number];
+    readonly verifiedtokenactionwithdocument_toObject: (a: number) => [number, number, number];
+    readonly verifiedtokenactionwithdocument_type_name: (a: number) => [number, number];
+    readonly verifiedtokenbalance_balance: (a: number) => any;
+    readonly verifiedtokenbalance_fromJSON: (a: any) => [number, number, number];
+    readonly verifiedtokenbalance_fromObject: (a: any) => [number, number, number];
+    readonly verifiedtokenbalance_struct_name: () => [number, number];
+    readonly verifiedtokenbalance_toJSON: (a: number) => [number, number, number];
+    readonly verifiedtokenbalance_toObject: (a: number) => [number, number, number];
+    readonly verifiedtokenbalance_type_name: (a: number) => [number, number];
+    readonly verifiedtokenbalanceabsence_fromJSON: (a: any) => [number, number, number];
+    readonly verifiedtokenbalanceabsence_fromObject: (a: any) => [number, number, number];
+    readonly verifiedtokenbalanceabsence_struct_name: () => [number, number];
+    readonly verifiedtokenbalanceabsence_toJSON: (a: number) => [number, number, number];
+    readonly verifiedtokenbalanceabsence_toObject: (a: number) => [number, number, number];
+    readonly verifiedtokenbalanceabsence_type_name: (a: number) => [number, number];
+    readonly verifiedtokengroupactionwithdocument_fromJSON: (a: any) => [number, number, number];
+    readonly verifiedtokengroupactionwithdocument_fromObject: (a: any) => [number, number, number];
+    readonly verifiedtokengroupactionwithdocument_struct_name: () => [number, number];
+    readonly verifiedtokengroupactionwithdocument_toJSON: (a: number) => [number, number, number];
+    readonly verifiedtokengroupactionwithdocument_toObject: (a: number) => [number, number, number];
+    readonly verifiedtokengroupactionwithdocument_type_name: (a: number) => [number, number];
+    readonly verifiedtokengroupactionwithtokenbalance_balance: (a: number) => any;
+    readonly verifiedtokengroupactionwithtokenbalance_fromJSON: (a: any) => [number, number, number];
+    readonly verifiedtokengroupactionwithtokenbalance_fromObject: (a: any) => [number, number, number];
+    readonly verifiedtokengroupactionwithtokenbalance_struct_name: () => [number, number];
+    readonly verifiedtokengroupactionwithtokenbalance_toJSON: (a: number) => [number, number, number];
+    readonly verifiedtokengroupactionwithtokenbalance_toObject: (a: number) => [number, number, number];
+    readonly verifiedtokengroupactionwithtokenbalance_type_name: (a: number) => [number, number];
+    readonly verifiedtokengroupactionwithtokenidentityinfo_fromJSON: (a: any) => [number, number, number];
+    readonly verifiedtokengroupactionwithtokenidentityinfo_fromObject: (a: any) => [number, number, number];
+    readonly verifiedtokengroupactionwithtokenidentityinfo_struct_name: () => [number, number];
+    readonly verifiedtokengroupactionwithtokenidentityinfo_toJSON: (a: number) => [number, number, number];
+    readonly verifiedtokengroupactionwithtokenidentityinfo_toObject: (a: number) => [number, number, number];
+    readonly verifiedtokengroupactionwithtokenidentityinfo_type_name: (a: number) => [number, number];
+    readonly verifiedtokengroupactionwithtokenpricingschedule_fromJSON: (a: any) => [number, number, number];
+    readonly verifiedtokengroupactionwithtokenpricingschedule_fromObject: (a: any) => [number, number, number];
+    readonly verifiedtokengroupactionwithtokenpricingschedule_struct_name: () => [number, number];
+    readonly verifiedtokengroupactionwithtokenpricingschedule_toJSON: (a: number) => [number, number, number];
+    readonly verifiedtokengroupactionwithtokenpricingschedule_toObject: (a: number) => [number, number, number];
+    readonly verifiedtokengroupactionwithtokenpricingschedule_type_name: (a: number) => [number, number];
+    readonly verifiedtokenidentitiesbalances_balances: (a: number) => any;
+    readonly verifiedtokenidentitiesbalances_fromJSON: (a: any) => [number, number, number];
+    readonly verifiedtokenidentitiesbalances_fromObject: (a: any) => [number, number, number];
+    readonly verifiedtokenidentitiesbalances_struct_name: () => [number, number];
+    readonly verifiedtokenidentitiesbalances_toJSON: (a: number) => [number, number, number];
+    readonly verifiedtokenidentitiesbalances_toObject: (a: number) => any;
+    readonly verifiedtokenidentitiesbalances_type_name: (a: number) => [number, number];
+    readonly verifiedtokenidentityinfo_fromJSON: (a: any) => [number, number, number];
+    readonly verifiedtokenidentityinfo_fromObject: (a: any) => [number, number, number];
+    readonly verifiedtokenidentityinfo_struct_name: () => [number, number];
+    readonly verifiedtokenidentityinfo_toJSON: (a: number) => [number, number, number];
+    readonly verifiedtokenidentityinfo_toObject: (a: number) => [number, number, number];
+    readonly verifiedtokenidentityinfo_type_name: (a: number) => [number, number];
+    readonly verifiedtokenpricingschedule_fromJSON: (a: any) => [number, number, number];
+    readonly verifiedtokenpricingschedule_fromObject: (a: any) => [number, number, number];
+    readonly verifiedtokenpricingschedule_struct_name: () => [number, number];
+    readonly verifiedtokenpricingschedule_toJSON: (a: number) => [number, number, number];
+    readonly verifiedtokenpricingschedule_toObject: (a: number) => [number, number, number];
+    readonly verifiedtokenpricingschedule_type_name: (a: number) => [number, number];
+    readonly verifiedtokenstatus_fromJSON: (a: any) => [number, number, number];
+    readonly verifiedtokenstatus_fromObject: (a: any) => [number, number, number];
+    readonly verifiedtokenstatus_struct_name: () => [number, number];
+    readonly verifiedtokenstatus_toJSON: (a: number) => [number, number, number];
+    readonly verifiedtokenstatus_toObject: (a: number) => [number, number, number];
+    readonly verifiedtokenstatus_type_name: (a: number) => [number, number];
+    readonly __wbg_set_verifiedtokengroupactionwithtokenpricingschedule_actionStatus: (a: number, b: number, c: number) => void;
+    readonly __wbg_set_verifiedtokenpricingschedule_pricingSchedule: (a: number, b: number) => void;
+    readonly __wbg_set_verifiedtokengroupactionwithtokenpricingschedule_groupPower: (a: number, b: number) => void;
+    readonly __wbg_blockinfo_free: (a: number, b: number) => void;
+    readonly __wbg_contractbounds_free: (a: number, b: number) => void;
+    readonly __wbg_group_free: (a: number, b: number) => void;
+    readonly __wbg_groupstatetransitioninfo_free: (a: number, b: number) => void;
+    readonly __wbg_identitycreatetransition_free: (a: number, b: number) => void;
+    readonly __wbg_identitytopuptransition_free: (a: number, b: number) => void;
+    readonly __wbg_sharedencryptednote_free: (a: number, b: number) => void;
+    readonly __wbg_shieldfromassetlocktransition_free: (a: number, b: number) => void;
+    readonly blockinfo_constructor: (a: any) => [number, number, number];
+    readonly blockinfo_core_height: (a: number) => number;
+    readonly blockinfo_epoch_index: (a: number) => number;
+    readonly blockinfo_fromJSON: (a: any) => [number, number, number];
+    readonly blockinfo_fromObject: (a: any) => [number, number, number];
+    readonly blockinfo_height: (a: number) => bigint;
+    readonly blockinfo_struct_name: () => [number, number];
+    readonly blockinfo_time_ms: (a: number) => bigint;
+    readonly blockinfo_toJSON: (a: number) => [number, number, number];
+    readonly blockinfo_toObject: (a: number) => [number, number, number];
+    readonly blockinfo_type_name: (a: number) => [number, number];
+    readonly contractbounds_SingleContract: (a: any) => [number, number, number];
+    readonly contractbounds_SingleContractDocumentType: (a: any, b: number, c: number) => [number, number, number];
+    readonly contractbounds_constructor: (a: any, b: number, c: number) => [number, number, number];
+    readonly contractbounds_contract_bounds_type: (a: number) => [number, number];
+    readonly contractbounds_contract_bounds_type_number: (a: number) => number;
+    readonly contractbounds_document_type_name: (a: number) => [number, number];
+    readonly contractbounds_fromJSON: (a: any) => [number, number, number];
+    readonly contractbounds_fromObject: (a: any) => [number, number, number];
+    readonly contractbounds_id: (a: number) => number;
+    readonly contractbounds_set_document_type_name: (a: number, b: number, c: number) => void;
+    readonly contractbounds_set_id: (a: number, b: any) => [number, number];
+    readonly contractbounds_struct_name: () => [number, number];
+    readonly contractbounds_toJSON: (a: number) => [number, number, number];
+    readonly contractbounds_toObject: (a: number) => [number, number, number];
+    readonly contractbounds_type_name: (a: number) => [number, number];
+    readonly group_constructor: (a: any, b: number) => [number, number, number];
+    readonly group_fromJSON: (a: any) => [number, number, number];
+    readonly group_fromObject: (a: any) => [number, number, number];
+    readonly group_members: (a: number) => [number, number, number];
+    readonly group_required_power: (a: number) => number;
+    readonly group_setMemberRequiredPower: (a: number, b: any, c: number) => [number, number];
+    readonly group_set_members: (a: number, b: any) => [number, number];
+    readonly group_set_required_power: (a: number, b: number) => void;
+    readonly group_struct_name: () => [number, number];
+    readonly group_toJSON: (a: number) => [number, number, number];
+    readonly group_toObject: (a: number) => [number, number, number];
+    readonly group_type_name: (a: number) => [number, number];
+    readonly groupstatetransitioninfo_action_id: (a: number) => number;
+    readonly groupstatetransitioninfo_constructor: (a: any) => [number, number, number];
+    readonly groupstatetransitioninfo_group_contract_position: (a: number) => number;
+    readonly groupstatetransitioninfo_is_action_proposer: (a: number) => number;
+    readonly groupstatetransitioninfo_set_action_id: (a: number, b: any) => [number, number];
+    readonly groupstatetransitioninfo_set_group_contract_position: (a: number, b: number) => void;
+    readonly groupstatetransitioninfo_set_is_action_proposer: (a: number, b: number) => void;
+    readonly groupstatetransitioninfo_struct_name: () => [number, number];
+    readonly groupstatetransitioninfo_type_name: (a: number) => [number, number];
+    readonly identitycreatetransition_asset_lock_proof: (a: number) => number;
+    readonly identitycreatetransition_constructor: (a: any) => [number, number, number];
+    readonly identitycreatetransition_default: (a: any) => [number, number, number];
+    readonly identitycreatetransition_fromBase64: (a: number, b: number) => [number, number, number];
+    readonly identitycreatetransition_fromBytes: (a: number, b: number) => [number, number, number];
+    readonly identitycreatetransition_fromHex: (a: number, b: number) => [number, number, number];
+    readonly identitycreatetransition_fromJSON: (a: any) => [number, number, number];
+    readonly identitycreatetransition_fromObject: (a: any) => [number, number, number];
+    readonly identitycreatetransition_fromStateTransition: (a: number) => [number, number, number];
+    readonly identitycreatetransition_identity_id: (a: number) => number;
+    readonly identitycreatetransition_public_keys: (a: number) => [number, number];
+    readonly identitycreatetransition_set_asset_lock_proof: (a: number, b: number) => [number, number];
+    readonly identitycreatetransition_set_public_keys: (a: number, b: any) => [number, number];
+    readonly identitycreatetransition_set_signature: (a: number, b: number, c: number) => void;
+    readonly identitycreatetransition_set_user_fee_increase: (a: number, b: any) => [number, number];
+    readonly identitycreatetransition_signature: (a: number) => [number, number];
+    readonly identitycreatetransition_struct_name: () => [number, number];
+    readonly identitycreatetransition_toBase64: (a: number) => [number, number, number, number];
+    readonly identitycreatetransition_toBytes: (a: number) => [number, number, number, number];
+    readonly identitycreatetransition_toHex: (a: number) => [number, number, number, number];
+    readonly identitycreatetransition_toJSON: (a: number) => [number, number, number];
+    readonly identitycreatetransition_toObject: (a: number) => [number, number, number];
+    readonly identitycreatetransition_toStateTransition: (a: number) => number;
+    readonly identitycreatetransition_type_name: (a: number) => [number, number];
+    readonly identitycreatetransition_user_fee_increase: (a: number) => number;
+    readonly identitytopuptransition_asset_lock_proof: (a: number) => number;
+    readonly identitytopuptransition_constructor: (a: any) => [number, number, number];
+    readonly identitytopuptransition_fromBase64: (a: number, b: number) => [number, number, number];
+    readonly identitytopuptransition_fromBytes: (a: number, b: number) => [number, number, number];
+    readonly identitytopuptransition_fromHex: (a: number, b: number) => [number, number, number];
+    readonly identitytopuptransition_fromJSON: (a: any) => [number, number, number];
+    readonly identitytopuptransition_fromObject: (a: any) => [number, number, number];
+    readonly identitytopuptransition_fromStateTransition: (a: number) => [number, number, number];
+    readonly identitytopuptransition_identity_identifier: (a: number) => number;
+    readonly identitytopuptransition_modified_data_ids: (a: number) => [number, number];
+    readonly identitytopuptransition_optional_asset_lock_proof: (a: number) => number;
+    readonly identitytopuptransition_set_asset_lock_proof: (a: number, b: number) => [number, number];
+    readonly identitytopuptransition_set_identity_identifier: (a: number, b: any) => [number, number];
+    readonly identitytopuptransition_set_signature: (a: number, b: number, c: number) => void;
+    readonly identitytopuptransition_set_user_fee_increase: (a: number, b: number) => void;
+    readonly identitytopuptransition_signature: (a: number) => [number, number];
+    readonly identitytopuptransition_struct_name: () => [number, number];
+    readonly identitytopuptransition_toBase64: (a: number) => [number, number, number, number];
+    readonly identitytopuptransition_toBytes: (a: number) => [number, number, number, number];
+    readonly identitytopuptransition_toHex: (a: number) => [number, number, number, number];
+    readonly identitytopuptransition_toJSON: (a: number) => [number, number, number];
+    readonly identitytopuptransition_toObject: (a: number) => [number, number, number];
+    readonly identitytopuptransition_toStateTransition: (a: number) => number;
+    readonly identitytopuptransition_type_name: (a: number) => [number, number];
+    readonly identitytopuptransition_user_fee_increase: (a: number) => number;
+    readonly sharedencryptednote_constructor: (a: number, b: number, c: number, d: number) => number;
+    readonly sharedencryptednote_recipient_key_index: (a: number) => number;
+    readonly sharedencryptednote_sender_key_index: (a: number) => number;
+    readonly sharedencryptednote_set_recipient_key_index: (a: number, b: number) => void;
+    readonly sharedencryptednote_set_sender_key_index: (a: number, b: number) => void;
+    readonly sharedencryptednote_set_value: (a: number, b: number, c: number) => void;
+    readonly sharedencryptednote_struct_name: () => [number, number];
+    readonly sharedencryptednote_type_name: (a: number) => [number, number];
+    readonly sharedencryptednote_value: (a: number) => [number, number];
+    readonly shieldfromassetlocktransition_actions: (a: number) => [number, number];
+    readonly shieldfromassetlocktransition_anchor: (a: number) => [number, number];
+    readonly shieldfromassetlocktransition_asset_lock_proof: (a: number) => number;
+    readonly shieldfromassetlocktransition_binding_signature: (a: number) => [number, number];
+    readonly shieldfromassetlocktransition_fromBytes: (a: number, b: number) => [number, number, number];
+    readonly shieldfromassetlocktransition_fromJSON: (a: any) => [number, number, number];
+    readonly shieldfromassetlocktransition_fromObject: (a: any) => [number, number, number];
+    readonly shieldfromassetlocktransition_getModifiedDataIds: (a: number) => [number, number];
+    readonly shieldfromassetlocktransition_new: (a: any) => [number, number, number];
+    readonly shieldfromassetlocktransition_proof: (a: number) => [number, number];
+    readonly shieldfromassetlocktransition_signature: (a: number) => [number, number];
+    readonly shieldfromassetlocktransition_struct_name: () => [number, number];
+    readonly shieldfromassetlocktransition_surplus_output: (a: number) => number;
+    readonly shieldfromassetlocktransition_toBytes: (a: number) => [number, number, number, number];
+    readonly shieldfromassetlocktransition_toJSON: (a: number) => [number, number, number];
+    readonly shieldfromassetlocktransition_toObject: (a: number) => [number, number, number];
+    readonly shieldfromassetlocktransition_toStateTransition: (a: number) => number;
+    readonly shieldfromassetlocktransition_type_name: (a: number) => [number, number];
+    readonly shieldfromassetlocktransition_value_balance: (a: number) => bigint;
+    readonly __wbg_consensuserror_free: (a: number, b: number) => void;
+    readonly __wbg_corescript_free: (a: number, b: number) => void;
+    readonly __wbg_get_verifiedbalancetransfer_recipient: (a: number) => number;
+    readonly __wbg_get_verifiedbalancetransfer_sender: (a: number) => number;
+    readonly __wbg_get_verifiedidentity_identity: (a: number) => number;
+    readonly __wbg_get_verifiedidentityfullwithaddressinfos_identity: (a: number) => number;
+    readonly __wbg_get_verifiedidentitywithaddressinfos_partialIdentity: (a: number) => number;
+    readonly __wbg_get_verifiedpartialidentity_partialIdentity: (a: number) => number;
+    readonly __wbg_identitycredittransfertoaddresses_free: (a: number, b: number) => void;
+    readonly __wbg_protxhash_free: (a: number, b: number) => void;
+    readonly __wbg_set_verifiedbalancetransfer_recipient: (a: number, b: number) => void;
+    readonly __wbg_set_verifiedbalancetransfer_sender: (a: number, b: number) => void;
+    readonly __wbg_set_verifiedidentity_identity: (a: number, b: number) => void;
+    readonly __wbg_verifiedaddressinfos_free: (a: number, b: number) => void;
+    readonly __wbg_verifiedbalancetransfer_free: (a: number, b: number) => void;
+    readonly __wbg_verifiedidentity_free: (a: number, b: number) => void;
+    readonly __wbg_verifiedidentityfullwithaddressinfos_free: (a: number, b: number) => void;
+    readonly __wbg_verifiedidentitywithaddressinfos_free: (a: number, b: number) => void;
+    readonly __wbg_verifiedpartialidentity_free: (a: number, b: number) => void;
+    readonly consensuserror_code: (a: number) => number;
+    readonly consensuserror_deserialize: (a: number, b: number) => [number, number, number];
+    readonly consensuserror_document_reference_error_code: (a: number) => number;
+    readonly consensuserror_message: (a: number) => [number, number];
+    readonly consensuserror_struct_name: () => [number, number];
+    readonly consensuserror_type_name: (a: number) => [number, number];
+    readonly corescript_fromBytes: (a: number, b: number) => number;
+    readonly corescript_fromP2PKH: (a: number, b: number) => [number, number, number];
+    readonly corescript_fromP2SH: (a: number, b: number) => [number, number, number];
+    readonly corescript_struct_name: () => [number, number];
+    readonly corescript_toASMString: (a: number) => [number, number];
+    readonly corescript_toAddress: (a: number, b: any) => [number, number, number, number];
+    readonly corescript_toBase64: (a: number) => [number, number];
+    readonly corescript_toBytes: (a: number) => [number, number];
+    readonly corescript_toHex: (a: number) => [number, number];
+    readonly corescript_toString: (a: number) => [number, number];
+    readonly corescript_type_name: (a: number) => [number, number];
+    readonly identitycredittransfertoaddresses_constructor: (a: any) => [number, number, number];
+    readonly identitycredittransfertoaddresses_fromBase64: (a: number, b: number) => [number, number, number];
+    readonly identitycredittransfertoaddresses_fromBytes: (a: number, b: number) => [number, number, number];
+    readonly identitycredittransfertoaddresses_fromHex: (a: number, b: number) => [number, number, number];
+    readonly identitycredittransfertoaddresses_fromJSON: (a: any) => [number, number, number];
+    readonly identitycredittransfertoaddresses_fromObject: (a: any) => [number, number, number];
+    readonly identitycredittransfertoaddresses_fromStateTransition: (a: number) => [number, number, number];
+    readonly identitycredittransfertoaddresses_nonce: (a: number) => bigint;
+    readonly identitycredittransfertoaddresses_recipient_addresses: (a: number) => [number, number];
+    readonly identitycredittransfertoaddresses_sender_id: (a: number) => number;
+    readonly identitycredittransfertoaddresses_set_nonce: (a: number, b: any) => [number, number];
+    readonly identitycredittransfertoaddresses_set_recipient_addresses: (a: number, b: number, c: number) => [number, number];
+    readonly identitycredittransfertoaddresses_set_sender_id: (a: number, b: any) => [number, number];
+    readonly identitycredittransfertoaddresses_set_signature: (a: number, b: number, c: number) => void;
+    readonly identitycredittransfertoaddresses_set_signature_public_key_id: (a: number, b: any) => [number, number];
+    readonly identitycredittransfertoaddresses_set_user_fee_increase: (a: number, b: any) => [number, number];
+    readonly identitycredittransfertoaddresses_signature: (a: number) => [number, number];
+    readonly identitycredittransfertoaddresses_signature_public_key_id: (a: number) => number;
+    readonly identitycredittransfertoaddresses_struct_name: () => [number, number];
+    readonly identitycredittransfertoaddresses_toBase64: (a: number) => [number, number, number, number];
+    readonly identitycredittransfertoaddresses_toBytes: (a: number) => [number, number, number, number];
+    readonly identitycredittransfertoaddresses_toHex: (a: number) => [number, number, number, number];
+    readonly identitycredittransfertoaddresses_toJSON: (a: number) => [number, number, number];
+    readonly identitycredittransfertoaddresses_toObject: (a: number) => [number, number, number];
+    readonly identitycredittransfertoaddresses_toStateTransition: (a: number) => number;
+    readonly identitycredittransfertoaddresses_type_name: (a: number) => [number, number];
+    readonly identitycredittransfertoaddresses_user_fee_increase: (a: number) => number;
+    readonly protxhash_struct_name: () => [number, number];
+    readonly protxhash_type_name: (a: number) => [number, number];
+    readonly tokenconfigurationchangeitem_MainControlGroupItem: (a: number) => number;
+    readonly verifiedaddressinfos_address_infos: (a: number) => any;
+    readonly verifiedaddressinfos_fromJSON: (a: any) => [number, number, number];
+    readonly verifiedaddressinfos_fromObject: (a: any) => [number, number, number];
+    readonly verifiedaddressinfos_struct_name: () => [number, number];
+    readonly verifiedaddressinfos_toJSON: (a: number) => [number, number, number];
+    readonly verifiedaddressinfos_toObject: (a: number) => any;
+    readonly verifiedaddressinfos_type_name: (a: number) => [number, number];
+    readonly verifiedbalancetransfer_fromJSON: (a: any) => [number, number, number];
+    readonly verifiedbalancetransfer_fromObject: (a: any) => [number, number, number];
+    readonly verifiedbalancetransfer_struct_name: () => [number, number];
+    readonly verifiedbalancetransfer_toJSON: (a: number) => [number, number, number];
+    readonly verifiedbalancetransfer_toObject: (a: number) => [number, number, number];
+    readonly verifiedbalancetransfer_type_name: (a: number) => [number, number];
+    readonly verifiedidentity_fromJSON: (a: any) => [number, number, number];
+    readonly verifiedidentity_fromObject: (a: any) => [number, number, number];
+    readonly verifiedidentity_struct_name: () => [number, number];
+    readonly verifiedidentity_toJSON: (a: number) => [number, number, number];
+    readonly verifiedidentity_toObject: (a: number) => [number, number, number];
+    readonly verifiedidentity_type_name: (a: number) => [number, number];
+    readonly verifiedidentityfullwithaddressinfos_address_infos: (a: number) => any;
+    readonly verifiedidentityfullwithaddressinfos_fromJSON: (a: any) => [number, number, number];
+    readonly verifiedidentityfullwithaddressinfos_fromObject: (a: any) => [number, number, number];
+    readonly verifiedidentityfullwithaddressinfos_struct_name: () => [number, number];
+    readonly verifiedidentityfullwithaddressinfos_toJSON: (a: number) => [number, number, number];
+    readonly verifiedidentityfullwithaddressinfos_toObject: (a: number) => [number, number, number];
+    readonly verifiedidentityfullwithaddressinfos_type_name: (a: number) => [number, number];
+    readonly verifiedidentitywithaddressinfos_address_infos: (a: number) => any;
+    readonly verifiedidentitywithaddressinfos_fromJSON: (a: any) => [number, number, number];
+    readonly verifiedidentitywithaddressinfos_fromObject: (a: any) => [number, number, number];
+    readonly verifiedidentitywithaddressinfos_struct_name: () => [number, number];
+    readonly verifiedidentitywithaddressinfos_toJSON: (a: number) => [number, number, number];
+    readonly verifiedidentitywithaddressinfos_toObject: (a: number) => [number, number, number];
+    readonly verifiedidentitywithaddressinfos_type_name: (a: number) => [number, number];
+    readonly verifiedpartialidentity_fromJSON: (a: any) => [number, number, number];
+    readonly verifiedpartialidentity_fromObject: (a: any) => [number, number, number];
+    readonly verifiedpartialidentity_struct_name: () => [number, number];
+    readonly verifiedpartialidentity_toJSON: (a: number) => [number, number, number];
+    readonly verifiedpartialidentity_toObject: (a: number) => [number, number, number];
+    readonly verifiedpartialidentity_type_name: (a: number) => [number, number];
+    readonly __wbg_set_verifiedidentityfullwithaddressinfos_identity: (a: number, b: number) => void;
+    readonly __wbg_set_verifiedidentitywithaddressinfos_partialIdentity: (a: number, b: number) => void;
+    readonly __wbg_set_verifiedpartialidentity_partialIdentity: (a: number, b: number) => void;
+    readonly __wbg_addresscreditwithdrawaltransition_free: (a: number, b: number) => void;
+    readonly __wbg_distributionexponential_free: (a: number, b: number) => void;
+    readonly __wbg_distributionfixedamount_free: (a: number, b: number) => void;
+    readonly __wbg_distributioninvertedlogarithmic_free: (a: number, b: number) => void;
+    readonly __wbg_distributionlinear_free: (a: number, b: number) => void;
+    readonly __wbg_distributionlogarithmic_free: (a: number, b: number) => void;
+    readonly __wbg_distributionpolynomial_free: (a: number, b: number) => void;
+    readonly __wbg_distributionrandom_free: (a: number, b: number) => void;
+    readonly __wbg_distributionstepdecreasingamount_free: (a: number, b: number) => void;
+    readonly __wbg_identity_free: (a: number, b: number) => void;
+    readonly __wbg_statetransition_free: (a: number, b: number) => void;
+    readonly __wbg_unshieldtransition_free: (a: number, b: number) => void;
+    readonly addresscreditwithdrawaltransition_constructor: (a: any) => [number, number, number];
+    readonly addresscreditwithdrawaltransition_core_fee_per_byte: (a: number) => number;
+    readonly addresscreditwithdrawaltransition_fromBase64: (a: number, b: number) => [number, number, number];
+    readonly addresscreditwithdrawaltransition_fromBytes: (a: number, b: number) => [number, number, number];
+    readonly addresscreditwithdrawaltransition_fromHex: (a: number, b: number) => [number, number, number];
+    readonly addresscreditwithdrawaltransition_fromJSON: (a: any) => [number, number, number];
+    readonly addresscreditwithdrawaltransition_fromObject: (a: any) => [number, number, number];
+    readonly addresscreditwithdrawaltransition_fromStateTransition: (a: number) => [number, number, number];
+    readonly addresscreditwithdrawaltransition_inputs: (a: number) => [number, number];
+    readonly addresscreditwithdrawaltransition_output: (a: number) => number;
+    readonly addresscreditwithdrawaltransition_output_script: (a: number) => number;
+    readonly addresscreditwithdrawaltransition_pooling: (a: number) => [number, number];
+    readonly addresscreditwithdrawaltransition_set_core_fee_per_byte: (a: number, b: any) => [number, number];
+    readonly addresscreditwithdrawaltransition_set_inputs: (a: number, b: number, c: number) => [number, number];
+    readonly addresscreditwithdrawaltransition_set_output: (a: number, b: number) => [number, number];
+    readonly addresscreditwithdrawaltransition_set_output_script: (a: number, b: number) => void;
+    readonly addresscreditwithdrawaltransition_set_pooling: (a: number, b: any) => [number, number];
+    readonly addresscreditwithdrawaltransition_set_user_fee_increase: (a: number, b: any) => [number, number];
+    readonly addresscreditwithdrawaltransition_struct_name: () => [number, number];
+    readonly addresscreditwithdrawaltransition_toBase64: (a: number) => [number, number, number, number];
+    readonly addresscreditwithdrawaltransition_toBytes: (a: number) => [number, number, number, number];
+    readonly addresscreditwithdrawaltransition_toHex: (a: number) => [number, number, number, number];
+    readonly addresscreditwithdrawaltransition_toJSON: (a: number) => [number, number, number];
+    readonly addresscreditwithdrawaltransition_toObject: (a: number) => [number, number, number];
+    readonly addresscreditwithdrawaltransition_toStateTransition: (a: number) => number;
+    readonly addresscreditwithdrawaltransition_type_name: (a: number) => [number, number];
+    readonly addresscreditwithdrawaltransition_user_fee_increase: (a: number) => number;
     readonly distributionexponential_a: (a: number) => bigint;
     readonly distributionexponential_b: (a: number) => bigint;
     readonly distributionexponential_d: (a: number) => bigint;
@@ -11292,15 +13992,127 @@ export interface InitOutput {
     readonly distributionstepdecreasingamount_start_decreasing_offset: (a: number) => [number, bigint];
     readonly distributionstepdecreasingamount_step_count: (a: number) => number;
     readonly distributionstepdecreasingamount_trailing_distribution_interval_amount: (a: number) => bigint;
-    readonly groupstatetransitioninfo_action_id: (a: number) => number;
-    readonly groupstatetransitioninfo_constructor: (a: any) => [number, number, number];
-    readonly groupstatetransitioninfo_group_contract_position: (a: number) => number;
-    readonly groupstatetransitioninfo_is_action_proposer: (a: number) => number;
-    readonly groupstatetransitioninfo_set_action_id: (a: number, b: any) => [number, number];
-    readonly groupstatetransitioninfo_set_group_contract_position: (a: number, b: number) => void;
-    readonly groupstatetransitioninfo_set_is_action_proposer: (a: number, b: number) => void;
-    readonly groupstatetransitioninfo_struct_name: () => [number, number];
-    readonly groupstatetransitioninfo_type_name: (a: number) => [number, number];
+    readonly identity_addPublicKey: (a: number, b: number) => void;
+    readonly identity_balance: (a: number) => bigint;
+    readonly identity_constructor: (a: any) => [number, number, number];
+    readonly identity_fromBase64: (a: number, b: number) => [number, number, number];
+    readonly identity_fromBytes: (a: number, b: number) => [number, number, number];
+    readonly identity_fromHex: (a: number, b: number) => [number, number, number];
+    readonly identity_fromJSON: (a: any) => [number, number, number];
+    readonly identity_fromObject: (a: any, b: any) => [number, number, number];
+    readonly identity_getPublicKeyById: (a: number, b: number) => number;
+    readonly identity_id: (a: number) => number;
+    readonly identity_public_keys: (a: number) => [number, number];
+    readonly identity_revision: (a: number) => bigint;
+    readonly identity_set_balance: (a: number, b: any) => [number, number];
+    readonly identity_set_id: (a: number, b: any) => [number, number];
+    readonly identity_set_revision: (a: number, b: any) => [number, number];
+    readonly identity_struct_name: () => [number, number];
+    readonly identity_toBase64: (a: number) => [number, number, number, number];
+    readonly identity_toBytes: (a: number) => [number, number, number, number];
+    readonly identity_toHex: (a: number) => [number, number, number, number];
+    readonly identity_toJSON: (a: number) => [number, number, number];
+    readonly identity_toObject: (a: number) => [number, number, number];
+    readonly identity_type_name: (a: number) => [number, number];
+    readonly statetransition_action_type: (a: number) => [number, number];
+    readonly statetransition_action_type_number: (a: number) => number;
+    readonly statetransition_fromBase64: (a: number, b: number) => [number, number, number];
+    readonly statetransition_fromBytes: (a: number, b: number) => [number, number, number];
+    readonly statetransition_fromHex: (a: number, b: number) => [number, number, number];
+    readonly statetransition_getKeyLevelRequirement: (a: number, b: any) => [number, number, number, number];
+    readonly statetransition_getSignableBytes: (a: number) => [number, number, number, number];
+    readonly statetransition_hash: (a: number, b: number) => [number, number, number, number];
+    readonly statetransition_identity_contract_nonce: (a: number) => [number, bigint];
+    readonly statetransition_identity_nonce: (a: number) => [number, bigint];
+    readonly statetransition_owner_id: (a: number) => number;
+    readonly statetransition_purpose_requirement: (a: number) => [number, number];
+    readonly statetransition_setIdentityContractNonce: (a: number, b: any) => [number, number];
+    readonly statetransition_setIdentityNonce: (a: number, b: any) => [number, number];
+    readonly statetransition_setOwnerId: (a: number, b: any) => [number, number];
+    readonly statetransition_set_signature: (a: number, b: number, c: number) => number;
+    readonly statetransition_set_signature_public_key_id: (a: number, b: number) => void;
+    readonly statetransition_set_user_fee_increase: (a: number, b: number) => void;
+    readonly statetransition_sign: (a: number, b: number, c: number) => [number, number, number, number];
+    readonly statetransition_signByPrivateKey: (a: number, b: number, c: number, d: any) => [number, number, number, number];
+    readonly statetransition_signature: (a: number) => [number, number];
+    readonly statetransition_signature_public_key_id: (a: number) => number;
+    readonly statetransition_struct_name: () => [number, number];
+    readonly statetransition_toBase64: (a: number) => [number, number, number, number];
+    readonly statetransition_toBytes: (a: number) => [number, number, number, number];
+    readonly statetransition_toHex: (a: number) => [number, number, number, number];
+    readonly statetransition_type_name: (a: number) => [number, number];
+    readonly statetransition_user_fee_increase: (a: number) => number;
+    readonly statetransition_verifyPublicKey: (a: number, b: number, c: number, d: number) => [number, number];
+    readonly unshieldtransition_actions: (a: number) => [number, number];
+    readonly unshieldtransition_anchor: (a: number) => [number, number];
+    readonly unshieldtransition_binding_signature: (a: number) => [number, number];
+    readonly unshieldtransition_fromBytes: (a: number, b: number) => [number, number, number];
+    readonly unshieldtransition_fromJSON: (a: any) => [number, number, number];
+    readonly unshieldtransition_fromObject: (a: any) => [number, number, number];
+    readonly unshieldtransition_getModifiedDataIds: (a: number) => [number, number];
+    readonly unshieldtransition_new: (a: any) => [number, number, number];
+    readonly unshieldtransition_output_address: (a: number) => number;
+    readonly unshieldtransition_proof: (a: number) => [number, number];
+    readonly unshieldtransition_struct_name: () => [number, number];
+    readonly unshieldtransition_toBytes: (a: number) => [number, number, number, number];
+    readonly unshieldtransition_toJSON: (a: number) => [number, number, number];
+    readonly unshieldtransition_toObject: (a: number) => [number, number, number];
+    readonly unshieldtransition_toStateTransition: (a: number) => number;
+    readonly unshieldtransition_type_name: (a: number) => [number, number];
+    readonly unshieldtransition_unshielding_amount: (a: number) => bigint;
+    readonly __wbg_actiontaker_free: (a: number, b: number) => void;
+    readonly __wbg_authorizedactiontakers_free: (a: number, b: number) => void;
+    readonly __wbg_distributionfunction_free: (a: number, b: number) => void;
+    readonly __wbg_feestrategystep_free: (a: number, b: number) => void;
+    readonly __wbg_identitypublickey_free: (a: number, b: number) => void;
+    readonly __wbg_identitytokeninfo_free: (a: number, b: number) => void;
+    readonly __wbg_tokenbasetransition_free: (a: number, b: number) => void;
+    readonly __wbg_tokenconfiguration_free: (a: number, b: number) => void;
+    readonly __wbg_tokenconfigurationconvention_free: (a: number, b: number) => void;
+    readonly __wbg_tokendistributionrecipient_free: (a: number, b: number) => void;
+    readonly __wbg_tokendistributionrules_free: (a: number, b: number) => void;
+    readonly __wbg_tokenmarketplacerules_free: (a: number, b: number) => void;
+    readonly __wbg_tokenminttransition_free: (a: number, b: number) => void;
+    readonly __wbg_tokenperpetualdistribution_free: (a: number, b: number) => void;
+    readonly __wbg_tokenpreprogrammeddistribution_free: (a: number, b: number) => void;
+    readonly __wbg_tokenstatus_free: (a: number, b: number) => void;
+    readonly __wbg_tokentrademode_free: (a: number, b: number) => void;
+    readonly __wbg_tokenunfreezetransition_free: (a: number, b: number) => void;
+    readonly actiontaker_constructor: (a: any) => [number, number, number];
+    readonly actiontaker_set_value: (a: number, b: any) => [number, number];
+    readonly actiontaker_struct_name: () => [number, number];
+    readonly actiontaker_taker_type: (a: number) => [number, number];
+    readonly actiontaker_type_name: (a: number) => [number, number];
+    readonly actiontaker_value: (a: number) => any;
+    readonly authorizedactiontakers_ContractOwner: () => number;
+    readonly authorizedactiontakers_Group: (a: number) => number;
+    readonly authorizedactiontakers_Identity: (a: any) => [number, number, number];
+    readonly authorizedactiontakers_MainGroup: () => number;
+    readonly authorizedactiontakers_NoOne: () => number;
+    readonly authorizedactiontakers_struct_name: () => [number, number];
+    readonly authorizedactiontakers_taker_type: (a: number) => [number, number];
+    readonly authorizedactiontakers_type_name: (a: number) => [number, number];
+    readonly authorizedactiontakers_value: (a: number) => any;
+    readonly distributionfunction_Exponential: (a: number) => number;
+    readonly distributionfunction_FixedAmountDistribution: (a: number) => number;
+    readonly distributionfunction_InvertedLogarithmic: (a: number) => number;
+    readonly distributionfunction_Linear: (a: number) => number;
+    readonly distributionfunction_Logarithmic: (a: number) => number;
+    readonly distributionfunction_Polynomial: (a: number) => number;
+    readonly distributionfunction_Random: (a: number) => number;
+    readonly distributionfunction_StepDecreasingAmount: (a: number) => number;
+    readonly distributionfunction_Stepwise: (a: any) => [number, number, number];
+    readonly distributionfunction_function_name: (a: number) => [number, number];
+    readonly distributionfunction_function_value: (a: number) => [number, number, number];
+    readonly distributionfunction_struct_name: () => [number, number];
+    readonly distributionfunction_type_name: (a: number) => [number, number];
+    readonly feestrategystep_deductFromInput: (a: number) => number;
+    readonly feestrategystep_index: (a: number) => number;
+    readonly feestrategystep_isDeductFromInput: (a: number) => number;
+    readonly feestrategystep_isReduceOutput: (a: number) => number;
+    readonly feestrategystep_reduceOutput: (a: number) => number;
+    readonly feestrategystep_struct_name: () => [number, number];
+    readonly feestrategystep_type_name: (a: number) => [number, number];
     readonly identitypublickey_base64: (a: number) => [number, number, number, number];
     readonly identitypublickey_constructor: (a: any) => [number, number, number];
     readonly identitypublickey_contract_bounds: (a: number) => number;
@@ -11335,131 +14147,22 @@ export interface InitOutput {
     readonly identitypublickey_toObject: (a: number) => [number, number, number];
     readonly identitypublickey_type_name: (a: number) => [number, number];
     readonly identitypublickey_validatePrivateKey: (a: number, b: number, c: number, d: any) => [number, number, number];
-    readonly prefundedvotingbalance_constructor: (a: any) => [number, number, number];
-    readonly prefundedvotingbalance_credits: (a: number) => bigint;
-    readonly prefundedvotingbalance_indexName: (a: number) => [number, number];
-    readonly prefundedvotingbalance_struct_name: () => [number, number];
-    readonly prefundedvotingbalance_type_name: (a: number) => [number, number];
-    readonly tokenconfigurationchangeitem_DestroyFrozenFundsAdminGroupItem: (a: number) => number;
-    readonly tokenconfigurationchangeitem_DestroyFrozenFundsItem: (a: number) => number;
-    readonly tokenconfigurationchangeitem_ManualBurningAdminGroupItem: (a: number) => number;
-    readonly tokenconfigurationchangeitem_ManualBurningItem: (a: number) => number;
-    readonly tokenconfigurationchangeitem_ManualMintingAdminGroupItem: (a: number) => number;
-    readonly tokenconfigurationchangeitem_ManualMintingItem: (a: number) => number;
-    readonly tokenconfigurationchangeitem_UnfreezeAdminGroupItem: (a: number) => number;
-    readonly tokenconfigurationchangeitem_UnfreezeItem: (a: number) => number;
-    readonly __wbg_assetlockproof_free: (a: number, b: number) => void;
-    readonly __wbg_authorizedactiontakers_free: (a: number, b: number) => void;
-    readonly __wbg_groupaction_free: (a: number, b: number) => void;
-    readonly __wbg_groupactionevent_free: (a: number, b: number) => void;
-    readonly __wbg_identity_free: (a: number, b: number) => void;
-    readonly __wbg_identitysigner_free: (a: number, b: number) => void;
-    readonly __wbg_instantassetlockproof_free: (a: number, b: number) => void;
-    readonly __wbg_platformaddresssigner_free: (a: number, b: number) => void;
-    readonly __wbg_tokenconfiguration_free: (a: number, b: number) => void;
-    readonly __wbg_tokencontractinfo_free: (a: number, b: number) => void;
-    readonly __wbg_tokendestroyfrozenfundstransition_free: (a: number, b: number) => void;
-    readonly __wbg_tokendistributionrules_free: (a: number, b: number) => void;
-    readonly __wbg_tokenevent_free: (a: number, b: number) => void;
-    readonly __wbg_tokenfreezetransition_free: (a: number, b: number) => void;
-    readonly __wbg_tokenmarketplacerules_free: (a: number, b: number) => void;
-    readonly __wbg_tokentrademode_free: (a: number, b: number) => void;
-    readonly assetlockproof_chain_lock_proof: (a: number) => number;
-    readonly assetlockproof_constructor: (a: any) => [number, number, number];
-    readonly assetlockproof_createChainAssetLockProof: (a: number, b: number) => [number, number, number];
-    readonly assetlockproof_createIdentityId: (a: number) => [number, number, number];
-    readonly assetlockproof_createInstantAssetLockProof: (a: number, b: number, c: number, d: number, e: number) => [number, number, number];
-    readonly assetlockproof_fromBytes: (a: number, b: number) => [number, number, number];
-    readonly assetlockproof_fromHex: (a: number, b: number) => [number, number, number];
-    readonly assetlockproof_fromJSON: (a: any) => [number, number, number];
-    readonly assetlockproof_fromObject: (a: any) => [number, number, number];
-    readonly assetlockproof_instant_lock_proof: (a: number) => number;
-    readonly assetlockproof_lock_type: (a: number) => [number, number];
-    readonly assetlockproof_out_point: (a: number) => number;
-    readonly assetlockproof_struct_name: () => [number, number];
-    readonly assetlockproof_toBytes: (a: number) => [number, number, number, number];
-    readonly assetlockproof_toHex: (a: number) => [number, number, number, number];
-    readonly assetlockproof_toJSON: (a: number) => [number, number, number];
-    readonly assetlockproof_toObject: (a: number) => [number, number, number];
-    readonly assetlockproof_type_name: (a: number) => [number, number];
-    readonly authorizedactiontakers_ContractOwner: () => number;
-    readonly authorizedactiontakers_Group: (a: number) => number;
-    readonly authorizedactiontakers_Identity: (a: any) => [number, number, number];
-    readonly authorizedactiontakers_MainGroup: () => number;
-    readonly authorizedactiontakers_NoOne: () => number;
-    readonly authorizedactiontakers_struct_name: () => [number, number];
-    readonly authorizedactiontakers_taker_type: (a: number) => [number, number];
-    readonly authorizedactiontakers_type_name: (a: number) => [number, number];
-    readonly authorizedactiontakers_value: (a: number) => any;
-    readonly groupaction_contract_id: (a: number) => number;
-    readonly groupaction_event: (a: number) => number;
-    readonly groupaction_fromJSON: (a: any) => [number, number, number];
-    readonly groupaction_fromObject: (a: any) => [number, number, number];
-    readonly groupaction_proposer_id: (a: number) => number;
-    readonly groupaction_struct_name: () => [number, number];
-    readonly groupaction_toJSON: (a: number) => [number, number, number];
-    readonly groupaction_toObject: (a: number) => [number, number, number];
-    readonly groupaction_token_contract_position: (a: number) => number;
-    readonly groupaction_type_name: (a: number) => [number, number];
-    readonly groupactionevent_eventName: (a: number) => [number, number];
-    readonly groupactionevent_fromJSON: (a: any) => [number, number, number];
-    readonly groupactionevent_fromObject: (a: any) => [number, number, number];
-    readonly groupactionevent_publicNote: (a: number) => [number, number];
-    readonly groupactionevent_struct_name: () => [number, number];
-    readonly groupactionevent_toJSON: (a: number) => [number, number, number];
-    readonly groupactionevent_toObject: (a: number) => [number, number, number];
-    readonly groupactionevent_tokenEvent: (a: number) => number;
-    readonly groupactionevent_type_name: (a: number) => [number, number];
-    readonly groupactionevent_variant: (a: number) => number;
-    readonly identity_addPublicKey: (a: number, b: number) => void;
-    readonly identity_balance: (a: number) => bigint;
-    readonly identity_constructor: (a: any) => [number, number, number];
-    readonly identity_fromBase64: (a: number, b: number) => [number, number, number];
-    readonly identity_fromBytes: (a: number, b: number) => [number, number, number];
-    readonly identity_fromHex: (a: number, b: number) => [number, number, number];
-    readonly identity_fromJSON: (a: any) => [number, number, number];
-    readonly identity_fromObject: (a: any, b: any) => [number, number, number];
-    readonly identity_getPublicKeyById: (a: number, b: number) => number;
-    readonly identity_id: (a: number) => number;
-    readonly identity_public_keys: (a: number) => [number, number];
-    readonly identity_revision: (a: number) => bigint;
-    readonly identity_set_balance: (a: number, b: any) => [number, number];
-    readonly identity_set_id: (a: number, b: any) => [number, number];
-    readonly identity_set_revision: (a: number, b: any) => [number, number];
-    readonly identity_struct_name: () => [number, number];
-    readonly identity_toBase64: (a: number) => [number, number, number, number];
-    readonly identity_toBytes: (a: number) => [number, number, number, number];
-    readonly identity_toHex: (a: number) => [number, number, number, number];
-    readonly identity_toJSON: (a: number) => [number, number, number];
-    readonly identity_toObject: (a: number) => [number, number, number];
-    readonly identity_type_name: (a: number) => [number, number];
-    readonly identitysigner_addKey: (a: number, b: number) => [number, number];
-    readonly identitysigner_addKeyFromWif: (a: number, b: number, c: number) => [number, number];
-    readonly identitysigner_constructor: () => number;
-    readonly identitysigner_key_count: (a: number) => number;
-    readonly identitysigner_struct_name: () => [number, number];
-    readonly identitysigner_type_name: (a: number) => [number, number];
-    readonly instantassetlockproof_constructor: (a: number, b: number, c: number, d: number, e: number) => [number, number, number];
-    readonly instantassetlockproof_createIdentityId: (a: number) => [number, number, number];
-    readonly instantassetlockproof_fromJSON: (a: any) => [number, number, number];
-    readonly instantassetlockproof_fromObject: (a: any) => [number, number, number];
-    readonly instantassetlockproof_instant_lock: (a: number) => [number, number];
-    readonly instantassetlockproof_out_point: (a: number) => number;
-    readonly instantassetlockproof_output: (a: number) => [number, number];
-    readonly instantassetlockproof_output_index: (a: number) => number;
-    readonly instantassetlockproof_set_instant_lock: (a: number, b: number, c: number) => [number, number];
-    readonly instantassetlockproof_set_output_index: (a: number, b: any) => [number, number];
-    readonly instantassetlockproof_struct_name: () => [number, number];
-    readonly instantassetlockproof_toJSON: (a: number) => [number, number, number];
-    readonly instantassetlockproof_toObject: (a: number) => [number, number, number];
-    readonly instantassetlockproof_transaction: (a: number) => [number, number];
-    readonly instantassetlockproof_type_name: (a: number) => [number, number];
-    readonly platformaddresssigner_addKey: (a: number, b: number) => [number, number, number];
-    readonly platformaddresssigner_getPrivateKeysBytes: (a: number) => [number, number, number];
-    readonly platformaddresssigner_hasKey: (a: number, b: any) => [number, number, number];
-    readonly platformaddresssigner_key_count: (a: number) => number;
-    readonly platformaddresssigner_struct_name: () => [number, number];
-    readonly platformaddresssigner_type_name: (a: number) => [number, number];
+    readonly identitytokeninfo_is_frozen: (a: number) => number;
+    readonly identitytokeninfo_struct_name: () => [number, number];
+    readonly identitytokeninfo_type_name: (a: number) => [number, number];
+    readonly tokenbasetransition_constructor: (a: any) => [number, number, number];
+    readonly tokenbasetransition_data_contract_id: (a: number) => number;
+    readonly tokenbasetransition_identity_contract_nonce: (a: number) => bigint;
+    readonly tokenbasetransition_set_data_contract_id: (a: number, b: any) => [number, number];
+    readonly tokenbasetransition_set_identity_contract_nonce: (a: number, b: bigint) => void;
+    readonly tokenbasetransition_set_token_contract_position: (a: number, b: any) => [number, number];
+    readonly tokenbasetransition_set_token_id: (a: number, b: any) => [number, number];
+    readonly tokenbasetransition_set_using_group_info: (a: number, b: any) => [number, number];
+    readonly tokenbasetransition_struct_name: () => [number, number];
+    readonly tokenbasetransition_token_contract_position: (a: number) => number;
+    readonly tokenbasetransition_token_id: (a: number) => number;
+    readonly tokenbasetransition_type_name: (a: number) => [number, number];
+    readonly tokenbasetransition_using_group_info: (a: number) => number;
     readonly tokenconfiguration_base_supply: (a: number) => bigint;
     readonly tokenconfiguration_calculateTokenId: (a: any, b: number) => [number, number, number];
     readonly tokenconfiguration_constructor: (a: any) => [number, number, number];
@@ -11504,10 +14207,16 @@ export interface InitOutput {
     readonly tokenconfiguration_unfreeze_rules: (a: number) => number;
     readonly tokenconfigurationchangeitem_ConventionsAdminGroupItem: (a: number) => number;
     readonly tokenconfigurationchangeitem_ConventionsControlGroupItem: (a: number) => number;
+    readonly tokenconfigurationchangeitem_DestroyFrozenFundsAdminGroupItem: (a: number) => number;
+    readonly tokenconfigurationchangeitem_DestroyFrozenFundsItem: (a: number) => number;
     readonly tokenconfigurationchangeitem_EmergencyActionAdminGroupItem: (a: number) => number;
     readonly tokenconfigurationchangeitem_EmergencyActionItem: (a: number) => number;
     readonly tokenconfigurationchangeitem_FreezeAdminGroupItem: (a: number) => number;
     readonly tokenconfigurationchangeitem_FreezeItem: (a: number) => number;
+    readonly tokenconfigurationchangeitem_ManualBurningAdminGroupItem: (a: number) => number;
+    readonly tokenconfigurationchangeitem_ManualBurningItem: (a: number) => number;
+    readonly tokenconfigurationchangeitem_ManualMintingAdminGroupItem: (a: number) => number;
+    readonly tokenconfigurationchangeitem_ManualMintingItem: (a: number) => number;
     readonly tokenconfigurationchangeitem_MarketplaceTradeModeAdminGroupItem: (a: number) => number;
     readonly tokenconfigurationchangeitem_MarketplaceTradeModeControlGroupItem: (a: number) => number;
     readonly tokenconfigurationchangeitem_MarketplaceTradeModeItem: (a: number) => number;
@@ -11517,30 +14226,26 @@ export interface InitOutput {
     readonly tokenconfigurationchangeitem_MintingAllowChoosingDestinationAdminGroupItem: (a: number) => number;
     readonly tokenconfigurationchangeitem_MintingAllowChoosingDestinationControlGroupItem: (a: number) => number;
     readonly tokenconfigurationchangeitem_MintingAllowChoosingDestinationItem: (a: number) => number;
-    readonly tokenconfigurationchangeitem_NewTokensDestinationIdentityAdminGroupItem: (a: number) => number;
-    readonly tokenconfigurationchangeitem_NewTokensDestinationIdentityControlGroupItem: (a: number) => number;
-    readonly tokenconfigurationchangeitem_NewTokensDestinationIdentityItem: (a: any) => [number, number, number];
     readonly tokenconfigurationchangeitem_PerpetualDistributionAdminGroupItem: (a: number) => number;
     readonly tokenconfigurationchangeitem_PerpetualDistributionConfigurationItem: (a: number) => number;
     readonly tokenconfigurationchangeitem_PerpetualDistributionControlGroupItem: (a: number) => number;
+    readonly tokenconfigurationchangeitem_UnfreezeAdminGroupItem: (a: number) => number;
+    readonly tokenconfigurationchangeitem_UnfreezeItem: (a: number) => number;
     readonly tokenconfigurationchangeitem_conventionsItem: (a: number) => number;
-    readonly tokencontractinfo_contract_id: (a: number) => number;
-    readonly tokencontractinfo_fromJSON: (a: any) => [number, number, number];
-    readonly tokencontractinfo_fromObject: (a: any) => [number, number, number];
-    readonly tokencontractinfo_struct_name: () => [number, number];
-    readonly tokencontractinfo_toJSON: (a: number) => [number, number, number];
-    readonly tokencontractinfo_toObject: (a: number) => [number, number, number];
-    readonly tokencontractinfo_token_contract_position: (a: number) => number;
-    readonly tokencontractinfo_type_name: (a: number) => [number, number];
-    readonly tokendestroyfrozenfundstransition_base: (a: number) => number;
-    readonly tokendestroyfrozenfundstransition_constructor: (a: any) => [number, number, number];
-    readonly tokendestroyfrozenfundstransition_frozen_identity_id: (a: number) => number;
-    readonly tokendestroyfrozenfundstransition_public_note: (a: number) => [number, number];
-    readonly tokendestroyfrozenfundstransition_set_base: (a: number, b: number) => void;
-    readonly tokendestroyfrozenfundstransition_set_frozen_identity_id: (a: number, b: any) => [number, number];
-    readonly tokendestroyfrozenfundstransition_set_public_note: (a: number, b: number, c: number) => void;
-    readonly tokendestroyfrozenfundstransition_struct_name: () => [number, number];
-    readonly tokendestroyfrozenfundstransition_type_name: (a: number) => [number, number];
+    readonly tokenconfigurationchangeitem_noChangeItem: () => number;
+    readonly tokenconfigurationconvention_constructor: (a: any, b: number) => [number, number, number];
+    readonly tokenconfigurationconvention_decimals: (a: number) => number;
+    readonly tokenconfigurationconvention_localizations: (a: number) => [number, number, number];
+    readonly tokenconfigurationconvention_set_decimals: (a: number, b: any) => [number, number];
+    readonly tokenconfigurationconvention_set_localizations: (a: number, b: any) => [number, number];
+    readonly tokenconfigurationconvention_struct_name: () => [number, number];
+    readonly tokenconfigurationconvention_type_name: (a: number) => [number, number];
+    readonly tokendistributionrecipient_EvonodesByParticipation: () => number;
+    readonly tokendistributionrecipient_Identity: (a: any) => [number, number, number];
+    readonly tokendistributionrecipient_recipient_type: (a: number) => [number, number];
+    readonly tokendistributionrecipient_struct_name: () => [number, number];
+    readonly tokendistributionrecipient_type_name: (a: number) => [number, number];
+    readonly tokendistributionrecipient_value: (a: number) => any;
     readonly tokendistributionrules_change_direct_purchase_pricing_rules: (a: number) => number;
     readonly tokendistributionrules_constructor: (a: any) => [number, number, number];
     readonly tokendistributionrules_is_minting_allowing_choosing_destination: (a: number) => number;
@@ -11560,22 +14265,6 @@ export interface InitOutput {
     readonly tokendistributionrules_set_pre_programmed_distribution: (a: number, b: any) => [number, number];
     readonly tokendistributionrules_struct_name: () => [number, number];
     readonly tokendistributionrules_type_name: (a: number) => [number, number];
-    readonly tokenevent_fromJSON: (a: any) => [number, number, number];
-    readonly tokenevent_fromObject: (a: any) => [number, number, number];
-    readonly tokenevent_struct_name: () => [number, number];
-    readonly tokenevent_toJSON: (a: number) => [number, number, number];
-    readonly tokenevent_toObject: (a: number) => [number, number, number];
-    readonly tokenevent_type_name: (a: number) => [number, number];
-    readonly tokenevent_variant: (a: number) => number;
-    readonly tokenfreezetransition_base: (a: number) => number;
-    readonly tokenfreezetransition_constructor: (a: any) => [number, number, number];
-    readonly tokenfreezetransition_frozen_identity_id: (a: number) => number;
-    readonly tokenfreezetransition_public_note: (a: number) => [number, number];
-    readonly tokenfreezetransition_set_base: (a: number, b: number) => void;
-    readonly tokenfreezetransition_set_frozen_identity_id: (a: number, b: any) => [number, number];
-    readonly tokenfreezetransition_set_public_note: (a: number, b: number, c: number) => void;
-    readonly tokenfreezetransition_struct_name: () => [number, number];
-    readonly tokenfreezetransition_type_name: (a: number) => [number, number];
     readonly tokenmarketplacerules_constructor: (a: number, b: number) => number;
     readonly tokenmarketplacerules_set_trade_mode: (a: number, b: number) => void;
     readonly tokenmarketplacerules_set_trade_mode_change_rules: (a: number, b: number) => void;
@@ -11583,409 +14272,73 @@ export interface InitOutput {
     readonly tokenmarketplacerules_trade_mode: (a: number) => number;
     readonly tokenmarketplacerules_trade_mode_change_rules: (a: number) => number;
     readonly tokenmarketplacerules_type_name: (a: number) => [number, number];
+    readonly tokenminttransition_amount: (a: number) => bigint;
+    readonly tokenminttransition_base: (a: number) => number;
+    readonly tokenminttransition_constructor: (a: any) => [number, number, number];
+    readonly tokenminttransition_getRecipientId: (a: number, b: number) => [number, number, number];
+    readonly tokenminttransition_issued_to_identity_id: (a: number) => number;
+    readonly tokenminttransition_public_note: (a: number) => [number, number];
+    readonly tokenminttransition_set_amount: (a: number, b: any) => [number, number];
+    readonly tokenminttransition_set_base: (a: number, b: number) => void;
+    readonly tokenminttransition_set_issued_to_identity_id: (a: number, b: any) => [number, number];
+    readonly tokenminttransition_set_public_note: (a: number, b: number, c: number) => void;
+    readonly tokenminttransition_struct_name: () => [number, number];
+    readonly tokenminttransition_type_name: (a: number) => [number, number];
+    readonly tokenperpetualdistribution_constructor: (a: number, b: number) => number;
+    readonly tokenperpetualdistribution_distribution_type: (a: number) => number;
+    readonly tokenperpetualdistribution_recipient: (a: number) => number;
+    readonly tokenperpetualdistribution_set_distribution_type: (a: number, b: number) => void;
+    readonly tokenperpetualdistribution_set_recipient: (a: number, b: number) => void;
+    readonly tokenperpetualdistribution_struct_name: () => [number, number];
+    readonly tokenperpetualdistribution_type_name: (a: number) => [number, number];
+    readonly tokenpreprogrammeddistribution_constructor: (a: any) => [number, number, number];
+    readonly tokenpreprogrammeddistribution_distributions: (a: number) => any;
+    readonly tokenpreprogrammeddistribution_set_distributions: (a: number, b: any) => [number, number];
+    readonly tokenpreprogrammeddistribution_struct_name: () => [number, number];
+    readonly tokenpreprogrammeddistribution_type_name: (a: number) => [number, number];
+    readonly tokenstatus_is_paused: (a: number) => number;
+    readonly tokenstatus_struct_name: () => [number, number];
+    readonly tokenstatus_type_name: (a: number) => [number, number];
     readonly tokentrademode_struct_name: () => [number, number];
     readonly tokentrademode_type_name: (a: number) => [number, number];
     readonly tokentrademode_value: (a: number) => [number, number];
-    readonly platformaddresssigner_constructor: () => number;
+    readonly tokenunfreezetransition_base: (a: number) => number;
+    readonly tokenunfreezetransition_constructor: (a: any) => [number, number, number];
+    readonly tokenunfreezetransition_frozen_identity_id: (a: number) => number;
+    readonly tokenunfreezetransition_public_note: (a: number) => [number, number];
+    readonly tokenunfreezetransition_set_base: (a: number, b: number) => void;
+    readonly tokenunfreezetransition_set_frozen_identity_id: (a: number, b: any) => [number, number];
+    readonly tokenunfreezetransition_set_public_note: (a: number, b: number, c: number) => void;
+    readonly tokenunfreezetransition_struct_name: () => [number, number];
+    readonly tokenunfreezetransition_type_name: (a: number) => [number, number];
     readonly tokentrademode_NotTradeable: () => number;
-    readonly __wbg_addresswitness_free: (a: number, b: number) => void;
-    readonly __wbg_contenderwithserializeddocument_free: (a: number, b: number) => void;
-    readonly __wbg_get_verifiedassetlockconsumed_status: (a: number) => [number, number];
-    readonly __wbg_get_verifiedbalancetransfer_recipient: (a: number) => number;
-    readonly __wbg_get_verifiedbalancetransfer_sender: (a: number) => number;
-    readonly __wbg_get_verifiedidentity_identity: (a: number) => number;
-    readonly __wbg_get_verifiedidentitywithshieldednullifiers_identity: (a: number) => number;
-    readonly __wbg_get_verifiedpartialidentity_partialIdentity: (a: number) => number;
-    readonly __wbg_set_verifiedassetlockconsumed_status: (a: number, b: number, c: number) => void;
-    readonly __wbg_set_verifiedbalancetransfer_recipient: (a: number, b: number) => void;
-    readonly __wbg_set_verifiedbalancetransfer_sender: (a: number, b: number) => void;
-    readonly __wbg_set_verifiedidentity_identity: (a: number, b: number) => void;
-    readonly __wbg_tokenconfigurationlocalization_free: (a: number, b: number) => void;
-    readonly __wbg_tokenpricingschedule_free: (a: number, b: number) => void;
-    readonly __wbg_verifiedassetlockconsumed_free: (a: number, b: number) => void;
-    readonly __wbg_verifiedassetlockconsumedwithaddressinfos_free: (a: number, b: number) => void;
-    readonly __wbg_verifiedbalancetransfer_free: (a: number, b: number) => void;
-    readonly __wbg_verifiedidentity_free: (a: number, b: number) => void;
-    readonly __wbg_verifiedidentitywithshieldednullifiers_free: (a: number, b: number) => void;
-    readonly __wbg_verifiedpartialidentity_free: (a: number, b: number) => void;
-    readonly __wbg_verifiedshieldednullifiers_free: (a: number, b: number) => void;
-    readonly __wbg_verifiedshieldednullifierswithaddressinfos_free: (a: number, b: number) => void;
-    readonly __wbg_verifiedshieldedpoolstate_free: (a: number, b: number) => void;
-    readonly addresswitness_fromJSON: (a: any) => [number, number, number];
-    readonly addresswitness_fromObject: (a: any) => [number, number, number];
-    readonly addresswitness_isP2pkh: (a: number) => number;
-    readonly addresswitness_isP2sh: (a: number) => number;
-    readonly addresswitness_kind: (a: number) => [number, number];
-    readonly addresswitness_p2pkh: (a: number, b: number) => number;
-    readonly addresswitness_p2sh: (a: any, b: number, c: number) => [number, number, number];
-    readonly addresswitness_redeemScript: (a: number) => [number, number];
-    readonly addresswitness_signature: (a: number) => [number, number];
-    readonly addresswitness_signatures: (a: number) => [number, number];
-    readonly addresswitness_struct_name: () => [number, number];
-    readonly addresswitness_toJSON: (a: number) => [number, number, number];
-    readonly addresswitness_toObject: (a: number) => [number, number, number];
-    readonly addresswitness_type_name: (a: number) => [number, number];
-    readonly contenderwithserializeddocument_constructor: (a: any, b: number, c: number, d: number) => [number, number, number];
-    readonly contenderwithserializeddocument_fromJSON: (a: any) => [number, number, number];
-    readonly contenderwithserializeddocument_fromObject: (a: any) => [number, number, number];
-    readonly contenderwithserializeddocument_identity_id: (a: number) => number;
-    readonly contenderwithserializeddocument_serialized_document: (a: number) => any;
-    readonly contenderwithserializeddocument_struct_name: () => [number, number];
-    readonly contenderwithserializeddocument_toJSON: (a: number) => [number, number, number];
-    readonly contenderwithserializeddocument_toObject: (a: number) => [number, number, number];
-    readonly contenderwithserializeddocument_type_name: (a: number) => [number, number];
-    readonly contenderwithserializeddocument_vote_tally: (a: number) => number;
-    readonly tokenconfigurationlocalization_constructor: (a: number, b: number, c: number, d: number, e: number) => number;
-    readonly tokenconfigurationlocalization_fromJSON: (a: any) => [number, number, number];
-    readonly tokenconfigurationlocalization_fromObject: (a: any) => [number, number, number];
-    readonly tokenconfigurationlocalization_plural_form: (a: number) => [number, number];
-    readonly tokenconfigurationlocalization_set_plural_form: (a: number, b: number, c: number) => void;
-    readonly tokenconfigurationlocalization_set_should_capitalize: (a: number, b: number) => void;
-    readonly tokenconfigurationlocalization_set_singular_form: (a: number, b: number, c: number) => void;
-    readonly tokenconfigurationlocalization_should_capitalize: (a: number) => number;
-    readonly tokenconfigurationlocalization_singular_form: (a: number) => [number, number];
-    readonly tokenconfigurationlocalization_struct_name: () => [number, number];
-    readonly tokenconfigurationlocalization_toJSON: (a: number) => [number, number, number];
-    readonly tokenconfigurationlocalization_toObject: (a: number) => [number, number, number];
-    readonly tokenconfigurationlocalization_type_name: (a: number) => [number, number];
-    readonly tokenpricingschedule_SetPrices: (a: any) => [number, number, number];
-    readonly tokenpricingschedule_SinglePrice: (a: bigint) => number;
-    readonly tokenpricingschedule_fromJSON: (a: any) => [number, number, number];
-    readonly tokenpricingschedule_fromObject: (a: any) => [number, number, number];
-    readonly tokenpricingschedule_schedule_type: (a: number) => [number, number];
-    readonly tokenpricingschedule_struct_name: () => [number, number];
-    readonly tokenpricingschedule_toJSON: (a: number) => [number, number, number];
-    readonly tokenpricingschedule_toObject: (a: number) => [number, number, number];
-    readonly tokenpricingschedule_type_name: (a: number) => [number, number];
-    readonly tokenpricingschedule_value: (a: number) => [number, number, number];
-    readonly verifiedassetlockconsumed_fromJSON: (a: any) => [number, number, number];
-    readonly verifiedassetlockconsumed_fromObject: (a: any) => [number, number, number];
-    readonly verifiedassetlockconsumed_initialCreditValue: (a: number) => any;
-    readonly verifiedassetlockconsumed_remainingCreditValue: (a: number) => any;
-    readonly verifiedassetlockconsumed_struct_name: () => [number, number];
-    readonly verifiedassetlockconsumed_toJSON: (a: number) => [number, number, number];
-    readonly verifiedassetlockconsumed_toObject: (a: number) => [number, number, number];
-    readonly verifiedassetlockconsumed_type_name: (a: number) => [number, number];
-    readonly verifiedassetlockconsumedwithaddressinfos_address_infos: (a: number) => any;
-    readonly verifiedassetlockconsumedwithaddressinfos_fromJSON: (a: any) => [number, number, number];
-    readonly verifiedassetlockconsumedwithaddressinfos_initialCreditValue: (a: number) => any;
-    readonly verifiedassetlockconsumedwithaddressinfos_remainingCreditValue: (a: number) => any;
-    readonly verifiedassetlockconsumedwithaddressinfos_status: (a: number) => [number, number];
-    readonly verifiedassetlockconsumedwithaddressinfos_struct_name: () => [number, number];
-    readonly verifiedassetlockconsumedwithaddressinfos_toJSON: (a: number) => [number, number, number];
-    readonly verifiedassetlockconsumedwithaddressinfos_toObject: (a: number) => any;
-    readonly verifiedassetlockconsumedwithaddressinfos_type_name: (a: number) => [number, number];
-    readonly verifiedbalancetransfer_fromJSON: (a: any) => [number, number, number];
-    readonly verifiedbalancetransfer_fromObject: (a: any) => [number, number, number];
-    readonly verifiedbalancetransfer_struct_name: () => [number, number];
-    readonly verifiedbalancetransfer_toJSON: (a: number) => [number, number, number];
-    readonly verifiedbalancetransfer_toObject: (a: number) => [number, number, number];
-    readonly verifiedbalancetransfer_type_name: (a: number) => [number, number];
-    readonly verifiedidentity_fromJSON: (a: any) => [number, number, number];
-    readonly verifiedidentity_fromObject: (a: any) => [number, number, number];
-    readonly verifiedidentity_struct_name: () => [number, number];
-    readonly verifiedidentity_toJSON: (a: number) => [number, number, number];
-    readonly verifiedidentity_toObject: (a: number) => [number, number, number];
-    readonly verifiedidentity_type_name: (a: number) => [number, number];
-    readonly verifiedidentitywithshieldednullifiers_fromJSON: (a: any) => [number, number, number];
-    readonly verifiedidentitywithshieldednullifiers_fromObject: (a: any) => [number, number, number];
-    readonly verifiedidentitywithshieldednullifiers_nullifiers: (a: number) => any;
-    readonly verifiedidentitywithshieldednullifiers_struct_name: () => [number, number];
-    readonly verifiedidentitywithshieldednullifiers_toJSON: (a: number) => [number, number, number];
-    readonly verifiedidentitywithshieldednullifiers_toObject: (a: number) => [number, number, number];
-    readonly verifiedidentitywithshieldednullifiers_type_name: (a: number) => [number, number];
-    readonly verifiedpartialidentity_fromJSON: (a: any) => [number, number, number];
-    readonly verifiedpartialidentity_fromObject: (a: any) => [number, number, number];
-    readonly verifiedpartialidentity_struct_name: () => [number, number];
-    readonly verifiedpartialidentity_toJSON: (a: number) => [number, number, number];
-    readonly verifiedpartialidentity_toObject: (a: number) => [number, number, number];
-    readonly verifiedpartialidentity_type_name: (a: number) => [number, number];
-    readonly verifiedshieldednullifiers_fromJSON: (a: any) => [number, number, number];
-    readonly verifiedshieldednullifiers_fromObject: (a: any) => [number, number, number];
-    readonly verifiedshieldednullifiers_nullifiers: (a: number) => any;
-    readonly verifiedshieldednullifiers_struct_name: () => [number, number];
-    readonly verifiedshieldednullifiers_toJSON: (a: number) => [number, number, number];
-    readonly verifiedshieldednullifiers_toObject: (a: number) => any;
-    readonly verifiedshieldednullifiers_type_name: (a: number) => [number, number];
-    readonly verifiedshieldednullifierswithaddressinfos_address_infos: (a: number) => any;
-    readonly verifiedshieldednullifierswithaddressinfos_fromJSON: (a: any) => [number, number, number];
-    readonly verifiedshieldednullifierswithaddressinfos_nullifiers: (a: number) => any;
-    readonly verifiedshieldednullifierswithaddressinfos_struct_name: () => [number, number];
-    readonly verifiedshieldednullifierswithaddressinfos_toJSON: (a: number) => [number, number, number];
-    readonly verifiedshieldednullifierswithaddressinfos_toObject: (a: number) => any;
-    readonly verifiedshieldednullifierswithaddressinfos_type_name: (a: number) => [number, number];
-    readonly verifiedshieldednullifierswithwithdrawaldocument_documents: (a: number) => any;
-    readonly verifiedshieldednullifierswithwithdrawaldocument_fromJSON: (a: any) => [number, number, number];
-    readonly verifiedshieldednullifierswithwithdrawaldocument_nullifiers: (a: number) => any;
-    readonly verifiedshieldednullifierswithwithdrawaldocument_struct_name: () => [number, number];
-    readonly verifiedshieldednullifierswithwithdrawaldocument_toJSON: (a: number) => [number, number, number];
-    readonly verifiedshieldednullifierswithwithdrawaldocument_toObject: (a: number) => any;
-    readonly verifiedshieldednullifierswithwithdrawaldocument_type_name: (a: number) => [number, number];
-    readonly verifiedshieldedpoolstate_fromJSON: (a: any) => [number, number, number];
-    readonly verifiedshieldedpoolstate_fromObject: (a: any) => [number, number, number];
-    readonly verifiedshieldedpoolstate_poolBalance: (a: number) => any;
-    readonly verifiedshieldedpoolstate_struct_name: () => [number, number];
-    readonly verifiedshieldedpoolstate_toJSON: (a: number) => [number, number, number];
-    readonly verifiedshieldedpoolstate_toObject: (a: number) => [number, number, number];
-    readonly verifiedshieldedpoolstate_type_name: (a: number) => [number, number];
-    readonly verifiedassetlockconsumedwithaddressinfos_fromObject: (a: any) => [number, number, number];
-    readonly __wbg_set_verifiedpartialidentity_partialIdentity: (a: number, b: number) => void;
-    readonly __wbg_set_verifiedidentitywithshieldednullifiers_identity: (a: number, b: number) => void;
-    readonly verifiedshieldednullifierswithaddressinfos_fromObject: (a: any) => [number, number, number];
-    readonly verifiedshieldednullifierswithwithdrawaldocument_fromObject: (a: any) => [number, number, number];
-    readonly __wbg_verifiedshieldednullifierswithwithdrawaldocument_free: (a: number, b: number) => void;
-    readonly __wbg_document_free: (a: number, b: number) => void;
-    readonly __wbg_feestrategystep_free: (a: number, b: number) => void;
-    readonly __wbg_get_verifiedtokenactionwithdocument_document: (a: number) => number;
-    readonly __wbg_get_verifiedtokenbalance_tokenId: (a: number) => number;
-    readonly __wbg_get_verifiedtokenbalanceabsence_tokenId: (a: number) => number;
-    readonly __wbg_get_verifiedtokengroupactionwithdocument_document: (a: number) => number;
-    readonly __wbg_get_verifiedtokengroupactionwithdocument_groupPower: (a: number) => number;
-    readonly __wbg_get_verifiedtokengroupactionwithtokenbalance_actionStatus: (a: number) => [number, number];
-    readonly __wbg_get_verifiedtokengroupactionwithtokenbalance_groupPower: (a: number) => number;
-    readonly __wbg_get_verifiedtokengroupactionwithtokenidentityinfo_actionStatus: (a: number) => [number, number];
-    readonly __wbg_get_verifiedtokengroupactionwithtokenidentityinfo_groupPower: (a: number) => number;
-    readonly __wbg_get_verifiedtokengroupactionwithtokenidentityinfo_tokenInfo: (a: number) => number;
-    readonly __wbg_get_verifiedtokengroupactionwithtokenpricingschedule_actionStatus: (a: number) => [number, number];
-    readonly __wbg_get_verifiedtokengroupactionwithtokenpricingschedule_groupPower: (a: number) => number;
-    readonly __wbg_get_verifiedtokengroupactionwithtokenpricingschedule_pricingSchedule: (a: number) => number;
-    readonly __wbg_get_verifiedtokenidentityinfo_tokenId: (a: number) => number;
-    readonly __wbg_get_verifiedtokenidentityinfo_tokenInfo: (a: number) => number;
-    readonly __wbg_get_verifiedtokenpricingschedule_pricingSchedule: (a: number) => number;
-    readonly __wbg_get_verifiedtokenpricingschedule_tokenId: (a: number) => number;
-    readonly __wbg_get_verifiedtokenstatus_tokenStatus: (a: number) => number;
-    readonly __wbg_partialidentity_free: (a: number, b: number) => void;
-    readonly __wbg_platformaddress_free: (a: number, b: number) => void;
-    readonly __wbg_set_verifiedtokenactionwithdocument_document: (a: number, b: number) => void;
-    readonly __wbg_set_verifiedtokenbalance_tokenId: (a: number, b: number) => void;
-    readonly __wbg_set_verifiedtokenbalanceabsence_tokenId: (a: number, b: number) => void;
-    readonly __wbg_set_verifiedtokengroupactionwithdocument_document: (a: number, b: number) => void;
-    readonly __wbg_set_verifiedtokengroupactionwithdocument_groupPower: (a: number, b: number) => void;
-    readonly __wbg_set_verifiedtokengroupactionwithtokenbalance_actionStatus: (a: number, b: number, c: number) => void;
-    readonly __wbg_set_verifiedtokengroupactionwithtokenbalance_groupPower: (a: number, b: number) => void;
-    readonly __wbg_set_verifiedtokengroupactionwithtokenidentityinfo_actionStatus: (a: number, b: number, c: number) => void;
-    readonly __wbg_set_verifiedtokengroupactionwithtokenidentityinfo_groupPower: (a: number, b: number) => void;
-    readonly __wbg_set_verifiedtokengroupactionwithtokenidentityinfo_tokenInfo: (a: number, b: number) => void;
-    readonly __wbg_set_verifiedtokengroupactionwithtokenpricingschedule_pricingSchedule: (a: number, b: number) => void;
-    readonly __wbg_set_verifiedtokenidentityinfo_tokenId: (a: number, b: number) => void;
-    readonly __wbg_set_verifiedtokenidentityinfo_tokenInfo: (a: number, b: number) => void;
-    readonly __wbg_set_verifiedtokenpricingschedule_tokenId: (a: number, b: number) => void;
-    readonly __wbg_set_verifiedtokenstatus_tokenStatus: (a: number, b: number) => void;
-    readonly __wbg_shieldfromassetlocktransition_free: (a: number, b: number) => void;
-    readonly __wbg_verifiedtokenactionwithdocument_free: (a: number, b: number) => void;
-    readonly __wbg_verifiedtokenbalance_free: (a: number, b: number) => void;
-    readonly __wbg_verifiedtokenbalanceabsence_free: (a: number, b: number) => void;
-    readonly __wbg_verifiedtokengroupactionwithdocument_free: (a: number, b: number) => void;
-    readonly __wbg_verifiedtokengroupactionwithtokenbalance_free: (a: number, b: number) => void;
-    readonly __wbg_verifiedtokengroupactionwithtokenidentityinfo_free: (a: number, b: number) => void;
-    readonly __wbg_verifiedtokengroupactionwithtokenpricingschedule_free: (a: number, b: number) => void;
-    readonly __wbg_verifiedtokenidentitiesbalances_free: (a: number, b: number) => void;
-    readonly __wbg_verifiedtokenidentityinfo_free: (a: number, b: number) => void;
-    readonly __wbg_verifiedtokenpricingschedule_free: (a: number, b: number) => void;
-    readonly __wbg_verifiedtokenstatus_free: (a: number, b: number) => void;
-    readonly __wbg_wasmdpperror_free: (a: number, b: number) => void;
-    readonly document_constructor: (a: any) => [number, number, number];
-    readonly document_created_at: (a: number) => [number, bigint];
-    readonly document_created_at_block_height: (a: number) => [number, bigint];
-    readonly document_created_at_core_block_height: (a: number) => number;
-    readonly document_data_contract_id: (a: number) => number;
-    readonly document_document_type_name: (a: number) => [number, number];
-    readonly document_entropy: (a: number) => [number, number];
-    readonly document_fromBase64: (a: number, b: number, c: number, d: number, e: number, f: any) => [number, number, number];
-    readonly document_fromBytes: (a: number, b: number, c: number, d: number, e: number, f: any) => [number, number, number];
-    readonly document_fromHex: (a: number, b: number, c: number, d: number, e: number, f: any) => [number, number, number];
-    readonly document_fromJSON: (a: any, b: any) => [number, number, number];
-    readonly document_fromObject: (a: any, b: any) => [number, number, number];
-    readonly document_generateId: (a: number, b: number, c: any, d: any, e: number, f: number) => [number, number, number, number];
-    readonly document_id: (a: number) => number;
-    readonly document_owner_id: (a: number) => number;
-    readonly document_properties: (a: number) => [number, number, number];
-    readonly document_revision: (a: number) => [number, bigint];
-    readonly document_set_created_at: (a: number, b: number, c: bigint) => void;
-    readonly document_set_created_at_block_height: (a: number, b: number, c: bigint) => void;
-    readonly document_set_created_at_core_block_height: (a: number, b: number) => void;
-    readonly document_set_data_contract_id_js: (a: number, b: any) => [number, number];
-    readonly document_set_document_type_name: (a: number, b: number, c: number) => void;
-    readonly document_set_entropy: (a: number, b: number, c: number) => [number, number];
-    readonly document_set_id: (a: number, b: any) => [number, number];
-    readonly document_set_owner_id: (a: number, b: any) => [number, number];
-    readonly document_set_properties: (a: number, b: any) => [number, number];
-    readonly document_set_revision: (a: number, b: number, c: bigint) => void;
-    readonly document_set_transferred_at: (a: number, b: number, c: bigint) => void;
-    readonly document_set_transferred_at_block_height: (a: number, b: number, c: bigint) => void;
-    readonly document_set_transferred_at_core_block_height: (a: number, b: number) => void;
-    readonly document_set_updated_at: (a: number, b: number, c: bigint) => void;
-    readonly document_set_updated_at_block_height: (a: number, b: number, c: bigint) => void;
-    readonly document_set_updated_at_core_block_height: (a: number, b: number) => void;
-    readonly document_struct_name: () => [number, number];
-    readonly document_toBase64: (a: number, b: number, c: any) => [number, number, number, number];
-    readonly document_toBytes: (a: number, b: number, c: any) => [number, number, number, number];
-    readonly document_toHex: (a: number, b: number, c: any) => [number, number, number, number];
-    readonly document_toJSON: (a: number, b: any) => [number, number, number];
-    readonly document_toObject: (a: number) => [number, number, number];
-    readonly document_transferred_at: (a: number) => [number, bigint];
-    readonly document_transferred_at_block_height: (a: number) => [number, bigint];
-    readonly document_transferred_at_core_block_height: (a: number) => number;
-    readonly document_type_name: (a: number) => [number, number];
-    readonly document_updated_at: (a: number) => [number, bigint];
-    readonly document_updated_at_block_height: (a: number) => [number, bigint];
-    readonly document_updated_at_core_block_height: (a: number) => number;
-    readonly feestrategystep_deductFromInput: (a: number) => number;
-    readonly feestrategystep_index: (a: number) => number;
-    readonly feestrategystep_isDeductFromInput: (a: number) => number;
-    readonly feestrategystep_isReduceOutput: (a: number) => number;
-    readonly feestrategystep_reduceOutput: (a: number) => number;
-    readonly feestrategystep_struct_name: () => [number, number];
-    readonly feestrategystep_type_name: (a: number) => [number, number];
-    readonly partialidentity_balance: (a: number) => [number, bigint];
-    readonly partialidentity_constructor: (a: any) => [number, number, number];
-    readonly partialidentity_fromJSON: (a: any, b: any) => [number, number, number];
-    readonly partialidentity_fromObject: (a: any, b: any) => [number, number, number];
-    readonly partialidentity_id: (a: number) => number;
-    readonly partialidentity_loaded_public_keys: (a: number) => [number, number, number];
-    readonly partialidentity_not_found_public_keys: (a: number) => any;
-    readonly partialidentity_revision: (a: number) => [number, bigint];
-    readonly partialidentity_set_balance: (a: number, b: number, c: bigint) => void;
-    readonly partialidentity_set_id: (a: number, b: any) => [number, number];
-    readonly partialidentity_set_loaded_public_keys: (a: number, b: any) => [number, number];
-    readonly partialidentity_set_not_found_public_keys: (a: number, b: number) => [number, number];
-    readonly partialidentity_set_revision: (a: number, b: number, c: bigint) => void;
-    readonly partialidentity_struct_name: () => [number, number];
-    readonly partialidentity_toJSON: (a: number) => [number, number, number];
-    readonly partialidentity_toObject: (a: number) => [number, number, number];
-    readonly partialidentity_type_name: (a: number) => [number, number];
-    readonly platformaddress_addressType: (a: number) => [number, number];
-    readonly platformaddress_constructor: (a: any) => [number, number, number];
-    readonly platformaddress_fromBech32m: (a: number, b: number) => [number, number, number];
-    readonly platformaddress_fromBytes: (a: number, b: number) => [number, number, number];
-    readonly platformaddress_fromHex: (a: number, b: number) => [number, number, number];
-    readonly platformaddress_fromP2pkhHash: (a: number, b: number) => [number, number, number];
-    readonly platformaddress_fromP2shHash: (a: number, b: number) => [number, number, number];
-    readonly platformaddress_hash: (a: number) => [number, number];
-    readonly platformaddress_hashToHex: (a: number) => [number, number];
-    readonly platformaddress_isP2pkh: (a: number) => number;
-    readonly platformaddress_isP2sh: (a: number) => number;
-    readonly platformaddress_struct_name: () => [number, number];
-    readonly platformaddress_toBech32m: (a: number, b: any) => [number, number, number, number];
-    readonly platformaddress_toBytes: (a: number) => [number, number];
-    readonly platformaddress_toHex: (a: number) => [number, number];
-    readonly platformaddress_type_name: (a: number) => [number, number];
-    readonly shieldfromassetlocktransition_actions: (a: number) => [number, number];
-    readonly shieldfromassetlocktransition_anchor: (a: number) => [number, number];
-    readonly shieldfromassetlocktransition_asset_lock_proof: (a: number) => number;
-    readonly shieldfromassetlocktransition_binding_signature: (a: number) => [number, number];
-    readonly shieldfromassetlocktransition_fromBytes: (a: number, b: number) => [number, number, number];
-    readonly shieldfromassetlocktransition_fromJSON: (a: any) => [number, number, number];
-    readonly shieldfromassetlocktransition_fromObject: (a: any) => [number, number, number];
-    readonly shieldfromassetlocktransition_getModifiedDataIds: (a: number) => [number, number];
-    readonly shieldfromassetlocktransition_new: (a: any) => [number, number, number];
-    readonly shieldfromassetlocktransition_proof: (a: number) => [number, number];
-    readonly shieldfromassetlocktransition_signature: (a: number) => [number, number];
-    readonly shieldfromassetlocktransition_struct_name: () => [number, number];
-    readonly shieldfromassetlocktransition_surplus_output: (a: number) => number;
-    readonly shieldfromassetlocktransition_toBytes: (a: number) => [number, number, number, number];
-    readonly shieldfromassetlocktransition_toJSON: (a: number) => [number, number, number];
-    readonly shieldfromassetlocktransition_toObject: (a: number) => [number, number, number];
-    readonly shieldfromassetlocktransition_toStateTransition: (a: number) => number;
-    readonly shieldfromassetlocktransition_type_name: (a: number) => [number, number];
-    readonly shieldfromassetlocktransition_value_balance: (a: number) => bigint;
-    readonly verifiedtokenactionwithdocument_fromJSON: (a: any) => [number, number, number];
-    readonly verifiedtokenactionwithdocument_fromObject: (a: any) => [number, number, number];
-    readonly verifiedtokenactionwithdocument_struct_name: () => [number, number];
-    readonly verifiedtokenactionwithdocument_toJSON: (a: number) => [number, number, number];
-    readonly verifiedtokenactionwithdocument_toObject: (a: number) => [number, number, number];
-    readonly verifiedtokenactionwithdocument_type_name: (a: number) => [number, number];
-    readonly verifiedtokenbalance_balance: (a: number) => any;
-    readonly verifiedtokenbalance_fromJSON: (a: any) => [number, number, number];
-    readonly verifiedtokenbalance_fromObject: (a: any) => [number, number, number];
-    readonly verifiedtokenbalance_struct_name: () => [number, number];
-    readonly verifiedtokenbalance_toJSON: (a: number) => [number, number, number];
-    readonly verifiedtokenbalance_toObject: (a: number) => [number, number, number];
-    readonly verifiedtokenbalance_type_name: (a: number) => [number, number];
-    readonly verifiedtokenbalanceabsence_fromJSON: (a: any) => [number, number, number];
-    readonly verifiedtokenbalanceabsence_fromObject: (a: any) => [number, number, number];
-    readonly verifiedtokenbalanceabsence_struct_name: () => [number, number];
-    readonly verifiedtokenbalanceabsence_toJSON: (a: number) => [number, number, number];
-    readonly verifiedtokenbalanceabsence_toObject: (a: number) => [number, number, number];
-    readonly verifiedtokenbalanceabsence_type_name: (a: number) => [number, number];
-    readonly verifiedtokengroupactionwithdocument_fromJSON: (a: any) => [number, number, number];
-    readonly verifiedtokengroupactionwithdocument_fromObject: (a: any) => [number, number, number];
-    readonly verifiedtokengroupactionwithdocument_struct_name: () => [number, number];
-    readonly verifiedtokengroupactionwithdocument_toJSON: (a: number) => [number, number, number];
-    readonly verifiedtokengroupactionwithdocument_toObject: (a: number) => [number, number, number];
-    readonly verifiedtokengroupactionwithdocument_type_name: (a: number) => [number, number];
-    readonly verifiedtokengroupactionwithtokenbalance_balance: (a: number) => any;
-    readonly verifiedtokengroupactionwithtokenbalance_fromJSON: (a: any) => [number, number, number];
-    readonly verifiedtokengroupactionwithtokenbalance_fromObject: (a: any) => [number, number, number];
-    readonly verifiedtokengroupactionwithtokenbalance_struct_name: () => [number, number];
-    readonly verifiedtokengroupactionwithtokenbalance_toJSON: (a: number) => [number, number, number];
-    readonly verifiedtokengroupactionwithtokenbalance_toObject: (a: number) => [number, number, number];
-    readonly verifiedtokengroupactionwithtokenbalance_type_name: (a: number) => [number, number];
-    readonly verifiedtokengroupactionwithtokenidentityinfo_fromJSON: (a: any) => [number, number, number];
-    readonly verifiedtokengroupactionwithtokenidentityinfo_fromObject: (a: any) => [number, number, number];
-    readonly verifiedtokengroupactionwithtokenidentityinfo_struct_name: () => [number, number];
-    readonly verifiedtokengroupactionwithtokenidentityinfo_toJSON: (a: number) => [number, number, number];
-    readonly verifiedtokengroupactionwithtokenidentityinfo_toObject: (a: number) => [number, number, number];
-    readonly verifiedtokengroupactionwithtokenidentityinfo_type_name: (a: number) => [number, number];
-    readonly verifiedtokengroupactionwithtokenpricingschedule_fromJSON: (a: any) => [number, number, number];
-    readonly verifiedtokengroupactionwithtokenpricingschedule_fromObject: (a: any) => [number, number, number];
-    readonly verifiedtokengroupactionwithtokenpricingschedule_struct_name: () => [number, number];
-    readonly verifiedtokengroupactionwithtokenpricingschedule_toJSON: (a: number) => [number, number, number];
-    readonly verifiedtokengroupactionwithtokenpricingschedule_toObject: (a: number) => [number, number, number];
-    readonly verifiedtokengroupactionwithtokenpricingschedule_type_name: (a: number) => [number, number];
-    readonly verifiedtokenidentitiesbalances_balances: (a: number) => any;
-    readonly verifiedtokenidentitiesbalances_fromJSON: (a: any) => [number, number, number];
-    readonly verifiedtokenidentitiesbalances_fromObject: (a: any) => [number, number, number];
-    readonly verifiedtokenidentitiesbalances_struct_name: () => [number, number];
-    readonly verifiedtokenidentitiesbalances_toJSON: (a: number) => [number, number, number];
-    readonly verifiedtokenidentitiesbalances_toObject: (a: number) => any;
-    readonly verifiedtokenidentitiesbalances_type_name: (a: number) => [number, number];
-    readonly verifiedtokenidentityinfo_fromJSON: (a: any) => [number, number, number];
-    readonly verifiedtokenidentityinfo_fromObject: (a: any) => [number, number, number];
-    readonly verifiedtokenidentityinfo_struct_name: () => [number, number];
-    readonly verifiedtokenidentityinfo_toJSON: (a: number) => [number, number, number];
-    readonly verifiedtokenidentityinfo_toObject: (a: number) => [number, number, number];
-    readonly verifiedtokenidentityinfo_type_name: (a: number) => [number, number];
-    readonly verifiedtokenpricingschedule_fromJSON: (a: any) => [number, number, number];
-    readonly verifiedtokenpricingschedule_fromObject: (a: any) => [number, number, number];
-    readonly verifiedtokenpricingschedule_struct_name: () => [number, number];
-    readonly verifiedtokenpricingschedule_toJSON: (a: number) => [number, number, number];
-    readonly verifiedtokenpricingschedule_toObject: (a: number) => [number, number, number];
-    readonly verifiedtokenpricingschedule_type_name: (a: number) => [number, number];
-    readonly verifiedtokenstatus_fromJSON: (a: any) => [number, number, number];
-    readonly verifiedtokenstatus_fromObject: (a: any) => [number, number, number];
-    readonly verifiedtokenstatus_struct_name: () => [number, number];
-    readonly verifiedtokenstatus_toJSON: (a: number) => [number, number, number];
-    readonly verifiedtokenstatus_toObject: (a: number) => [number, number, number];
-    readonly verifiedtokenstatus_type_name: (a: number) => [number, number];
-    readonly wasmdpperror_code: (a: number) => number;
-    readonly wasmdpperror_kind: (a: number) => number;
-    readonly wasmdpperror_message: (a: number) => [number, number];
-    readonly wasmdpperror_name: (a: number) => [number, number];
-    readonly __wbg_set_verifiedtokenpricingschedule_pricingSchedule: (a: number, b: number) => void;
-    readonly __wbg_set_verifiedtokengroupactionwithtokenpricingschedule_groupPower: (a: number, b: number) => void;
-    readonly __wbg_set_verifiedtokengroupactionwithtokenpricingschedule_actionStatus: (a: number, b: number, c: number) => void;
-    readonly __wbg_consensuserror_free: (a: number, b: number) => void;
+    readonly tokendistributionrecipient_ContractOwner: () => number;
+    readonly __wbg_blockbaseddistribution_free: (a: number, b: number) => void;
     readonly __wbg_contesteddocumentvotepollwinnerinfo_free: (a: number, b: number) => void;
-    readonly __wbg_documentbasetransition_free: (a: number, b: number) => void;
-    readonly __wbg_documentcreatetransition_free: (a: number, b: number) => void;
-    readonly __wbg_documentdeletetransition_free: (a: number, b: number) => void;
-    readonly __wbg_documentreplacetransition_free: (a: number, b: number) => void;
-    readonly __wbg_documentupdatepricetransition_free: (a: number, b: number) => void;
-    readonly __wbg_finalizedepochinfo_free: (a: number, b: number) => void;
-    readonly __wbg_group_free: (a: number, b: number) => void;
-    readonly __wbg_groupstatetransitioninfostatus_free: (a: number, b: number) => void;
-    readonly __wbg_identitypublickeyincreation_free: (a: number, b: number) => void;
-    readonly __wbg_tokenpaymentinfo_free: (a: number, b: number) => void;
-    readonly __wbg_tokenstatus_free: (a: number, b: number) => void;
-    readonly __wbg_unshieldtransition_free: (a: number, b: number) => void;
-    readonly __wbg_verifieddocuments_free: (a: number, b: number) => void;
-    readonly __wbg_votepoll_free: (a: number, b: number) => void;
-    readonly computePlatformSighash: (a: number, b: number, c: number, d: number) => [number, number, number, number];
-    readonly consensuserror_deserialize: (a: number, b: number) => [number, number, number];
-    readonly consensuserror_message: (a: number) => [number, number];
-    readonly consensuserror_struct_name: () => [number, number];
-    readonly consensuserror_type_name: (a: number) => [number, number];
+    readonly __wbg_epochbaseddistribution_free: (a: number, b: number) => void;
+    readonly __wbg_get_blockbaseddistribution_interval: (a: number) => bigint;
+    readonly __wbg_get_epochbaseddistribution_interval: (a: number) => number;
+    readonly __wbg_get_timebaseddistribution_interval: (a: number) => bigint;
+    readonly __wbg_groupaction_free: (a: number, b: number) => void;
+    readonly __wbg_groupactionevent_free: (a: number, b: number) => void;
+    readonly __wbg_identitycreatefromaddressestransition_free: (a: number, b: number) => void;
+    readonly __wbg_identitytopupfromaddressestransition_free: (a: number, b: number) => void;
+    readonly __wbg_platformaddress_free: (a: number, b: number) => void;
+    readonly __wbg_rewarddistributiontype_free: (a: number, b: number) => void;
+    readonly __wbg_set_blockbaseddistribution_interval: (a: number, b: bigint) => void;
+    readonly __wbg_set_epochbaseddistribution_interval: (a: number, b: number) => void;
+    readonly __wbg_shieldedtransfertransition_free: (a: number, b: number) => void;
+    readonly __wbg_timebaseddistribution_free: (a: number, b: number) => void;
+    readonly __wbg_tokenclaimtransition_free: (a: number, b: number) => void;
+    readonly __wbg_tokenconfigupdatetransition_free: (a: number, b: number) => void;
+    readonly __wbg_tokenconfigurationchangeitem_free: (a: number, b: number) => void;
+    readonly __wbg_tokenevent_free: (a: number, b: number) => void;
+    readonly __wbg_tokenfreezetransition_free: (a: number, b: number) => void;
+    readonly __wbg_tokenpricingschedule_free: (a: number, b: number) => void;
+    readonly blockbaseddistribution_function: (a: number) => number;
+    readonly blockbaseddistribution_set_function: (a: number, b: number) => void;
+    readonly blockbaseddistribution_struct_name: () => [number, number];
+    readonly blockbaseddistribution_type_name: (a: number) => [number, number];
     readonly contesteddocumentvotepollwinnerinfo_constructor: (a: number, b: number, c: number) => [number, number, number];
     readonly contesteddocumentvotepollwinnerinfo_fromJSON: (a: any) => [number, number, number];
     readonly contesteddocumentvotepollwinnerinfo_fromObject: (a: any) => [number, number, number];
@@ -11998,267 +14351,30 @@ export interface InitOutput {
     readonly contesteddocumentvotepollwinnerinfo_toJSON: (a: number) => [number, number, number];
     readonly contesteddocumentvotepollwinnerinfo_toObject: (a: number) => [number, number, number];
     readonly contesteddocumentvotepollwinnerinfo_type_name: (a: number) => [number, number];
-    readonly documentbasetransition_constructor: (a: any) => [number, number, number];
-    readonly documentbasetransition_data_contract_id: (a: number) => number;
-    readonly documentbasetransition_document_type_name: (a: number) => [number, number];
-    readonly documentbasetransition_id: (a: number) => number;
-    readonly documentbasetransition_identity_contract_nonce: (a: number) => bigint;
-    readonly documentbasetransition_set_data_contract_id: (a: number, b: any) => [number, number];
-    readonly documentbasetransition_set_document_type_name: (a: number, b: number, c: number) => void;
-    readonly documentbasetransition_set_id: (a: number, b: any) => [number, number];
-    readonly documentbasetransition_set_identity_contract_nonce: (a: number, b: any) => [number, number];
-    readonly documentbasetransition_set_token_payment_info: (a: number, b: number) => void;
-    readonly documentbasetransition_struct_name: () => [number, number];
-    readonly documentbasetransition_token_payment_info: (a: number) => number;
-    readonly documentbasetransition_type_name: (a: number) => [number, number];
-    readonly documentcreatetransition_base: (a: number) => number;
-    readonly documentcreatetransition_clearPrefundedVotingBalance: (a: number) => void;
-    readonly documentcreatetransition_constructor: (a: any) => [number, number, number];
-    readonly documentcreatetransition_data: (a: number) => [number, number, number];
-    readonly documentcreatetransition_entropy: (a: number) => [number, number];
-    readonly documentcreatetransition_fromDocumentTransition: (a: number) => [number, number, number];
-    readonly documentcreatetransition_prefunded_voting_balance: (a: number) => number;
-    readonly documentcreatetransition_set_base: (a: number, b: number) => void;
-    readonly documentcreatetransition_set_data: (a: number, b: any) => [number, number];
-    readonly documentcreatetransition_set_entropy: (a: number, b: number, c: number) => [number, number];
-    readonly documentcreatetransition_set_prefunded_voting_balance: (a: number, b: number) => void;
-    readonly documentcreatetransition_struct_name: () => [number, number];
-    readonly documentcreatetransition_toDocumentTransition: (a: number) => number;
-    readonly documentcreatetransition_type_name: (a: number) => [number, number];
-    readonly documentdeletetransition_base: (a: number) => number;
-    readonly documentdeletetransition_constructor: (a: any) => [number, number, number];
-    readonly documentdeletetransition_fromDocumentTransition: (a: number) => [number, number, number];
-    readonly documentdeletetransition_set_base: (a: number, b: number) => void;
-    readonly documentdeletetransition_struct_name: () => [number, number];
-    readonly documentdeletetransition_toDocumentTransition: (a: number) => number;
-    readonly documentdeletetransition_type_name: (a: number) => [number, number];
-    readonly documentreplacetransition_base: (a: number) => number;
-    readonly documentreplacetransition_constructor: (a: any) => [number, number, number];
-    readonly documentreplacetransition_data: (a: number) => [number, number, number];
-    readonly documentreplacetransition_fromDocumentTransition: (a: number) => [number, number, number];
-    readonly documentreplacetransition_revision: (a: number) => bigint;
-    readonly documentreplacetransition_set_base: (a: number, b: number) => void;
-    readonly documentreplacetransition_set_data: (a: number, b: any) => [number, number];
-    readonly documentreplacetransition_set_revision: (a: number, b: any) => [number, number];
-    readonly documentreplacetransition_struct_name: () => [number, number];
-    readonly documentreplacetransition_toDocumentTransition: (a: number) => number;
-    readonly documentreplacetransition_type_name: (a: number) => [number, number];
-    readonly documentupdatepricetransition_base: (a: number) => number;
-    readonly documentupdatepricetransition_constructor: (a: any) => [number, number, number];
-    readonly documentupdatepricetransition_fromDocumentTransition: (a: number) => [number, number, number];
-    readonly documentupdatepricetransition_price: (a: number) => bigint;
-    readonly documentupdatepricetransition_set_base: (a: number, b: number) => void;
-    readonly documentupdatepricetransition_set_price: (a: number, b: any) => [number, number];
-    readonly documentupdatepricetransition_struct_name: () => [number, number];
-    readonly documentupdatepricetransition_toDocumentTransition: (a: number) => number;
-    readonly documentupdatepricetransition_type_name: (a: number) => [number, number];
-    readonly finalizedepochinfo_block_proposers: (a: number) => any;
-    readonly finalizedepochinfo_constructor: (a: any) => [number, number, number];
-    readonly finalizedepochinfo_core_block_rewards: (a: number) => any;
-    readonly finalizedepochinfo_fee_multiplier: (a: number) => number;
-    readonly finalizedepochinfo_fee_multiplier_permille: (a: number) => bigint;
-    readonly finalizedepochinfo_first_block_height: (a: number) => any;
-    readonly finalizedepochinfo_first_block_time: (a: number) => any;
-    readonly finalizedepochinfo_first_core_block_height: (a: number) => number;
-    readonly finalizedepochinfo_fromJSON: (a: any) => [number, number, number];
-    readonly finalizedepochinfo_fromObject: (a: any) => [number, number, number];
-    readonly finalizedepochinfo_next_epoch_start_core_block_height: (a: number) => number;
-    readonly finalizedepochinfo_protocol_version: (a: number) => number;
-    readonly finalizedepochinfo_set_block_proposers: (a: number, b: any) => [number, number];
-    readonly finalizedepochinfo_set_core_block_rewards: (a: number, b: bigint) => void;
-    readonly finalizedepochinfo_set_fee_multiplier_permille: (a: number, b: bigint) => void;
-    readonly finalizedepochinfo_set_first_block_height: (a: number, b: bigint) => void;
-    readonly finalizedepochinfo_set_first_block_time: (a: number, b: bigint) => void;
-    readonly finalizedepochinfo_set_first_core_block_height: (a: number, b: number) => void;
-    readonly finalizedepochinfo_set_next_epoch_start_core_block_height: (a: number, b: number) => void;
-    readonly finalizedepochinfo_set_protocol_version: (a: number, b: number) => void;
-    readonly finalizedepochinfo_set_total_blocks_in_epoch: (a: number, b: bigint) => void;
-    readonly finalizedepochinfo_set_total_created_storage_fees: (a: number, b: bigint) => void;
-    readonly finalizedepochinfo_set_total_distributed_storage_fees: (a: number, b: bigint) => void;
-    readonly finalizedepochinfo_set_total_processing_fees: (a: number, b: bigint) => void;
-    readonly finalizedepochinfo_struct_name: () => [number, number];
-    readonly finalizedepochinfo_toJSON: (a: number) => [number, number, number];
-    readonly finalizedepochinfo_toObject: (a: number) => [number, number, number];
-    readonly finalizedepochinfo_total_blocks_in_epoch: (a: number) => any;
-    readonly finalizedepochinfo_total_created_storage_fees: (a: number) => any;
-    readonly finalizedepochinfo_total_distributed_storage_fees: (a: number) => any;
-    readonly finalizedepochinfo_total_processing_fees: (a: number) => any;
-    readonly finalizedepochinfo_type_name: (a: number) => [number, number];
-    readonly group_constructor: (a: any, b: number) => [number, number, number];
-    readonly group_fromJSON: (a: any) => [number, number, number];
-    readonly group_fromObject: (a: any) => [number, number, number];
-    readonly group_members: (a: number) => [number, number, number];
-    readonly group_required_power: (a: number) => number;
-    readonly group_setMemberRequiredPower: (a: number, b: any, c: number) => [number, number];
-    readonly group_set_members: (a: number, b: any) => [number, number];
-    readonly group_set_required_power: (a: number, b: number) => void;
-    readonly group_struct_name: () => [number, number];
-    readonly group_toJSON: (a: number) => [number, number, number];
-    readonly group_toObject: (a: number) => [number, number, number];
-    readonly group_type_name: (a: number) => [number, number];
-    readonly groupstatetransitioninfostatus_action_id: (a: number) => number;
-    readonly groupstatetransitioninfostatus_group_contract_position: (a: number) => number;
-    readonly groupstatetransitioninfostatus_is_proposer: (a: number) => number;
-    readonly groupstatetransitioninfostatus_otherSigner: (a: number, b: any) => [number, number, number];
-    readonly groupstatetransitioninfostatus_proposer: (a: number) => number;
-    readonly groupstatetransitioninfostatus_struct_name: () => [number, number];
-    readonly groupstatetransitioninfostatus_toInfo: (a: number) => number;
-    readonly groupstatetransitioninfostatus_type_name: (a: number) => [number, number];
-    readonly identitypublickeyincreation_constructor: (a: any) => [number, number, number];
-    readonly identitypublickeyincreation_contract_bounds: (a: number) => number;
-    readonly identitypublickeyincreation_data: (a: number) => [number, number];
-    readonly identitypublickeyincreation_fromJSON: (a: any) => [number, number, number];
-    readonly identitypublickeyincreation_fromObject: (a: any) => [number, number, number];
-    readonly identitypublickeyincreation_getHash: (a: number) => [number, number, number, number];
-    readonly identitypublickeyincreation_is_read_only: (a: number) => number;
-    readonly identitypublickeyincreation_key_id: (a: number) => number;
-    readonly identitypublickeyincreation_key_type: (a: number) => [number, number];
-    readonly identitypublickeyincreation_purpose: (a: number) => [number, number];
-    readonly identitypublickeyincreation_security_level: (a: number) => [number, number];
-    readonly identitypublickeyincreation_set_contract_bounds: (a: number, b: number) => void;
-    readonly identitypublickeyincreation_set_data: (a: number, b: number, c: number) => void;
-    readonly identitypublickeyincreation_set_is_read_only: (a: number, b: number) => void;
-    readonly identitypublickeyincreation_set_key_id: (a: number, b: any) => [number, number];
-    readonly identitypublickeyincreation_set_key_type: (a: number, b: any) => [number, number];
-    readonly identitypublickeyincreation_set_purpose: (a: number, b: any) => [number, number];
-    readonly identitypublickeyincreation_set_security_level: (a: number, b: any) => [number, number];
-    readonly identitypublickeyincreation_set_signature: (a: number, b: number, c: number) => void;
-    readonly identitypublickeyincreation_signature: (a: number) => [number, number];
-    readonly identitypublickeyincreation_struct_name: () => [number, number];
-    readonly identitypublickeyincreation_toIdentityPublicKey: (a: number) => number;
-    readonly identitypublickeyincreation_toJSON: (a: number) => [number, number, number];
-    readonly identitypublickeyincreation_toObject: (a: number) => [number, number, number];
-    readonly identitypublickeyincreation_type_name: (a: number) => [number, number];
-    readonly tokenpaymentinfo_constructor: (a: any) => [number, number, number];
-    readonly tokenpaymentinfo_fromJSON: (a: any) => [number, number, number];
-    readonly tokenpaymentinfo_fromObject: (a: any) => [number, number, number];
-    readonly tokenpaymentinfo_gas_fees_paid_by: (a: number) => [number, number];
-    readonly tokenpaymentinfo_maximum_token_cost: (a: number) => [number, bigint];
-    readonly tokenpaymentinfo_minimum_token_cost: (a: number) => [number, bigint];
-    readonly tokenpaymentinfo_payment_token_contract_id: (a: number) => number;
-    readonly tokenpaymentinfo_set_gas_fees_paid_by: (a: number, b: any) => [number, number];
-    readonly tokenpaymentinfo_set_maximum_token_cost: (a: number, b: number, c: bigint) => void;
-    readonly tokenpaymentinfo_set_minimum_token_cost: (a: number, b: number, c: bigint) => void;
-    readonly tokenpaymentinfo_set_payment_token_contract_id: (a: number, b: any) => [number, number];
-    readonly tokenpaymentinfo_set_token_contract_position: (a: number, b: number) => void;
-    readonly tokenpaymentinfo_struct_name: () => [number, number];
-    readonly tokenpaymentinfo_toJSON: (a: number) => [number, number, number];
-    readonly tokenpaymentinfo_toObject: (a: number) => [number, number, number];
-    readonly tokenpaymentinfo_token_contract_position: (a: number) => number;
-    readonly tokenpaymentinfo_type_name: (a: number) => [number, number];
-    readonly tokenstatus_is_paused: (a: number) => number;
-    readonly tokenstatus_struct_name: () => [number, number];
-    readonly tokenstatus_type_name: (a: number) => [number, number];
-    readonly unshieldtransition_actions: (a: number) => [number, number];
-    readonly unshieldtransition_anchor: (a: number) => [number, number];
-    readonly unshieldtransition_binding_signature: (a: number) => [number, number];
-    readonly unshieldtransition_fromBytes: (a: number, b: number) => [number, number, number];
-    readonly unshieldtransition_fromJSON: (a: any) => [number, number, number];
-    readonly unshieldtransition_fromObject: (a: any) => [number, number, number];
-    readonly unshieldtransition_getModifiedDataIds: (a: number) => [number, number];
-    readonly unshieldtransition_new: (a: any) => [number, number, number];
-    readonly unshieldtransition_output_address: (a: number) => number;
-    readonly unshieldtransition_proof: (a: number) => [number, number];
-    readonly unshieldtransition_struct_name: () => [number, number];
-    readonly unshieldtransition_toBytes: (a: number) => [number, number, number, number];
-    readonly unshieldtransition_toJSON: (a: number) => [number, number, number];
-    readonly unshieldtransition_toObject: (a: number) => [number, number, number];
-    readonly unshieldtransition_toStateTransition: (a: number) => number;
-    readonly unshieldtransition_type_name: (a: number) => [number, number];
-    readonly unshieldtransition_unshielding_amount: (a: number) => bigint;
-    readonly verifieddocuments_documents: (a: number) => any;
-    readonly verifieddocuments_fromJSON: (a: any) => [number, number, number];
-    readonly verifieddocuments_fromObject: (a: any) => [number, number, number];
-    readonly verifieddocuments_struct_name: () => [number, number];
-    readonly verifieddocuments_toJSON: (a: number) => [number, number, number];
-    readonly verifieddocuments_toObject: (a: number) => any;
-    readonly verifieddocuments_type_name: (a: number) => [number, number];
-    readonly votepoll_constructor: (a: any) => [number, number, number];
-    readonly votepoll_contract_id: (a: number) => number;
-    readonly votepoll_document_type_name: (a: number) => [number, number];
-    readonly votepoll_fromJSON: (a: any) => [number, number, number];
-    readonly votepoll_fromObject: (a: any) => [number, number, number];
-    readonly votepoll_index_name: (a: number) => [number, number];
-    readonly votepoll_index_values: (a: number) => [number, number, number];
-    readonly votepoll_set_contract_id: (a: number, b: any) => [number, number];
-    readonly votepoll_set_document_type_name: (a: number, b: number, c: number) => void;
-    readonly votepoll_set_index_name: (a: number, b: number, c: number) => void;
-    readonly votepoll_set_index_values: (a: number, b: any) => [number, number];
-    readonly votepoll_struct_name: () => [number, number];
-    readonly votepoll_toJSON: (a: number) => [number, number, number];
-    readonly votepoll_toObject: (a: number) => [number, number, number];
-    readonly votepoll_toString: (a: number) => [number, number];
-    readonly votepoll_type_name: (a: number) => [number, number];
-    readonly __wbg_addressfundingfromassetlocktransition_free: (a: number, b: number) => void;
-    readonly __wbg_chainassetlockproof_free: (a: number, b: number) => void;
-    readonly __wbg_contractbounds_free: (a: number, b: number) => void;
-    readonly __wbg_get_verifiedmasternodevote_vote: (a: number) => number;
-    readonly __wbg_get_verifiednextdistribution_vote: (a: number) => number;
-    readonly __wbg_identitycreatefromaddressestransition_free: (a: number, b: number) => void;
-    readonly __wbg_identitycreatefromshieldedpooltransition_free: (a: number, b: number) => void;
-    readonly __wbg_identitycreatetransition_free: (a: number, b: number) => void;
-    readonly __wbg_identitytopuptransition_free: (a: number, b: number) => void;
-    readonly __wbg_outpoint_free: (a: number, b: number) => void;
-    readonly __wbg_protxhash_free: (a: number, b: number) => void;
-    readonly __wbg_publickey_free: (a: number, b: number) => void;
-    readonly __wbg_resourcevotechoice_free: (a: number, b: number) => void;
-    readonly __wbg_set_verifiedmasternodevote_vote: (a: number, b: number) => void;
-    readonly __wbg_tokenkeepshistoryrules_free: (a: number, b: number) => void;
-    readonly __wbg_tokentransfertransition_free: (a: number, b: number) => void;
-    readonly __wbg_verifiedmasternodevote_free: (a: number, b: number) => void;
-    readonly __wbg_verifiednextdistribution_free: (a: number, b: number) => void;
-    readonly addressfundingfromassetlocktransition_asset_lock_proof: (a: number) => number;
-    readonly addressfundingfromassetlocktransition_constructor: (a: any) => [number, number, number];
-    readonly addressfundingfromassetlocktransition_fromBase64: (a: number, b: number) => [number, number, number];
-    readonly addressfundingfromassetlocktransition_fromBytes: (a: number, b: number) => [number, number, number];
-    readonly addressfundingfromassetlocktransition_fromHex: (a: number, b: number) => [number, number, number];
-    readonly addressfundingfromassetlocktransition_fromJSON: (a: any) => [number, number, number];
-    readonly addressfundingfromassetlocktransition_fromObject: (a: any) => [number, number, number];
-    readonly addressfundingfromassetlocktransition_fromStateTransition: (a: number) => [number, number, number];
-    readonly addressfundingfromassetlocktransition_inputs: (a: number) => [number, number];
-    readonly addressfundingfromassetlocktransition_outputs: (a: number) => [number, number];
-    readonly addressfundingfromassetlocktransition_set_asset_lock_proof: (a: number, b: number) => void;
-    readonly addressfundingfromassetlocktransition_set_inputs: (a: number, b: number, c: number) => [number, number];
-    readonly addressfundingfromassetlocktransition_set_outputs: (a: number, b: number, c: number) => [number, number];
-    readonly addressfundingfromassetlocktransition_set_user_fee_increase: (a: number, b: any) => [number, number];
-    readonly addressfundingfromassetlocktransition_struct_name: () => [number, number];
-    readonly addressfundingfromassetlocktransition_toBase64: (a: number) => [number, number, number, number];
-    readonly addressfundingfromassetlocktransition_toBytes: (a: number) => [number, number, number, number];
-    readonly addressfundingfromassetlocktransition_toHex: (a: number) => [number, number, number, number];
-    readonly addressfundingfromassetlocktransition_toJSON: (a: number) => [number, number, number];
-    readonly addressfundingfromassetlocktransition_toObject: (a: number) => [number, number, number];
-    readonly addressfundingfromassetlocktransition_toStateTransition: (a: number) => number;
-    readonly addressfundingfromassetlocktransition_type_name: (a: number) => [number, number];
-    readonly addressfundingfromassetlocktransition_user_fee_increase: (a: number) => number;
-    readonly chainassetlockproof_constructor: (a: number, b: number) => [number, number, number];
-    readonly chainassetlockproof_core_chain_locked_height: (a: number) => number;
-    readonly chainassetlockproof_createIdentityId: (a: number) => number;
-    readonly chainassetlockproof_fromBytes: (a: number, b: number) => [number, number, number];
-    readonly chainassetlockproof_fromJSON: (a: any) => [number, number, number];
-    readonly chainassetlockproof_fromObject: (a: any) => [number, number, number];
-    readonly chainassetlockproof_out_point: (a: number) => number;
-    readonly chainassetlockproof_set_core_chain_locked_height: (a: number, b: number) => void;
-    readonly chainassetlockproof_set_out_point: (a: number, b: number) => void;
-    readonly chainassetlockproof_struct_name: () => [number, number];
-    readonly chainassetlockproof_toBytes: (a: number) => [number, number, number, number];
-    readonly chainassetlockproof_toJSON: (a: number) => [number, number, number];
-    readonly chainassetlockproof_toObject: (a: number) => [number, number, number];
-    readonly chainassetlockproof_type_name: (a: number) => [number, number];
-    readonly contractbounds_SingleContract: (a: any) => [number, number, number];
-    readonly contractbounds_SingleContractDocumentType: (a: any, b: number, c: number) => [number, number, number];
-    readonly contractbounds_constructor: (a: any, b: number, c: number) => [number, number, number];
-    readonly contractbounds_contract_bounds_type: (a: number) => [number, number];
-    readonly contractbounds_contract_bounds_type_number: (a: number) => number;
-    readonly contractbounds_document_type_name: (a: number) => [number, number];
-    readonly contractbounds_fromJSON: (a: any) => [number, number, number];
-    readonly contractbounds_fromObject: (a: any) => [number, number, number];
-    readonly contractbounds_id: (a: number) => number;
-    readonly contractbounds_set_document_type_name: (a: number, b: number, c: number) => void;
-    readonly contractbounds_set_id: (a: number, b: any) => [number, number];
-    readonly contractbounds_struct_name: () => [number, number];
-    readonly contractbounds_toJSON: (a: number) => [number, number, number];
-    readonly contractbounds_toObject: (a: number) => [number, number, number];
-    readonly contractbounds_type_name: (a: number) => [number, number];
+    readonly epochbaseddistribution_function: (a: number) => number;
+    readonly epochbaseddistribution_set_function: (a: number, b: number) => void;
+    readonly epochbaseddistribution_struct_name: () => [number, number];
+    readonly epochbaseddistribution_type_name: (a: number) => [number, number];
+    readonly groupaction_contract_id: (a: number) => number;
+    readonly groupaction_event: (a: number) => number;
+    readonly groupaction_fromJSON: (a: any) => [number, number, number];
+    readonly groupaction_fromObject: (a: any) => [number, number, number];
+    readonly groupaction_proposer_id: (a: number) => number;
+    readonly groupaction_struct_name: () => [number, number];
+    readonly groupaction_toJSON: (a: number) => [number, number, number];
+    readonly groupaction_toObject: (a: number) => [number, number, number];
+    readonly groupaction_token_contract_position: (a: number) => number;
+    readonly groupaction_type_name: (a: number) => [number, number];
+    readonly groupactionevent_eventName: (a: number) => [number, number];
+    readonly groupactionevent_fromJSON: (a: any) => [number, number, number];
+    readonly groupactionevent_fromObject: (a: any) => [number, number, number];
+    readonly groupactionevent_publicNote: (a: number) => [number, number];
+    readonly groupactionevent_struct_name: () => [number, number];
+    readonly groupactionevent_toJSON: (a: number) => [number, number, number];
+    readonly groupactionevent_toObject: (a: number) => [number, number, number];
+    readonly groupactionevent_tokenEvent: (a: number) => number;
+    readonly groupactionevent_type_name: (a: number) => [number, number];
+    readonly groupactionevent_variant: (a: number) => number;
     readonly identitycreatefromaddressestransition_constructor: (a: any) => [number, number, number];
     readonly identitycreatefromaddressestransition_fromBase64: (a: number, b: number) => [number, number, number];
     readonly identitycreatefromaddressestransition_fromBytes: (a: number, b: number) => [number, number, number];
@@ -12282,802 +14398,6 @@ export interface InitOutput {
     readonly identitycreatefromaddressestransition_toStateTransition: (a: number) => number;
     readonly identitycreatefromaddressestransition_type_name: (a: number) => [number, number];
     readonly identitycreatefromaddressestransition_user_fee_increase: (a: number) => number;
-    readonly identitycreatefromshieldedpooltransition_actions: (a: number) => [number, number];
-    readonly identitycreatefromshieldedpooltransition_anchor: (a: number) => [number, number];
-    readonly identitycreatefromshieldedpooltransition_binding_signature: (a: number) => [number, number];
-    readonly identitycreatefromshieldedpooltransition_denomination: (a: number) => bigint;
-    readonly identitycreatefromshieldedpooltransition_fromBytes: (a: number, b: number) => [number, number, number];
-    readonly identitycreatefromshieldedpooltransition_fromJSON: (a: any) => [number, number, number];
-    readonly identitycreatefromshieldedpooltransition_fromObject: (a: any) => [number, number, number];
-    readonly identitycreatefromshieldedpooltransition_getModifiedDataIds: (a: number) => [number, number];
-    readonly identitycreatefromshieldedpooltransition_identity_id: (a: number) => number;
-    readonly identitycreatefromshieldedpooltransition_new: (a: any) => [number, number, number];
-    readonly identitycreatefromshieldedpooltransition_proof: (a: number) => [number, number];
-    readonly identitycreatefromshieldedpooltransition_public_keys: (a: number) => [number, number];
-    readonly identitycreatefromshieldedpooltransition_send_to_address_on_creation_failure: (a: number) => number;
-    readonly identitycreatefromshieldedpooltransition_struct_name: () => [number, number];
-    readonly identitycreatefromshieldedpooltransition_toBytes: (a: number) => [number, number, number, number];
-    readonly identitycreatefromshieldedpooltransition_toJSON: (a: number) => [number, number, number];
-    readonly identitycreatefromshieldedpooltransition_toObject: (a: number) => [number, number, number];
-    readonly identitycreatefromshieldedpooltransition_toStateTransition: (a: number) => number;
-    readonly identitycreatefromshieldedpooltransition_type_name: (a: number) => [number, number];
-    readonly identitycreatetransition_asset_lock_proof: (a: number) => number;
-    readonly identitycreatetransition_constructor: (a: any) => [number, number, number];
-    readonly identitycreatetransition_default: (a: any) => [number, number, number];
-    readonly identitycreatetransition_fromBase64: (a: number, b: number) => [number, number, number];
-    readonly identitycreatetransition_fromBytes: (a: number, b: number) => [number, number, number];
-    readonly identitycreatetransition_fromHex: (a: number, b: number) => [number, number, number];
-    readonly identitycreatetransition_fromJSON: (a: any) => [number, number, number];
-    readonly identitycreatetransition_fromObject: (a: any) => [number, number, number];
-    readonly identitycreatetransition_fromStateTransition: (a: number) => [number, number, number];
-    readonly identitycreatetransition_identity_id: (a: number) => number;
-    readonly identitycreatetransition_public_keys: (a: number) => [number, number];
-    readonly identitycreatetransition_set_asset_lock_proof: (a: number, b: number) => [number, number];
-    readonly identitycreatetransition_set_public_keys: (a: number, b: any) => [number, number];
-    readonly identitycreatetransition_set_signature: (a: number, b: number, c: number) => void;
-    readonly identitycreatetransition_set_user_fee_increase: (a: number, b: any) => [number, number];
-    readonly identitycreatetransition_signature: (a: number) => [number, number];
-    readonly identitycreatetransition_struct_name: () => [number, number];
-    readonly identitycreatetransition_toBase64: (a: number) => [number, number, number, number];
-    readonly identitycreatetransition_toBytes: (a: number) => [number, number, number, number];
-    readonly identitycreatetransition_toHex: (a: number) => [number, number, number, number];
-    readonly identitycreatetransition_toJSON: (a: number) => [number, number, number];
-    readonly identitycreatetransition_toObject: (a: number) => [number, number, number];
-    readonly identitycreatetransition_toStateTransition: (a: number) => number;
-    readonly identitycreatetransition_type_name: (a: number) => [number, number];
-    readonly identitycreatetransition_user_fee_increase: (a: number) => number;
-    readonly identitytopuptransition_asset_lock_proof: (a: number) => number;
-    readonly identitytopuptransition_constructor: (a: any) => [number, number, number];
-    readonly identitytopuptransition_fromBase64: (a: number, b: number) => [number, number, number];
-    readonly identitytopuptransition_fromBytes: (a: number, b: number) => [number, number, number];
-    readonly identitytopuptransition_fromHex: (a: number, b: number) => [number, number, number];
-    readonly identitytopuptransition_fromJSON: (a: any) => [number, number, number];
-    readonly identitytopuptransition_fromObject: (a: any) => [number, number, number];
-    readonly identitytopuptransition_fromStateTransition: (a: number) => [number, number, number];
-    readonly identitytopuptransition_identity_identifier: (a: number) => number;
-    readonly identitytopuptransition_modified_data_ids: (a: number) => [number, number];
-    readonly identitytopuptransition_optional_asset_lock_proof: (a: number) => number;
-    readonly identitytopuptransition_set_asset_lock_proof: (a: number, b: number) => [number, number];
-    readonly identitytopuptransition_set_identity_identifier: (a: number, b: any) => [number, number];
-    readonly identitytopuptransition_set_signature: (a: number, b: number, c: number) => void;
-    readonly identitytopuptransition_set_user_fee_increase: (a: number, b: number) => void;
-    readonly identitytopuptransition_signature: (a: number) => [number, number];
-    readonly identitytopuptransition_struct_name: () => [number, number];
-    readonly identitytopuptransition_toBase64: (a: number) => [number, number, number, number];
-    readonly identitytopuptransition_toBytes: (a: number) => [number, number, number, number];
-    readonly identitytopuptransition_toHex: (a: number) => [number, number, number, number];
-    readonly identitytopuptransition_toJSON: (a: number) => [number, number, number];
-    readonly identitytopuptransition_toObject: (a: number) => [number, number, number];
-    readonly identitytopuptransition_toStateTransition: (a: number) => number;
-    readonly identitytopuptransition_type_name: (a: number) => [number, number];
-    readonly identitytopuptransition_user_fee_increase: (a: number) => number;
-    readonly outpoint_constructor: (a: number, b: number, c: number) => [number, number, number];
-    readonly outpoint_fromBase64: (a: number, b: number) => [number, number, number];
-    readonly outpoint_fromBytes: (a: number, b: number) => [number, number, number];
-    readonly outpoint_fromHex: (a: number, b: number) => [number, number, number];
-    readonly outpoint_struct_name: () => [number, number];
-    readonly outpoint_toBase64: (a: number) => [number, number];
-    readonly outpoint_toBytes: (a: number) => [number, number];
-    readonly outpoint_toHex: (a: number) => [number, number];
-    readonly outpoint_txid: (a: number) => [number, number];
-    readonly outpoint_type_name: (a: number) => [number, number];
-    readonly outpoint_vout: (a: number) => number;
-    readonly protxhash_struct_name: () => [number, number];
-    readonly protxhash_type_name: (a: number) => [number, number];
-    readonly publickey_compressed: (a: number) => number;
-    readonly publickey_constructor: (a: number, b: number, c: number) => [number, number, number];
-    readonly publickey_fromBytes: (a: number, b: number) => [number, number, number];
-    readonly publickey_getPublicKeyHash: (a: number) => [number, number];
-    readonly publickey_inner: (a: number) => [number, number];
-    readonly publickey_set_compressed: (a: number, b: number) => void;
-    readonly publickey_set_inner: (a: number, b: number, c: number) => [number, number];
-    readonly publickey_struct_name: () => [number, number];
-    readonly publickey_toBytes: (a: number) => [number, number];
-    readonly publickey_type_name: (a: number) => [number, number];
-    readonly resourcevotechoice_Abstain: () => number;
-    readonly resourcevotechoice_Lock: () => number;
-    readonly resourcevotechoice_TowardsIdentity: (a: any) => [number, number, number];
-    readonly resourcevotechoice_fromJSON: (a: any) => [number, number, number];
-    readonly resourcevotechoice_fromObject: (a: any) => [number, number, number];
-    readonly resourcevotechoice_struct_name: () => [number, number];
-    readonly resourcevotechoice_toJSON: (a: number) => [number, number, number];
-    readonly resourcevotechoice_toObject: (a: number) => [number, number, number];
-    readonly resourcevotechoice_type_name: (a: number) => [number, number];
-    readonly resourcevotechoice_value: (a: number) => number;
-    readonly resourcevotechoice_vote_type: (a: number) => [number, number];
-    readonly tokenkeepshistoryrules_constructor: (a: any) => [number, number, number];
-    readonly tokenkeepshistoryrules_is_keeping_burning_history: (a: number) => number;
-    readonly tokenkeepshistoryrules_is_keeping_direct_pricing_history: (a: number) => number;
-    readonly tokenkeepshistoryrules_is_keeping_direct_purchase_history: (a: number) => number;
-    readonly tokenkeepshistoryrules_is_keeping_freezing_history: (a: number) => number;
-    readonly tokenkeepshistoryrules_is_keeping_minting_history: (a: number) => number;
-    readonly tokenkeepshistoryrules_is_keeping_transfer_history: (a: number) => number;
-    readonly tokenkeepshistoryrules_set_is_keeping_burning_history: (a: number, b: number) => void;
-    readonly tokenkeepshistoryrules_set_is_keeping_direct_pricing_history: (a: number, b: number) => void;
-    readonly tokenkeepshistoryrules_set_is_keeping_direct_purchase_history: (a: number, b: number) => void;
-    readonly tokenkeepshistoryrules_set_is_keeping_freezing_history: (a: number, b: number) => void;
-    readonly tokenkeepshistoryrules_set_is_keeping_minting_history: (a: number, b: number) => void;
-    readonly tokenkeepshistoryrules_set_is_keeping_transfer_history: (a: number, b: number) => void;
-    readonly tokenkeepshistoryrules_struct_name: () => [number, number];
-    readonly tokenkeepshistoryrules_type_name: (a: number) => [number, number];
-    readonly tokentransfertransition_amount: (a: number) => bigint;
-    readonly tokentransfertransition_base: (a: number) => number;
-    readonly tokentransfertransition_constructor: (a: any) => [number, number, number];
-    readonly tokentransfertransition_private_encrypted_note: (a: number) => number;
-    readonly tokentransfertransition_public_note: (a: number) => [number, number];
-    readonly tokentransfertransition_recipient_id: (a: number) => number;
-    readonly tokentransfertransition_set_amount: (a: number, b: any) => [number, number];
-    readonly tokentransfertransition_set_base: (a: number, b: number) => void;
-    readonly tokentransfertransition_set_private_encrypted_note: (a: number, b: any) => [number, number];
-    readonly tokentransfertransition_set_public_note: (a: number, b: number, c: number) => void;
-    readonly tokentransfertransition_set_recipient_id: (a: number, b: any) => [number, number];
-    readonly tokentransfertransition_set_shared_encrypted_note: (a: number, b: any) => [number, number];
-    readonly tokentransfertransition_shared_encrypted_note: (a: number) => number;
-    readonly tokentransfertransition_struct_name: () => [number, number];
-    readonly tokentransfertransition_type_name: (a: number) => [number, number];
-    readonly verifiedmasternodevote_fromJSON: (a: any) => [number, number, number];
-    readonly verifiedmasternodevote_fromObject: (a: any) => [number, number, number];
-    readonly verifiedmasternodevote_struct_name: () => [number, number];
-    readonly verifiedmasternodevote_toJSON: (a: number) => [number, number, number];
-    readonly verifiedmasternodevote_toObject: (a: number) => [number, number, number];
-    readonly verifiedmasternodevote_type_name: (a: number) => [number, number];
-    readonly verifiednextdistribution_fromJSON: (a: any) => [number, number, number];
-    readonly verifiednextdistribution_fromObject: (a: any) => [number, number, number];
-    readonly verifiednextdistribution_struct_name: () => [number, number];
-    readonly verifiednextdistribution_toJSON: (a: number) => [number, number, number];
-    readonly verifiednextdistribution_toObject: (a: number) => [number, number, number];
-    readonly verifiednextdistribution_type_name: (a: number) => [number, number];
-    readonly __wbg_set_verifiednextdistribution_vote: (a: number, b: number) => void;
-    readonly __wbg_addresscreditwithdrawaltransition_free: (a: number, b: number) => void;
-    readonly __wbg_addressfundstransfertransition_free: (a: number, b: number) => void;
-    readonly __wbg_corescript_free: (a: number, b: number) => void;
-    readonly __wbg_extendedepochinfo_free: (a: number, b: number) => void;
-    readonly __wbg_identifier_free: (a: number, b: number) => void;
-    readonly __wbg_identityupdatetransition_free: (a: number, b: number) => void;
-    readonly __wbg_privatekey_free: (a: number, b: number) => void;
-    readonly __wbg_serializedorchardaction_free: (a: number, b: number) => void;
-    readonly __wbg_shieldedwithdrawaltransition_free: (a: number, b: number) => void;
-    readonly __wbg_tokenburntransition_free: (a: number, b: number) => void;
-    readonly __wbg_tokenclaimtransition_free: (a: number, b: number) => void;
-    readonly addresscreditwithdrawaltransition_constructor: (a: any) => [number, number, number];
-    readonly addresscreditwithdrawaltransition_core_fee_per_byte: (a: number) => number;
-    readonly addresscreditwithdrawaltransition_fromBase64: (a: number, b: number) => [number, number, number];
-    readonly addresscreditwithdrawaltransition_fromBytes: (a: number, b: number) => [number, number, number];
-    readonly addresscreditwithdrawaltransition_fromHex: (a: number, b: number) => [number, number, number];
-    readonly addresscreditwithdrawaltransition_fromJSON: (a: any) => [number, number, number];
-    readonly addresscreditwithdrawaltransition_fromObject: (a: any) => [number, number, number];
-    readonly addresscreditwithdrawaltransition_fromStateTransition: (a: number) => [number, number, number];
-    readonly addresscreditwithdrawaltransition_inputs: (a: number) => [number, number];
-    readonly addresscreditwithdrawaltransition_output: (a: number) => number;
-    readonly addresscreditwithdrawaltransition_output_script: (a: number) => number;
-    readonly addresscreditwithdrawaltransition_pooling: (a: number) => [number, number];
-    readonly addresscreditwithdrawaltransition_set_core_fee_per_byte: (a: number, b: any) => [number, number];
-    readonly addresscreditwithdrawaltransition_set_inputs: (a: number, b: number, c: number) => [number, number];
-    readonly addresscreditwithdrawaltransition_set_output: (a: number, b: number) => [number, number];
-    readonly addresscreditwithdrawaltransition_set_output_script: (a: number, b: number) => void;
-    readonly addresscreditwithdrawaltransition_set_pooling: (a: number, b: any) => [number, number];
-    readonly addresscreditwithdrawaltransition_set_user_fee_increase: (a: number, b: any) => [number, number];
-    readonly addresscreditwithdrawaltransition_struct_name: () => [number, number];
-    readonly addresscreditwithdrawaltransition_toBase64: (a: number) => [number, number, number, number];
-    readonly addresscreditwithdrawaltransition_toBytes: (a: number) => [number, number, number, number];
-    readonly addresscreditwithdrawaltransition_toHex: (a: number) => [number, number, number, number];
-    readonly addresscreditwithdrawaltransition_toJSON: (a: number) => [number, number, number];
-    readonly addresscreditwithdrawaltransition_toObject: (a: number) => [number, number, number];
-    readonly addresscreditwithdrawaltransition_toStateTransition: (a: number) => number;
-    readonly addresscreditwithdrawaltransition_type_name: (a: number) => [number, number];
-    readonly addresscreditwithdrawaltransition_user_fee_increase: (a: number) => number;
-    readonly addressfundstransfertransition_constructor: (a: any) => [number, number, number];
-    readonly addressfundstransfertransition_fromBase64: (a: number, b: number) => [number, number, number];
-    readonly addressfundstransfertransition_fromBytes: (a: number, b: number) => [number, number, number];
-    readonly addressfundstransfertransition_fromHex: (a: number, b: number) => [number, number, number];
-    readonly addressfundstransfertransition_fromJSON: (a: any) => [number, number, number];
-    readonly addressfundstransfertransition_fromObject: (a: any) => [number, number, number];
-    readonly addressfundstransfertransition_fromStateTransition: (a: number) => [number, number, number];
-    readonly addressfundstransfertransition_inputs: (a: number) => [number, number];
-    readonly addressfundstransfertransition_outputs: (a: number) => [number, number];
-    readonly addressfundstransfertransition_set_inputs: (a: number, b: number, c: number) => [number, number];
-    readonly addressfundstransfertransition_set_outputs: (a: number, b: number, c: number) => [number, number];
-    readonly addressfundstransfertransition_set_user_fee_increase: (a: number, b: any) => [number, number];
-    readonly addressfundstransfertransition_struct_name: () => [number, number];
-    readonly addressfundstransfertransition_toBase64: (a: number) => [number, number, number, number];
-    readonly addressfundstransfertransition_toBytes: (a: number) => [number, number, number, number];
-    readonly addressfundstransfertransition_toHex: (a: number) => [number, number, number, number];
-    readonly addressfundstransfertransition_toJSON: (a: number) => [number, number, number];
-    readonly addressfundstransfertransition_toObject: (a: number) => [number, number, number];
-    readonly addressfundstransfertransition_toStateTransition: (a: number) => number;
-    readonly addressfundstransfertransition_type_name: (a: number) => [number, number];
-    readonly addressfundstransfertransition_user_fee_increase: (a: number) => number;
-    readonly corescript_fromBytes: (a: number, b: number) => number;
-    readonly corescript_fromP2PKH: (a: number, b: number) => [number, number, number];
-    readonly corescript_fromP2SH: (a: number, b: number) => [number, number, number];
-    readonly corescript_struct_name: () => [number, number];
-    readonly corescript_toASMString: (a: number) => [number, number];
-    readonly corescript_toAddress: (a: number, b: any) => [number, number, number, number];
-    readonly corescript_toBase64: (a: number) => [number, number];
-    readonly corescript_toBytes: (a: number) => [number, number];
-    readonly corescript_toHex: (a: number) => [number, number];
-    readonly corescript_toString: (a: number) => [number, number];
-    readonly corescript_type_name: (a: number) => [number, number];
-    readonly extendedepochinfo_constructor: (a: any) => [number, number, number];
-    readonly extendedepochinfo_fee_multiplier: (a: number) => number;
-    readonly extendedepochinfo_fee_multiplier_permille: (a: number) => bigint;
-    readonly extendedepochinfo_first_block_height: (a: number) => any;
-    readonly extendedepochinfo_first_block_time: (a: number) => any;
-    readonly extendedepochinfo_first_core_block_height: (a: number) => number;
-    readonly extendedepochinfo_fromJSON: (a: any) => [number, number, number];
-    readonly extendedepochinfo_fromObject: (a: any) => [number, number, number];
-    readonly extendedepochinfo_index: (a: number) => number;
-    readonly extendedepochinfo_protocol_version: (a: number) => number;
-    readonly extendedepochinfo_set_fee_multiplier_permille: (a: number, b: bigint) => void;
-    readonly extendedepochinfo_set_first_block_height: (a: number, b: any) => [number, number];
-    readonly extendedepochinfo_set_first_block_time: (a: number, b: any) => [number, number];
-    readonly extendedepochinfo_set_first_core_block_height: (a: number, b: any) => [number, number];
-    readonly extendedepochinfo_set_index: (a: number, b: any) => [number, number];
-    readonly extendedepochinfo_set_protocol_version: (a: number, b: number) => void;
-    readonly extendedepochinfo_struct_name: () => [number, number];
-    readonly extendedepochinfo_toJSON: (a: number) => [number, number, number];
-    readonly extendedepochinfo_toObject: (a: number) => [number, number, number];
-    readonly extendedepochinfo_type_name: (a: number) => [number, number];
-    readonly identifier_constructor: (a: any) => [number, number, number];
-    readonly identifier_fromBase58: (a: number, b: number) => [number, number, number];
-    readonly identifier_fromBase64: (a: number, b: number) => [number, number, number];
-    readonly identifier_fromBytes: (a: number, b: number) => [number, number, number];
-    readonly identifier_fromHex: (a: number, b: number) => [number, number, number];
-    readonly identifier_struct_name: () => [number, number];
-    readonly identifier_toBase58: (a: number) => [number, number];
-    readonly identifier_toBase64: (a: number) => [number, number];
-    readonly identifier_toBytes: (a: number) => [number, number];
-    readonly identifier_toHex: (a: number) => [number, number];
-    readonly identifier_type_name: (a: number) => [number, number];
-    readonly identityupdatetransition_constructor: (a: any) => [number, number, number];
-    readonly identityupdatetransition_fromBase64: (a: number, b: number) => [number, number, number];
-    readonly identityupdatetransition_fromBytes: (a: number, b: number) => [number, number, number];
-    readonly identityupdatetransition_fromHex: (a: number, b: number) => [number, number, number];
-    readonly identityupdatetransition_fromJSON: (a: any) => [number, number, number];
-    readonly identityupdatetransition_fromObject: (a: any) => [number, number, number];
-    readonly identityupdatetransition_fromStateTransition: (a: number) => [number, number, number];
-    readonly identityupdatetransition_identity_identifier: (a: number) => number;
-    readonly identityupdatetransition_modified_data_ids: (a: number) => [number, number];
-    readonly identityupdatetransition_nonce: (a: number) => bigint;
-    readonly identityupdatetransition_optional_asset_lock_proof: (a: number) => number;
-    readonly identityupdatetransition_public_key_ids_to_add: (a: number) => [number, number];
-    readonly identityupdatetransition_public_key_ids_to_disable: (a: number) => [number, number];
-    readonly identityupdatetransition_purpose_requirement: (a: number) => [number, number];
-    readonly identityupdatetransition_revision: (a: number) => bigint;
-    readonly identityupdatetransition_set_identity_identifier: (a: number, b: any) => [number, number];
-    readonly identityupdatetransition_set_nonce: (a: number, b: any) => [number, number];
-    readonly identityupdatetransition_set_public_key_ids_to_add: (a: number, b: any) => [number, number];
-    readonly identityupdatetransition_set_public_key_ids_to_disable: (a: number, b: number, c: number) => void;
-    readonly identityupdatetransition_set_revision: (a: number, b: any) => [number, number];
-    readonly identityupdatetransition_set_signature: (a: number, b: number, c: number) => void;
-    readonly identityupdatetransition_set_signature_public_key_id: (a: number, b: number) => void;
-    readonly identityupdatetransition_set_user_fee_increase: (a: number, b: number) => void;
-    readonly identityupdatetransition_signature: (a: number) => [number, number];
-    readonly identityupdatetransition_signature_public_key_id: (a: number) => number;
-    readonly identityupdatetransition_struct_name: () => [number, number];
-    readonly identityupdatetransition_toBase64: (a: number) => [number, number, number, number];
-    readonly identityupdatetransition_toBytes: (a: number) => [number, number, number, number];
-    readonly identityupdatetransition_toHex: (a: number) => [number, number, number, number];
-    readonly identityupdatetransition_toJSON: (a: number) => [number, number, number];
-    readonly identityupdatetransition_toObject: (a: number) => [number, number, number];
-    readonly identityupdatetransition_toStateTransition: (a: number) => number;
-    readonly identityupdatetransition_type_name: (a: number) => [number, number];
-    readonly identityupdatetransition_user_fee_increase: (a: number) => number;
-    readonly privatekey_fromBytes: (a: number, b: number, c: any) => [number, number, number];
-    readonly privatekey_fromHex: (a: number, b: number, c: any) => [number, number, number];
-    readonly privatekey_fromWIF: (a: number, b: number) => [number, number, number];
-    readonly privatekey_getPublicKey: (a: number) => number;
-    readonly privatekey_getPublicKeyHash: (a: number) => [number, number];
-    readonly privatekey_struct_name: () => [number, number];
-    readonly privatekey_toBytes: (a: number) => [number, number];
-    readonly privatekey_toHex: (a: number) => [number, number];
-    readonly privatekey_toWIF: (a: number) => [number, number];
-    readonly privatekey_type_name: (a: number) => [number, number];
-    readonly serializedorchardaction_cmx: (a: number) => [number, number];
-    readonly serializedorchardaction_constructor: (a: any) => [number, number, number];
-    readonly serializedorchardaction_cv_net: (a: number) => [number, number];
-    readonly serializedorchardaction_encrypted_note: (a: number) => [number, number];
-    readonly serializedorchardaction_fromJSON: (a: any) => [number, number, number];
-    readonly serializedorchardaction_fromObject: (a: any) => [number, number, number];
-    readonly serializedorchardaction_nullifier: (a: number) => [number, number];
-    readonly serializedorchardaction_rk: (a: number) => [number, number];
-    readonly serializedorchardaction_spend_auth_sig: (a: number) => [number, number];
-    readonly serializedorchardaction_struct_name: () => [number, number];
-    readonly serializedorchardaction_toJSON: (a: number) => [number, number, number];
-    readonly serializedorchardaction_toObject: (a: number) => [number, number, number];
-    readonly serializedorchardaction_type_name: (a: number) => [number, number];
-    readonly shieldedwithdrawaltransition_actions: (a: number) => [number, number];
-    readonly shieldedwithdrawaltransition_anchor: (a: number) => [number, number];
-    readonly shieldedwithdrawaltransition_binding_signature: (a: number) => [number, number];
-    readonly shieldedwithdrawaltransition_core_fee_per_byte: (a: number) => number;
-    readonly shieldedwithdrawaltransition_fromBytes: (a: number, b: number) => [number, number, number];
-    readonly shieldedwithdrawaltransition_fromJSON: (a: any) => [number, number, number];
-    readonly shieldedwithdrawaltransition_fromObject: (a: any) => [number, number, number];
-    readonly shieldedwithdrawaltransition_getModifiedDataIds: (a: number) => [number, number];
-    readonly shieldedwithdrawaltransition_new: (a: any) => [number, number, number];
-    readonly shieldedwithdrawaltransition_output_script: (a: number) => number;
-    readonly shieldedwithdrawaltransition_pooling: (a: number) => [number, number];
-    readonly shieldedwithdrawaltransition_proof: (a: number) => [number, number];
-    readonly shieldedwithdrawaltransition_struct_name: () => [number, number];
-    readonly shieldedwithdrawaltransition_toBytes: (a: number) => [number, number, number, number];
-    readonly shieldedwithdrawaltransition_toJSON: (a: number) => [number, number, number];
-    readonly shieldedwithdrawaltransition_toObject: (a: number) => [number, number, number];
-    readonly shieldedwithdrawaltransition_toStateTransition: (a: number) => number;
-    readonly shieldedwithdrawaltransition_type_name: (a: number) => [number, number];
-    readonly shieldedwithdrawaltransition_unshielding_amount: (a: number) => bigint;
-    readonly tokenburntransition_base: (a: number) => number;
-    readonly tokenburntransition_burn_amount: (a: number) => bigint;
-    readonly tokenburntransition_constructor: (a: any) => [number, number, number];
-    readonly tokenburntransition_public_note: (a: number) => [number, number];
-    readonly tokenburntransition_set_base: (a: number, b: number) => void;
-    readonly tokenburntransition_set_burn_amount: (a: number, b: any) => [number, number];
-    readonly tokenburntransition_set_public_note: (a: number, b: number, c: number) => void;
-    readonly tokenburntransition_struct_name: () => [number, number];
-    readonly tokenburntransition_type_name: (a: number) => [number, number];
-    readonly tokenclaimtransition_base: (a: number) => number;
-    readonly tokenclaimtransition_constructor: (a: any) => [number, number, number];
-    readonly tokenclaimtransition_distribution_type: (a: number) => [number, number];
-    readonly tokenclaimtransition_public_note: (a: number) => [number, number];
-    readonly tokenclaimtransition_set_base: (a: number, b: number) => void;
-    readonly tokenclaimtransition_set_distribution_type: (a: number, b: any) => [number, number];
-    readonly tokenclaimtransition_set_public_note: (a: number, b: number, c: number) => void;
-    readonly tokenclaimtransition_struct_name: () => [number, number];
-    readonly tokenclaimtransition_type_name: (a: number) => [number, number];
-    readonly identifier_toJSON: (a: number) => [number, number];
-    readonly identifier_toString: (a: number) => [number, number];
-    readonly __wbg_datacontract_free: (a: number, b: number) => void;
-    readonly __wbg_datacontractcreatetransition_free: (a: number, b: number) => void;
-    readonly __wbg_datacontractupdatetransition_free: (a: number, b: number) => void;
-    readonly __wbg_get_verifieddatacontract_dataContract: (a: number) => number;
-    readonly __wbg_identitycredittransfertoaddresses_free: (a: number, b: number) => void;
-    readonly __wbg_masternodevotetransition_free: (a: number, b: number) => void;
-    readonly __wbg_resourcevote_free: (a: number, b: number) => void;
-    readonly __wbg_set_verifieddatacontract_dataContract: (a: number, b: number) => void;
-    readonly __wbg_statetransition_free: (a: number, b: number) => void;
-    readonly __wbg_tokenconfigupdatetransition_free: (a: number, b: number) => void;
-    readonly __wbg_tokenconfigurationconvention_free: (a: number, b: number) => void;
-    readonly __wbg_tokendistributionrecipient_free: (a: number, b: number) => void;
-    readonly __wbg_tokenminttransition_free: (a: number, b: number) => void;
-    readonly __wbg_tokenperpetualdistribution_free: (a: number, b: number) => void;
-    readonly __wbg_verifieddatacontract_free: (a: number, b: number) => void;
-    readonly datacontract_config: (a: number) => [number, number, number];
-    readonly datacontract_constructor: (a: any) => [number, number, number];
-    readonly datacontract_fromBase64: (a: number, b: number, c: number, d: any) => [number, number, number];
-    readonly datacontract_fromBytes: (a: number, b: number, c: number, d: any) => [number, number, number];
-    readonly datacontract_fromHex: (a: number, b: number, c: number, d: any) => [number, number, number];
-    readonly datacontract_fromJSON: (a: any, b: number, c: any) => [number, number, number];
-    readonly datacontract_fromObject: (a: any, b: number, c: any) => [number, number, number];
-    readonly datacontract_generateId: (a: any, b: bigint) => [number, number, number];
-    readonly datacontract_groups: (a: number) => [number, number, number];
-    readonly datacontract_id: (a: number) => number;
-    readonly datacontract_owner_id: (a: number) => number;
-    readonly datacontract_schemas: (a: number) => [number, number, number];
-    readonly datacontract_setConfig: (a: number, b: any, c: any) => [number, number];
-    readonly datacontract_setSchemas: (a: number, b: any, c: number, d: number, e: any) => [number, number];
-    readonly datacontract_set_groups: (a: number, b: any) => [number, number];
-    readonly datacontract_set_id: (a: number, b: any) => [number, number];
-    readonly datacontract_set_owner_id: (a: number, b: any) => [number, number];
-    readonly datacontract_set_tokens: (a: number, b: any) => [number, number];
-    readonly datacontract_set_version: (a: number, b: any) => [number, number];
-    readonly datacontract_struct_name: () => [number, number];
-    readonly datacontract_toBase64: (a: number, b: any) => [number, number, number, number];
-    readonly datacontract_toBytes: (a: number, b: any) => [number, number, number, number];
-    readonly datacontract_toHex: (a: number, b: any) => [number, number, number, number];
-    readonly datacontract_toJSON: (a: number, b: any) => [number, number, number];
-    readonly datacontract_toObject: (a: number, b: any) => [number, number, number];
-    readonly datacontract_tokens: (a: number) => [number, number, number];
-    readonly datacontract_type_name: (a: number) => [number, number];
-    readonly datacontract_version: (a: number) => number;
-    readonly datacontractcreatetransition_constructor: (a: number, b: bigint, c: any) => [number, number, number];
-    readonly datacontractcreatetransition_feature_version: (a: number) => number;
-    readonly datacontractcreatetransition_fromBase64: (a: number, b: number) => [number, number, number];
-    readonly datacontractcreatetransition_fromBytes: (a: number, b: number) => [number, number, number];
-    readonly datacontractcreatetransition_fromHex: (a: number, b: number) => [number, number, number];
-    readonly datacontractcreatetransition_fromJSON: (a: any) => [number, number, number];
-    readonly datacontractcreatetransition_fromObject: (a: any) => [number, number, number];
-    readonly datacontractcreatetransition_fromStateTransition: (a: number) => [number, number, number];
-    readonly datacontractcreatetransition_getDataContract: (a: number, b: any, c: number) => [number, number, number];
-    readonly datacontractcreatetransition_identity_nonce: (a: number) => bigint;
-    readonly datacontractcreatetransition_setDataContract: (a: number, b: number, c: any) => [number, number];
-    readonly datacontractcreatetransition_struct_name: () => [number, number];
-    readonly datacontractcreatetransition_toBase64: (a: number) => [number, number, number, number];
-    readonly datacontractcreatetransition_toBytes: (a: number) => [number, number, number, number];
-    readonly datacontractcreatetransition_toHex: (a: number) => [number, number, number, number];
-    readonly datacontractcreatetransition_toJSON: (a: number) => [number, number, number];
-    readonly datacontractcreatetransition_toObject: (a: number) => [number, number, number];
-    readonly datacontractcreatetransition_toStateTransition: (a: number) => number;
-    readonly datacontractcreatetransition_type_name: (a: number) => [number, number];
-    readonly datacontractcreatetransition_verifyProtocolVersion: (a: number, b: number) => [number, number, number];
-    readonly datacontractupdatetransition_constructor: (a: number, b: bigint, c: any) => [number, number, number];
-    readonly datacontractupdatetransition_feature_version: (a: number) => number;
-    readonly datacontractupdatetransition_fromBase64: (a: number, b: number) => [number, number, number];
-    readonly datacontractupdatetransition_fromBytes: (a: number, b: number) => [number, number, number];
-    readonly datacontractupdatetransition_fromHex: (a: number, b: number) => [number, number, number];
-    readonly datacontractupdatetransition_fromJSON: (a: any) => [number, number, number];
-    readonly datacontractupdatetransition_fromObject: (a: any) => [number, number, number];
-    readonly datacontractupdatetransition_fromStateTransition: (a: number) => [number, number, number];
-    readonly datacontractupdatetransition_getDataContract: (a: number, b: number, c: any) => [number, number, number];
-    readonly datacontractupdatetransition_identity_contract_nonce: (a: number) => bigint;
-    readonly datacontractupdatetransition_setDataContract: (a: number, b: number, c: any) => [number, number];
-    readonly datacontractupdatetransition_struct_name: () => [number, number];
-    readonly datacontractupdatetransition_toBase64: (a: number) => [number, number, number, number];
-    readonly datacontractupdatetransition_toBytes: (a: number) => [number, number, number, number];
-    readonly datacontractupdatetransition_toHex: (a: number) => [number, number, number, number];
-    readonly datacontractupdatetransition_toJSON: (a: number) => [number, number, number];
-    readonly datacontractupdatetransition_toObject: (a: number) => [number, number, number];
-    readonly datacontractupdatetransition_toStateTransition: (a: number) => number;
-    readonly datacontractupdatetransition_type_name: (a: number) => [number, number];
-    readonly datacontractupdatetransition_verifyProtocolVersion: (a: number, b: number) => [number, number, number];
-    readonly identitycredittransfertoaddresses_constructor: (a: any) => [number, number, number];
-    readonly identitycredittransfertoaddresses_fromBase64: (a: number, b: number) => [number, number, number];
-    readonly identitycredittransfertoaddresses_fromBytes: (a: number, b: number) => [number, number, number];
-    readonly identitycredittransfertoaddresses_fromHex: (a: number, b: number) => [number, number, number];
-    readonly identitycredittransfertoaddresses_fromJSON: (a: any) => [number, number, number];
-    readonly identitycredittransfertoaddresses_fromObject: (a: any) => [number, number, number];
-    readonly identitycredittransfertoaddresses_fromStateTransition: (a: number) => [number, number, number];
-    readonly identitycredittransfertoaddresses_nonce: (a: number) => bigint;
-    readonly identitycredittransfertoaddresses_recipient_addresses: (a: number) => [number, number];
-    readonly identitycredittransfertoaddresses_sender_id: (a: number) => number;
-    readonly identitycredittransfertoaddresses_set_nonce: (a: number, b: any) => [number, number];
-    readonly identitycredittransfertoaddresses_set_recipient_addresses: (a: number, b: number, c: number) => [number, number];
-    readonly identitycredittransfertoaddresses_set_sender_id: (a: number, b: any) => [number, number];
-    readonly identitycredittransfertoaddresses_set_signature: (a: number, b: number, c: number) => void;
-    readonly identitycredittransfertoaddresses_set_signature_public_key_id: (a: number, b: any) => [number, number];
-    readonly identitycredittransfertoaddresses_set_user_fee_increase: (a: number, b: any) => [number, number];
-    readonly identitycredittransfertoaddresses_signature: (a: number) => [number, number];
-    readonly identitycredittransfertoaddresses_signature_public_key_id: (a: number) => number;
-    readonly identitycredittransfertoaddresses_struct_name: () => [number, number];
-    readonly identitycredittransfertoaddresses_toBase64: (a: number) => [number, number, number, number];
-    readonly identitycredittransfertoaddresses_toBytes: (a: number) => [number, number, number, number];
-    readonly identitycredittransfertoaddresses_toHex: (a: number) => [number, number, number, number];
-    readonly identitycredittransfertoaddresses_toJSON: (a: number) => [number, number, number];
-    readonly identitycredittransfertoaddresses_toObject: (a: number) => [number, number, number];
-    readonly identitycredittransfertoaddresses_toStateTransition: (a: number) => number;
-    readonly identitycredittransfertoaddresses_type_name: (a: number) => [number, number];
-    readonly identitycredittransfertoaddresses_user_fee_increase: (a: number) => number;
-    readonly masternodevotetransition_asset_lock_proof: (a: number) => number;
-    readonly masternodevotetransition_constructor: (a: any) => [number, number, number];
-    readonly masternodevotetransition_fromBase64: (a: number, b: number) => [number, number, number];
-    readonly masternodevotetransition_fromBytes: (a: number, b: number) => [number, number, number];
-    readonly masternodevotetransition_fromHex: (a: number, b: number) => [number, number, number];
-    readonly masternodevotetransition_fromJSON: (a: any) => [number, number, number];
-    readonly masternodevotetransition_fromObject: (a: any) => [number, number, number];
-    readonly masternodevotetransition_fromStateTransition: (a: number) => [number, number, number];
-    readonly masternodevotetransition_modified_data_ids: (a: number) => [number, number];
-    readonly masternodevotetransition_nonce: (a: number) => bigint;
-    readonly masternodevotetransition_pro_tx_hash: (a: number) => number;
-    readonly masternodevotetransition_set_nonce: (a: number, b: any) => [number, number];
-    readonly masternodevotetransition_set_pro_tx_hash: (a: number, b: any) => [number, number];
-    readonly masternodevotetransition_set_signature: (a: number, b: number, c: number) => void;
-    readonly masternodevotetransition_set_signature_public_key_id: (a: number, b: any) => [number, number];
-    readonly masternodevotetransition_set_user_fee_increase: (a: number, b: any) => [number, number];
-    readonly masternodevotetransition_set_vote: (a: number, b: number) => void;
-    readonly masternodevotetransition_set_voter_identity_id: (a: number, b: any) => [number, number];
-    readonly masternodevotetransition_signature: (a: number) => [number, number];
-    readonly masternodevotetransition_signature_public_key_id: (a: number) => number;
-    readonly masternodevotetransition_struct_name: () => [number, number];
-    readonly masternodevotetransition_toBase64: (a: number) => [number, number, number, number];
-    readonly masternodevotetransition_toBytes: (a: number) => [number, number, number, number];
-    readonly masternodevotetransition_toHex: (a: number) => [number, number, number, number];
-    readonly masternodevotetransition_toJSON: (a: number) => [number, number, number];
-    readonly masternodevotetransition_toObject: (a: number) => [number, number, number];
-    readonly masternodevotetransition_toStateTransition: (a: number) => number;
-    readonly masternodevotetransition_type_name: (a: number) => [number, number];
-    readonly masternodevotetransition_vote: (a: number) => number;
-    readonly masternodevotetransition_voter_identity_id: (a: number) => number;
-    readonly resourcevote_choice: (a: number) => number;
-    readonly resourcevote_constructor: (a: number, b: number) => number;
-    readonly resourcevote_fromJSON: (a: any) => [number, number, number];
-    readonly resourcevote_fromObject: (a: any) => [number, number, number];
-    readonly resourcevote_poll: (a: number) => number;
-    readonly resourcevote_set_choice: (a: number, b: number) => void;
-    readonly resourcevote_set_poll: (a: number, b: number) => void;
-    readonly resourcevote_struct_name: () => [number, number];
-    readonly resourcevote_toJSON: (a: number) => [number, number, number];
-    readonly resourcevote_toObject: (a: number) => [number, number, number];
-    readonly resourcevote_type_name: (a: number) => [number, number];
-    readonly statetransition_action_type: (a: number) => [number, number];
-    readonly statetransition_action_type_number: (a: number) => number;
-    readonly statetransition_fromBase64: (a: number, b: number) => [number, number, number];
-    readonly statetransition_fromBytes: (a: number, b: number) => [number, number, number];
-    readonly statetransition_fromHex: (a: number, b: number) => [number, number, number];
-    readonly statetransition_getKeyLevelRequirement: (a: number, b: any) => [number, number, number, number];
-    readonly statetransition_getSignableBytes: (a: number) => [number, number, number, number];
-    readonly statetransition_hash: (a: number, b: number) => [number, number, number, number];
-    readonly statetransition_identity_contract_nonce: (a: number) => [number, bigint];
-    readonly statetransition_identity_nonce: (a: number) => [number, bigint];
-    readonly statetransition_owner_id: (a: number) => number;
-    readonly statetransition_purpose_requirement: (a: number) => [number, number];
-    readonly statetransition_setIdentityContractNonce: (a: number, b: any) => [number, number];
-    readonly statetransition_setIdentityNonce: (a: number, b: any) => [number, number];
-    readonly statetransition_setOwnerId: (a: number, b: any) => [number, number];
-    readonly statetransition_set_signature: (a: number, b: number, c: number) => number;
-    readonly statetransition_set_signature_public_key_id: (a: number, b: number) => void;
-    readonly statetransition_set_user_fee_increase: (a: number, b: number) => void;
-    readonly statetransition_sign: (a: number, b: number, c: number) => [number, number, number, number];
-    readonly statetransition_signByPrivateKey: (a: number, b: number, c: number, d: any) => [number, number, number, number];
-    readonly statetransition_signature: (a: number) => [number, number];
-    readonly statetransition_signature_public_key_id: (a: number) => number;
-    readonly statetransition_struct_name: () => [number, number];
-    readonly statetransition_toBase64: (a: number) => [number, number, number, number];
-    readonly statetransition_toBytes: (a: number) => [number, number, number, number];
-    readonly statetransition_toHex: (a: number) => [number, number, number, number];
-    readonly statetransition_type_name: (a: number) => [number, number];
-    readonly statetransition_user_fee_increase: (a: number) => number;
-    readonly statetransition_verifyPublicKey: (a: number, b: number, c: number, d: number) => [number, number];
-    readonly tokenconfigupdatetransition_base: (a: number) => number;
-    readonly tokenconfigupdatetransition_constructor: (a: any) => [number, number, number];
-    readonly tokenconfigupdatetransition_public_note: (a: number) => [number, number];
-    readonly tokenconfigupdatetransition_set_base: (a: number, b: number) => void;
-    readonly tokenconfigupdatetransition_set_public_note: (a: number, b: number, c: number) => void;
-    readonly tokenconfigupdatetransition_set_update_token_configuration_item: (a: number, b: number) => void;
-    readonly tokenconfigupdatetransition_struct_name: () => [number, number];
-    readonly tokenconfigupdatetransition_type_name: (a: number) => [number, number];
-    readonly tokenconfigupdatetransition_update_token_configuration_item: (a: number) => number;
-    readonly tokenconfigurationchangeitem_MainControlGroupItem: (a: number) => number;
-    readonly tokenconfigurationconvention_constructor: (a: any, b: number) => [number, number, number];
-    readonly tokenconfigurationconvention_decimals: (a: number) => number;
-    readonly tokenconfigurationconvention_localizations: (a: number) => [number, number, number];
-    readonly tokenconfigurationconvention_set_decimals: (a: number, b: any) => [number, number];
-    readonly tokenconfigurationconvention_set_localizations: (a: number, b: any) => [number, number];
-    readonly tokenconfigurationconvention_struct_name: () => [number, number];
-    readonly tokenconfigurationconvention_type_name: (a: number) => [number, number];
-    readonly tokendistributionrecipient_ContractOwner: () => number;
-    readonly tokendistributionrecipient_EvonodesByParticipation: () => number;
-    readonly tokendistributionrecipient_Identity: (a: any) => [number, number, number];
-    readonly tokendistributionrecipient_recipient_type: (a: number) => [number, number];
-    readonly tokendistributionrecipient_struct_name: () => [number, number];
-    readonly tokendistributionrecipient_type_name: (a: number) => [number, number];
-    readonly tokendistributionrecipient_value: (a: number) => any;
-    readonly tokenminttransition_amount: (a: number) => bigint;
-    readonly tokenminttransition_base: (a: number) => number;
-    readonly tokenminttransition_constructor: (a: any) => [number, number, number];
-    readonly tokenminttransition_getRecipientId: (a: number, b: number) => [number, number, number];
-    readonly tokenminttransition_issued_to_identity_id: (a: number) => number;
-    readonly tokenminttransition_public_note: (a: number) => [number, number];
-    readonly tokenminttransition_set_amount: (a: number, b: any) => [number, number];
-    readonly tokenminttransition_set_base: (a: number, b: number) => void;
-    readonly tokenminttransition_set_issued_to_identity_id: (a: number, b: any) => [number, number];
-    readonly tokenminttransition_set_public_note: (a: number, b: number, c: number) => void;
-    readonly tokenminttransition_struct_name: () => [number, number];
-    readonly tokenminttransition_type_name: (a: number) => [number, number];
-    readonly tokenperpetualdistribution_constructor: (a: number, b: number) => number;
-    readonly tokenperpetualdistribution_distribution_type: (a: number) => number;
-    readonly tokenperpetualdistribution_recipient: (a: number) => number;
-    readonly tokenperpetualdistribution_set_distribution_type: (a: number, b: number) => void;
-    readonly tokenperpetualdistribution_set_recipient: (a: number, b: number) => void;
-    readonly tokenperpetualdistribution_struct_name: () => [number, number];
-    readonly tokenperpetualdistribution_type_name: (a: number) => [number, number];
-    readonly verifieddatacontract_fromJSON: (a: any, b: any) => [number, number, number];
-    readonly verifieddatacontract_fromObject: (a: any, b: any) => [number, number, number];
-    readonly verifieddatacontract_struct_name: () => [number, number];
-    readonly verifieddatacontract_toJSON: (a: number, b: any) => [number, number, number];
-    readonly verifieddatacontract_toObject: (a: number, b: any) => [number, number, number];
-    readonly verifieddatacontract_type_name: (a: number) => [number, number];
-    readonly masternodevotetransition_user_fee_increase: (a: number) => number;
-    readonly __wbg_identitytokeninfo_free: (a: number, b: number) => void;
-    readonly __wbg_privateencryptednote_free: (a: number, b: number) => void;
-    readonly __wbg_tokenbasetransition_free: (a: number, b: number) => void;
-    readonly __wbg_tokendirectpurchasetransition_free: (a: number, b: number) => void;
-    readonly __wbg_tokenemergencyactiontransition_free: (a: number, b: number) => void;
-    readonly __wbg_tokenunfreezetransition_free: (a: number, b: number) => void;
-    readonly identitytokeninfo_is_frozen: (a: number) => number;
-    readonly identitytokeninfo_struct_name: () => [number, number];
-    readonly identitytokeninfo_type_name: (a: number) => [number, number];
-    readonly privateencryptednote_constructor: (a: number, b: number, c: number, d: number) => number;
-    readonly privateencryptednote_derivation_encryption_key_index: (a: number) => number;
-    readonly privateencryptednote_root_encryption_key_index: (a: number) => number;
-    readonly privateencryptednote_set_derivation_encryption_key_index: (a: number, b: number) => void;
-    readonly privateencryptednote_set_root_encryption_key_index: (a: number, b: number) => void;
-    readonly privateencryptednote_set_value: (a: number, b: number, c: number) => void;
-    readonly privateencryptednote_struct_name: () => [number, number];
-    readonly privateencryptednote_type_name: (a: number) => [number, number];
-    readonly privateencryptednote_value: (a: number) => [number, number];
-    readonly tokenbasetransition_constructor: (a: any) => [number, number, number];
-    readonly tokenbasetransition_data_contract_id: (a: number) => number;
-    readonly tokenbasetransition_identity_contract_nonce: (a: number) => bigint;
-    readonly tokenbasetransition_set_data_contract_id: (a: number, b: any) => [number, number];
-    readonly tokenbasetransition_set_identity_contract_nonce: (a: number, b: bigint) => void;
-    readonly tokenbasetransition_set_token_contract_position: (a: number, b: any) => [number, number];
-    readonly tokenbasetransition_set_token_id: (a: number, b: any) => [number, number];
-    readonly tokenbasetransition_set_using_group_info: (a: number, b: any) => [number, number];
-    readonly tokenbasetransition_struct_name: () => [number, number];
-    readonly tokenbasetransition_token_contract_position: (a: number) => number;
-    readonly tokenbasetransition_token_id: (a: number) => number;
-    readonly tokenbasetransition_type_name: (a: number) => [number, number];
-    readonly tokenbasetransition_using_group_info: (a: number) => number;
-    readonly tokenconfigurationchangeitem_noChangeItem: () => number;
-    readonly tokendirectpurchasetransition_base: (a: number) => number;
-    readonly tokendirectpurchasetransition_constructor: (a: any) => [number, number, number];
-    readonly tokendirectpurchasetransition_set_base: (a: number, b: number) => void;
-    readonly tokendirectpurchasetransition_set_token_count: (a: number, b: bigint) => void;
-    readonly tokendirectpurchasetransition_set_total_agreed_price: (a: number, b: bigint) => void;
-    readonly tokendirectpurchasetransition_struct_name: () => [number, number];
-    readonly tokendirectpurchasetransition_token_count: (a: number) => bigint;
-    readonly tokendirectpurchasetransition_total_agreed_price: (a: number) => bigint;
-    readonly tokendirectpurchasetransition_type_name: (a: number) => [number, number];
-    readonly tokenemergencyactiontransition_base: (a: number) => number;
-    readonly tokenemergencyactiontransition_constructor: (a: any) => [number, number, number];
-    readonly tokenemergencyactiontransition_emergency_action: (a: number) => [number, number];
-    readonly tokenemergencyactiontransition_public_note: (a: number) => [number, number];
-    readonly tokenemergencyactiontransition_set_base: (a: number, b: number) => void;
-    readonly tokenemergencyactiontransition_set_emergency_action: (a: number, b: number) => void;
-    readonly tokenemergencyactiontransition_set_public_note: (a: number, b: number, c: number) => void;
-    readonly tokenemergencyactiontransition_struct_name: () => [number, number];
-    readonly tokenemergencyactiontransition_type_name: (a: number) => [number, number];
-    readonly tokenunfreezetransition_base: (a: number) => number;
-    readonly tokenunfreezetransition_constructor: (a: any) => [number, number, number];
-    readonly tokenunfreezetransition_frozen_identity_id: (a: number) => number;
-    readonly tokenunfreezetransition_public_note: (a: number) => [number, number];
-    readonly tokenunfreezetransition_set_base: (a: number, b: number) => void;
-    readonly tokenunfreezetransition_set_frozen_identity_id: (a: number, b: any) => [number, number];
-    readonly tokenunfreezetransition_set_public_note: (a: number, b: number, c: number) => void;
-    readonly tokenunfreezetransition_struct_name: () => [number, number];
-    readonly tokenunfreezetransition_type_name: (a: number) => [number, number];
-    readonly testJsValueToJson: (a: any) => [number, number, number];
-    readonly __wbg_batchedtransition_free: (a: number, b: number) => void;
-    readonly __wbg_batchtransition_free: (a: number, b: number) => void;
-    readonly __wbg_blockinfo_free: (a: number, b: number) => void;
-    readonly __wbg_documentpurchasetransition_free: (a: number, b: number) => void;
-    readonly __wbg_documenttransfertransition_free: (a: number, b: number) => void;
-    readonly __wbg_documenttransition_free: (a: number, b: number) => void;
-    readonly __wbg_identitycredittransfer_free: (a: number, b: number) => void;
-    readonly __wbg_identitycreditwithdrawaltransition_free: (a: number, b: number) => void;
-    readonly __wbg_identitytopupfromaddressestransition_free: (a: number, b: number) => void;
-    readonly __wbg_sharedencryptednote_free: (a: number, b: number) => void;
-    readonly __wbg_shieldedtransfertransition_free: (a: number, b: number) => void;
-    readonly __wbg_shieldtransition_free: (a: number, b: number) => void;
-    readonly __wbg_tokenconfigurationchangeitem_free: (a: number, b: number) => void;
-    readonly __wbg_tokensetpricefordirectpurchasetransition_free: (a: number, b: number) => void;
-    readonly __wbg_tokentransition_free: (a: number, b: number) => void;
-    readonly __wbg_vote_free: (a: number, b: number) => void;
-    readonly batchedtransition_constructor: (a: any) => [number, number, number];
-    readonly batchedtransition_data_contract_id: (a: number) => number;
-    readonly batchedtransition_set_data_contract_id: (a: number, b: any) => [number, number];
-    readonly batchedtransition_struct_name: () => [number, number];
-    readonly batchedtransition_toTransition: (a: number) => any;
-    readonly batchedtransition_type_name: (a: number) => [number, number];
-    readonly batchtransition_all_conflicting_index_collateral_voting_funds: (a: number) => [number, bigint, number, number];
-    readonly batchtransition_all_purchases_amount: (a: number) => [number, bigint, number, number];
-    readonly batchtransition_batched_transitions: (a: number) => [number, number];
-    readonly batchtransition_fromBase64: (a: number, b: number) => [number, number, number];
-    readonly batchtransition_fromBatchedTransitions: (a: any, b: any, c: number) => [number, number, number];
-    readonly batchtransition_fromBytes: (a: number, b: number) => [number, number, number];
-    readonly batchtransition_fromHex: (a: number, b: number) => [number, number, number];
-    readonly batchtransition_fromJSON: (a: any) => [number, number, number];
-    readonly batchtransition_fromObject: (a: any) => [number, number, number];
-    readonly batchtransition_fromStateTransition: (a: number) => [number, number, number];
-    readonly batchtransition_modified_data_ids: (a: number) => [number, number];
-    readonly batchtransition_owner_id: (a: number) => number;
-    readonly batchtransition_setIdentityContractNonce: (a: number, b: any) => [number, number];
-    readonly batchtransition_set_signature: (a: number, b: number, c: number) => void;
-    readonly batchtransition_set_signature_public_key_id: (a: number, b: any) => [number, number];
-    readonly batchtransition_set_transitions: (a: number, b: any) => [number, number];
-    readonly batchtransition_signature: (a: number) => [number, number];
-    readonly batchtransition_signature_public_key_id: (a: number) => number;
-    readonly batchtransition_struct_name: () => [number, number];
-    readonly batchtransition_toBase64: (a: number) => [number, number, number, number];
-    readonly batchtransition_toBytes: (a: number) => [number, number, number, number];
-    readonly batchtransition_toHex: (a: number) => [number, number, number, number];
-    readonly batchtransition_toJSON: (a: number) => [number, number, number];
-    readonly batchtransition_toObject: (a: number) => [number, number, number];
-    readonly batchtransition_toStateTransition: (a: number) => number;
-    readonly batchtransition_type_name: (a: number) => [number, number];
-    readonly blockinfo_constructor: (a: any) => [number, number, number];
-    readonly blockinfo_core_height: (a: number) => number;
-    readonly blockinfo_epoch_index: (a: number) => number;
-    readonly blockinfo_fromJSON: (a: any) => [number, number, number];
-    readonly blockinfo_fromObject: (a: any) => [number, number, number];
-    readonly blockinfo_height: (a: number) => bigint;
-    readonly blockinfo_struct_name: () => [number, number];
-    readonly blockinfo_time_ms: (a: number) => bigint;
-    readonly blockinfo_toJSON: (a: number) => [number, number, number];
-    readonly blockinfo_toObject: (a: number) => [number, number, number];
-    readonly blockinfo_type_name: (a: number) => [number, number];
-    readonly documentpurchasetransition_base: (a: number) => number;
-    readonly documentpurchasetransition_constructor: (a: any) => [number, number, number];
-    readonly documentpurchasetransition_fromDocumentTransition: (a: number) => [number, number, number];
-    readonly documentpurchasetransition_price: (a: number) => bigint;
-    readonly documentpurchasetransition_revision: (a: number) => bigint;
-    readonly documentpurchasetransition_set_base: (a: number, b: number) => void;
-    readonly documentpurchasetransition_set_price: (a: number, b: any) => [number, number];
-    readonly documentpurchasetransition_set_revision: (a: number, b: any) => [number, number];
-    readonly documentpurchasetransition_struct_name: () => [number, number];
-    readonly documentpurchasetransition_toDocumentTransition: (a: number) => number;
-    readonly documentpurchasetransition_type_name: (a: number) => [number, number];
-    readonly documenttransfertransition_base: (a: number) => number;
-    readonly documenttransfertransition_constructor: (a: any) => [number, number, number];
-    readonly documenttransfertransition_fromDocumentTransition: (a: number) => [number, number, number];
-    readonly documenttransfertransition_recipient_owner_id: (a: number) => number;
-    readonly documenttransfertransition_set_base: (a: number, b: number) => void;
-    readonly documenttransfertransition_set_recipient_owner_id: (a: number, b: any) => [number, number];
-    readonly documenttransfertransition_struct_name: () => [number, number];
-    readonly documenttransfertransition_toDocumentTransition: (a: number) => number;
-    readonly documenttransfertransition_type_name: (a: number) => [number, number];
-    readonly documenttransition_action_type: (a: number) => [number, number];
-    readonly documenttransition_action_type_number: (a: number) => number;
-    readonly documenttransition_create_transition: (a: number) => [number, number, number];
-    readonly documenttransition_data_contract_id: (a: number) => number;
-    readonly documenttransition_delete_transition: (a: number) => [number, number, number];
-    readonly documenttransition_document_type_name: (a: number) => [number, number];
-    readonly documenttransition_entropy: (a: number) => [number, number];
-    readonly documenttransition_id: (a: number) => number;
-    readonly documenttransition_identity_contract_nonce: (a: number) => bigint;
-    readonly documenttransition_purchase_transition: (a: number) => [number, number, number];
-    readonly documenttransition_replace_transition: (a: number) => [number, number, number];
-    readonly documenttransition_revision: (a: number) => [number, bigint];
-    readonly documenttransition_set_data_contract_id: (a: number, b: any) => [number, number];
-    readonly documenttransition_set_identity_contract_nonce: (a: number, b: any) => [number, number];
-    readonly documenttransition_set_revision: (a: number, b: any) => [number, number];
-    readonly documenttransition_struct_name: () => [number, number];
-    readonly documenttransition_transfer_transition: (a: number) => [number, number, number];
-    readonly documenttransition_type_name: (a: number) => [number, number];
-    readonly documenttransition_update_price_transition: (a: number) => [number, number, number];
-    readonly identitycredittransfer_amount: (a: number) => bigint;
-    readonly identitycredittransfer_constructor: (a: any) => [number, number, number];
-    readonly identitycredittransfer_fromBase64: (a: number, b: number) => [number, number, number];
-    readonly identitycredittransfer_fromBytes: (a: number, b: number) => [number, number, number];
-    readonly identitycredittransfer_fromHex: (a: number, b: number) => [number, number, number];
-    readonly identitycredittransfer_fromJSON: (a: any) => [number, number, number];
-    readonly identitycredittransfer_fromObject: (a: any) => [number, number, number];
-    readonly identitycredittransfer_fromStateTransition: (a: number) => [number, number, number];
-    readonly identitycredittransfer_nonce: (a: number) => bigint;
-    readonly identitycredittransfer_recipient_id: (a: number) => number;
-    readonly identitycredittransfer_sender_id: (a: number) => number;
-    readonly identitycredittransfer_set_amount: (a: number, b: any) => [number, number];
-    readonly identitycredittransfer_set_nonce: (a: number, b: any) => [number, number];
-    readonly identitycredittransfer_set_recipient_id: (a: number, b: any) => [number, number];
-    readonly identitycredittransfer_set_sender_id: (a: number, b: any) => [number, number];
-    readonly identitycredittransfer_set_signature: (a: number, b: number, c: number) => void;
-    readonly identitycredittransfer_set_signature_public_key_id: (a: number, b: any) => [number, number];
-    readonly identitycredittransfer_set_user_fee_increase: (a: number, b: any) => [number, number];
-    readonly identitycredittransfer_signature: (a: number) => [number, number];
-    readonly identitycredittransfer_signature_public_key_id: (a: number) => number;
-    readonly identitycredittransfer_struct_name: () => [number, number];
-    readonly identitycredittransfer_toBase64: (a: number) => [number, number, number, number];
-    readonly identitycredittransfer_toBytes: (a: number) => [number, number, number, number];
-    readonly identitycredittransfer_toHex: (a: number) => [number, number, number, number];
-    readonly identitycredittransfer_toJSON: (a: number) => [number, number, number];
-    readonly identitycredittransfer_toObject: (a: number) => [number, number, number];
-    readonly identitycredittransfer_toStateTransition: (a: number) => number;
-    readonly identitycredittransfer_type_name: (a: number) => [number, number];
-    readonly identitycredittransfer_user_fee_increase: (a: number) => number;
-    readonly identitycreditwithdrawaltransition_amount: (a: number) => bigint;
-    readonly identitycreditwithdrawaltransition_constructor: (a: any) => [number, number, number];
-    readonly identitycreditwithdrawaltransition_core_fee_per_byte: (a: number) => number;
-    readonly identitycreditwithdrawaltransition_fromBase64: (a: number, b: number) => [number, number, number];
-    readonly identitycreditwithdrawaltransition_fromBytes: (a: number, b: number) => [number, number, number];
-    readonly identitycreditwithdrawaltransition_fromHex: (a: number, b: number) => [number, number, number];
-    readonly identitycreditwithdrawaltransition_fromJSON: (a: any) => [number, number, number];
-    readonly identitycreditwithdrawaltransition_fromObject: (a: any) => [number, number, number];
-    readonly identitycreditwithdrawaltransition_fromStateTransition: (a: number) => [number, number, number];
-    readonly identitycreditwithdrawaltransition_identity_id: (a: number) => number;
-    readonly identitycreditwithdrawaltransition_modified_data_ids: (a: number) => [number, number];
-    readonly identitycreditwithdrawaltransition_nonce: (a: number) => bigint;
-    readonly identitycreditwithdrawaltransition_optional_asset_lock_proof: (a: number) => number;
-    readonly identitycreditwithdrawaltransition_output_script: (a: number) => number;
-    readonly identitycreditwithdrawaltransition_pooling: (a: number) => [number, number];
-    readonly identitycreditwithdrawaltransition_purpose_requirement: (a: number) => [number, number];
-    readonly identitycreditwithdrawaltransition_set_amount: (a: number, b: any) => [number, number];
-    readonly identitycreditwithdrawaltransition_set_core_fee_per_byte: (a: number, b: any) => [number, number];
-    readonly identitycreditwithdrawaltransition_set_identity_id: (a: number, b: any) => [number, number];
-    readonly identitycreditwithdrawaltransition_set_nonce: (a: number, b: any) => [number, number];
-    readonly identitycreditwithdrawaltransition_set_output_script: (a: number, b: any) => [number, number];
-    readonly identitycreditwithdrawaltransition_set_pooling: (a: number, b: any) => [number, number];
-    readonly identitycreditwithdrawaltransition_set_signature: (a: number, b: number, c: number) => void;
-    readonly identitycreditwithdrawaltransition_set_signature_public_key_id: (a: number, b: number) => void;
-    readonly identitycreditwithdrawaltransition_set_user_fee_increase: (a: number, b: any) => [number, number];
-    readonly identitycreditwithdrawaltransition_signature: (a: number) => [number, number];
-    readonly identitycreditwithdrawaltransition_signature_public_key_id: (a: number) => number;
-    readonly identitycreditwithdrawaltransition_struct_name: () => [number, number];
-    readonly identitycreditwithdrawaltransition_toBase64: (a: number) => [number, number, number, number];
-    readonly identitycreditwithdrawaltransition_toBytes: (a: number) => [number, number, number, number];
-    readonly identitycreditwithdrawaltransition_toHex: (a: number) => [number, number, number, number];
-    readonly identitycreditwithdrawaltransition_toJSON: (a: number) => [number, number, number];
-    readonly identitycreditwithdrawaltransition_toObject: (a: number) => [number, number, number];
-    readonly identitycreditwithdrawaltransition_toStateTransition: (a: number) => number;
-    readonly identitycreditwithdrawaltransition_type_name: (a: number) => [number, number];
-    readonly identitycreditwithdrawaltransition_user_fee_increase: (a: number) => number;
     readonly identitytopupfromaddressestransition_constructor: (a: any) => [number, number, number];
     readonly identitytopupfromaddressestransition_fromBase64: (a: number, b: number) => [number, number, number];
     readonly identitytopupfromaddressestransition_fromBytes: (a: number, b: number) => [number, number, number];
@@ -13101,15 +14421,28 @@ export interface InitOutput {
     readonly identitytopupfromaddressestransition_toStateTransition: (a: number) => number;
     readonly identitytopupfromaddressestransition_type_name: (a: number) => [number, number];
     readonly identitytopupfromaddressestransition_user_fee_increase: (a: number) => number;
-    readonly sharedencryptednote_constructor: (a: number, b: number, c: number, d: number) => number;
-    readonly sharedencryptednote_recipient_key_index: (a: number) => number;
-    readonly sharedencryptednote_sender_key_index: (a: number) => number;
-    readonly sharedencryptednote_set_recipient_key_index: (a: number, b: number) => void;
-    readonly sharedencryptednote_set_sender_key_index: (a: number, b: number) => void;
-    readonly sharedencryptednote_set_value: (a: number, b: number, c: number) => void;
-    readonly sharedencryptednote_struct_name: () => [number, number];
-    readonly sharedencryptednote_type_name: (a: number) => [number, number];
-    readonly sharedencryptednote_value: (a: number) => [number, number];
+    readonly platformaddress_addressType: (a: number) => [number, number];
+    readonly platformaddress_constructor: (a: any) => [number, number, number];
+    readonly platformaddress_fromBech32m: (a: number, b: number) => [number, number, number];
+    readonly platformaddress_fromBytes: (a: number, b: number) => [number, number, number];
+    readonly platformaddress_fromHex: (a: number, b: number) => [number, number, number];
+    readonly platformaddress_fromP2pkhHash: (a: number, b: number) => [number, number, number];
+    readonly platformaddress_fromP2shHash: (a: number, b: number) => [number, number, number];
+    readonly platformaddress_hash: (a: number) => [number, number];
+    readonly platformaddress_hashToHex: (a: number) => [number, number];
+    readonly platformaddress_isP2pkh: (a: number) => number;
+    readonly platformaddress_isP2sh: (a: number) => number;
+    readonly platformaddress_struct_name: () => [number, number];
+    readonly platformaddress_toBech32m: (a: number, b: any) => [number, number, number, number];
+    readonly platformaddress_toBytes: (a: number) => [number, number];
+    readonly platformaddress_toHex: (a: number) => [number, number];
+    readonly platformaddress_type_name: (a: number) => [number, number];
+    readonly rewarddistributiontype_BlockBasedDistribution: (a: bigint, b: number) => number;
+    readonly rewarddistributiontype_EpochBasedDistribution: (a: number, b: number) => number;
+    readonly rewarddistributiontype_TimeBasedDistribution: (a: bigint, b: number) => number;
+    readonly rewarddistributiontype_distribution: (a: number) => any;
+    readonly rewarddistributiontype_struct_name: () => [number, number];
+    readonly rewarddistributiontype_type_name: (a: number) => [number, number];
     readonly shieldedtransfertransition_actions: (a: number) => [number, number];
     readonly shieldedtransfertransition_anchor: (a: number) => [number, number];
     readonly shieldedtransfertransition_binding_signature: (a: number) => [number, number];
@@ -13126,167 +14459,59 @@ export interface InitOutput {
     readonly shieldedtransfertransition_toStateTransition: (a: number) => number;
     readonly shieldedtransfertransition_type_name: (a: number) => [number, number];
     readonly shieldedtransfertransition_value_balance: (a: number) => bigint;
-    readonly shieldtransition_actions: (a: number) => [number, number];
-    readonly shieldtransition_amount: (a: number) => bigint;
-    readonly shieldtransition_anchor: (a: number) => [number, number];
-    readonly shieldtransition_binding_signature: (a: number) => [number, number];
-    readonly shieldtransition_fee_strategy: (a: number) => [number, number];
-    readonly shieldtransition_fromBytes: (a: number, b: number) => [number, number, number];
-    readonly shieldtransition_fromJSON: (a: any) => [number, number, number];
-    readonly shieldtransition_fromObject: (a: any) => [number, number, number];
-    readonly shieldtransition_getModifiedDataIds: (a: number) => [number, number];
-    readonly shieldtransition_input_witnesses: (a: number) => [number, number];
-    readonly shieldtransition_inputs: (a: number) => [number, number];
-    readonly shieldtransition_new: (a: any) => [number, number, number];
-    readonly shieldtransition_proof: (a: number) => [number, number];
-    readonly shieldtransition_struct_name: () => [number, number];
-    readonly shieldtransition_toBytes: (a: number) => [number, number, number, number];
-    readonly shieldtransition_toJSON: (a: number) => [number, number, number];
-    readonly shieldtransition_toObject: (a: number) => [number, number, number];
-    readonly shieldtransition_toStateTransition: (a: number) => number;
-    readonly shieldtransition_type_name: (a: number) => [number, number];
-    readonly shieldtransition_user_fee_increase: (a: number) => number;
-    readonly tokenconfigurationchangeitem_item: (a: number) => any;
-    readonly tokenconfigurationchangeitem_item_name: (a: number) => [number, number];
-    readonly tokenconfigurationchangeitem_struct_name: () => [number, number];
-    readonly tokenconfigurationchangeitem_type_name: (a: number) => [number, number];
-    readonly tokensetpricefordirectpurchasetransition_base: (a: number) => number;
-    readonly tokensetpricefordirectpurchasetransition_constructor: (a: any) => [number, number, number];
-    readonly tokensetpricefordirectpurchasetransition_price: (a: number) => number;
-    readonly tokensetpricefordirectpurchasetransition_public_note: (a: number) => [number, number];
-    readonly tokensetpricefordirectpurchasetransition_set_base: (a: number, b: number) => void;
-    readonly tokensetpricefordirectpurchasetransition_set_price: (a: number, b: number) => void;
-    readonly tokensetpricefordirectpurchasetransition_set_public_note: (a: number, b: number, c: number) => void;
-    readonly tokensetpricefordirectpurchasetransition_struct_name: () => [number, number];
-    readonly tokensetpricefordirectpurchasetransition_type_name: (a: number) => [number, number];
-    readonly tokentransition_constructor: (a: any) => [number, number, number];
-    readonly tokentransition_contract_id: (a: number) => number;
-    readonly tokentransition_getHistoricalDocumentId: (a: number, b: any) => [number, number, number];
-    readonly tokentransition_historical_document_type_name: (a: number) => [number, number];
-    readonly tokentransition_identity_contract_nonce: (a: number) => bigint;
-    readonly tokentransition_set_contract_id: (a: number, b: any) => [number, number];
-    readonly tokentransition_set_identity_contract_nonce: (a: number, b: any) => [number, number];
-    readonly tokentransition_set_token_id: (a: number, b: any) => [number, number];
-    readonly tokentransition_struct_name: () => [number, number];
-    readonly tokentransition_token_id: (a: number) => number;
-    readonly tokentransition_transition: (a: number) => any;
-    readonly tokentransition_transition_type: (a: number) => [number, number];
-    readonly tokentransition_transition_type_number: (a: number) => number;
-    readonly tokentransition_type_name: (a: number) => [number, number];
-    readonly vote_choice: (a: number) => number;
-    readonly vote_constructor: (a: number, b: number) => number;
-    readonly vote_fromJSON: (a: any) => [number, number, number];
-    readonly vote_fromObject: (a: any) => [number, number, number];
-    readonly vote_poll: (a: number) => number;
-    readonly vote_set_choice: (a: number, b: number) => void;
-    readonly vote_set_poll: (a: number, b: number) => void;
-    readonly vote_struct_name: () => [number, number];
-    readonly vote_toJSON: (a: number) => [number, number, number];
-    readonly vote_toObject: (a: number) => [number, number, number];
-    readonly vote_type_name: (a: number) => [number, number];
-    readonly __wbg_blockbaseddistribution_free: (a: number, b: number) => void;
-    readonly __wbg_distributionfunction_free: (a: number, b: number) => void;
-    readonly __wbg_epochbaseddistribution_free: (a: number, b: number) => void;
-    readonly __wbg_get_blockbaseddistribution_interval: (a: number) => bigint;
-    readonly __wbg_get_epochbaseddistribution_interval: (a: number) => number;
-    readonly __wbg_get_timebaseddistribution_interval: (a: number) => bigint;
-    readonly __wbg_get_verifiedidentityfullwithaddressinfos_identity: (a: number) => number;
-    readonly __wbg_get_verifiedidentitywithaddressinfos_partialIdentity: (a: number) => number;
-    readonly __wbg_platformaddressinput_free: (a: number, b: number) => void;
-    readonly __wbg_platformaddressoutput_free: (a: number, b: number) => void;
-    readonly __wbg_platformversion_free: (a: number, b: number) => void;
-    readonly __wbg_rewarddistributiontype_free: (a: number, b: number) => void;
-    readonly __wbg_set_blockbaseddistribution_interval: (a: number, b: bigint) => void;
-    readonly __wbg_set_epochbaseddistribution_interval: (a: number, b: number) => void;
-    readonly __wbg_set_verifiedidentityfullwithaddressinfos_identity: (a: number, b: number) => void;
-    readonly __wbg_set_verifiedidentitywithaddressinfos_partialIdentity: (a: number, b: number) => void;
-    readonly __wbg_timebaseddistribution_free: (a: number, b: number) => void;
-    readonly __wbg_tokenpreprogrammeddistribution_free: (a: number, b: number) => void;
-    readonly __wbg_verifiedaddressinfos_free: (a: number, b: number) => void;
-    readonly __wbg_verifiedidentityfullwithaddressinfos_free: (a: number, b: number) => void;
-    readonly __wbg_verifiedidentitywithaddressinfos_free: (a: number, b: number) => void;
-    readonly blockbaseddistribution_function: (a: number) => number;
-    readonly blockbaseddistribution_set_function: (a: number, b: number) => void;
-    readonly blockbaseddistribution_struct_name: () => [number, number];
-    readonly blockbaseddistribution_type_name: (a: number) => [number, number];
-    readonly distributionfunction_Exponential: (a: number) => number;
-    readonly distributionfunction_FixedAmountDistribution: (a: number) => number;
-    readonly distributionfunction_InvertedLogarithmic: (a: number) => number;
-    readonly distributionfunction_Linear: (a: number) => number;
-    readonly distributionfunction_Logarithmic: (a: number) => number;
-    readonly distributionfunction_Polynomial: (a: number) => number;
-    readonly distributionfunction_Random: (a: number) => number;
-    readonly distributionfunction_StepDecreasingAmount: (a: number) => number;
-    readonly distributionfunction_Stepwise: (a: any) => [number, number, number];
-    readonly distributionfunction_function_name: (a: number) => [number, number];
-    readonly distributionfunction_function_value: (a: number) => [number, number, number];
-    readonly distributionfunction_struct_name: () => [number, number];
-    readonly distributionfunction_type_name: (a: number) => [number, number];
-    readonly epochbaseddistribution_function: (a: number) => number;
-    readonly epochbaseddistribution_set_function: (a: number, b: number) => void;
-    readonly epochbaseddistribution_struct_name: () => [number, number];
-    readonly epochbaseddistribution_type_name: (a: number) => [number, number];
-    readonly platformaddressinput_address: (a: number) => number;
-    readonly platformaddressinput_amount: (a: number) => any;
-    readonly platformaddressinput_constructor: (a: any, b: number, c: any) => [number, number, number];
-    readonly platformaddressinput_nonce: (a: number) => number;
-    readonly platformaddressinput_struct_name: () => [number, number];
-    readonly platformaddressinput_type_name: (a: number) => [number, number];
-    readonly platformaddressoutput_address: (a: number) => number;
-    readonly platformaddressoutput_amount: (a: number) => any;
-    readonly platformaddressoutput_constructor: (a: any, b: number) => [number, number, number];
-    readonly platformaddressoutput_struct_name: () => [number, number];
-    readonly platformaddressoutput_type_name: (a: number) => [number, number];
-    readonly platformversion_current: () => number;
-    readonly platformversion_first: () => number;
-    readonly platformversion_new: (a: number) => [number, number, number];
-    readonly platformversion_struct_name: () => [number, number];
-    readonly platformversion_type_name: (a: number) => [number, number];
-    readonly platformversion_version: (a: number) => number;
-    readonly rewarddistributiontype_BlockBasedDistribution: (a: bigint, b: number) => number;
-    readonly rewarddistributiontype_EpochBasedDistribution: (a: number, b: number) => number;
-    readonly rewarddistributiontype_TimeBasedDistribution: (a: bigint, b: number) => number;
-    readonly rewarddistributiontype_distribution: (a: number) => any;
-    readonly rewarddistributiontype_struct_name: () => [number, number];
-    readonly rewarddistributiontype_type_name: (a: number) => [number, number];
     readonly timebaseddistribution_function: (a: number) => number;
     readonly timebaseddistribution_set_function: (a: number, b: number) => void;
     readonly timebaseddistribution_struct_name: () => [number, number];
     readonly timebaseddistribution_type_name: (a: number) => [number, number];
-    readonly tokenpreprogrammeddistribution_constructor: (a: any) => [number, number, number];
-    readonly tokenpreprogrammeddistribution_distributions: (a: number) => any;
-    readonly tokenpreprogrammeddistribution_set_distributions: (a: number, b: any) => [number, number];
-    readonly tokenpreprogrammeddistribution_struct_name: () => [number, number];
-    readonly tokenpreprogrammeddistribution_type_name: (a: number) => [number, number];
-    readonly verifiedaddressinfos_address_infos: (a: number) => any;
-    readonly verifiedaddressinfos_fromJSON: (a: any) => [number, number, number];
-    readonly verifiedaddressinfos_fromObject: (a: any) => [number, number, number];
-    readonly verifiedaddressinfos_struct_name: () => [number, number];
-    readonly verifiedaddressinfos_toJSON: (a: number) => [number, number, number];
-    readonly verifiedaddressinfos_toObject: (a: number) => any;
-    readonly verifiedaddressinfos_type_name: (a: number) => [number, number];
-    readonly verifiedidentityfullwithaddressinfos_address_infos: (a: number) => any;
-    readonly verifiedidentityfullwithaddressinfos_fromJSON: (a: any) => [number, number, number];
-    readonly verifiedidentityfullwithaddressinfos_fromObject: (a: any) => [number, number, number];
-    readonly verifiedidentityfullwithaddressinfos_struct_name: () => [number, number];
-    readonly verifiedidentityfullwithaddressinfos_toJSON: (a: number) => [number, number, number];
-    readonly verifiedidentityfullwithaddressinfos_toObject: (a: number) => [number, number, number];
-    readonly verifiedidentityfullwithaddressinfos_type_name: (a: number) => [number, number];
-    readonly verifiedidentitywithaddressinfos_address_infos: (a: number) => any;
-    readonly verifiedidentitywithaddressinfos_fromJSON: (a: any) => [number, number, number];
-    readonly verifiedidentitywithaddressinfos_fromObject: (a: any) => [number, number, number];
-    readonly verifiedidentitywithaddressinfos_struct_name: () => [number, number];
-    readonly verifiedidentitywithaddressinfos_toJSON: (a: number) => [number, number, number];
-    readonly verifiedidentitywithaddressinfos_toObject: (a: number) => [number, number, number];
-    readonly verifiedidentitywithaddressinfos_type_name: (a: number) => [number, number];
+    readonly tokenclaimtransition_base: (a: number) => number;
+    readonly tokenclaimtransition_constructor: (a: any) => [number, number, number];
+    readonly tokenclaimtransition_distribution_type: (a: number) => [number, number];
+    readonly tokenclaimtransition_public_note: (a: number) => [number, number];
+    readonly tokenclaimtransition_set_base: (a: number, b: number) => void;
+    readonly tokenclaimtransition_set_distribution_type: (a: number, b: any) => [number, number];
+    readonly tokenclaimtransition_set_public_note: (a: number, b: number, c: number) => void;
+    readonly tokenclaimtransition_struct_name: () => [number, number];
+    readonly tokenclaimtransition_type_name: (a: number) => [number, number];
+    readonly tokenconfigupdatetransition_base: (a: number) => number;
+    readonly tokenconfigupdatetransition_constructor: (a: any) => [number, number, number];
+    readonly tokenconfigupdatetransition_public_note: (a: number) => [number, number];
+    readonly tokenconfigupdatetransition_set_base: (a: number, b: number) => void;
+    readonly tokenconfigupdatetransition_set_public_note: (a: number, b: number, c: number) => void;
+    readonly tokenconfigupdatetransition_set_update_token_configuration_item: (a: number, b: number) => void;
+    readonly tokenconfigupdatetransition_struct_name: () => [number, number];
+    readonly tokenconfigupdatetransition_type_name: (a: number) => [number, number];
+    readonly tokenconfigupdatetransition_update_token_configuration_item: (a: number) => number;
+    readonly tokenconfigurationchangeitem_item: (a: number) => any;
+    readonly tokenconfigurationchangeitem_item_name: (a: number) => [number, number];
+    readonly tokenconfigurationchangeitem_struct_name: () => [number, number];
+    readonly tokenconfigurationchangeitem_type_name: (a: number) => [number, number];
+    readonly tokenevent_fromJSON: (a: any) => [number, number, number];
+    readonly tokenevent_fromObject: (a: any) => [number, number, number];
+    readonly tokenevent_struct_name: () => [number, number];
+    readonly tokenevent_toJSON: (a: number) => [number, number, number];
+    readonly tokenevent_toObject: (a: number) => [number, number, number];
+    readonly tokenevent_type_name: (a: number) => [number, number];
+    readonly tokenevent_variant: (a: number) => number;
+    readonly tokenfreezetransition_base: (a: number) => number;
+    readonly tokenfreezetransition_constructor: (a: any) => [number, number, number];
+    readonly tokenfreezetransition_frozen_identity_id: (a: number) => number;
+    readonly tokenfreezetransition_public_note: (a: number) => [number, number];
+    readonly tokenfreezetransition_set_base: (a: number, b: number) => void;
+    readonly tokenfreezetransition_set_frozen_identity_id: (a: number, b: any) => [number, number];
+    readonly tokenfreezetransition_set_public_note: (a: number, b: number, c: number) => void;
+    readonly tokenfreezetransition_struct_name: () => [number, number];
+    readonly tokenfreezetransition_type_name: (a: number) => [number, number];
+    readonly tokenpricingschedule_SetPrices: (a: any) => [number, number, number];
+    readonly tokenpricingschedule_SinglePrice: (a: bigint) => number;
+    readonly tokenpricingschedule_fromJSON: (a: any) => [number, number, number];
+    readonly tokenpricingschedule_fromObject: (a: any) => [number, number, number];
+    readonly tokenpricingschedule_schedule_type: (a: number) => [number, number];
+    readonly tokenpricingschedule_struct_name: () => [number, number];
+    readonly tokenpricingschedule_toJSON: (a: number) => [number, number, number];
+    readonly tokenpricingschedule_toObject: (a: number) => [number, number, number];
+    readonly tokenpricingschedule_type_name: (a: number) => [number, number];
+    readonly tokenpricingschedule_value: (a: number) => [number, number, number];
     readonly __wbg_set_timebaseddistribution_interval: (a: number, b: bigint) => void;
-    readonly platformversion_latest: () => number;
-    readonly __wbg_intounderlyingbytesource_free: (a: number, b: number) => void;
-    readonly intounderlyingbytesource_autoAllocateChunkSize: (a: number) => number;
-    readonly intounderlyingbytesource_cancel: (a: number) => void;
-    readonly intounderlyingbytesource_pull: (a: number, b: any) => any;
-    readonly intounderlyingbytesource_start: (a: number, b: any) => void;
-    readonly intounderlyingbytesource_type: (a: number) => number;
     readonly __wbg_intounderlyingsink_free: (a: number, b: number) => void;
     readonly __wbg_intounderlyingsource_free: (a: number, b: number) => void;
     readonly intounderlyingsink_abort: (a: number, b: any) => any;
@@ -13294,19 +14519,25 @@ export interface InitOutput {
     readonly intounderlyingsink_write: (a: number, b: any) => any;
     readonly intounderlyingsource_cancel: (a: number) => void;
     readonly intounderlyingsource_pull: (a: number, b: any) => any;
-    readonly rustsecp256k1_v0_10_0_context_create: (a: number) => number;
-    readonly rustsecp256k1_v0_10_0_context_destroy: (a: number) => void;
+    readonly __wbg_intounderlyingbytesource_free: (a: number, b: number) => void;
+    readonly intounderlyingbytesource_autoAllocateChunkSize: (a: number) => number;
+    readonly intounderlyingbytesource_cancel: (a: number) => void;
+    readonly intounderlyingbytesource_pull: (a: number, b: any) => any;
+    readonly intounderlyingbytesource_start: (a: number, b: any) => void;
+    readonly intounderlyingbytesource_type: (a: number) => number;
     readonly rustsecp256k1_v0_10_0_default_error_callback_fn: (a: number, b: number) => void;
     readonly rustsecp256k1_v0_10_0_default_illegal_callback_fn: (a: number, b: number) => void;
-    readonly wasm_bindgen__closure__destroy__h0704b3468e462532: (a: number, b: number) => void;
-    readonly wasm_bindgen__closure__destroy__he2ea9acd13305c93: (a: number, b: number) => void;
-    readonly wasm_bindgen__closure__destroy__h24cdf2f1ed005492: (a: number, b: number) => void;
-    readonly wasm_bindgen__closure__destroy__h32b60ef5e3a1f7ca: (a: number, b: number) => void;
-    readonly wasm_bindgen__convert__closures_____invoke__hc280bda93c46f1c6: (a: number, b: number, c: any, d: any) => void;
-    readonly wasm_bindgen__convert__closures_____invoke__h923debb907ef9ff7: (a: number, b: number, c: any) => void;
-    readonly wasm_bindgen__convert__closures_____invoke__h442478150db91e55: (a: number, b: number) => void;
-    readonly wasm_bindgen__convert__closures_____invoke__ha8e8e8061a553609: (a: number, b: number) => void;
-    readonly wasm_bindgen__convert__closures_____invoke__hb9b05195cd09422f: (a: number, b: number) => void;
+    readonly rustsecp256k1_v0_10_0_context_destroy: (a: number) => void;
+    readonly rustsecp256k1_v0_10_0_context_create: (a: number) => number;
+    readonly wasm_bindgen_c852ead5a0b0629___closure__destroy___dyn_core_ed718c3d60ebd546___ops__function__FnMut_____Output_______: (a: number, b: number) => void;
+    readonly wasm_bindgen_c852ead5a0b0629___closure__destroy___dyn_core_ed718c3d60ebd546___ops__function__FnMut_____Output________1_: (a: number, b: number) => void;
+    readonly wasm_bindgen_c852ead5a0b0629___closure__destroy___dyn_core_ed718c3d60ebd546___ops__function__FnMut_____Output________2_: (a: number, b: number) => void;
+    readonly wasm_bindgen_c852ead5a0b0629___closure__destroy___dyn_core_ed718c3d60ebd546___ops__function__FnMut__wasm_bindgen_c852ead5a0b0629___JsValue____Output_______: (a: number, b: number) => void;
+    readonly wasm_bindgen_c852ead5a0b0629___convert__closures_____invoke___wasm_bindgen_c852ead5a0b0629___JsValue__wasm_bindgen_c852ead5a0b0629___JsValue_____: (a: number, b: number, c: any, d: any) => void;
+    readonly wasm_bindgen_c852ead5a0b0629___convert__closures_____invoke___wasm_bindgen_c852ead5a0b0629___JsValue_____: (a: number, b: number, c: any) => void;
+    readonly wasm_bindgen_c852ead5a0b0629___convert__closures_____invoke______: (a: number, b: number) => void;
+    readonly wasm_bindgen_c852ead5a0b0629___convert__closures_____invoke_______1_: (a: number, b: number) => void;
+    readonly wasm_bindgen_c852ead5a0b0629___convert__closures_____invoke_______2_: (a: number, b: number) => void;
     readonly __wbindgen_exn_store: (a: number) => void;
     readonly __externref_table_alloc: () => number;
     readonly __wbindgen_externrefs: WebAssembly.Table;

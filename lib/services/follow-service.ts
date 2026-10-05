@@ -64,8 +64,9 @@ class FollowService extends BaseDocumentService<FollowDocument> {
                 return { success: true };
             }
 
-            // Use state transition service for creation
-            // The WASM SDK should handle the conversion of base58 ID to byte array
+            // Use state transition service for creation.
+            // The Yappr follow schema stores followingId as an identifier
+            // field — the 4.2 SDK accepts base58 identifier strings directly.
             const result = await stateTransitionService.createDocument(
                 this.contractId,
                 this.documentType,

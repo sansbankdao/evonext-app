@@ -355,6 +355,60 @@ history of this file (see log below for commit hashes) — keep only load-bearin
    mentionIds (32-byte identifier byte arrays — replies MUST be bs58-
    decoded before sending), hashtag (pattern ^[a-zA-Z0-9_]{1,100}$),
    remix (string max 500). tsc 0, eslint 0, 63/63.
+12. **F26m — feed display fixes (2026-10-05)**: the /posts feed showed
+   "User nknown"/"@user_nknown" (transform read doc.ownerId which is
+   undefined on 4.x documents — the id is $ownerId) and "Invalid Date"
+   (transform produced an ISO string but PostCard renders
+   new Date(post.createdAt * 1000), i.e. epoch SECONDS). Fixed: the
+   transform reads $-prefixed fields with plain fallbacks and emits epoch
+   seconds; "No posts yet" no longer flashes during load (useAsyncState
+   gained an initialLoading param; the posts page starts loading:true and
+   its setLoading(true/false) calls were re-enabled — they had been
+   commented out, which also left the refresh spinner spinning forever;
+   loadPosts deps now use the stable setters instead of the whole
+   postsState object, which re-triggered the effect every render).
+   Verified: 20 cards render, 0 Invalid Date, 0 "User nknown".
+13. **F26n — ONE contract migration + WASM SDK 4.2.0-dev.11 (2026-10-05)**:
+   (a) **Single contract**: per user directive everything now uses ONLY the
+   official Yappr contract EWR695MsqPUuW8EnTbYzD4KybNQD5n7CUDWydJYNg63F.
+   EVONEXT_CONTRACT_ID_TESTNET points to it; the old EvoNext contracts
+   (testnet 465jd..., mainnet 6fBk...) are RETIRED (mainnet constant is ''
+   — no Yappr mainnet contract exists; social features unavailable there).
+   All services' createDocument flows adapted to the Yappr schema: post =
+   {content, language(req), sensitive(req), mediaUrl(URL string),
+   quotedPostId(identifier)} — no replyToPostId/hashtag/remix fields;
+   replies are a SEPARATE 'reply' type (parentId + parentOwnerId, both
+   identifier fields; dashClient.createPost branches on replyToPostId and
+   fetches the parent post for its owner); like = {postId, postOwnerId}
+   (postOwnerId fetched from the parent post; feeds the postOwnerLikes
+   index); follow = {followingId}; bookmark = {postId}; profile has
+   bannerUrl (not bannerId) and NO avatar document type (createProfile no
+   longer calls createAvatar — avatars are DiceBear/local).
+   (b) **WASM SDK upgraded 4.1.1 -> 4.2.0-dev.11** (dist/raw files copied
+   into lib/dash-wasm; backups in /tmp/backup_411_*). Reason: 4.1.1 could
+   not create ANY document with identifier/byteArray fields — the JS glue
+   converts property values to bigint/string arrays and Drive rejects with
+   "storage: protocol: value error: structure error: not an array of
+   bytes" (reproduced via documentCreate AND the manual
+   DocumentCreateTransition/BatchTransition/StateTransition path, and on
+   4.2.0-dev.11's manual path too). In 4.2.0-dev.11 the schema validator
+   accepts base58 identifier STRINGS (DPP identifier contentMediaType), so
+   all identifier fields are passed as base58 strings. 4.2 runtime diffs
+   handled: Identity has .publicKeys (getPublicKeys() is declared in the
+   4.2 d.ts but DOES NOT EXIST at runtime — wallet-manager uses an
+   any-cast); IdentityPublicKey.keyId replaces .id; everything else
+   (deriveKeyFromSeedWithPath, getIdentityByNonUniquePublicKeyHash ->
+   toJSON with numeric purpose/securityLevel, getDocuments, documentCreate,
+   getIdentityContractNonce, DPNS statics) verified compatible.
+   (c) **LIVE-VERIFIED on testnet** on EWR695: post BL8nuehbdeqimHe7o8zjd
+   DaA5v9NLA8yT6qMNc9GbMm8, reply 7JTkTiANEw167mZTYD8KuM3nbXgnZeKhx28EPZz
+   JbhE3, like wds9ezmFD6anK6Sg12L3ekiXdQqJHCbyJDQoDXcbTif (retrievable via
+   the postOwnerLikes index), follow DxAsHeieFnp59qcUN1ZcB9tqarAZx3kY1mTz
+   nQxeuR71, bookmark EwufgUjq5aFBkFF6Q7zy6RYWWWhCNp3uoES1AaELqA1F — all
+   created with the app's exact createDocument logic and queryable. Feed
+   shows real Yappr posts in the browser, no page errors. Note: pre-migration
+   posts/profiles on the retired 465jd contract are no longer visible.
+   tsc 0, eslint 0, 63/63.
 2. Pending decisions: shielded-balance UI, DIP-17 platform-address features, biometric
    settings integration, react-hooks v6 cleanup pass.
 3. Known unverified: the -20.33B credit fee breakdown (F25).

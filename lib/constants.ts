@@ -36,13 +36,16 @@ export const SANS_CONTRACT_ID_TESTNET = 'A36eJF2kyYXwxCtJGsgbR3CTAscUFaNxZN19UqU
 export const SANS_DECIMALS = 8
 export const SANS_USD_VALUE = 0.01
 
-/* EVONEXT Contract IDs */
-export const EVONEXT_CONTRACT_ID_MAINNET = '6fBkKSne1xQ5GCPW9fdwEkH7nk8oYPu48vYiYssWzhX8' // Mainnet
-export const EVONEXT_CONTRACT_ID_TESTNET = '465jdPpFCZefhb4g2k2FpCcrKpPYhJJskDqbGFsKu6wb' // Testnet
+/* Contract IDs — we use ONE contract everywhere: the official Yappr social
+ * contract (https://yap.pr/about). The old EvoNext contracts (testnet 465jd...,
+ * mainnet 6fBk...) are RETIRED. Mainnet has no Yappr contract yet, so social
+ * features are unavailable there until one is deployed. */
+export const EVONEXT_CONTRACT_ID_MAINNET = '' // Mainnet — no Yappr contract exists yet
+export const EVONEXT_CONTRACT_ID_TESTNET = 'EWR695MsqPUuW8EnTbYzD4KybNQD5n7CUDWydJYNg63F' // Testnet — official Yappr contract
 
 /* YAPPR Contract IDs */
 export const YAPPR_CONTRACT_ID_MAINNET = '' // Mainnet
-export const YAPPR_CONTRACT_ID_TESTNET = 'EWR695MsqPUuW8EnTbYzD4KybNQD5n7CUDWydJYNg63F' // Testnet (latest, per yap.pr/about)
+export const YAPPR_CONTRACT_ID_TESTNET = EVONEXT_CONTRACT_ID_TESTNET // same single contract
 
 // Network configuration
 export const DEFAULT_NETWORK = 'testnet'

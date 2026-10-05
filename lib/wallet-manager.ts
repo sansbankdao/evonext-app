@@ -457,7 +457,9 @@ console.log('privKey', privKey)
     const identity = await sdk.identities.getIdentityByIdentifier(_identityId)
 
     /* Set public keys. */
-    const identityPublicKeys = identity.getPublicKeys()
+    // NOTE: the 4.2 dev-build d.ts declares getPublicKeys(), but at runtime
+    // the method does not exist — the keys live on the .publicKeys property.
+    const identityPublicKeys = (identity as any).publicKeys
 // console.log('PUBLIC KEYS', identityPublicKeys)
 
     /* Set public key ID. */
@@ -551,7 +553,9 @@ export const createDocument = async (
     const identity = await sdk.identities.getIdentityByIdentifier(_identityId)
 
     /* Set public keys. */
-    const identityPublicKeys = identity.getPublicKeys()
+    // NOTE: the 4.2 dev-build d.ts declares getPublicKeys(), but at runtime
+    // the method does not exist — the keys live on the .publicKeys property.
+    const identityPublicKeys = (identity as any).publicKeys
 // console.log('PUBLIC KEYS', identityPublicKeys)
 
     /* Set public key ID. */

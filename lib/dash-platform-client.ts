@@ -190,39 +190,59 @@ console.log('CONTRACT ID', this.contractId)
 
             // Private key retrieved successfully
 
-            // Create the post document using WASM SDK
-            // Note: The actual contract doesn't have authorId - it uses $ownerId system field
+            // Build the document data for the Yappr contract schema:
+            // post = {content, language(required), sensitive, mediaUrl(URL string),
+            //        quotedPostId(.bytes)} — there is no replyToPostId/hashtag/remix.
             const postData: any = {
                 content: content.trim()
             }
 
-            // Convert replyToPostId if provided
+            // Replies are a SEPARATE document type (reply: parentId +
+            // parentOwnerId, both identifier fields). A replyToPostId switches
+            // this call over to creating a reply document instead of a post.
+            let documentType = 'post'
+            let replyData: any = null
+
             if (options?.replyToPostId) {
                 try {
-                    const bs58Module = await import('bs58')
-                    const bs58 = bs58Module.default
+                    // Fetch the parent post to get its owner (required field).
+                    const parent = await this.sdk.getDocument(
+                        this.contractId!, 'post', options.replyToPostId
+                    )
+                    // Document.toJSON requires the platform version argument.
+                    const parentJson: any = parent && typeof (parent as any).toJSON === 'function'
+                        ? (parent as any).toJSON(
+                            (await import('./dash-wasm/compat')).PlatformVersion.current()
+                        )
+                        : parent
+                    const parentOwnerId = parentJson?.$ownerId || parentJson?.ownerId
 
-                    postData.replyToPostId = Array.from(bs58.decode(options.replyToPostId))
+                    if (!parentOwnerId) {
+                        throw new Error('Parent post not found')
+                    }
+
+                    replyData = {
+                        content: content.trim(),
+                        parentId: options.replyToPostId,
+                        parentOwnerId,
+                    }
+                    documentType = 'reply'
                 } catch (e) {
-                    console.error('Failed to decode replyToPostId:', e)
+                    console.error('Failed to prepare reply:', e)
                     throw new Error('Invalid reply post ID format')
                 }
+            } else {
+                // Optional media URL — the Yappr schema stores it as a plain URL string.
+                if (options?.mediaUrl) {
+                    postData.mediaUrl = options.mediaUrl
+                }
+
+                // Language is required by the schema (defaults to 'en').
+                postData.language = 'en'
+
+                // Sensitive content flag (Yappr field name; no hashtag/remix fields).
+                postData.sensitive = false
             }
-
-            // Add other optional fields
-            if (options?.mediaUrl) {
-                postData.mediaUrl = options.mediaUrl
-            }
-
-            if (options?.primaryHashtag) {
-                postData.primaryHashtag = options.primaryHashtag.replace('#', '')
-            }
-
-            // Add language (defaults to 'en' in the contract, but let's be explicit)
-            postData.language = 'en'
-
-            // Add sensitive content flag
-            postData.isSensitive = false
 
             console.log('Creating post with data:', postData)
 
@@ -236,9 +256,9 @@ console.log('CONTRACT ID', this.contractId)
 
             const result = await stateTransitionService.createDocument(
                 this.contractId!,
-                'post',
+                documentType,
                 identityId,
-                postData
+                documentType === 'reply' ? replyData : postData
             )
 
             if (!result.success) {

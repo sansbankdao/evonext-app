@@ -107,10 +107,10 @@ export interface UseAsyncStateResult<T> extends AsyncState<T> {
     reset: () => void
 }
 
-export function useAsyncState<T>(initialData: T | null = null): UseAsyncStateResult<T> {
+export function useAsyncState<T>(initialData: T | null = null, initialLoading: boolean = false): UseAsyncStateResult<T> {
     const [state, setState] = React.useState<AsyncState<T>>({
         data: initialData,
-        loading: false,
+        loading: initialLoading,
         error: null
     })
 

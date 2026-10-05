@@ -131,6 +131,9 @@ describe('postService', () => {
         expect(postService.create).toHaveBeenCalledWith(mockOwnerId, {
             content: mockContent,
             mediaUrl: mockOptions.mediaUrl,
+            // Yappr post schema: language and sensitive are required fields.
+            language: 'en',
+            sensitive: false,
         })
         // NOTE: `create` is mocked to return a raw document (no transform), so
         // the result matches that raw shape, not a transformed IPost.

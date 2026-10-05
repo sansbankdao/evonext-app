@@ -40,7 +40,9 @@ class BookmarkService extends BaseDocumentService<BookmarkDocument> {
                 return true
             }
 
-            // Use state transition service for creation
+            // Use state transition service for creation.
+            // The Yappr bookmark schema stores postId as an identifier
+            // field — the 4.2 SDK accepts base58 identifier strings directly.
             const result = await stateTransitionService.createDocument(
                 this.contractId,
                 this.documentType,

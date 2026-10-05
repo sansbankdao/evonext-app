@@ -264,11 +264,9 @@ export class ProfileService extends BaseDocumentService<IUser> {  // CHANGE: Exp
         if (website) {
             data.website = website
         }
-        // If avatar data provided, create avatar document first
-        if (avatarData) {
-            const avatarId = await this.createAvatar(ownerId, avatarData);
-            data.avatarId = avatarId;
-        }
+        // NOTE: avatarData is ignored — the Yappr contract has no 'avatar'
+        // document type, so on-chain avatar storage is not possible. Avatars
+        // are generated locally with DiceBear (see lib/avatar-dicebear.ts).
         const result = await this.create(ownerId, data);
         // Invalidate cache for this user
         cacheManager.invalidateByTag(`user:${ownerId}`);

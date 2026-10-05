@@ -148,13 +148,14 @@ class PostService extends BaseDocumentService<IPost> {
         }
 
         // Add optional fields
+        // Yappr post schema: content, language (required), sensitive (boolean),
+        // mediaUrl (URL string), quotedPostId (.bytes). There is no
+        // replyToId/primaryHashtag/firstMentionId on posts — hashtags and
+        // mentions are separate document types, and replies use the 'reply' type.
         if (options.mediaUrl) data.mediaUrl = options.mediaUrl
-        if (options.replyToId) data.replyToId = options.replyToId
         if (options.quotedPostId) data.quotedPostId = options.quotedPostId
-        if (options.firstMentionId) data.firstMentionId = options.firstMentionId
-        if (options.primaryHashtag) data.primaryHashtag = options.primaryHashtag
-        if (options.language) data.language = options.language || 'en'
-        if (options.isSensitive !== undefined) data.isSensitive = options.isSensitive
+        data.language = options.language || 'en'
+        data.sensitive = options.isSensitive !== undefined ? options.isSensitive : false
 
         return this.create(ownerId, data)
     }

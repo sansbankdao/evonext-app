@@ -1,5 +1,6 @@
 /* Import modules. */
 import { getWasmSdk } from './wasm-sdk-service'
+import { PlatformVersion } from '../dash-wasm/compat'
 import { BaseDocumentService, QueryOptions } from './document-service'
 import { stateTransitionService } from './state-transition-service'
 import { getContractId, getNetwork } from '../network'
@@ -47,16 +48,22 @@ console.log('EXISTING LIKE', existing)
                 return true
             }
 
-            // Convert postId to byte array
-            const bs58Module = await import('bs58')
-            const bs58 = bs58Module.default
-            const postIdBytes = Array.from(bs58.decode(postId))
-console.log('DEBUG DOCUMENT', {
-    contractId: this.contractId,
-    documentType: this.documentType,
-    ownerId,
-    postIdBytes,
-})
+            // The Yappr like schema stores postId AND postOwnerId as
+            // identifier fields; postOwnerId feeds the postOwnerLikes index
+            // used for like counts, so fetch the post to get its owner.
+            // The 4.2 SDK accepts base58 identifier strings directly.
+            const parent = await sdk.getDocument(
+                this.contractId, this.documentType, postId
+            )
+            const parentJson: any = parent && typeof (parent as any).toJSON === 'function'
+                ? (parent as any).toJSON(PlatformVersion.current())
+                : parent
+            const parentOwnerId = parentJson?.$ownerId || parentJson?.ownerId
+
+            if (!parentOwnerId) {
+                console.error('Post not found for like:', postId)
+                return false
+            }
 
             console.log(`Liking ${this.documentType} document:`, postId)
 
@@ -65,7 +72,7 @@ console.log('DEBUG DOCUMENT', {
                 this.contractId,
                 this.documentType,
                 ownerId,
-                { postId: postIdBytes }
+                { postId, postOwnerId: parentOwnerId }
             )
 
             return result.success
