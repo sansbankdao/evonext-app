@@ -73,6 +73,45 @@ const transformPostDoc = (doc: any): IPost => {
     }
 }
 
+/**
+ * Replace placeholder authors with real identity info: the on-chain
+ * profile (displayName, avatar data) when it exists, and the DPNS
+ * username resolved from the DPNS contract (which works even when no
+ * profile document exists on the social contract).
+ */
+const applyAuthorProfiles = async <T extends IPost>(items: T[]): Promise<T[]> => {
+    const { profileService } = await import('@/lib/services/profile-service')
+    const { dpnsService } = await import('@/lib/services/dpns-service')
+    const ownerIds = [...new Set(items.map(item => item.author.id))]
+    const [profiles, usernames] = await Promise.all([
+        Promise.all(ownerIds.map(id => profileService.getProfile(id))),
+        Promise.all(ownerIds.map(id => dpnsService.resolveUsername(id))),
+    ])
+    const byId: Record<string, { profile: any; username: string | null }> = {}
+
+    ownerIds.forEach((id, i) => {
+        byId[id] = { profile: profiles[i], username: usernames[i] }
+    })
+
+    return items.map(item => {
+        const info = byId[item.author.id]
+
+        if (!info) return item
+
+        return {
+            ...item,
+            author: {
+                ...item.author,
+                // No profile displayName on the social contract? Fall back
+                // to the DPNS username as the visible name.
+                displayName: info.profile?.displayName || info.username || item.author.displayName,
+                username: info.username || info.profile?.username || item.author.username,
+                avatarData: info.profile?.avatarData,
+            },
+        }
+    })
+}
+
 function PostDetailPage() {
     const router = useRouter()
     const { user } = useAuth()
@@ -129,28 +168,35 @@ function PostDetailPage() {
 
                 const postObj = transformPostDoc(doc)
 
-                // Real interaction counts (same batched helper the feed uses).
-                const counts = await dashClient.getInteractionCounts([hashId])
+                // Real interaction counts (same batched helper the feed uses)
+                // including whether the current user already liked this post.
+                const counts = await dashClient.getInteractionCounts([hashId], user?.identityId)
                 const count = counts[hashId]
 
                 if (count) {
                     postObj.likes = count.likes
                     postObj.replies = count.replies
                     postObj.remixes = count.remixes
+                    postObj.liked = count.likedByMe
                 }
 
-                setPost(postObj)
+                // Resolve the real author profile (displayName, DPNS
+                // username, avatar data) instead of the raw placeholder.
+                const withAuthor = await applyAuthorProfiles([postObj])
+
+                setPost(withAuthor[0])
 
                 // Real replies from the separate 'reply' document type,
-                // oldest first.
+                // oldest first, with their authors' profiles resolved.
                 const replyDocs = await dashClient.getReplies(hashId)
-
-                setReplies(
+                const transformedReplies = await applyAuthorProfiles(
                     replyDocs.map((d: any) => ({
                         ...transformPostDoc(d),
                         replyToId: hashId as string,
                     }))
                 )
+
+                setReplies(transformedReplies)
             } catch (error) {
                 console.error('Failed to load post:', error)
 
@@ -183,10 +229,12 @@ function PostDetailPage() {
             const replyDocs = await dashClient.getReplies(post.id)
 
             setReplies(
-                replyDocs.map((d: any) => ({
-                    ...transformPostDoc(d),
-                    replyToId: post.id,
-                }))
+                await applyAuthorProfiles(
+                    replyDocs.map((d: any) => ({
+                        ...transformPostDoc(d),
+                        replyToId: post.id,
+                    }))
+                )
             )
             setPost(prev => prev ? { ...prev, replies: replyDocs.length } : null)
         } catch (error) {
@@ -227,7 +275,7 @@ function PostDetailPage() {
                     <>
                         {/* Main Post */}
                         <div className="border-b border-gray-200 dark:border-gray-800">
-                            <PostCard post={post} />
+                            <PostCard post={post} isOwnPost={user?.identityId === post.author.id} />
                         </div>
 
                         {/* Reply Form */}

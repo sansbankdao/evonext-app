@@ -482,6 +482,44 @@ history of this file (see log below for commit hashes) — keep only load-bearin
    page /post#<id> shows real content, real counts (1/1), the real reply
    ("Reply test"), "3 hours ago" instead of negative seconds, no fake
    sample text. tsc 0, lint 0 errors/1 known warning, 63/63 tests.
+16. **F26q — real like/unlike button + real user info on detail page
+   (2026-10-05)**: user asked to wire the like and reply buttons for real
+   (remixes/tips deferred) and reported the detail page showed wrong user
+   info.
+   (a) REPLY was already wired — the compose modal (opened by PostCard's
+   reply button via the replyingTo store field) calls dashClient.
+   createPost(content, {replyToPostId}), which creates a real 'reply'
+   document; live-verified in the browser (reply count on the test post
+   went 1→2 on-chain, then the test reply was deleted).
+   (b) LIKE: `components/post/post-card.tsx` handleLike now writes to the
+   chain via likeService.likePost/unlikePost with optimistic UI and
+   rollback on failure; requires a logged-in identity (error toast
+   otherwise); the hideAvatar "Your Posts" branch still opens LikesModal.
+   Two like-service bugs fixed on the way: getLike used the broken
+   byte-array where clause (fixed to base58 string + postAndOwner index
+   orderBy, same as getPostLikes) and **likePost fetched the parent post
+   with this.documentType (= 'like') instead of 'post', so every like
+   failed with "Post not found for like"**. likedByMe initial state comes
+   free from getInteractionCounts(postIds, viewerId) — the like docs
+   already fetched carry $ownerId; the feed and detail transforms set
+   post.liked from it.
+   (c) DETAIL PAGE USER INFO: there are ZERO profile documents on the
+   Yappr contract, so displayName can't come from there; author info now
+   resolves via `applyAuthorProfiles` in app/post/page.tsx — profile
+   displayName/avatarData when a profile exists + **DPNS username via
+   dpnsService.resolveUsername** (independent contract, 1h reverse cache)
+   for every author (post + replies). Main PostCard also gets
+   isOwnPost={user?.identityId === post.author.id} so own posts render
+   "You wrote ..." like the feed. Live-verified: reply author shows the
+   real DPNS name (evonextselfcustody.dash) and own post shows "You
+   wrote".
+   (d) Live-verified like flow in the browser (seeded pk_<identityId>
+   localStorage key with the auth-critical WIF): like → count 0→1 + red
+   heart + on-chain like doc G4iRKj35fnp7CnGZNkKvSLG66bJvQy9fkEu3HS14KQd2;
+   unlike → doc deleted, count 1→0; the already-liked test post renders
+   red with count 1 from likedByMe. Test artifacts cleaned up on-chain
+   (like doc removed, test reply removed). tsc 0, 63/63, lint 0 errors
+   /1 known warning.
 2. Pending decisions: shielded-balance UI, DIP-17 platform-address features, biometric
    settings integration, react-hooks v6 cleanup pass.
 3. Known unverified: the -20.33B credit fee breakdown (F25).

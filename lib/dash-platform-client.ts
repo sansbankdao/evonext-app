@@ -494,16 +494,19 @@ console.log('CONTRACT ID', this.contractId)
      * ('reply.parentId') and remixes/quotes ('post.quotedPostId'). Each type
      * is queried once for the whole batch with the 'in' operator over a
      * postId-led index (verified against DAPI), paginating past the
-     * 100-per-query cap. Identifier fields are queried as base58 strings;
-     * the orderBy must match the index used by the where clause.
+     * 100-per-query cap. When viewerId is provided, likedByMe is also
+     * derived from the like documents' $ownerId. Identifier fields are
+     * queried as base58 strings; the orderBy must match the index used by
+     * the where clause.
      */
     async getInteractionCounts(
         postIds: string[],
-    ): Promise<Record<string, { likes: number; replies: number; remixes: number }>> {
-        const counts: Record<string, { likes: number; replies: number; remixes: number }> = {}
+        viewerId?: string,
+    ): Promise<Record<string, { likes: number; replies: number; remixes: number; likedByMe: boolean }>> {
+        const counts: Record<string, { likes: number; replies: number; remixes: number; likedByMe: boolean }> = {}
 
         for (const id of postIds) {
-            counts[id] = { likes: 0, replies: 0, remixes: 0 }
+            counts[id] = { likes: 0, replies: 0, remixes: 0, likedByMe: false }
         }
 
         if (postIds.length === 0) {
@@ -560,6 +563,15 @@ console.log('CONTRACT ID', this.contractId)
 
                         if (key && counts[key]) {
                             counts[key][spec.counter]++
+
+                            // The like documents already carry $ownerId — mark
+                            // whether the viewer liked this post (no extra
+                            // query needed for the is-liked state).
+                            if (spec.counter === 'likes' && viewerId
+                                && (doc.$ownerId === viewerId || doc.ownerId === viewerId)
+                            ) {
+                                counts[key].likedByMe = true
+                            }
                         }
                     }
 

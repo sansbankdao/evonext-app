@@ -20,6 +20,7 @@ import {
 
 import { IPost } from '@/lib/types'
 import { formatTime, formatNumber } from '@/lib/utils'
+import { useAuth } from '@/contexts/auth-context'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { IconButton } from '@/components/ui/icon-button'
 import { getInitials, cn } from '@/lib/utils'
@@ -39,17 +40,19 @@ interface PostCardProps {
 
 export function PostCard({ post, hideAvatar = false, isOwnPost = false }: PostCardProps) {
     const router = useRouter()
+    const { user } = useAuth()
     const [liked, setLiked] = useState(post.liked || false)
     const [likes, setLikes] = useState(post.likes)
     const [remixed, setRemixed] = useState(post.remixed || false)
     const [remixes, setRemixes] = useState(post.remixes)
     const [bookmarked, setBookmarked] = useState(post.bookmarked || false)
+    const [likePending, setLikePending] = useState(false)
     const [showLikesModal, setShowLikesModal] = useState(false)
     const { setReplyingTo, setComposeOpen } = useAppStore()
 
     const avatarConfig = parseAvatarConfig(post.author.avatarData) || { style: DEFAULT_AVATAR_STYLE, seed: post.author.username }
 
-    const handleLike = (e: React.MouseEvent) => {
+    const handleLike = async (e: React.MouseEvent) => {
 console.log('HANDLE LIKE')
         /* Stop propagation. */
         e.stopPropagation()
@@ -57,10 +60,52 @@ console.log('HANDLE LIKE')
         if (hideAvatar) {
             // On "Your Posts" tab, show who liked instead of liking
             setShowLikesModal(true)
-        } else {
-            // Normal like behavior
-            setLiked(!liked)
-            setLikes(liked ? likes - 1 : likes + 1)
+
+            return
+        }
+
+        // Normal like behavior — write the like (or its removal) to the
+        // Yappr contract through the like service, with optimistic UI and
+        // rollback on failure.
+        if (!user?.identityId) {
+            toast.error('Please log in to like posts')
+
+            return
+        }
+
+        if (likePending) {
+            return
+        }
+
+        const previousLiked = liked
+        const previousLikes = likes
+        const nextLiked = !liked
+
+        // Optimistic update
+        setLiked(nextLiked)
+        setLikes(nextLiked ? likes + 1 : likes - 1)
+        setLikePending(true)
+
+        try {
+            const { likeService } = await import('@/lib/services/like-service')
+
+            const ok = nextLiked
+                ? await likeService.likePost(post.id, user.identityId)
+                : await likeService.unlikePost(post.id, user.identityId)
+
+            if (!ok) {
+                throw new Error(nextLiked ? 'Failed to like post' : 'Failed to unlike post')
+            }
+        } catch (error) {
+            console.error('Error toggling like:', error)
+
+            // Roll back the optimistic update
+            setLiked(previousLiked)
+            setLikes(previousLikes)
+
+            toast.error((error as any)?.message || 'Failed to update like')
+        } finally {
+            setLikePending(false)
         }
     }
 

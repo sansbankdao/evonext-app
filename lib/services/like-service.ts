@@ -50,10 +50,13 @@ console.log('EXISTING LIKE', existing)
 
             // The Yappr like schema stores postId AND postOwnerId as
             // identifier fields; postOwnerId feeds the postOwnerLikes index
-            // used for like counts, so fetch the post to get its owner.
-            // The 4.2 SDK accepts base58 identifier strings directly.
+            // used for like counts, so fetch the parent POST to get its
+            // owner. NOTE: the parent lives in the 'post' document type —
+            // this.documentType here is 'like' (verified: fetching 'like'
+            // returned "Post not found for like"). The 4.2 SDK accepts
+            // base58 identifier strings directly.
             const parent = await sdk.getDocument(
-                this.contractId, this.documentType, postId
+                this.contractId, 'post', postId
             )
             const parentJson: any = parent && typeof (parent as any).toJSON === 'function'
                 ? (parent as any).toJSON(PlatformVersion.current())
@@ -140,32 +143,28 @@ console.log('EXISTING LIKE', like)
             // Import necessary modules
             const { getDashPlatformClient } = await import('../dash-platform-client')
             const { get_documents } = await import('../dash-wasm/compat')
-            const bs58Module = await import('bs58')
-            const bs58 = bs58Module.default
 
             // Get SDK instance
             const dashClient = getDashPlatformClient(this.contractId)
 
             await dashClient.ensureInitialized()
 
-            // const sdk = await import('../services/wasm-sdk-service').then(m => m.getWasmSdk())
-
-            // Convert postId to byte array
-            const postIdBytes = Array.from(bs58.decode(postId))
-console.log('POST BYTES', postIdBytes)
-            // Build where clause
+            // Identifier fields are queried as base58 STRINGS on the 4.x SDK
+            // (byte-array where clauses fail with "where clause on non
+            // indexed property"), and the orderBy must match the postAndOwner
+            // index [postId, $ownerId].
             const where = [
-                ['postId', '==', postIdBytes],
+                ['postId', '==', postId],
                 ['$ownerId', '==', ownerId]
             ]
-console.log('WHERE', where)
+            const orderBy = [['postId', 'asc'], ['$ownerId', 'asc']]
             // Query directly
             const response = await get_documents(
                 sdk,
                 this.contractId,
                 'like',
                 JSON.stringify(where),
-                null, // orderBy
+                JSON.stringify(orderBy),
                 1,    // limit
                 null, // startAfter
                 null  // startAt

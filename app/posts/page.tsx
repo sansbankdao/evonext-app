@@ -154,7 +154,10 @@ console.log('SORTED POSTS', sortedPosts)
             // a failed count query leaves the counters at 0.
             if (sortedPosts.length > 0) {
                 try {
-                    const counts = await dashClient.getInteractionCounts(sortedPosts.map(p => p.id))
+                    const counts = await dashClient.getInteractionCounts(
+                        sortedPosts.map(p => p.id),
+                        user?.identityId
+                    )
 
                     for (const post of sortedPosts) {
                         const count = counts[post.id]
@@ -163,6 +166,7 @@ console.log('SORTED POSTS', sortedPosts)
                             post.likes = count.likes
                             post.replies = count.replies
                             post.remixes = count.remixes
+                            post.liked = count.likedByMe
                         }
                     }
                 } catch (countError) {
