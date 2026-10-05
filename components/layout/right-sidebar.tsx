@@ -209,26 +209,6 @@ export function RightSidebar() {
                 </div>
             </div>
 
-            <div className="bg-gray-50 dark:bg-gray-950 rounded-2xl overflow-hidden">
-                <h2 className="text-xl font-bold px-4 py-3">
-                    Getting Started
-                </h2>
-
-                <div className="px-4 py-3 space-y-3 text-sm">
-                    <p className="text-gray-600 dark:text-gray-400">
-                        Welcome to EvoNext
-                        <br />Here&apos;s what you can do:
-                    </p>
-
-                    <ul className="space-y-2 pl-5 list-decimal text-gray-600 dark:text-gray-400">
-                        <li>Register your Platform Identity</li>
-                        <li>Customize your Platform Identity</li>
-                        <li>Share Your First Post</li>
-                        <li>Remix Your First Post</li>
-                    </ul>
-                </div>
-            </div>
-
             {user && (
                 <div className="bg-gray-50 dark:bg-gray-950 rounded-2xl overflow-hidden">
                     <h2 className="text-xl font-bold px-4 py-3 flex items-center gap-2">

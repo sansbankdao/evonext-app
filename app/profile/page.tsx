@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import Link from 'next/link'
 import { motion } from 'framer-motion'
 import {
     CameraIcon,
@@ -415,10 +414,10 @@ console.log('PROFILE CONTRACT ID', getContractId(network!))
                                 )}
 
                                 {website && (
-                                    <Link href={website} className="flex items-center gap-1 text-evonext-500 hover:underline">
+                                    <a href={website} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-evonext-500 hover:underline">
                                         <LinkIcon className="h-4 w-4" />
                                         {website.replace(/^https?:\/\//, '')}
-                                    </Link>
+                                    </a>
                                 )}
 
                                 <span className="flex items-center gap-1">
