@@ -79,6 +79,7 @@ export interface AuthUser {
 interface AuthContextType {
     user: AuthUser | null
     isLoading: boolean
+    isRestoringSession: boolean
     error: string | null
     login: (
         identityId: string,
@@ -97,6 +98,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [user, setUser] = useState<AuthUser | null>(null)
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    // True until the saved session has been restored (or found absent).
+    // Guards withAuth against redirecting to /connect before the restore
+    // completes (it is async: dynamic imports + SDK init), which caused
+    // every page refresh to bounce to the login screen.
+    const [isRestoringSession, setIsRestoringSession] = useState(true)
 
     // Check for saved session on mount
     useEffect(() => {
@@ -186,6 +192,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         restoreSession()
+            .finally(() => setIsRestoringSession(false))
     }, [])
 
     /**
@@ -379,6 +386,7 @@ console.log('AUTH CONTEXT (identityData)', identityData)
         <AuthContext.Provider value={{
             user,
             isLoading,
+            isRestoringSession,
             error,
             login,
             logout,
@@ -409,11 +417,17 @@ export function withAuth<P extends object>(
     }
 ) {
     return function AuthenticatedComponent(props: P) {
-        const { user } = useAuth()
+        const { user, isRestoringSession } = useAuth()
         const router = useRouter()
 
         useEffect(() => {
             console.log('withAuth check - user:', user)
+
+            if (isRestoringSession) {
+                // The saved session is still being restored - wait for it
+                // instead of bouncing to /connect prematurely.
+                return
+            }
 
             if (!user) {
                 if (options?.optional) {
@@ -438,10 +452,11 @@ export function withAuth<P extends object>(
             }
         }, [
             user,
+            isRestoringSession,
             router,
         ])
 
-        if (!user) {
+        if (!user || isRestoringSession) {
             return (
                 <div className="flex items-center justify-center min-h-screen">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>

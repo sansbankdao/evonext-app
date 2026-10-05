@@ -245,6 +245,16 @@ history of this file (see log below for commit hashes) — keep only load-bearin
    Live-verified all three cases on testnet: create with both fields ->
    clearing (document left with bio+displayName only) -> setting website
    again; probe cleaned up. tsc 0, eslint 0, 63/63.
+8. **F26i — every page refresh bounced to /connect (auth race); FIXED
+   (2026-10-05)**: profile edit VERIFIED WORKING on-chain by the user
+   (2 successful updates, rev 1->2, displayName AlphaTesterExtraordinaire +
+   location/website landed). Remaining bug: on refresh, the session restore
+   (async: dynamic imports + SDK init) had not finished when `withAuth` ran
+   its effect, saw `user: null`, and redirected to /connect — user's own
+   console log shows `withAuth check - user: null` BEFORE the restore
+   completes. Fix: `isRestoringSession` state (true until restoreSession
+   settles), exposed on the AuthContext; withAuth gates its redirect on it
+   and shows the spinner while restoring. tsc 0, eslint 0, 63/63.
 2. Pending decisions: shielded-balance UI, DIP-17 platform-address features, biometric
    settings integration, react-hooks v6 cleanup pass.
 3. Known unverified: the -20.33B credit fee breakdown (F25).
