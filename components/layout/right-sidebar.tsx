@@ -170,15 +170,17 @@ export function RightSidebar() {
     const { user } = useAuth()
     const { network } = useNetwork()
 
-    /* Initialize locals. */
-    let contractId
-
-    /* Handle network. */
-    if (network === 'mainnet') {
-        contractId = EVONEXT_CONTRACT_ID_MAINNET
-    } else {
-        contractId = EVONEXT_CONTRACT_ID_TESTNET
-    }
+    // The Platform Info panel shows the LATEST Yappr social contract (where
+    // the app's social data lives), linked to the official Dash Platform
+    // Explorer. Mainnet has no Yappr contract yet, so it falls back to the
+    // EvoNext contract there.
+    const isMainnetNetwork = network === 'mainnet'
+    const displayContractId = isMainnetNetwork
+        ? EVONEXT_CONTRACT_ID_MAINNET
+        : YAPPR_CONTRACT_ID_TESTNET
+    const platformExplorerBase = isMainnetNetwork
+        ? 'https://platform-explorer.com'
+        : 'https://testnet.platform-explorer.com'
 
     // Real stats from the Yappr social contract (testnet). Previously this
     // section was hardcoded mock data ("2 hours ago", 342 followers, etc.).
@@ -323,8 +325,17 @@ export function RightSidebar() {
 
                 <div className="px-4 py-3 space-y-2">
                     <div>
-                        <p className="text-sm text-gray-500">Contract ID</p>
-                        <p className="text-xs font-mono break-all">{contractId}</p>
+                        <p className="text-sm text-gray-500">{isMainnetNetwork ? 'Contract ID' : 'Yappr Contract ID'}</p>
+
+                        <a
+                            href={`${platformExplorerBase}/dataContract/${displayContractId}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs font-mono break-all text-evonext-500 hover:underline"
+                            title="Open in Dash Platform Explorer"
+                        >
+                            {displayContractId}
+                        </a>
                     </div>
 
                     <div>
