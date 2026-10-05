@@ -151,6 +151,8 @@ export class ProfileService extends BaseDocumentService<IUser> {  // CHANGE: Exp
             avatar: data.avatarId ? `/api/avatar/${ownerId}` : '',
             avatarId: data.avatarId,
             bio: data.bio,
+            location: data.location,
+            website: data.website,
             followers: 0,
             following: 0,
             verified: false,
@@ -248,11 +250,19 @@ export class ProfileService extends BaseDocumentService<IUser> {  // CHANGE: Exp
         ownerId: string,
         displayName: string,
         bio?: string,
+        location?: string,
+        website?: string,
         avatarData?: string
     ): Promise<IUser> {
         const data: any = {
             displayName,
             bio: bio || ''
+        }
+        if (location) {
+            data.location = location
+        }
+        if (website) {
+            data.website = website
         }
         // If avatar data provided, create avatar document first
         if (avatarData) {
@@ -272,6 +282,8 @@ export class ProfileService extends BaseDocumentService<IUser> {  // CHANGE: Exp
         updates: {
             displayName: string;
             bio?: string;
+            location?: string;
+            website?: string;
             avatarData?: string;
         }
     ): Promise<IUser | null> {
@@ -282,12 +294,50 @@ export class ProfileService extends BaseDocumentService<IUser> {  // CHANGE: Exp
             if (!profile) {
                 throw new Error('Profile not found')
             }
+            // NOTE: the update transition performs a FULL REPLACE of the
+            // document, so the payload must carry ALL contract fields.
+            // Start from the current raw document and merge the updates over
+            // it (otherwise unspecified fields like location/website would
+            // be silently dropped). Fetch raw (not transformed) so fields
+            // not present on IUser (e.g. bannerId) survive the merge.
+            const sdk = await getWasmSdk()
+            const response = await get_documents(
+                sdk, this.contractId, 'profile',
+                [['$ownerId', '==', ownerId]], null, 1, null, null
+            )
+            let raw: any
+            if (Array.isArray(response)) {
+                raw = response[0]
+            } else if (response && typeof response.toJSON === 'function') {
+                const j = response.toJSON()
+                raw = Array.isArray(j) ? j[0] : j?.documents?.[0]
+            } else {
+                raw = response?.[0] || response?.documents?.[0]
+            }
+            if (!raw) {
+                throw new Error('Profile document not found')
+            }
+            if (raw.toJSON) {
+                raw = raw.toJSON()
+            }
+            const docId: string | undefined = raw.$id || raw.id
             const data: any = {}
+            for (const [key, value] of Object.entries(raw)) {
+                if (!key.startsWith('$')) {
+                    data[key] = value
+                }
+            }
             if (updates.displayName !== undefined) {
                 data.displayName = updates.displayName
             }
             if (updates.bio !== undefined) {
                 data.bio = updates.bio
+            }
+            if (updates.location !== undefined) {
+                data.location = updates.location
+            }
+            if (updates.website !== undefined) {
+                data.website = updates.website
             }
             // Handle avatar update
             if (updates.avatarData !== undefined) {
@@ -304,12 +354,7 @@ export class ProfileService extends BaseDocumentService<IUser> {  // CHANGE: Exp
                 }
             }
             // Update profile document
-            const profileDoc = await this.query({
-                where: [['$ownerId', '==', ownerId]],
-                limit: 1
-            })
-            if (profileDoc.documents.length > 0) {
-                const docId = profileDoc.documents[0].docId!
+            if (docId) {
                 const result = await this.update(docId, ownerId, data)
                 // Invalidate cache for this user
                 cacheManager.invalidateByTag(`user:${ownerId}`)

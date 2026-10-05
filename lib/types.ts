@@ -150,6 +150,8 @@ export interface IUser {
     avatarId?: string;      // Reference to avatar document (32-byte array as string)
     avatarData?: string;    // The encoded avatar string (16-128 chars)
     bio?: string;
+    location?: string;
+    website?: string;
     followers: number;
     following: number;
     verified?: boolean;

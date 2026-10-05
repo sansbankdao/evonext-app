@@ -121,6 +121,8 @@ function CreateProfilePage() {
                 user.identityId,
                 formData.displayName,
                 formData.bio,
+                formData.location,
+                formData.website,
                 undefined // avatarData - will be implemented later
             )
 

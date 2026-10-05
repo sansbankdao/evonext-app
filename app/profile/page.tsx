@@ -65,6 +65,7 @@ function ProfilePage() {
     const [bio, setBio] = useState('')
     const [location, setLocation] = useState('')
     const [website, setWebsite] = useState('')
+    const [isSavingProfile, setIsSavingProfile] = useState(false)
 
     // Avatar customization states
     const [avatarFeatures, setAvatarFeatures] = useState<AvatarFeaturesV2>(
@@ -72,6 +73,30 @@ function ProfilePage() {
     )
 
     const joinDate = new Date() // TODO: Get from identity registration
+
+    // Load the user's on-chain profile
+    useEffect(() => {
+        if (!user || !network) return
+
+        const loadProfile = async () => {
+            try {
+                const { ProfileService } = await import('@/lib/services/profile-service')
+
+                const ps = new ProfileService(getContractId(network))
+
+                const profile = await ps.getProfile(user.identityId, user.dpnsUsername)
+
+                setDisplayName(profile?.displayName || '')
+                setBio(profile?.bio || '')
+                setLocation(profile?.location || '')
+                setWebsite(profile?.website || '')
+            } catch (error) {
+                console.error('Failed to load profile:', error)
+            }
+        }
+
+        loadProfile()
+    }, [user, network])
 
     // Load user posts
     useEffect(() => {
@@ -119,10 +144,52 @@ console.log('PROFILE CONTRACT ID', getContractId(network!))
         loadUserPosts()
     }, [user, network])
 
-    const handleSaveProfile = () => {
-        // Save profile changes
-        toast.success('Profile updated successfully')
-        setIsEditingProfile(false)
+    const handleSaveProfile = async () => {
+        if (!user || !network) return
+
+        if (!displayName.trim()) {
+            toast.error('Display name is required')
+            return
+        }
+
+        if (website && !/^https?:\/\/.+$/.test(website)) {
+            toast.error('Website must start with http:// or https://')
+            return
+        }
+
+        setIsSavingProfile(true)
+
+        try {
+            const { ProfileService } = await import('@/lib/services/profile-service')
+
+            const ps = new ProfileService(getContractId(network))
+
+            await ps.updateProfile(user.identityId, {
+                displayName: displayName.trim(),
+                bio,
+                location,
+                website,
+            })
+
+            toast.success('Profile updated successfully')
+            setIsEditingProfile(false)
+
+            // Refresh the loaded values (updateProfile invalidates the cache)
+            const profile = await ps.getProfile(user.identityId, user.dpnsUsername)
+
+            setDisplayName(profile?.displayName || '')
+            setBio(profile?.bio || '')
+            setLocation(profile?.location || '')
+            setWebsite(profile?.website || '')
+        } catch (error) {
+            console.error('Failed to update profile:', error)
+
+            toast.error(error instanceof Error
+                ? error.message
+                : ((error as any)?.message || 'Failed to update profile'))
+        } finally {
+            setIsSavingProfile(false)
+        }
     }
 
     const handleSaveAvatar = () => {
@@ -213,8 +280,8 @@ console.log('PROFILE CONTRACT ID', getContractId(network!))
                                         Cancel
                                     </Button>
 
-                                    <Button size="sm" onClick={handleSaveProfile}>
-                                        Save
+                                    <Button size="sm" onClick={handleSaveProfile} disabled={isSavingProfile}>
+                                        {isSavingProfile ? 'Saving...' : 'Save'}
                                     </Button>
                                 </div>
                             ) : (
@@ -300,7 +367,9 @@ console.log('PROFILE CONTRACT ID', getContractId(network!))
                                 </h2>
 
                                 <p className="text-gray-500">
-                                    @{user?.identityId.slice(0, 8).toLowerCase() || 'loading...'}
+                                    {user?.dpnsUsername
+                                        ? `@${user.dpnsUsername}`
+                                        : `@${user?.identityId.slice(0, 8).toLowerCase() || 'loading...'}`}
                                 </p>
                             </div>
 

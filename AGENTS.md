@@ -194,6 +194,32 @@ history of this file (see log below for commit hashes) — keep only load-bearin
    vitest.config.ts: hookTimeout 60s / testTimeout 30s (post-service beforeAll
    imports the wasm-backed ProfileService and flaked at the 10s default under
    parallel load; 2 consecutive full runs green).
+5. **F26f — profile EDIT was a no-op; fixed + update path LIVE-VERIFIED
+   (2026-10-05)**: the user reported no profile tx appeared; root causes found
+   in `/profile` and the services:
+   (a) `app/profile/page.tsx` `handleSaveProfile` was a STUB — showed a
+   success toast and never sent a transition. The page also never fetched the
+   on-chain profile (edit form always started blank, header showed the
+   identity-id prefix). Fixed: fetch profile via ProfileService.getProfile on
+   mount; real save via updateProfile with validation (displayName required,
+   website must match contract pattern ^https?://.+); Save button shows
+   "Saving..." + disabled while submitting; DPNS @username shown when known.
+   (b) `updateDocument` does a FULL REPLACE — `updateProfile` built `data`
+   from only the changed fields, which would silently DROP location/website/
+   bannerId. Fixed: fetch the raw document (get_documents + toJSON, strip
+   `$`-prefixed keys), merge updates over it. `createProfile` also dropped
+   location/website (create page collected them but never passed them) —
+   signature now `(ownerId, displayName, bio?, location?, website?,
+   avatarData?)`; create page passes them. `IUser` gained `location?`/
+   `website?`; `transformDocument` maps them (contract profile schema:
+   displayName/avatarId/bannerId/bio/location/website — verified on-chain).
+   LIVE-VERIFIED on testnet: create (4 fields) -> merged replace -> all fields
+   survived, rev 1->2, edits applied; probe cleaned up. tsc 0, eslint 0, 63/63.
+   NOTE: user's profile `H7qSEi8h...` (BetaTesterExtraordinaire, rev 1) is
+   intact from ~26 days ago; their failed creates never landed. The
+   `secure-storage.ts` beforeunload/pagehide handler clears stored keys on
+   every page unload — suspected cause of the reported "disconnect on Edit"
+   (unconfirmed; not reproduced).
 2. Pending decisions: shielded-balance UI, DIP-17 platform-address features, biometric
    settings integration, react-hooks v6 cleanup pass.
 3. Known unverified: the -20.33B credit fee breakdown (F25).
