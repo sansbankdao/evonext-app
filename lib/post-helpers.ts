@@ -120,3 +120,49 @@ export function validatePost(content: string): { valid: boolean; error?: string 
 
     return { valid: true }
 }
+
+/**
+ * Replace placeholder authors with real identity info: the on-chain
+ * profile (displayName, avatar data) when it exists, and the DPNS
+ * username resolved from the DPNS contract (which works even when no
+ * profile document exists on the social contract). Used by the Posts
+ * feed and the post detail page.
+ */
+export async function resolveItemAuthors<
+    T extends { author: { id: string; username: string; displayName: string; avatarData?: string } }
+>(items: T[]): Promise<T[]> {
+    if (items.length === 0) return items
+
+    const { profileService } = await import('@/lib/services/profile-service')
+    const { dpnsService } = await import('@/lib/services/dpns-service')
+
+    const ownerIds = [...new Set(items.map(item => item.author.id))]
+    const [profiles, usernames] = await Promise.all([
+        Promise.all(ownerIds.map(id => profileService.getProfile(id))),
+        Promise.all(ownerIds.map(id => dpnsService.resolveUsername(id))),
+    ])
+
+    const byId: Record<string, { profile: any; username: string | null }> = {}
+
+    ownerIds.forEach((id, i) => {
+        byId[id] = { profile: profiles[i], username: usernames[i] }
+    })
+
+    return items.map(item => {
+        const info = byId[item.author.id]
+
+        if (!info) return item
+
+        return {
+            ...item,
+            author: {
+                ...item.author,
+                // No profile displayName on the social contract? Fall back
+                // to the DPNS username as the visible name.
+                displayName: info.profile?.displayName || info.username || item.author.displayName,
+                username: info.username || info.profile?.username || item.author.username,
+                avatarData: info.profile?.avatarData,
+            },
+        }
+    })
+}

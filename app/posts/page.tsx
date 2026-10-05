@@ -21,6 +21,7 @@ import {
     EVONEXT_CONTRACT_ID_MAINNET,
     EVONEXT_CONTRACT_ID_TESTNET,
 } from '@/lib/constants'
+import { resolveItemAuthors } from '@/lib/post-helpers'
 
 const getContractId = (_network: string): any => {
     /* Initialize locals. */
@@ -177,6 +178,16 @@ console.log('SORTED POSTS', sortedPosts)
                     console.error('Feed: Failed to load interaction counts:', countError)
                 }
             }
+            // Resolve real author names (profile displayName + DPNS
+            // username) for everything on screen — the same helper the
+            // detail page uses. A failure leaves the placeholder names.
+            let namedPosts = sortedPosts
+            try {
+                namedPosts = await resolveItemAuthors(sortedPosts)
+            } catch (authorError) {
+                console.error('Feed: Failed to resolve author names:', authorError)
+            }
+
             // If no posts found, show helpful message but don't error
             if (sortedPosts.length === 0) {
                 console.log('Feed: No posts found on platform')
@@ -187,10 +198,10 @@ console.log('SORTED POSTS', sortedPosts)
                     ? `feed_your_posts_${user.identityId}`
                     : `feed_${activeTab}`
 
-                cacheManager.set('feed', cacheKey, sortedPosts)
+                cacheManager.set('feed', cacheKey, namedPosts)
 
-                setData(sortedPosts)
-                console.log(`Feed: Successfully loaded ${sortedPosts.length} posts (newest first)`)
+                setData(namedPosts)
+                console.log(`Feed: Successfully loaded ${namedPosts.length} posts (newest first)`)
             }
         } catch (error) {
             console.error('Feed: Failed to load posts from platform:', error)

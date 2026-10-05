@@ -537,14 +537,27 @@ history of this file (see log below for commit hashes) — keep only load-bearin
    times; cards render when data lands.
    (b) PostCard user header (non-own, non-hideAvatar posts) now renders
    `@<DPNS label without .dash suffix>` at text-[15px] font-semibold,
-   time after it, and the truncated identity ID (first8…last8) below in
-   text-2xs gray-400 mono — no more duplicated name; applies to detail,
-   feed and reply cards alike (feed authors are still the user_xxx
-   placeholders until profile/DPNS resolution is wired there).
+   time after it, and the identity ID below in text-2xs gray-400 mono — no
+   more duplicated name; applies to detail, feed and reply cards alike.
    (c) User's like on post FETDGwSLvVbZo33tgwJEwyGKUHaPGhvuct5154CmBAkW
    confirmed on-chain: like doc 4bCu4Qvi2YiMH4UdUbvs9jiwzEmEufsG2NwCZ9s
    AmYLf, owner ADtgYG2…xLFFB. tsc 0, 63/63, lint 0 errors/1 known
    warning.
+18. **F26s — full identity ID; usernames on the Posts feed (2026-10-05)**:
+   (a) PostCard now renders the FULL identity ID under the @handle
+   (user asked not to abbreviate it); break-all so the 44-char ID wraps.
+   (b) Feed usernames were user_xxx placeholders (profile/DPNS resolution
+   only existed on the detail page). Moved that logic into a shared
+   helper `resolveItemAuthors` in lib/post-helpers.ts (generic over any
+   item with an {id, username, displayName, avatarData?} author; profile
+   displayName/avatarData when present + dpnsService.resolveUsername,
+   5-min/1-hour caches); app/post/page.tsx now imports it as
+   applyAuthorProfiles (behavior unchanged), and app/posts/page.tsx runs
+   it over the sorted posts before caching/setData (failure leaves
+   placeholder names). Live-verified: feed and detail both show
+   "@NewMoneyHoney69" with the full ID for post FETDGw…. Cost: ~2N
+   parallel lookups per feed load, mostly cache hits after first run.
+   tsc 0, 63/63, lint 0 errors/1 known warning.
 2. Pending decisions: shielded-balance UI, DIP-17 platform-address features, biometric
    settings integration, react-hooks v6 cleanup pass.
 3. Known unverified: the -20.33B credit fee breakdown (F25).

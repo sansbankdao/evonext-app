@@ -198,10 +198,8 @@ console.log('HANDLE SHARE')
                                             {formatTime(new Date((post.createdAt as number) * 1000))}
                                         </span>
                                     </div>
-                                    <span className="text-2xs text-gray-400 font-mono">
-                                        {post.author.id.length > 20
-                                            ? `${post.author.id.slice(0, 8)}…${post.author.id.slice(-8)}`
-                                            : post.author.id}
+                                    <span className="text-2xs text-gray-400 font-mono break-all">
+                                        {post.author.id}
                                     </span>
                                 </div>
                             ) : (
