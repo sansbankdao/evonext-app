@@ -7,6 +7,12 @@ import { Sidebar } from '@/components/layout/sidebar'
 import { RightSidebar } from '@/components/layout/right-sidebar'
 import { PostCard } from '@/components/post/post-card'
 import { withAuth, useAuth } from '@/contexts/auth-context'
+import { useNetwork } from '@/contexts/network-context'
+import { getDashPlatformClient } from '@/lib/dash-platform-client'
+import {
+    EVONEXT_CONTRACT_ID_MAINNET,
+    EVONEXT_CONTRACT_ID_TESTNET,
+} from '@/lib/constants'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { IPost } from '@/lib/types'
@@ -16,9 +22,61 @@ interface Reply extends IPost {
     replyToId: string
 }
 
+const getContractId = (_network: string): any => {
+    /* Initialize locals. */
+    let contractId
+
+    /* Handle network. */
+    if (_network === 'mainnet') {
+        contractId = EVONEXT_CONTRACT_ID_MAINNET
+    } else {
+        contractId = EVONEXT_CONTRACT_ID_TESTNET
+    }
+
+    return contractId
+}
+
+/**
+ * Transform a raw document (4.x SDK: $-prefixed system fields) into the
+ * shape PostCard expects. PostCard renders
+ * new Date(post.createdAt * 1000), so the canonical unit here is epoch
+ * SECONDS.
+ */
+const transformPostDoc = (doc: any): IPost => {
+    const data = doc?.data || doc || {}
+    const authorIdStr = doc?.$ownerId || doc?.ownerId || 'unknown'
+    const docId = doc?.$id || doc?.id || ''
+    const createdAtMs = Number(doc?.$createdAt ?? doc?.createdAt ?? Date.now())
+
+    return {
+        id: docId,
+        content: data.content || 'No content',
+        author: {
+            id: authorIdStr,
+            username: `user_${authorIdStr.slice(-6)}`,
+            displayName: `User ${authorIdStr.slice(-6)}`,
+            avatar: '',
+            followers: 0,
+            following: 0,
+            verified: false,
+            joinedAt: new Date(),
+            revision: 1,
+        },
+        createdAt: Math.floor(createdAtMs / 1000),
+        likes: 0,
+        replies: 0,
+        remixes: 0,
+        views: 0,
+        liked: false,
+        remixed: false,
+        bookmarked: false
+    }
+}
+
 function PostDetailPage() {
     const router = useRouter()
     const { user } = useAuth()
+    const { network } = useNetwork()
     const [post, setPost] = useState<IPost | null>(null)
     const [replies, setReplies] = useState<Reply[]>([])
     const [isLoading, setIsLoading] = useState(true)
@@ -47,89 +105,63 @@ function PostDetailPage() {
         }
 
         const loadPost = async () => {
+            /* Validate the hash ID. */
+            if (!hashId) {
+                setPost(null)
+                setIsLoading(false)
+
+                return
+            }
+
             try {
                 setIsLoading(true)
 
-                // In a real app, this would fetch the specific post from Dash Platform
-                // For now, we'll simulate it
-                const mockPost: IPost = {
-                    id: hashId as string,
-                    content: 'This is a sample post content. In a real app, this would be loaded from Dash Platform.',
-                    author: {
-                        id: 'user123',
-                        docId: 'abc123',
-                        username: 'user123...',
-                        displayName: 'User 123',
-                        avatar: '',
-                        followers: 0,
-                        following: 0,
-                        joinedAt: new Date(),
-                        revision: 1,
-                    },
-                    createdAt: new Date(Date.now() - 1000 * 60 * 60),
-                    likes: 42,
-                    replies: 5,
-                    remixes: 12,
-                    views: 234
+                const dashClient = getDashPlatformClient(getContractId(network!))
+
+                // Fetch the post document by its $id.
+                const doc = await dashClient.getPostById(hashId)
+
+                if (!doc) {
+                    setPost(null)
+
+                    return
                 }
 
-                const mockReplies: Reply[] = [
-                    {
-                        id: 'reply1',
-                        content: 'Great post! Thanks for sharing.',
-                        author: {
-                            id: 'user456',
-                            docId: 'abc456',
-                            username: 'user456...',
-                            displayName: 'User 456',
-                            avatar: '',
-                            followers: 0,
-                            following: 0,
-                            joinedAt: new Date(),
-                            revision: 1,
-                        },
-                        createdAt: new Date(Date.now() - 1000 * 60 * 30),
-                        likes: 3,
-                        replies: 0,
-                        remixes: 0,
-                        views: 45,
-                        replyToId: hashId as string
-                    },
-                    {
-                        id: 'reply2',
-                        content: 'I totally agree with this perspective.',
-                        author: {
-                            id: 'user789',
-                            docId: 'abc789',
-                            username: 'user789...',
-                            displayName: 'User 789',
-                            avatar: '',
-                            followers: 0,
-                            following: 0,
-                            joinedAt: new Date(),
-                            revision: 1,
-                        },
-                        createdAt: new Date(Date.now() - 1000 * 60 * 15),
-                        likes: 7,
-                        replies: 0,
-                        remixes: 1,
-                        views: 89,
-                        replyToId: hashId as string
-                    }
-                ]
+                const postObj = transformPostDoc(doc)
 
-                setPost(mockPost)
-                setReplies(mockReplies)
+                // Real interaction counts (same batched helper the feed uses).
+                const counts = await dashClient.getInteractionCounts([hashId])
+                const count = counts[hashId]
+
+                if (count) {
+                    postObj.likes = count.likes
+                    postObj.replies = count.replies
+                    postObj.remixes = count.remixes
+                }
+
+                setPost(postObj)
+
+                // Real replies from the separate 'reply' document type,
+                // oldest first.
+                const replyDocs = await dashClient.getReplies(hashId)
+
+                setReplies(
+                    replyDocs.map((d: any) => ({
+                        ...transformPostDoc(d),
+                        replyToId: hashId as string,
+                    }))
+                )
             } catch (error) {
                 console.error('Failed to load post:', error)
-                toast.error('Failed to load post')
+
+                toast.error((error as any)?.message || 'Failed to load post')
             } finally {
                 setIsLoading(false)
             }
         }
 
         loadPost()
-    }, [user])
+    }, [user, network])
 
     const handleReply = async () => {
         if (!replyContent.trim() || !post || !user) return
@@ -137,39 +169,30 @@ function PostDetailPage() {
         setIsReplying(true)
 
         try {
-            // In a real app, this would create a reply on Dash Platform
-            const newReply: Reply = {
-                id: `reply${Date.now()}`,
-                content: replyContent,
-                author: {
-                    id: user.identityId,
-                    docId: undefined,
-                    username: user.identityId.slice(0, 8) + '...',
-                    displayName: user.identityId.slice(0, 8) + '...',
-                    avatar: '',
-                    followers: 0,
-                    following: 0,
-                    joinedAt: new Date(),
-                    revision: 1,
-                },
-                createdAt: new Date(),
-                likes: 0,
-                replies: 0,
-                remixes: 0,
-                views: 0,
-                replyToId: post.id
-            }
+            // Create the reply on-chain — the Yappr contract stores replies
+            // as a separate 'reply' document (parentId + parentOwnerId);
+            // createPost switches document types when replyToPostId is set.
+            const dashClient = getDashPlatformClient(getContractId(network!))
+            await dashClient.createPost(replyContent, { replyToPostId: post.id })
 
-            setReplies(prev => [newReply, ...prev])
             setReplyContent('')
 
             toast.success('Reply posted!')
 
-            // Update reply count
-            setPost(prev => prev ? { ...prev, replies: prev.replies + 1 } : null)
+            // Refresh the replies and the reply count from the chain.
+            const replyDocs = await dashClient.getReplies(post.id)
+
+            setReplies(
+                replyDocs.map((d: any) => ({
+                    ...transformPostDoc(d),
+                    replyToId: post.id,
+                }))
+            )
+            setPost(prev => prev ? { ...prev, replies: replyDocs.length } : null)
         } catch (error) {
             console.error('Failed to post reply:', error)
-            toast.error('Failed to post reply')
+
+            toast.error((error as any)?.message || 'Failed to post reply')
         } finally {
             setIsReplying(false)
         }

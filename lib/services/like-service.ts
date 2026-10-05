@@ -204,8 +204,6 @@ console.log('GET LIKE (response)', response)
             // Import necessary modules
             const { getDashPlatformClient } = await import('../dash-platform-client')
             const { get_documents } = await import('../dash-wasm/compat')
-            const bs58Module = await import('bs58')
-            const bs58 = bs58Module.default
 
             // Get SDK instance
             const dashClient = getDashPlatformClient(this.contractId)
@@ -215,14 +213,14 @@ console.log('GET LIKE (response)', response)
             const sdk = await import('../services/wasm-sdk-service')
                 .then(m => m.getWasmSdk())
 
-            // Convert postId to byte array
-            const postIdBytes = Array.from(bs58.decode(postId))
+            // Identifier fields are queried as base58 STRINGS on the 4.x SDK
+            // (a byte-array where clause fails with "where clause on non
+            // indexed property" once the query needs an index), and the
+            // orderBy must match the postAndOwner index [postId, $ownerId].
+            const where = [['postId', '==', postId]]
+            const orderBy = [['postId', 'asc'], ['$ownerId', 'asc']]
 
-            // Build where clause with byte array
-            const where = [['postId', '==', postIdBytes]]
-            const orderBy = [['$createdAt', 'desc']]
-
-            console.log('Querying likes with postIdBytes:', postIdBytes)
+            console.log('Querying likes for post:', postId)
 
             // Query directly using get_documents
             const response = await get_documents(

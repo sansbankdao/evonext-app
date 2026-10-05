@@ -124,12 +124,15 @@ console.log('***LOADING POSTS-4')
                         displayName: `User ${authorIdStr.slice(-6)}`,
                         verified: false
                     },
-                    // PostCard renders new Date(post.createdAt * 1000), so the
-                    // canonical unit here is epoch SECONDS.
+                    // Counts start at 0 and get filled in from the real
+                    // on-chain data below (getInteractionCounts) — no random
+                    // placeholders. PostCard renders
+                    // new Date(post.createdAt * 1000), so the canonical unit
+                    // here is epoch SECONDS.
                     createdAt: Math.floor(createdAtMs / 1000),
-                    likes: Math.floor(Math.random() * 50), // Placeholder until we implement likes
-                    replies: Math.floor(Math.random() * 20), // Placeholder until we implement replies
-                    remixes: Math.floor(Math.random() * 10), // Placeholder until we implement remixes
+                    likes: 0,
+                    replies: 0,
+                    remixes: 0,
                     liked: false,
                     remixed: false,
                     bookmarked: false
@@ -146,6 +149,26 @@ console.log('***LOADING POSTS-4')
                 return dateB - dateA // Newest first
             })
 console.log('SORTED POSTS', sortedPosts)
+            // Fetch the real like/reply/remix counts for everything on screen.
+            // One batched query per document type ('in' over the post IDs);
+            // a failed count query leaves the counters at 0.
+            if (sortedPosts.length > 0) {
+                try {
+                    const counts = await dashClient.getInteractionCounts(sortedPosts.map(p => p.id))
+
+                    for (const post of sortedPosts) {
+                        const count = counts[post.id]
+
+                        if (count) {
+                            post.likes = count.likes
+                            post.replies = count.replies
+                            post.remixes = count.remixes
+                        }
+                    }
+                } catch (countError) {
+                    console.error('Feed: Failed to load interaction counts:', countError)
+                }
+            }
             // If no posts found, show helpful message but don't error
             if (sortedPosts.length === 0) {
                 console.log('Feed: No posts found on platform')
@@ -164,18 +187,15 @@ console.log('SORTED POSTS', sortedPosts)
         } catch (error) {
             console.error('Feed: Failed to load posts from platform:', error)
 
-            // Show specific error message but fall back gracefully
-            const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-            console.log('Feed: Falling back to empty state due to error:', errorMessage)
+            // Surface the real failure message (wasm errors are plain objects,
+            // not Error instances). The catch must NOT fall through to the
+            // empty state: "No posts yet" may only be shown after a load that
+            // genuinely succeeded with zero posts. The LoadingState below
+            // keeps existing posts visible when data is already present.
+            const errorMessage = (error as any)?.message || 'Unknown error'
+            console.log('Feed: Load failed:', errorMessage)
 
-            // Set empty data instead of showing error to user
-            // setData([])
-
-            // Only show error to user if it's a critical issue
-            if (errorMessage.includes('Contract ID not configured') ||
-                errorMessage.includes('Not logged in')) {
-                setError(errorMessage)
-            }
+            setError(errorMessage)
         } finally {
             setLoading(false)
         }
@@ -304,9 +324,16 @@ console.log('***LOADING POSTS-CREATE-REMOVE')
                     <ErrorBoundary level="component">
                         <LoadingState
                             loading={postsState.loading}
-                            error={postsState.error}
+                            // Only surface an error when there is no content to
+                            // show — a failed refresh must not replace posts that
+                            // are already on screen.
+                            error={
+                                postsState.data && postsState.data.length > 0
+                                    ? null
+                                    : postsState.error
+                            }
                             isEmpty={!postsState.loading && postsState.data?.length === 0}
-                            // onRetry={loadPosts}
+                            onRetry={() => loadPosts(true)}
                             loadingText="Loading posts..."
                             emptyText="No posts yet"
                             emptyDescription="Be the first to share something! Note: Dash Platform testnet may be temporarily unavailable."

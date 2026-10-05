@@ -48,7 +48,22 @@ vi.mock('@/lib/services/remix-service', () => ({
     remixService: { countRemixes: vi.fn().mockResolvedValue(2) },
 }))
 
-// No reply-service mock needed—uses query
+// No reply-service mock needed—replies are counted via get_documents on the
+// separate 'reply' document type.
+
+// Mock the WASM layer used by countReplies' dynamic imports (queries the
+// 'reply' document type through get_documents; default: no replies).
+vi.mock('@/lib/services/wasm-sdk-service', () => ({
+    getWasmSdk: vi.fn().mockResolvedValue({}),
+    wasmSdkService: { getSdk: vi.fn().mockResolvedValue({}) },
+}))
+vi.mock('@/lib/dash-wasm/compat', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('@/lib/dash-wasm/compat')>()
+    return {
+        ...actual,
+        get_documents: vi.fn().mockResolvedValue([]),
+    }
+})
 
 // Mock identity-service
 vi.mock('@/lib/services/identity-service', () => ({
@@ -107,6 +122,10 @@ describe('postService', () => {
         // Re-apply dynamic import mocks after clearAllMocks (for stats test)
         await import('@/lib/services/like-service')
         await import('@/lib/services/remix-service')
+        // Pre-import the WASM layer modules used by countReplies' dynamic
+        // imports so their vi.mock factories are resolved before use.
+        await import('@/lib/services/wasm-sdk-service')
+        await import('@/lib/dash-wasm/compat')
     })
 
     it('should create a post document correctly', async () => {
@@ -193,18 +212,14 @@ describe('postService', () => {
             liked: false, remixed: false, bookmarked: false,
         })
 
-        // Mock query for countReplies (part of stats) → 1 reply
-        vi.spyOn(postService, 'query' as any)
-            .mockResolvedValueOnce({  // For countReplies (limit:1, but we mock to return 1 doc)
-                documents: [{ $id: 'reply1' }],  // length=1
-                nextCursor: null,
-                prevCursor: null,
-            })
-            .mockResolvedValue({  // For other queries if any (e.g., replyTo/quoted gets)
-                documents: [],
-                nextCursor: null,
-                prevCursor: null,
-            })
+        // Mock query for countRemixes (part of stats). countReplies no
+        // longer uses query — it reads the separate 'reply' type via the
+        // mocked compat get_documents (returns [] by default).
+        vi.spyOn(postService, 'query' as any).mockResolvedValue({
+            documents: [],
+            nextCursor: null,
+            prevCursor: null,
+        })
 
         // Transform triggers enrichPost asynchronously (fire-and-forget)
         const post = postService.transformDocument(mockRawDoc)
@@ -232,10 +247,12 @@ describe('postService', () => {
         expect(post.author.username).toBe('dynamic-testuser')
         expect(post.author.displayName).toBe('Dynamic Test User')
 
-        // Stats from dynamic imports (mocks) + query for replies
+        // Stats from dynamic imports (mocks): likes via likeService.countLikes,
+        // remixes via the empty query mock (countRemixes), replies via the
+        // empty get_documents mock (countReplies).
         expect(post.likes).toBe(5)
-        expect(post.remixes).toBe(2)
-        expect(post.replies).toBe(1)
+        expect(post.remixes).toBe(0)
+        expect(post.replies).toBe(0)
         expect(post.views).toBe(0)
     })
 
@@ -318,15 +335,17 @@ describe('postService', () => {
 
         // Re-apply mocks for dynamic imports after clearAllMocks (ensures resolution)
         const likeModule = await import('@/lib/services/like-service')
-        const remixModule = await import('@/lib/services/remix-service')
+        const compat = await import('@/lib/dash-wasm/compat')
 
         // Cast to Mock for TS and re-set implementation (cleared by beforeEach)
         ;(likeModule.likeService.countLikes as unknown as Mock).mockResolvedValue(5)
-        ;(remixModule.remixService.countRemixes as unknown as Mock).mockResolvedValue(2)
 
-        // Mock query for countReplies → 1 doc
+        // Mock get_documents (countReplies) → 2 reply docs
+        ;(compat.get_documents as unknown as Mock).mockResolvedValue([{}, {}])
+
+        // Mock query for countRemixes → 1 quoting post
         vi.spyOn(postService, 'query' as any).mockResolvedValue({
-            documents: [{ $id: 'reply-1' }],  // length=1 for count
+            documents: [{ $id: 'quote-1' }],
             nextCursor: null,
             prevCursor: null,
         })
@@ -335,13 +354,23 @@ describe('postService', () => {
         const firstCall = await postService.getPostStats(mockPostId)
         expect(firstCall.likes).toBe(5)
         expect(likeModule.likeService.countLikes).toHaveBeenCalledWith(mockPostId)
-        expect(firstCall.remixes).toBe(2)
-        expect(remixModule.remixService.countRemixes).toHaveBeenCalledWith(mockPostId)
-        expect(firstCall.replies).toBe(1)
+        expect(firstCall.remixes).toBe(1)
         expect(postService.query).toHaveBeenCalledWith(expect.objectContaining({
-            where: [['replyToId', '==', mockPostId]],
-            limit: 1,  // Source: limit:1 for count
+            where: [['quotedPostId', '==', mockPostId]],
+            orderBy: [['quotedPostId', 'asc'], ['$ownerId', 'asc']],
+            limit: 100,  // Source: quotedPostAndOwner index query
         }))
+        expect(firstCall.replies).toBe(2)
+        expect(compat.get_documents).toHaveBeenCalledWith(
+            expect.anything(), // sdk from getWasmSdk
+            'mock-contract-id',
+            'reply',
+            JSON.stringify([['parentId', '==', mockPostId]]),
+            JSON.stringify([['parentId', 'asc'], ['$createdAt', 'asc']]),
+            100,
+            null, // startAfter
+            null  // startAt
+        )
         expect(firstCall.views).toBe(0)
 
         // Second: Cache hit (within 10s, no re-fetch)

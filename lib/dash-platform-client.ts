@@ -487,6 +487,148 @@ console.log('CONTRACT ID', this.contractId)
     }
 
     /**
+     * Fetch real interaction counts for a batch of posts.
+     *
+     * The Yappr contract has no countable indices, so counts are derived
+     * from the source document types: likes ('like.postId'), replies
+     * ('reply.parentId') and remixes/quotes ('post.quotedPostId'). Each type
+     * is queried once for the whole batch with the 'in' operator over a
+     * postId-led index (verified against DAPI), paginating past the
+     * 100-per-query cap. Identifier fields are queried as base58 strings;
+     * the orderBy must match the index used by the where clause.
+     */
+    async getInteractionCounts(
+        postIds: string[],
+    ): Promise<Record<string, { likes: number; replies: number; remixes: number }>> {
+        const counts: Record<string, { likes: number; replies: number; remixes: number }> = {}
+
+        for (const id of postIds) {
+            counts[id] = { likes: 0, replies: 0, remixes: 0 }
+        }
+
+        if (postIds.length === 0) {
+            return counts
+        }
+
+        await this.ensureInitialized()
+
+        // One spec per source document type. The orderBy entries match the
+        // index the where clause selects (postAndOwner / parentAndTime /
+        // quotedPostAndOwner).
+        const specs = [
+            {
+                documentType: 'like',
+                field: 'postId',
+                orderBy: [['postId', 'asc'], ['$ownerId', 'asc']],
+                counter: 'likes' as const,
+            },
+            {
+                documentType: 'reply',
+                field: 'parentId',
+                orderBy: [['parentId', 'asc'], ['$createdAt', 'asc']],
+                counter: 'replies' as const,
+            },
+            {
+                documentType: 'post',
+                field: 'quotedPostId',
+                orderBy: [['quotedPostId', 'asc'], ['$ownerId', 'asc']],
+                counter: 'remixes' as const,
+            },
+        ]
+
+        await Promise.all(specs.map(async (spec) => {
+            try {
+                let startAfter: string | null = null
+
+                // Paginate past the 100 documents per query cap.
+                for (let page = 0; page < 100; page++) {
+                    const response = await get_documents(
+                        this.sdk,
+                        this.contractId!,
+                        spec.documentType,
+                        JSON.stringify([[spec.field, 'in', postIds]]),
+                        JSON.stringify(spec.orderBy),
+                        100,
+                        startAfter,
+                        null // startAt
+                    )
+
+                    const docs: any[] = Array.isArray(response) ? response : []
+
+                    for (const doc of docs) {
+                        const key = doc[spec.field]
+
+                        if (key && counts[key]) {
+                            counts[key][spec.counter]++
+                        }
+                    }
+
+                    if (docs.length < 100) {
+                        break
+                    }
+
+                    startAfter = docs[docs.length - 1]?.$id || docs[docs.length - 1]?.id || null
+                }
+            } catch (error) {
+                // A failed count query must not break the feed — leave the
+                // counters at 0 for that type.
+                const message = (error as any)?.message || String(error)
+                console.error(`DashPlatformClient: Failed to count ${spec.counter}:`, message)
+            }
+        }))
+
+        return counts
+    }
+
+    /**
+     * Get a single post (or reply) document by its ID. Returns the plain
+     * JSON shape ($id, $ownerId, $createdAt, content, ...) or undefined when
+     * the document does not exist.
+     */
+    async getPostById(id: string): Promise<any> {
+        try {
+            await this.ensureInitialized()
+
+            const { get_document } = await import('./dash-wasm/compat')
+
+            return await get_document(this.sdk, this.contractId!, 'post', id)
+        } catch (error) {
+            const message = (error as any)?.message || String(error)
+            console.error('DashPlatformClient: Failed to get post by ID:', message)
+
+            return undefined
+        }
+    }
+
+    /**
+     * Get the replies for a post (oldest first), via the reply type's
+     * parentAndTime index [parentId, $createdAt].
+     */
+    async getReplies(postId: string, limit: number = 100): Promise<any[]> {
+        try {
+            await this.ensureInitialized()
+
+            const response = await get_documents(
+                this.sdk,
+                this.contractId!,
+                'reply',
+                JSON.stringify([['parentId', '==', postId]]),
+                JSON.stringify([['parentId', 'asc'], ['$createdAt', 'asc']]),
+                limit,
+                null, // startAfter
+                null // startAt
+            )
+
+            return Array.isArray(response) ? response : []
+        } catch (error) {
+            const message = (error as any)?.message || String(error)
+            console.error('DashPlatformClient: Failed to get replies:', message)
+
+            return []
+        }
+    }
+
+    /**
      * Clear the posts cache and pending queries
      */
     clearPostsCache() {

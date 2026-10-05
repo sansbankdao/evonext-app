@@ -437,6 +437,51 @@ history of this file (see log below for commit hashes) — keep only load-bearin
    intentional exhaustive-deps WARNING (postsState deliberately omitted in
    F26m to stop re-trigger loops) — expected lint state is now "0 errors,
    1 warning". tsc 0, 63/63.
+15. **F26p — real interaction counts + real post detail page (2026-10-05)**:
+   user reported the card counts (comments/likes/remixes) were random
+   placeholders (they changed between reloads — `Math.floor(Math.random…)`
+   in the posts-page transform) and the post detail screen showed a fully
+   mocked post ("This is a sample post content", "User 123",
+   "-1789426464573 seconds ago", fake replies).
+   (a) Node-verified against DAPI first: likes/replies/quotes CAN be counted
+   by querying 'like' (postId), 'reply' (parentId) and 'post'
+   (quotedPostId) with base58-string where clauses + orderBy matching the
+   postId-led index; byte-array where clauses FAIL on 4.2 ("where clause on
+   non indexed property"); the **'in' operator WORKS**, so all counts for a
+   whole feed batch come from 3 paginated queries (likeService's old
+   byte-array + unindexed orderBy query was broken by F26o's discovery).
+   (b) `lib/dash-platform-client.ts`: new getInteractionCounts(postIds)
+   (3 batched paginated queries, per-type try/catch so one failure leaves
+   counters at 0), getPostById(id) (get_document), getReplies(postId)
+   ('reply' via parentAndTime, oldest first).
+   (c) `app/posts/page.tsx`: random counts → 0, then getInteractionCounts
+   fills them before setData.
+   (d) `lib/services/like-service.ts` getPostLikes: base58-string where +
+   orderBy [['postId','asc'],['$ownerId','asc']] (postAndOwner index);
+   removed the bs58 byte-array conversion.
+   (e) `lib/services/post-service.ts`: countReplies now queries the
+   separate 'reply' type via get_documents (paginated, parentAndTime index)
+   instead of the dead post.replyToId field; countRemixes counts posts with
+   quotedPostId set via quotedPostAndOwner index (Yappr has NO 'remix'
+   type).
+   (f) `app/post/page.tsx`: removed ALL mock data — fetches the real post
+   via getPostById, real counts via getInteractionCounts, real replies via
+   getReplies (transformPostDoc mirrors the feed transform: $-fields,
+   epoch-SECONDS createdAt, "User xxxxxx" placeholder authors); the reply
+   form now really posts via dashClient.createPost(content,
+   {replyToPostId}) (creates a 'reply' doc) and re-fetches replies + count
+   from the chain; toast errors surface real messages.
+   (g) Test updates: post-service stats tests now mock the WASM layer
+   (wasm-sdk-service getWasmSdk→{}, compat get_documents→[]) since
+   countReplies reads 'reply' through get_documents; IMPORTANT vitest
+   gotcha found while debugging: an **async vi.waitFor callback that awaits
+   a dynamic import never sees updates** — use a sync callback and
+   pre-import the mocked modules in beforeEach.
+   (h) Verified live in browser: feed counts stable across reloads and
+   matching on-chain data (test post BL8nue… = 1 like / 1 reply); detail
+   page /post#<id> shows real content, real counts (1/1), the real reply
+   ("Reply test"), "3 hours ago" instead of negative seconds, no fake
+   sample text. tsc 0, lint 0 errors/1 known warning, 63/63 tests.
 2. Pending decisions: shielded-balance UI, DIP-17 platform-address features, biometric
    settings integration, react-hooks v6 cleanup pass.
 3. Known unverified: the -20.33B credit fee breakdown (F25).

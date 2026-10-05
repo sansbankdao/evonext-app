@@ -288,9 +288,20 @@ class PostService extends BaseDocumentService<IPost> {
      * Count remixes for a post
      */
     private async countRemixes(postId: string): Promise<number> {
-        const { remixService } = await import('./remix-service')
+        // The Yappr contract has NO 'remix' document type — a remix/quote is
+        // a post with quotedPostId set; count via the quotedPostAndOwner
+        // index [quotedPostId, $ownerId].
+        try {
+            const result = await this.query({
+                where: [['quotedPostId', '==', postId]],
+                orderBy: [['quotedPostId', 'asc'], ['$ownerId', 'asc']],
+                limit: 100
+            })
 
-        return remixService.countRemixes(postId)
+            return result.documents.length
+        } catch (error) {
+            return 0
+        }
     }
 
     /**
@@ -298,13 +309,42 @@ class PostService extends BaseDocumentService<IPost> {
      */
     private async countReplies(postId: string): Promise<number> {
         try {
-            const result = await this.query({
-                where: [['replyToId', '==', postId]],
-                limit: 1
-            })
+            // The Yappr contract stores replies as a SEPARATE 'reply'
+            // document type (posts have no replyToId field); count via the
+            // parentAndTime index [parentId, $createdAt]. Identifier fields
+            // are queried as base58 strings, paginating past the 100-per-
+            // query cap.
+            const { getWasmSdk } = await import('./wasm-sdk-service')
+            const { get_documents } = await import('../dash-wasm/compat')
+            const sdk = await getWasmSdk()
 
-            // In a real implementation, we'd get the total count from the query
-            return result.documents.length
+            let total = 0
+            let startAfter: string | null = null
+
+            for (let page = 0; page < 100; page++) {
+                const response = await get_documents(
+                    sdk,
+                    this.contractId,
+                    'reply',
+                    JSON.stringify([['parentId', '==', postId]]),
+                    JSON.stringify([['parentId', 'asc'], ['$createdAt', 'asc']]),
+                    100,
+                    startAfter,
+                    null // startAt
+                )
+
+                const docs: any[] = Array.isArray(response) ? response : []
+
+                total += docs.length
+
+                if (docs.length < 100) {
+                    break
+                }
+
+                startAfter = docs[docs.length - 1]?.$id || docs[docs.length - 1]?.id || null
+            }
+
+            return total
         } catch (error) {
             return 0
         }
