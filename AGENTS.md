@@ -289,6 +289,72 @@ history of this file (see log below for commit hashes) — keep only load-bearin
    Verified live: Yappr user 9Hah95qN... = 100+ posts (last Jan 27), 2
    followers, 100+ likes; user ADtgYG2... = 1 post (Jun 25), 2 likes,
    0 followers. tsc 0, eslint 0, 63/63.
+10. **F26k — tabbed stats + network stats + DiceBear avatars + profile
+   buttons (2026-10-05)**:
+   (a) **Stats card now tabbed**: "My Stats" (default) / "Network Stats".
+   Network stats come from the Yappr contract via full pagination (the
+   contract has NO countable indices and no documentsCountable, so
+   getDocumentsCount is rejected by DAPI; counts are computed client-side
+   by paginating orderBy $id asc + startAfter=<last $id>). Live testnet
+   totals: 500 posts, 37 unique posters, 614 likes, 55 follows, 205
+   replies, 0 profiles (profile type unused on Yappr). Cached in
+   localStorage (evonext_network_stats_testnet) with 1h TTL; 4 doc types
+   scanned in parallel (~5-8s cold).
+   (b) **YAPPR_CONTRACT_ID_TESTNET updated** to the LATEST contract
+   EWR695MsqPUuW8EnTbYzD4KybNQD5n7CUDWydJYNg63F (per yap.pr/about; old
+   AyWK6n... constant was stale and unused).
+   (c) **Avatars migrated to DiceBear 9.2.4** matching the Yappr repo:
+   new lib/avatar-dicebear.ts (28-style styleMap, cached SVG data-URI
+   generation, DICEBEAR_STYLES/labels, DEFAULT_AVATAR_STYLE='thumbs',
+   generateRandomSeed, encodeAvatarData = JSON {seed,style},
+   parseAvatarConfig handles JSON/plain/legacy v2 -> null); AvatarCanvas
+   rewritten as a DiceBear <img> renderer with props {seed, style?, size?,
+   className?}; all 14 call sites updated (post-card parses author
+   .avatarData via parseAvatarConfig, falls back to username seed);
+   profile avatar dialog rebuilt Yappr-style (style grid + custom seed +
+   randomize) replacing the 32-slider canvas UI; localStorage avatar now
+   stores the Yappr JSON encoding; legacy v2: strings ignored on restore.
+   @dicebear/* installed via pnpm (npm install errors in this repo).
+   (d) **Share Profile button wired**: copies <origin>/profile to clipboard
+   + toast (no public profile-view route exists yet).
+   (e) **Account Settings button wired**: routes to /settings.
+   (f) **Platform Info panel**: was displaying the old EvoNext contract
+   465jd...; now shows the latest Yappr contract as 'Yappr Contract ID'
+   hyperlinked to the official Dash Platform Explorer
+   (testnet.platform-explorer.com/dataContract/<id> — route verified live;
+   pshenmic's platform-explorer.dev hosts are a JSON API, not the UI) in a
+   new tab. Mainnet falls back to the EvoNext contract on
+   platform-explorer.com.
+   Verified in browser via Playwright: tabs + live network numbers,
+   avatar save/restore across reload, clipboard copy, /settings nav,
+   correct contract link href/label/target. tsc 0, eslint 0, 63/63.
+11. **F26l — Post button + post creation fixed, posting LIVE-VERIFIED
+   (2026-10-05)**:
+   (a) **Post button did nothing outside /posts**: ComposeModal was only
+   mounted on app/posts/page.tsx; the sidebar Post button sets
+   isComposeOpen in the zustand store but nothing rendered. Mounted
+   ComposeModal globally in app/layout.tsx, removed the duplicate mount
+   from the posts page. Playwright-verified: modal opens from /explore
+   and /profile; /posts has exactly one dialog.
+   (b) **Post creation failed with "[object Object]"**: root cause (Node
+   reproduced) — dash-platform-client.createPost called the OLD positional
+   sdk.documentCreate(contractId, type, ownerId, dataString, entropy, wif)
+   which no longer exists in the 4.1.1 bindings; the actual error is
+   "failed to read 'document' from options: Reflect.get called on
+   non-object" (WasmSdkError is not an Error instance and retry-utils'
+   new Error(String(error)) flattened it). Fixed: createPost now delegates
+   to stateTransitionService.createDocument (the proven 4.1.1 path:
+   Document instance + owner identity key matched to the WIF +
+   IdentitySigner, same as profile creation). retry-utils and the compose
+   modal now extract .message from non-Error rejections.
+   (c) **LIVE-VERIFIED on testnet**: post document
+   HyfFfaXmdp3hpE3nqaa5gr3FjF7tUPf3nzsmV8WohzdH (rev 1) created for
+   identity 8Yj6... with the exact createDocument logic; retrievable via
+   getDocuments. Post schema on 465jd: content (req, max 500), language
+   (req, ^[a-z]{2}$), isSensitive (req, boolean), replyToPostId/mediaUrl/
+   mentionIds (32-byte identifier byte arrays — replies MUST be bs58-
+   decoded before sending), hashtag (pattern ^[a-zA-Z0-9_]{1,100}$),
+   remix (string max 500). tsc 0, eslint 0, 63/63.
 2. Pending decisions: shielded-balance UI, DIP-17 platform-address features, biometric
    settings integration, react-hooks v6 cleanup pass.
 3. Known unverified: the -20.33B credit fee breakdown (F25).
