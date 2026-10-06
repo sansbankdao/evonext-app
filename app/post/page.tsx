@@ -38,40 +38,10 @@ const getContractId = (_network: string): any => {
 
 /**
  * Transform a raw document (4.x SDK: $-prefixed system fields) into the
- * shape PostCard expects. PostCard renders
- * new Date(post.createdAt * 1000), so the canonical unit here is epoch
- * SECONDS.
+ * shape PostCard expects. Shared helper (lib/post-helpers.ts) used by the
+ * post detail page and the home page.
  */
-const transformPostDoc = (doc: any): IPost => {
-    const data = doc?.data || doc || {}
-    const authorIdStr = doc?.$ownerId || doc?.ownerId || 'unknown'
-    const docId = doc?.$id || doc?.id || ''
-    const createdAtMs = Number(doc?.$createdAt ?? doc?.createdAt ?? Date.now())
-
-    return {
-        id: docId,
-        content: data.content || 'No content',
-        author: {
-            id: authorIdStr,
-            username: `user_${authorIdStr.slice(-6)}`,
-            displayName: `User ${authorIdStr.slice(-6)}`,
-            avatar: '',
-            followers: 0,
-            following: 0,
-            verified: false,
-            joinedAt: new Date(),
-            revision: 1,
-        },
-        createdAt: Math.floor(createdAtMs / 1000),
-        likes: 0,
-        replies: 0,
-        remixes: 0,
-        views: 0,
-        liked: false,
-        remixed: false,
-        bookmarked: false
-    }
-}
+import { transformPostDoc } from '@/lib/post-helpers'
 
 /**
  * Replace placeholder authors with real identity info — shared helper

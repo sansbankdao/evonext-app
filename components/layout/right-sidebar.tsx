@@ -17,84 +17,17 @@ import {
     EVONEXT_CONTRACT_ID_TESTNET,
     YAPPR_CONTRACT_ID_TESTNET,
 } from '@/lib/constants'
-import { getWasmSdk } from '@/lib/services/wasm-sdk-service'
-import { get_documents } from '@/lib/dash-wasm/compat'
+import {
+    NetworkStats,
+    NETWORK_STATS_CACHE_KEY,
+    NETWORK_STATS_TTL_MS,
+    fetchDocs,
+    loadNetworkStats,
+} from '@/lib/network-stats'
 
-// Network-wide stats for the Yappr social contract. The contract has no
-// countable indexes, so totals are computed by paginating every document
-// (100 per query) and cached in localStorage to avoid rescanning often.
-interface NetworkStats {
-    totalPosts: number
-    totalLikes: number
-    totalFollows: number
-    totalReplies: number
-    uniquePosters: number
-    posts24h: number
-    lastPostAt: number | null
-}
-
-const NETWORK_STATS_CACHE_KEY = 'evonext_network_stats_testnet'
-const NETWORK_STATS_TTL_MS = 60 * 60 * 1000 // 1 hour
-
-// Count all documents of a type by paginating (orderBy $id asc + startAfter).
-// Optionally accumulates per-document data via onDocs (called per page).
-async function countAllDocuments(
-    contractId: string,
-    documentType: string,
-    onDocs?: (docs: any[]) => void,
-): Promise<{ total: number; complete: boolean }> {
-    let total = 0
-    let after: string | undefined
-
-    for (let page = 0; page < 100; page++) {
-        const { docs } = await fetchDocs(
-            contractId, documentType, null,
-            [['$id', 'asc']], after,
-        )
-
-        if (onDocs) onDocs(docs)
-
-        total += docs.length
-
-        if (docs.length < 100) return { total, complete: true }
-
-        after = String(docs[docs.length - 1].$id)
-    }
-
-    return { total, complete: false }
-}
-
-async function loadNetworkStats(contractId: string): Promise<NetworkStats> {
-    const owners = new Set<string>()
-    let posts24h = 0
-    let lastPostAt: number | null = null
-    const dayAgo = Date.now() - 24 * 60 * 60 * 1000
-
-    const [posts, likes, follows, replies] = await Promise.all([
-        countAllDocuments(contractId, 'post', (docs) => {
-            for (const d of docs) {
-                owners.add(String(d.$ownerId))
-                const t = Number(d.$createdAt)
-                if (t >= dayAgo) posts24h += 1
-                if (lastPostAt === null || t > lastPostAt) lastPostAt = t
-            }
-        }),
-        countAllDocuments(contractId, 'like'),
-        countAllDocuments(contractId, 'follow'),
-        countAllDocuments(contractId, 'reply'),
-    ])
-
-    return {
-        totalPosts: posts.total,
-        totalLikes: likes.total,
-        totalFollows: follows.total,
-        totalReplies: replies.total,
-        uniquePosters: owners.size,
-        posts24h,
-        lastPostAt,
-    }
-}
-
+// Network-wide stats for the Yappr social contract (see
+// lib/network-stats.ts): the contract has no countable indexes, so totals
+// are computed by paginating every document and cached in localStorage.
 interface YappStats {
     totalPosts: number
     postsTruncated: boolean
@@ -117,32 +50,6 @@ const EMPTY_STATS: YappStats = {
     streak: 0,
 }
 
-// Query a contract document type and return the raw docs (up to limit).
-// Dash Platform caps a single query at 100 docs, so counts are "at least".
-async function fetchDocs(
-    contractId: string,
-    documentType: string,
-    where: unknown[][] | null,
-    orderBy: [string, 'asc' | 'desc'][] | null,
-    startAfter?: string,
-): Promise<{ docs: any[]; truncated: boolean }> {
-    const sdk = await getWasmSdk()
-    const response = await get_documents(
-        sdk, contractId, documentType, where, orderBy, 100, startAfter || null, null
-    )
-    let docs: any[] = []
-    if (Array.isArray(response)) {
-        docs = response
-    } else if (response && typeof (response as any).toJSON === 'function') {
-        const j = (response as any).toJSON()
-        docs = Array.isArray(j) ? j : (j?.documents || [])
-    } else {
-        docs = (response as any)?.documents || []
-    }
-    return { docs: docs.map((d: any) => (d.toJSON ? d.toJSON() : d)), truncated: docs.length >= 100 }
-}
-
-// Count consecutive posting days ending today (or yesterday if nothing today).
 function computeStreak(createdAtList: number[]): number {
     if (createdAtList.length === 0) return 0
     const days = new Set(

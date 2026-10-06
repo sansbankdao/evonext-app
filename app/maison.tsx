@@ -9,6 +9,7 @@ import {
     SquaresPlusIcon,
     UserGroupIcon,
     SparklesIcon,
+    HeartIcon,
     ArrowRightIcon
 } from '@heroicons/react/24/outline'
 import { Button } from '@/components/ui/button'
@@ -16,83 +17,160 @@ import { PostCard } from '@/components/post/post-card'
 import { useNetwork } from '@/contexts/network-context'
 import Link from 'next/link'
 import { formatNumber } from '@/lib/utils'
+import { getDashPlatformClient } from '@/lib/dash-platform-client'
+import { readCachedNetworkStats, refreshNetworkStats, NetworkStats } from '@/lib/network-stats'
+import { transformPostDoc, resolveItemAuthors } from '@/lib/post-helpers'
+import {
+    EVONEXT_CONTRACT_ID_MAINNET,
+    EVONEXT_CONTRACT_ID_TESTNET,
+} from '@/lib/constants'
+
+const getContractId = (_network: string): any => {
+    /* Initialize locals. */
+    let contractId
+
+    /* Handle network. */
+    if (_network === 'mainnet') {
+        contractId = EVONEXT_CONTRACT_ID_MAINNET
+    } else {
+        contractId = EVONEXT_CONTRACT_ID_TESTNET
+    }
+
+    return contractId
+}
+
+interface TopicStat {
+    topic: string
+    posts: number
+}
 
 export function MaisonPage() {
     const { network } = useNetwork()
     const [trendingPosts, setTrendingPosts] = useState<any[]>([])
+    const [trendingTopics, setTrendingTopics] = useState<TopicStat[]>([])
+    const [networkStats, setNetworkStats] = useState<NetworkStats | null>(null)
     const [isLoading, setIsLoading] = useState(true)
 
+    // Network-wide stats (shared full-pagination counter, cached in
+    // localStorage for an hour).
     useEffect(() => {
+        let cancelled = false
+
+        const load = async () => {
+            // The app convention: anything that is not 'mainnet' runs against
+            // testnet (localhost/IPFS hosts resolve to a raw host string).
+            if (network === 'mainnet') return
+
+            try {
+                // Serve the cached snapshot immediately (if any); refresh in
+                // the background when it's missing or stale.
+                const cached = readCachedNetworkStats()
+
+                if (cached) setNetworkStats(cached.stats)
+
+                if (!cached || cached.stale) {
+                    const fresh = await refreshNetworkStats()
+
+                    if (!cancelled) setNetworkStats(fresh)
+                }
+            } catch (error) {
+                console.error('Home: Failed to load network stats:', error)
+            }
+        }
+
+        load()
+        return () => { cancelled = true }
+    }, [network])
+
+    // Trending posts and topics from the real on-chain data: the most
+    // recent posts ranked by engagement, and hashtags counted from their
+    // content.
+    useEffect(() => {
+        let cancelled = false
+
         const loadTrendingPosts = async () => {
             try {
-                const mockTrendingPosts = [
-                    {
-                        id: '1BUMQzBg2cgCMHTxZgL2YEWZzKYxf37gNr7dipW76WAY3',
-                        content: `Just deployed my first dApp on Dash (${network}) Platform! 🚀 The future is decentralized.`,
-                        author: {
-                            id: 'trending1',
-                            username: 'cryptodev',
-                            handle: 'cryptodev'
-                        },
-                        timestamp: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
-                        likes: 342,
-                        replies: 45,
-                        remixes: '0.01',
-                        views: 5234
-                    },
-                    {
-                        id: 'HVRX262VXKnVh8VYU3WsJiSdA45CwZSwAUrV1KnTGxiu',
-                        content: 'Dash Platform makes building decentralized apps so much easier. No more worrying about backend infrastructure!',
-                        author: {
-                            id: 'trending2',
-                            username: 'web3builder',
-                            handle: 'web3builder'
-                        },
-                        timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
-                        likes: 567,
-                        replies: 78,
-                        remixes: '0.05',
-                        views: 8901
-                    },
-                    {
-                        id: '3H37sQc8LHhNT7A1uXe2AJQi5iJD3N72RQHDgRP3ktw1',
-                        content: 'The decentralized social media revolution is here. Own your data, own your identity. #Web3Social',
-                        author: {
-                            id: 'trending3',
-                            username: 'defimaster',
-                            handle: 'defimaster'
-                        },
-                        timestamp: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(),
-                        likes: 891,
-                        replies: 156,
-                        remixes: '0.02',
-                        views: 12567
-                    }
-                ]
+                setIsLoading(true)
 
-                setTrendingPosts(mockTrendingPosts)
+                const dashClient = getDashPlatformClient(getContractId(network!))
+                const posts = await dashClient.queryPosts({ limit: 20 })
+
+                // Transform to the PostCard shape (epoch-seconds createdAt).
+                const transformed = await Promise.all(
+                    (Array.isArray(posts) ? posts : []).map((doc: any) => transformPostDoc(doc))
+                )
+
+                // Real interaction counts for every post on screen.
+                if (transformed.length > 0) {
+                    try {
+                        const counts = await dashClient.getInteractionCounts(
+                            transformed.map(p => p.id)
+                        )
+
+                        for (const post of transformed) {
+                            const count = counts[post.id]
+
+                            if (count) {
+                                post.likes = count.likes
+                                post.replies = count.replies
+                                post.remixes = count.remixes
+                            }
+                        }
+                    } catch (countError) {
+                        console.error('Home: Failed to load interaction counts:', countError)
+                    }
+                }
+
+                // Real author names (profile + DPNS), same helper as the feed.
+                let named = transformed
+                try {
+                    named = await resolveItemAuthors(transformed)
+                } catch (authorError) {
+                    console.error('Home: Failed to resolve author names:', authorError)
+                }
+
+                if (cancelled) return
+
+                // Trending = highest engagement (likes + replies + remixes).
+                const ranked = [...named].sort((a, b) =>
+                    (b.likes + b.replies + b.remixes) - (a.likes + a.replies + a.remixes)
+                ).slice(0, 3)
+
+                setTrendingPosts(ranked)
+
+                // Trending topics: hashtags counted across the recent posts.
+                const tagCounts = new Map<string, number>()
+
+                for (const post of named) {
+                    const tags = (post.content as string).match(/#([a-zA-Z0-9_]+)/g) || []
+
+                    for (const raw of tags) {
+                        const tag = raw.toLowerCase()
+                        tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1)
+                    }
+                }
+
+                const topics: TopicStat[] = [...tagCounts.entries()]
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 5)
+                    .map(([tag, count]) => ({ topic: tag, posts: count }))
+
+                setTrendingTopics(topics)
             } catch (error) {
                 console.error('Failed to load trending posts:', error)
             } finally {
-                setIsLoading(false)
+                if (!cancelled) setIsLoading(false)
             }
         }
 
         loadTrendingPosts()
+        return () => { cancelled = true }
     }, [network])
 
-    const trendingTopics = [
-        { topic: '#DashPlatform', posts: 1234, trend: '+15%' },
-        { topic: '#Web3Social', posts: 892, trend: '+23%' },
-        { topic: '#Decentralized', posts: 567, trend: '+8%' },
-        { topic: '#Blockchain', posts: 3421, trend: '+45%' },
-        { topic: '#EvoNext', posts: 234, trend: 'New' },
-    ]
-
     const stats = [
-        { label: 'Active Users', value: '3K+', icon: UserGroupIcon },
-        { label: 'Remixes Today', value: '873', icon: SparklesIcon },
-        { label: 'Mini Apps', value: '42', icon: SquaresPlusIcon },
+        { label: 'Active Users', value: networkStats ? formatNumber(networkStats.uniquePosters) : '…', icon: UserGroupIcon },
+        { label: 'Total Posts', value: networkStats ? formatNumber(networkStats.totalPosts) : '…', icon: SquaresPlusIcon },
+        { label: 'Total Likes', value: networkStats ? formatNumber(networkStats.totalLikes) : '…', icon: HeartIcon },
     ]
 
     return (
@@ -159,7 +237,7 @@ export function MaisonPage() {
                     </div>
                 </section>
 
-                {/* Trending Topics */}
+                {/* Trending Topics — real hashtags counted from recent posts */}
                 <section className="py-12">
                     <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
                         <ArrowTrendingUpIcon className="h-6 w-6 text-evonext-500" />
@@ -167,13 +245,17 @@ export function MaisonPage() {
                     </h2>
 
                     <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {trendingTopics.map((topic, index) => (
+                        {trendingTopics.length === 0 ? (
+                            <p className="text-sm text-gray-500">
+                                No trending topics yet — add a #hashtag to a post.
+                            </p>
+                        ) : trendingTopics.map((topic, index) => (
                             <motion.div
                                 key={topic.topic}
                                 initial={{ opacity: 0, scale: 0.9 }}
                                 animate={{ opacity: 1, scale: 1 }}
                                 transition={{ delay: index * 0.05 }}
-                                className="p-4 bg-gray-50 dark:bg-gray-950 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-900 transition-colors cursor-pointer"
+                                className="p-4 bg-gray-50 dark:bg-gray-950 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-900 transition-colors"
                             >
                                 <div className="flex items-start justify-between">
                                     <div>
@@ -182,19 +264,9 @@ export function MaisonPage() {
                                         </p>
 
                                         <p className="text-sm text-gray-500">
-                                            {formatNumber(topic.posts)} posts
+                                            {formatNumber(topic.posts)} {topic.posts === 1 ? 'post' : 'posts'}
                                         </p>
                                     </div>
-
-                                    <span className={`text-sm font-medium ${
-                                        topic.trend === 'New'
-                                        ? 'text-evonext-500'
-                                        : topic.trend.startsWith('+')
-                                        ? 'text-green-500'
-                                        : 'text-red-500'
-                                    }`}>
-                                        {topic.trend}
-                                    </span>
                                 </div>
                             </motion.div>
                         ))}
@@ -234,6 +306,10 @@ export function MaisonPage() {
                                 </div>
                             ))}
                         </div>
+                    ) : trendingPosts.length === 0 ? (
+                        <p className="text-center text-sm text-gray-500">
+                            No posts yet — be the first to share something!
+                        </p>
                     ) : (
                         <div className="max-w-2xl mx-auto space-y-4">
                             {trendingPosts.map((post) => (
@@ -262,7 +338,7 @@ export function MaisonPage() {
                 <section className="py-20 text-center border-t border-gray-200 dark:border-gray-800">
                     <h2 className="text-3xl font-bold mb-4">Ready to join the conversation?</h2>
 
-                    <p className="text-lg text-gray-600 dark:text-gray-400 mb-8">
+                    <p className="text-lg text-slate-600 dark:text-gray-400 mb-8">
                         Create your decentralized identity and start sharing your thoughts.
                     </p>
 

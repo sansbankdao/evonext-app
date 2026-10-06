@@ -594,6 +594,31 @@ history of this file (see log below for commit hashes) — keep only load-bearin
    package.json version bumped 26.1.30 → 26.10.5. Verified in the
    browser (settings → About tab): shows "Version 26.10.5"; no 25.9.4
    anywhere in out/. tsc 0, 63/63, lint 0 errors/1 known warning.
+22. **F26w — homepage stats + trending from real data (2026-10-05)**:
+   app/maison.tsx (the logged-in home page) was entirely mocked: fake
+   stats ("3K+ Active Users / 873 Remixes Today / 42 Mini Apps"), fake
+   trending topics (#DashPlatform 1.2K posts +15%…), and fake trending
+   posts (cryptodev/web3builder/defimaster with Invalid Date — mocks
+   passed ISO strings where PostCard expects epoch seconds).
+   (a) Extracted the right-sidebar's network-stats code into shared
+   lib/network-stats.ts (NetworkStats, NETWORK_STATS_CACHE_KEY/TTL_MS,
+   countAllDocuments, fetchDocs, loadNetworkStats) plus
+   readCachedNetworkStats/refreshNetworkStats helpers; right-sidebar
+   now imports from it (local copies deleted, behavior unchanged —
+   serve cached snapshot immediately, refresh in background when
+   stale/missing).
+   (b) Extracted transformPostDoc (post detail page's document→PostCard
+   mapper) into lib/post-helpers.ts for reuse.
+   (c) maison now shows: stats = Active Users (uniquePosters) / Total
+   Posts / Total Likes from the real paginated counters; trending topics
+   = hashtags counted from the 20 most recent posts (no fake +% badges;
+   honest empty state when none); trending posts = real recent posts
+   with real counts (getInteractionCounts), real author names
+   (resolveItemAuthors), sorted by likes+replies+remixes, top 3 — no
+   Invalid Date. Verified in browser: "39 Active Users / 506 Total Posts
+   / 624 Total Likes", real posts (@pasta, @momo, @Alex with DPNS names
+   and correct dates), zero fake markers. tsc 0, 63/63, lint 0 errors/1
+   known warning.
 
 2. Pending decisions: shielded-balance UI, DIP-17 platform-address features, biometric
    settings integration, react-hooks v6 cleanup pass.
