@@ -619,6 +619,21 @@ history of this file (see log below for commit hashes) — keep only load-bearin
    / 624 Total Likes", real posts (@pasta, @momo, @Alex with DPNS names
    and correct dates), zero fake markers. tsc 0, 63/63, lint 0 errors/1
    known warning.
+23. **F26x — liking a reply failed ("Failed to like post"); FIXED
+   (2026-10-05)**: user could not like the first reply of post
+   4NeHEzYg8xPbhXEgL4nXYmBwJysrQrwLNs9zE74HXMZB. Root cause
+   (Node-reproduced): likeService.likePost looked up the parent with
+   sdk.getDocument(contractId, 'post', postId) — for a REPLY the id
+   lives in the 'reply' type, and getDocument returns undefined (not an
+   error) → "Post not found for like" → likePost returned false. Fix:
+   try 'post' first, fall back to 'reply'. Verified in browser: like on
+   reply 3LARzvedKhDpQY3JEdTbB1NkxMJdndrzTCKpBxTkUuCr went 0→1 with
+   on-chain doc 5zhPtHc8ANpDN5pNLKe3FTW4XZh3mjJoKTbBTfe6E8Ck (owner
+   8Yj6Vu…), reload showed the existing like red (likedByMe works for
+   replies), unlike removed it on-chain (cleanup complete). tsc 0,
+   63/63, lint 0 errors/1 known warning.
+24. **F26y — text fix**: "secured by Dash Platform v2 🛡️" → "secured by
+   Dash Platform 🛡️" (maison hero, single occurrence).
 
 2. Pending decisions: shielded-balance UI, DIP-17 platform-address features, biometric
    settings integration, react-hooks v6 cleanup pass.

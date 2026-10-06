@@ -50,14 +50,23 @@ console.log('EXISTING LIKE', existing)
 
             // The Yappr like schema stores postId AND postOwnerId as
             // identifier fields; postOwnerId feeds the postOwnerLikes index
-            // used for like counts, so fetch the parent POST to get its
-            // owner. NOTE: the parent lives in the 'post' document type —
+            // used for like counts, so fetch the parent to get its owner.
+            // NOTE: the parent lives in the 'post' document type —
             // this.documentType here is 'like' (verified: fetching 'like'
-            // returned "Post not found for like"). The 4.2 SDK accepts
+            // returned "Post not found for like"). Replies live in the
+            // separate 'reply' type, so try 'post' first and fall back to
+            // 'reply' (getDocument returns undefined, not an error, when
+            // the id doesn't exist in that type). The 4.2 SDK accepts
             // base58 identifier strings directly.
-            const parent = await sdk.getDocument(
+            let parent = await sdk.getDocument(
                 this.contractId, 'post', postId
             )
+
+            if (!parent) {
+                parent = await sdk.getDocument(
+                    this.contractId, 'reply', postId
+                )
+            }
             const parentJson: any = parent && typeof (parent as any).toJSON === 'function'
                 ? (parent as any).toJSON(PlatformVersion.current())
                 : parent
