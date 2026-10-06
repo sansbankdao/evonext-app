@@ -558,6 +558,23 @@ history of this file (see log below for commit hashes) — keep only load-bearin
    "@NewMoneyHoney69" with the full ID for post FETDGw…. Cost: ~2N
    parallel lookups per feed load, mostly cache hits after first run.
    tsc 0, 63/63, lint 0 errors/1 known warning.
+19. **F26t — markdown rendering in post content (2026-10-05)**: user
+   reported post tR8JrLh4WxriyzbdBnQFcY5zp5JGrDppAwZc3ZEBaGy showed raw
+   markdown ("**Telegram channel**") and wanted URLs clickable. New
+   components/ui/markdown-content.tsx — ported from yap.pr's
+   components/ui/markdown-content.tsx (token-based, NO dangerously-
+   SetInnerHTML, React-escaped so content can never inject HTML):
+   supports **bold**, *italic*, `code`, URLs, and styles @mentions /
+   #hashtags / $cashtags in accent color (NOT linked — no hashtag/username
+   routes yet). Per user requirement, URLs are clickable ONLY on the
+   details page: MarkdownContent takes interactiveLinks (default false =
+   plain text) and PostCard takes interactive (default false); the details
+   page passes interactive to the main post AND reply cards, feed cards
+   leave links as plain text so a click keeps opening the post details.
+   Verified in browser for the post above: details page renders both URLs
+   as <a target="_blank" rel="noopener noreferrer"> and the two **bold**
+   spans; feed renders bold but ZERO content anchors and no raw asterisks.
+   tsc 0, 63/63, lint 0 errors/1 known warning.
 2. Pending decisions: shielded-balance UI, DIP-17 platform-address features, biometric
    settings integration, react-hooks v6 cleanup pass.
 3. Known unverified: the -20.33B credit fee breakdown (F25).

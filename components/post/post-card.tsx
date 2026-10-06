@@ -30,15 +30,18 @@ import * as Tooltip from '@radix-ui/react-tooltip'
 import toast from 'react-hot-toast'
 import { AvatarCanvas } from '@/components/ui/avatar-canvas'
 import { parseAvatarConfig, DEFAULT_AVATAR_STYLE } from '@/lib/avatar-dicebear'
+import { MarkdownContent } from '@/components/ui/markdown-content'
 import { LikesModal } from './likes-modal'
 
 interface PostCardProps {
     post: IPost
     hideAvatar?: boolean
     isOwnPost?: boolean
+    /** Details page only: URLs in the content open in a new window/tab. */
+    interactive?: boolean
 }
 
-export function PostCard({ post, hideAvatar = false, isOwnPost = false }: PostCardProps) {
+export function PostCard({ post, hideAvatar = false, isOwnPost = false, interactive = false }: PostCardProps) {
     const router = useRouter()
     const { user } = useAuth()
     const [liked, setLiked] = useState(post.liked || false)
@@ -242,7 +245,7 @@ console.log('HANDLE SHARE')
                     </div>
 
                     <div className="mt-1 whitespace-pre-wrap break-words">
-                        {post.content}
+                        <MarkdownContent content={post.content} interactiveLinks={interactive} />
                     </div>
 
                     {post.quotedPost && (
@@ -271,7 +274,7 @@ console.log('HANDLE SHARE')
                             </div>
 
                             <div className="mt-1 text-sm">
-                                {post.quotedPost.content}
+                                <MarkdownContent content={post.quotedPost.content} interactiveLinks={interactive} />
                             </div>
                         </div>
                     )}

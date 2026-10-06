@@ -242,7 +242,7 @@ function PostDetailPage() {
                     <>
                         {/* Main Post */}
                         <div className="border-b border-gray-200 dark:border-gray-800">
-                            <PostCard post={post} isOwnPost={user?.identityId === post.author.id} />
+                            <PostCard post={post} isOwnPost={user?.identityId === post.author.id} interactive />
                         </div>
 
                         {/* Reply Form */}
@@ -289,7 +289,7 @@ function PostDetailPage() {
                                 </div>
                             ) : (
                                 replies.map((reply) => (
-                                    <PostCard key={reply.id} post={reply} />
+                                    <PostCard key={reply.id} post={reply} interactive />
                                 ))
                             )}
                         </div>
