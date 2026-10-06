@@ -37,11 +37,9 @@ interface PostCardProps {
     post: IPost
     hideAvatar?: boolean
     isOwnPost?: boolean
-    /** Details page only: URLs in the content open in a new window/tab. */
-    interactive?: boolean
 }
 
-export function PostCard({ post, hideAvatar = false, isOwnPost = false, interactive = false }: PostCardProps) {
+export function PostCard({ post, hideAvatar = false, isOwnPost = false }: PostCardProps) {
     const router = useRouter()
     const { user } = useAuth()
     const [liked, setLiked] = useState(post.liked || false)
@@ -245,7 +243,7 @@ console.log('HANDLE SHARE')
                     </div>
 
                     <div className="mt-1 whitespace-pre-wrap break-words">
-                        <MarkdownContent content={post.content} interactiveLinks={interactive} />
+                        <MarkdownContent content={post.content} />
                     </div>
 
                     {post.quotedPost && (
@@ -274,7 +272,7 @@ console.log('HANDLE SHARE')
                             </div>
 
                             <div className="mt-1 text-sm">
-                                <MarkdownContent content={post.quotedPost.content} interactiveLinks={interactive} />
+                                <MarkdownContent content={post.quotedPost.content} />
                             </div>
                         </div>
                     )}

@@ -575,6 +575,18 @@ history of this file (see log below for commit hashes) — keep only load-bearin
    as <a target="_blank" rel="noopener noreferrer"> and the two **bold**
    spans; feed renders bold but ZERO content anchors and no raw asterisks.
    tsc 0, 63/63, lint 0 errors/1 known warning.
+20. **F26u — URLs clickable on feed cards too (2026-10-05)**: user asked
+   to make links clickable from card lists while keeping card clicks
+   going to the details page. Simplified the F26t design: the
+   interactiveLinks/interactive props are REMOVED — MarkdownContent now
+   always renders URLs as anchors with target="_blank" + rel="noopener
+   noreferrer" and onClick stopPropagation, so a link click opens the
+   URL in a new tab and does NOT trigger the card's details navigation;
+   clicking anywhere else on the card still routes to /post#id.
+   Verified in browser on the feed: t.me link is a real anchor, clicking
+   it opened a popup to https://t.me/divatoz while the page stayed on
+   /posts, and clicking the content area navigated to /post#tR8JrLh4….
+   tsc 0, 63/63, lint 0 errors/1 known warning.
 2. Pending decisions: shielded-balance UI, DIP-17 platform-address features, biometric
    settings integration, react-hooks v6 cleanup pass.
 3. Known unverified: the -20.33B credit fee breakdown (F25).

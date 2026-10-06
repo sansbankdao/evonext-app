@@ -5,13 +5,6 @@ import { useMemo } from 'react'
 interface MarkdownContentProps {
     content: string
     className?: string
-    /**
-     * When true, URLs render as real anchors opening in a NEW window/tab
-     * (target="_blank"). When false (default), URLs render as plain text —
-     * used on card lists so a click there keeps navigating to the post
-     * details instead of leaving the feed.
-     */
-    interactiveLinks?: boolean
 }
 
 interface ParsedToken {
@@ -24,20 +17,22 @@ interface ParsedToken {
 /**
  * Lightweight markdown renderer for social media posts.
  *
- * Supports: **bold**, *italic*, `code`, URLs, and styles @mentions /
- * #hashtags / $cashtags in the accent color (not linked — EvoNext has no
- * hashtag/username routes yet).
+ * Supports: **bold**, *italic*, `code`, clickable URLs (opened in a NEW
+ * window/tab via target="_blank"; the click is stopped from propagating
+ * so it does not also trigger a parent card's navigation), and styles
+ * @mentions / #hashtags / $cashtags in the accent color (not linked —
+ * EvoNext has no hashtag/username routes yet).
  *
  * Ported from yap.pr's components/ui/markdown-content.tsx. Text is
  * rendered through React's escaping — no dangerouslySetInnerHTML, so
  * post content can never inject HTML.
  */
-export function MarkdownContent({ content, className = '', interactiveLinks = false }: MarkdownContentProps) {
+export function MarkdownContent({ content, className = '' }: MarkdownContentProps) {
     const tokens = useMemo(() => parseContent(content), [content])
 
     return (
         <span className={className}>
-            {tokens.map((token, index) => renderToken(token, index, interactiveLinks))}
+            {tokens.map((token, index) => renderToken(token, index))}
         </span>
     )
 }
@@ -137,7 +132,7 @@ function parseContent(text: string): ParsedToken[] {
     return tokens
 }
 
-function renderToken(token: ParsedToken, key: number, interactiveLinks: boolean): React.ReactNode {
+function renderToken(token: ParsedToken, key: number): React.ReactNode {
     switch (token.type) {
         case 'bold':
             return (
@@ -161,12 +156,6 @@ function renderToken(token: ParsedToken, key: number, interactiveLinks: boolean)
                 </code>
             )
         case 'link':
-            if (!interactiveLinks) {
-                // Card lists: plain text — a click there keeps opening the
-                // post details instead of leaving the feed.
-                return <span key={key}>{token.content}</span>
-            }
-
             return (
                 <a
                     key={key}
@@ -174,6 +163,8 @@ function renderToken(token: ParsedToken, key: number, interactiveLinks: boolean)
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-evonext-500 hover:underline break-all"
+                    // Stop the click from bubbling to the card — a link click
+                    // must open the URL, not the post details page.
                     onClick={(e) => e.stopPropagation()}
                 >
                     {token.content}
