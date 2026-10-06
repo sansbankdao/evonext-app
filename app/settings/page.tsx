@@ -23,6 +23,9 @@ import { Button } from '@/components/ui/button'
 import { withAuth, useAuth } from '@/contexts/auth-context'
 import { useTheme } from 'next-themes'
 import * as Switch from '@radix-ui/react-switch'
+// App version displayed on the About page — pulled from package.json so
+// it always matches the release.
+import packageJson from '../../package.json'
 import * as RadioGroup from '@radix-ui/react-radio-group'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -398,7 +401,7 @@ function SettingsPage() {
 
                 <div className="space-y-2 text-sm text-gray-500">
                     <p>
-                        Version 25.9.4
+                        Version {packageJson.version}
                     </p>
 
                     <p>

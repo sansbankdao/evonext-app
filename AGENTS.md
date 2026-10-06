@@ -587,6 +587,14 @@ history of this file (see log below for commit hashes) — keep only load-bearin
    it opened a popup to https://t.me/divatoz while the page stayed on
    /posts, and clicking the content area navigated to /post#tR8JrLh4….
    tsc 0, 63/63, lint 0 errors/1 known warning.
+21. **F26v — About page version pulled from package.json (2026-10-05)**:
+   the settings About section hardcoded "Version 25.9.4" (stale since
+   F22-era). Now imports package.json directly (tsconfig already has
+   resolveJsonModule) and renders `Version {packageJson.version}`;
+   package.json version bumped 26.1.30 → 26.10.5. Verified in the
+   browser (settings → About tab): shows "Version 26.10.5"; no 25.9.4
+   anywhere in out/. tsc 0, 63/63, lint 0 errors/1 known warning.
+
 2. Pending decisions: shielded-balance UI, DIP-17 platform-address features, biometric
    settings integration, react-hooks v6 cleanup pass.
 3. Known unverified: the -20.33B credit fee breakdown (F25).
