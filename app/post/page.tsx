@@ -105,24 +105,6 @@ function PostDetailPage() {
 
                 const postObj = transformPostDoc(doc)
 
-                // Real interaction counts (same batched helper the feed uses)
-                // including whether the current user already liked this post.
-                const counts = await dashClient.getInteractionCounts([hashId], user?.identityId)
-                const count = counts[hashId]
-
-                if (count) {
-                    postObj.likes = count.likes
-                    postObj.replies = count.replies
-                    postObj.remixes = count.remixes
-                    postObj.liked = count.likedByMe
-                }
-
-                // Resolve the real author profile (displayName, DPNS
-                // username, avatar data) instead of the raw placeholder.
-                const withAuthor = await applyAuthorProfiles([postObj])
-
-                setPost(withAuthor[0])
-
                 // Real replies from the separate 'reply' document type,
                 // oldest first, with their authors' profiles resolved.
                 const replyDocs = await dashClient.getReplies(hashId)
@@ -132,6 +114,39 @@ function PostDetailPage() {
                         replyToId: hashId as string,
                     }))
                 )
+
+                // Real interaction counts (same batched helper the feed
+                // uses) for the post AND every reply, including whether the
+                // current user already liked each one. Without this the
+                // reply cards would always show 0 and never render a
+                // pre-existing like as red.
+                const allIds = [hashId, ...transformedReplies.map(r => r.id)]
+                const counts = await dashClient.getInteractionCounts(allIds, user?.identityId)
+                const count = counts[hashId]
+
+                if (count) {
+                    postObj.likes = count.likes
+                    postObj.replies = count.replies
+                    postObj.remixes = count.remixes
+                    postObj.liked = count.likedByMe
+                }
+
+                for (const reply of transformedReplies) {
+                    const replyCount = counts[reply.id]
+
+                    if (replyCount) {
+                        reply.likes = replyCount.likes
+                        reply.replies = replyCount.replies
+                        reply.remixes = replyCount.remixes
+                        reply.liked = replyCount.likedByMe
+                    }
+                }
+
+                // Resolve the real author profile (displayName, DPNS
+                // username, avatar data) instead of the raw placeholder.
+                const withAuthor = await applyAuthorProfiles([postObj])
+
+                setPost(withAuthor[0])
 
                 setReplies(transformedReplies)
             } catch (error) {
