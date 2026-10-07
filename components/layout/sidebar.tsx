@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import {
     AdjustmentsHorizontalIcon,
@@ -65,12 +65,12 @@ const getNavigation = (isLoggedIn: boolean) => {
         { name: 'Mini Apps', href: '/apps', icon: Squares2X2Icon, activeIcon: Squares2X2IconSolid },
         { name: 'Wallet', href: '/wallet', icon: WalletIcon, activeIcon: WalletIconSolid },
         { name: 'Favorites', href: '/bookmarks', icon: BookmarkSquareIcon, activeIcon: BookmarkSquareIconSolid },
-        { name: 'Identity', href: '/profile', icon: UsersIcon, activeIcon: UsersIconSolid },
     ]
 }
 
 export function Sidebar() {
     const pathname = usePathname()
+    const router = useRouter()
     const { setComposeOpen } = useAppStore()
     const { user, logout } = useAuth()
     const [isHydrated, setIsHydrated] = useState(false)
@@ -172,8 +172,17 @@ export function Sidebar() {
             <div className="space-y-2 flex-shrink-0 pb-4">
                 {user && isHydrated && (
                     <DropdownMenu.Root>
-                        <DropdownMenu.Trigger asChild>
-                            <button className="flex items-center gap-3 p-3 rounded-full hover:bg-gray-100 dark:hover:bg-gray-900 transition-colors w-full">
+                        <div className="flex items-center gap-3 p-3 rounded-full hover:bg-gray-100 dark:hover:bg-gray-900 transition-colors w-full">
+                            {/* Clicking the identity block navigates to the
+                                profile page (the old behavior opened the
+                                dropdown only). The dropdown trigger is kept
+                                on the ellipsis so the menu is still
+                                reachable. */}
+                            <button
+                                className="flex items-center gap-3 flex-1 text-left"
+                                onClick={() => router.push('/profile')}
+                                title="Go to profile"
+                            >
                                 <div className="h-10 w-10 rounded-full overflow-hidden bg-gray-100">
                                     {avatarSeed ? (
                                         <AvatarCanvas seed={avatarSeed} size={40} />
@@ -196,11 +205,15 @@ export function Sidebar() {
                                             {formatIdentityId(user.identityId)}
                                         </p>
                                     </div>
-
-                                    <EllipsisHorizontalIcon className="h-5 w-5 text-gray-500" />
                                 </div>
                             </button>
-                        </DropdownMenu.Trigger>
+
+                            <DropdownMenu.Trigger asChild>
+                                <button className="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-800" title="Account menu">
+                                    <EllipsisHorizontalIcon className="h-5 w-5 text-gray-500" />
+                                </button>
+                            </DropdownMenu.Trigger>
+                        </div>
 
                         <DropdownMenu.Portal>
                             <DropdownMenu.Content

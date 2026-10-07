@@ -31,10 +31,10 @@ export function Header() {
                     </span>
                 </Link>
 
-                <div className="-mt-0 sm:mt-1 -mr-7 sm:-mr-6 lg:mr-0 lg:mt-2 flex items-center px-3 py-1 bg-white/20 hover:bg-white/30 rounded-md transition-colors">
+                <div className="-mt-0 sm:mt-1 -mr-7 sm:-mr-6 lg:mr-0 lg:mt-2 flex items-center gap-2">
                     {user && <Link
                         href="/notifications"
-                        className="flex items-center pr-3"
+                        className="flex items-center px-2 py-1 bg-white/20 hover:bg-white/30 rounded-md transition-colors"
                         title="Notifications"
                     >
                         <BellIcon className="h-6" />
@@ -42,7 +42,7 @@ export function Header() {
 
                     {user && <Link
                         href="/profile"
-                        className="flex items-center gap-1"
+                        className="flex items-center gap-1 px-3 py-1 bg-white/20 hover:bg-white/30 rounded-md transition-colors"
                         title="Clear cache and reload"
                     >
                         <UserIcon className="h-6" />
@@ -54,7 +54,7 @@ export function Header() {
 
                     {!user && <Link
                         href="/connect"
-                        className="flex items-center gap-1"
+                        className="flex items-center gap-1 px-3 py-1 bg-white/20 hover:bg-white/30 rounded-md transition-colors"
                         title="Clear cache and reload"
                     >
                         <BoltIcon className="h-6" />

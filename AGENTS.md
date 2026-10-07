@@ -634,6 +634,20 @@ history of this file (see log below for commit hashes) — keep only load-bearin
    63/63, lint 0 errors/1 known warning.
 24. **F26y — text fix**: "secured by Dash Platform v2 🛡️" → "secured by
    Dash Platform 🛡️" (maison hero, single occurrence).
+26. **F27a — header bell as its own button + nav cleanup (2026-10-05)**:
+   - Notification bell moved OUT of the Profile pill into its OWN
+     header button (own bg-white/20 rounded-md, 8px left of Profile);
+     verified: bellIsOwnElement, own bg + rounded border, left of
+     Profile, navigates to /notifications.
+   - "Identity" nav item REMOVED (duplicate of the header Profile).
+   - Sidebar footer IDENTITY block click now navigates to /profile —
+     restructured so the identity area is its own button (Radix's
+     DropdownMenu.Trigger was swallowing the click); the dropdown menu
+     is now on the ellipsis icon only. Verified: click -> /profile.
+   - notifications page main width: removed the max-w-[600px] +
+     mr-[350px] cap so it uses flex-1 like the profile page. Verified:
+     list items fill main's full width, right sidebar directly adjacent.
+   tsc 0, 63/63, lint 0 errors/1 known warning.
 25. **F26z — notifications page is LIVE with real data (2026-10-05)**:
    app/notifications/page.tsx was 100% mocked (fake user123/user456
    likes/follows/replies). Replaced with real on-chain data:
