@@ -593,6 +593,126 @@ console.log('CONTRACT ID', this.contractId)
     }
 
     /**
+     * List the individual interaction documents targeting the given posts
+     * (the same three sources getInteractionCounts aggregates): likes on
+     * the posts, replies to them, and remixes quoting them. Returns the
+     * plain rows (id, ownerId, createdAtMs, postId, content?) the
+     * notifications page needs to render actor + time. Each actor is
+     * included at most once per type per post.
+     */
+    /**
+     * Public accessor for the active contract ID so shared services
+     * (notifications) can issue raw document queries against the same
+     * client instance without re-deriving the contract.
+     */
+    get activeContractId(): string | null {
+        return this.contractId || null
+    }
+
+    async getInteractionsForPosts(
+        postIds: string[]
+    ): Promise<Array<{
+        kind: 'like' | 'reply' | 'remix'
+        id: string
+        ownerId: string
+        createdAtMs: number
+        postId: string
+        content?: string
+    }>> {
+        const rows: Array<{
+            kind: 'like' | 'reply' | 'remix'
+            id: string
+            ownerId: string
+            createdAtMs: number
+            postId: string
+            content?: string
+        }> = []
+
+        if (postIds.length === 0) {
+            return rows
+        }
+
+        await this.ensureInitialized()
+
+        // One spec per source document type. The orderBy entries match the
+        // index the where clause selects (postAndOwner / parentAndTime /
+        // quotedPostAndOwner) — same as getInteractionCounts.
+        const specs = [
+            {
+                documentType: 'like',
+                field: 'postId',
+                orderBy: [['postId', 'asc'], ['$ownerId', 'asc']],
+                kind: 'like' as const,
+            },
+            {
+                documentType: 'reply',
+                field: 'parentId',
+                orderBy: [['parentId', 'asc'], ['$createdAt', 'asc']],
+                kind: 'reply' as const,
+            },
+            {
+                documentType: 'post',
+                field: 'quotedPostId',
+                orderBy: [['quotedPostId', 'asc'], ['$ownerId', 'asc']],
+                kind: 'remix' as const,
+            },
+        ]
+
+        await Promise.all(specs.map(async (spec) => {
+            try {
+                let startAfter: string | null = null
+
+                // Paginate past the 100 documents per query cap.
+                for (let page = 0; page < 100; page++) {
+                    const response = await get_documents(
+                        this.sdk,
+                        this.contractId!,
+                        spec.documentType,
+                        JSON.stringify([[spec.field, 'in', postIds]]),
+                        JSON.stringify(spec.orderBy),
+                        100,
+                        startAfter,
+                        null // startAt
+                    )
+
+                    const docs: any[] = Array.isArray(response) ? response : []
+
+                    for (const doc of docs) {
+                        const postId = doc[spec.field]
+                        const ownerId = doc.$ownerId || doc.ownerId
+                        const docId = doc.$id || doc.id
+                        const createdAtMs = Number(doc.$createdAt || doc.createdAt || 0)
+
+                        if (postId && ownerId) {
+                            rows.push({
+                                kind: spec.kind,
+                                id: String(docId || ''),
+                                ownerId: String(ownerId),
+                                createdAtMs,
+                                postId: String(postId),
+                                content: spec.kind === 'like' ? undefined : (doc.content || undefined),
+                            })
+                        }
+                    }
+
+                    if (docs.length < 100) {
+                        break
+                    }
+
+                    startAfter = docs[docs.length - 1]?.$id || docs[docs.length - 1]?.id || null
+                }
+            } catch (error) {
+                // A failed interaction query must not break the page —
+                // whatever succeeded is still shown.
+                const message = (error as any)?.message || String(error)
+                console.error(`DashPlatformClient: Failed to list ${spec.kind} interactions:`, message)
+            }
+        }))
+
+        return rows
+    }
+
+    /**
      * Get a single post (or reply) document by its ID. Returns the plain
      * JSON shape ($id, $ownerId, $createdAt, content, ...) or undefined when
      * the document does not exist.

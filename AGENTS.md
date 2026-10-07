@@ -634,6 +634,35 @@ history of this file (see log below for commit hashes) — keep only load-bearin
    63/63, lint 0 errors/1 known warning.
 24. **F26y — text fix**: "secured by Dash Platform v2 🛡️" → "secured by
    Dash Platform 🛡️" (maison hero, single occurrence).
+25. **F26z — notifications page is LIVE with real data (2026-10-05)**:
+   app/notifications/page.tsx was 100% mocked (fake user123/user456
+   likes/follows/replies). Replaced with real on-chain data:
+   - new `lib/services/notification-service.ts`
+     `fetchUserInteractions(identityId, dpnsUsername, network)`: likes /
+     replies / remixes on the viewer's recent posts (via the new
+     dashClient.getInteractionsForPosts — individual rows with actor +
+     $createdAt), followers (queried directly on the follow type —
+     followService is bound to lib/network.ts's getNetwork which returns
+     the raw host on localhost/IPFS and hangs; the direct query with the
+     same client+contract works), and @mentions of the viewer's DPNS
+     name in the 20 most recent posts. Self-interactions excluded;
+     actor names resolved via resolveItemAuthors; sorted newest-first.
+   - read state: local-only cursor `evonext_notifications_read_<id>`
+     (there is no on-chain "seen" marker); "Mark all as read" sets it to
+     the newest notification's $createdAt and persists across reloads.
+   - page: filter tabs All/Likes/Reposts/Replys/Follows/Mentions, post
+     content snippets link to `/post#<id>`, actor displayName shown
+     (DPNS name), AvatarCanvas seeded by avatarData when present.
+   Verified in browser with the user's real identity (ADtgYG2…): 4 real
+   notifications rendered (zkjays.dash liked 8/9/2026, caracal.dash
+   replied x2 + liked 6/26/2026), Likes filter -> 2, Mentions -> empty
+   state, Mark-all hides button + dots and persists after reload. tsc 0,
+   63/63, lint 0 errors/1 known warning.
+   NOTE: the sidebar nav has no Notifications entry (page is reachable
+   via /notifications URL) — adding it is a separate task. Also
+   followService still uses the lib/network.ts singleton pattern (works
+   on the real domain; only the notification path needed the direct
+   query today).
 
 2. Pending decisions: shielded-balance UI, DIP-17 platform-address features, biometric
    settings integration, react-hooks v6 cleanup pass.

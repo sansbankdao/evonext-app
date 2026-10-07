@@ -1,3 +1,5 @@
+// app/notifications/page.tsx
+
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -13,76 +15,51 @@ import {
 import { HeartIcon as HeartIconSolid } from '@heroicons/react/24/solid'
 import { Sidebar } from '@/components/layout/sidebar'
 import { RightSidebar } from '@/components/layout/right-sidebar'
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { withAuth, useAuth } from '@/contexts/auth-context'
+import { useNetwork } from '@/contexts/network-context'
 import { AvatarCanvas } from '@/components/ui/avatar-canvas'
+import {
+    fetchUserInteractions,
+    markNotificationsRead,
+    Notification,
+    NotificationType
+} from '@/lib/services/notification-service'
 import Link from 'next/link'
-
-type NotificationType = 'like' | 'remix' | 'reply' | 'follow' | 'mention'
-
-interface Notification {
-    id: string;
-    type: NotificationType;
-    message: string;
-    timestamp: Date;
-    read: boolean;
-    actorId: string;
-    postId?: string;
-    postContent?: string;
-}
 
 function NotificationsPage() {
     const { user } = useAuth()
+    const { network } = useNetwork()
     const [notifications, setNotifications] = useState<Notification[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [filter, setFilter] = useState<NotificationType | 'all'>('all')
 
     useEffect(() => {
-        // In a real app, this would fetch notifications from Dash Platform
-        // For now, we'll simulate some notifications
-        setTimeout(() => {
-            setNotifications([
-                {
-                    id: '1',
-                    type: 'like',
-                    message: 'liked your post',
-                    timestamp: new Date(Date.now() - 1000 * 60 * 5), // 5 minutes ago
-                    read: false,
-                    actorId: 'user123',
-                    postContent: 'Just deployed my first dApp on Dash Platform! 🚀'
-                },
-                {
-                    id: '2',
-                    type: 'follow',
-                    message: 'started following you',
-                    timestamp: new Date(Date.now() - 1000 * 60 * 30), // 30 minutes ago
-                    read: false,
-                    actorId: 'user456'
-                },
-                {
-                    id: '3',
-                    type: 'remix',
-                    message: 'remixed your post',
-                    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2), // 2 hours ago
-                    read: true,
-                    actorId: 'user789',
-                    postContent: 'Building decentralized social media is the future'
-                },
-                {
-                    id: '4',
-                    type: 'reply',
-                    message: 'replied to your post',
-                    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24), // 1 day ago
-                    read: true,
-                    actorId: 'user101',
-                    postContent: 'What do you think about Web3 social platforms?'
-                }
-            ])
+        let cancelled = false
 
-            setIsLoading(false)
-        }, 1000)
-    }, [])
+        const load = async () => {
+            if (!user?.identityId) return
+
+            try {
+                setIsLoading(true)
+
+                const items = await fetchUserInteractions(
+                    user.identityId,
+                    user.dpnsUsername,
+                    network
+                )
+
+                if (!cancelled) setNotifications(items)
+            } catch (error) {
+                console.error('Failed to load notifications:', error)
+            } finally {
+                if (!cancelled) setIsLoading(false)
+            }
+        }
+
+        load()
+        return () => { cancelled = true }
+    }, [user?.identityId, user?.dpnsUsername, network])
 
     const getIcon = (type: NotificationType) => {
         switch (type) {
@@ -119,6 +96,10 @@ function NotificationsPage() {
         : notifications.filter(n => n.type === filter)
 
     const markAllAsRead = () => {
+        if (user?.identityId && notifications.length > 0) {
+            markNotificationsRead(user.identityId, notifications[0].timestamp.getTime())
+        }
+
         setNotifications(prev => prev.map(n => ({ ...n, read: true })))
     }
 
@@ -137,7 +118,7 @@ function NotificationsPage() {
                     </div>
 
                     <div className="flex border-b border-gray-200 dark:border-gray-800">
-                        {['all', 'like', 'remix', 'reply', 'follow'].map((filterType) => (
+                        {['all', 'like', 'remix', 'reply', 'follow', 'mention'].map((filterType) => (
                             <button
                                 key={filterType}
                                 onClick={() => setFilter(filterType as any)}
@@ -204,12 +185,15 @@ function NotificationsPage() {
                                     <div className="flex-1">
                                         <div className="flex items-start gap-3">
                                             <div className="h-10 w-10 rounded-full overflow-hidden bg-gray-100">
-                                                <AvatarCanvas seed={notification.actorId} size={40} />
+                                                <AvatarCanvas
+                                                    seed={notification.actor.avatarData || notification.actor.id}
+                                                    size={40}
+                                                />
                                             </div>
 
                                             <div className="flex-1">
                                                 <p className="text-sm">
-                                                    <span className="font-semibold">{notification.actorId.slice(0, 8)}...</span>
+                                                    <span className="font-semibold">{notification.actor.displayName}</span>
                                                     {' '}
                                                     {notification.message}
 
@@ -218,9 +202,9 @@ function NotificationsPage() {
                                                     </span>
                                                 </p>
 
-                                                {notification.postContent && (
+                                                {notification.postContent && notification.postId && (
                                                     <Link
-                                                        href={`/post/${notification.postId}`}
+                                                        href={`/post#${notification.postId}`}
                                                         className="mt-2 p-3 bg-gray-100 dark:bg-gray-900 rounded-lg block text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors"
                                                     >
                                                         {notification.postContent}
