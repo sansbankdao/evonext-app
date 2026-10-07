@@ -119,6 +119,46 @@ class DpnsService {
     }
 
     /**
+     * Get the earliest creation time of this identity's DPNS name(s) —
+     * used as the "joined" date when no social profile exists yet.
+     * Returns epoch milliseconds, or null when the identity has no name.
+     */
+    async getUsernameCreatedAt(identityId: string): Promise<number | null> {
+        try {
+            const sdk = await getWasmSdk()
+
+            const response = await get_documents(
+                sdk,
+                DPNS_CONTRACT_ID,
+                DPNS_DOCUMENT_TYPE,
+                JSON.stringify([
+                    ['records.identity', '==', identityId]
+                ]),
+                null,
+                20,
+                null,
+                null
+            )
+
+            const docs: DpnsDocument[] = (response && (response as any).documents) ||
+                (Array.isArray(response) ? response : []) || []
+
+            const createdAts = docs
+                .map((doc: DpnsDocument) => Number(doc.$createdAt || 0))
+                .filter(t => t > 0)
+
+            if (createdAts.length === 0) {
+                return null
+            }
+
+            return Math.min(...createdAts)
+        } catch (error) {
+            console.error('DPNS: Error fetching username creation date:', error)
+            return null
+        }
+    }
+
+    /**
      * Sort usernames by contested status (contested usernames first)
      */
     sortUsernamesByContested(usernames: string[]): string[] {

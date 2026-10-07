@@ -76,9 +76,11 @@ function ProfilePage() {
     )
 
     // Joined date: the on-chain profile's creation time (IUser.joinedAt is
-    // set from the profile document's $createdAt). Falls back to now if the
-    // profile hasn't loaded.
-    const joinDate = profileJoinedAt || new Date()
+    // set from the profile document's $createdAt). When no profile exists
+    // yet, the DPNS name registration date is used instead (set in the
+    // loadProfile effect). The "Joined" line is hidden until a real date
+    // is known — no fake "today" fallback.
+    const joinDate = profileJoinedAt
 
     // Restore a locally saved avatar customization, if any
     useEffect(() => {
@@ -113,6 +115,15 @@ function ProfilePage() {
                 setWebsite(profile?.website || '')
                 if (profile?.joinedAt) {
                     setProfileJoinedAt(new Date(profile.joinedAt))
+                } else {
+                    // No social profile on the contract yet — fall back to
+                    // the DPNS name registration date.
+                    const { dpnsService } = await import('@/lib/services/dpns-service')
+                    const createdAt = await dpnsService.getUsernameCreatedAt(user.identityId)
+
+                    if (createdAt) {
+                        setProfileJoinedAt(new Date(createdAt))
+                    }
                 }
             } catch (error) {
                 console.error('Failed to load profile:', error)
@@ -397,14 +408,16 @@ console.log('PROFILE CONTRACT ID', getContractId(network!))
                     ) : (
                         <>
                             <div className="mb-3">
-                                <h2 className="text-xl font-bold">
-                                    {displayName || user?.identityId.slice(0, 8) + '...'}
-                                </h2>
+                                {displayName && (
+                                    <h2 className="text-xl font-bold">
+                                        {displayName}
+                                    </h2>
+                                )}
 
                                 <p className="text-gray-500">
-                                    {user?.dpnsUsername
-                                        ? `@${user.dpnsUsername}`
-                                        : `@${user?.identityId.slice(0, 8).toLowerCase() || 'loading...'}`}
+                                    @{user?.dpnsUsername
+                                        ? user.dpnsUsername.replace(/\.dash$/i, '')
+                                        : user?.identityId.slice(0, 8).toLowerCase() || 'loading...'}
                                 </p>
                             </div>
 
@@ -425,10 +438,12 @@ console.log('PROFILE CONTRACT ID', getContractId(network!))
                                     </a>
                                 )}
 
-                                <span className="flex items-center gap-1">
-                                    <CalendarIcon className="h-4 w-4" />
-                                    Joined {joinDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-                                </span>
+                                {joinDate && (
+                                    <span className="flex items-center gap-1">
+                                        <CalendarIcon className="h-4 w-4" />
+                                        Joined {joinDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                                    </span>
+                                )}
                             </div>
 
                             <div className="flex gap-4 text-sm">
