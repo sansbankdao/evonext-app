@@ -60,7 +60,6 @@ const getNavigation = (isLoggedIn: boolean) => {
         { name: 'Home', href: '/', icon: HomeIcon, activeIcon: HomeIconSolid },
         { name: 'Posts | Remix', href: '/posts', icon: HashtagIcon, activeIcon: HashtagIconSolid },
         { name: 'Explore', href: '/explore', icon: MagnifyingGlassIcon, activeIcon: SearchIconSolid },
-        { name: 'Notifications', href: '/notifications', icon: BellIcon, activeIcon: BellIconSolid },
         { name: 'Community', href: '/followers', icon: UserGroupIcon, activeIcon: UserGroupIconSolid },
         { name: 'Following', href: '/following', icon: UsersIcon, activeIcon: UsersIconSolid },
         { name: 'Mini Apps', href: '/apps', icon: Squares2X2Icon, activeIcon: Squares2X2IconSolid },
