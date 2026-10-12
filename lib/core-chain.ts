@@ -35,7 +35,10 @@ const INSIGHT_URLS = {
 // this: the OP_RETURN output burns this value into the credit pool AND an
 // equal P2PKH credit output is paid back to the funding key (Dash Core v23
 // requires creditOutputs sum == OP_RETURN value).
-export const ASSET_LOCK_SATOSHIS = 100_000_000 // 0.1 DASH locked
+// 0.03 DASH covers an identity + an uncontested DPNS username; contested
+// usernames (masternode-voted) are recommended at 0.2 DASH.
+export const ASSET_LOCK_SATOSHIS = 3_000_000 // 0.03 DASH locked (uncontested)
+export const CONTESTED_ASSET_LOCK_SATOSHIS = 20_000_000 // 0.2 DASH locked (contested)
 
 // Fee rate used for the asset-lock transaction (sats per kB). Kept well
 // below the network's maxfeerate (verified relay min is 1000 sats/kB).
@@ -43,7 +46,10 @@ const FEE_PER_KB = 3000
 
 // The minimum deposit the funding address needs before we can proceed:
 // locked (burn) + locked (credit output) + fee margin.
-export const MINIMUM_DEPOSIT_SATOSHIS = ASSET_LOCK_SATOSHIS * 2 + 5_000
+export const minimumDepositSatoshis = (_lockedSatoshis: number) =>
+    _lockedSatoshis * 2 + 5_000
+
+export const MINIMUM_DEPOSIT_SATOSHIS = minimumDepositSatoshis(ASSET_LOCK_SATOSHIS)
 
 // Map app network names to dashcore-lib network names.
 const toCoreNetwork = (_network: string) =>

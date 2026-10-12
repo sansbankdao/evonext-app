@@ -748,10 +748,31 @@ history of this file (see log below for commit hashes) — keep only load-bearin
    on the real domain; only the notification path needed the direct
    query today).
 
-2. Pending decisions: shielded-balance UI, DIP-17 platform-address features, biometric
+2. **F27d — registrar deposit amounts + funding UX FIXED (2026-10-06)**: the
+   asset lock was ASSET_LOCK_SATOSHIS = 100_000_000 (1.0 DASH — the
+   '0.1 DASH' comment was wrong), so MINIMUM_DEPOSIT demanded 2.00005 tDASH
+   and the user's 1 tDASH deposit stalled registration. Now contested-aware:
+   ASSET_LOCK_SATOSHIS = 3_000_000 (0.03 DASH, uncontested) +
+   CONTESTED_ASSET_LOCK_SATOSHIS = 20_000_000 (0.2 DASH, contested —
+   dpns_is_contested_username from the wasm SDK; NOTE: ALL usernames <20
+   chars are contested, so 0.2 is the common case). Deposit required =
+   locked*2 + 5_000 via new minimumDepositSatoshis() (double cost =
+   OP_RETURN burn + equal P2PKH credit output, invariant #9).
+   getFundingInfo(network, idx, username?) + registerIdentityAndUsername
+   both pick the lock from the username. Registrar modal: QR 360->180px,
+   modal h-full -> max-h-[90vh], LIVE balance display (Received X / Y DASH
+   + progress bar, polled every 5s; 'Deposit detected — continuing…' when
+   full) — auto-continue on full deposit already existed and is unchanged.
+   Username input is disabled once the funding panel opens (the lock size
+   is fixed by the submitted username). createAssetLockTransaction sends
+   change back to the funding address, so a user's earlier partial deposit
+   (e.g. the 1 tDASH) is reusable — same mnemonic => same funding address.
+   Verified: tsc 0, eslint 0/1, 75/75, build 35/35. NOT yet browser-verified
+   with a live deposit (funding panel needs a session mnemonic + real L1 tx).
+3. Pending decisions: shielded-balance UI, DIP-17 platform-address features, biometric
    settings integration, react-hooks v6 cleanup pass.
-3. Known unverified: the -20.33B credit fee breakdown (F25).
-4. **Deployment is MANUAL/stale — F26**: the live evonext.app served the OLD pre-F22
+4. Known unverified: the -20.33B credit fee breakdown (F25).
+5. **Deployment is MANUAL/stale — F26**: the live evonext.app served the OLD pre-F22
    wasm on 2026-10-04 (deployed asset `wasm_sdk_bg.c3177f65.wasm`, 8,013,662 bytes,
    sha256 `ca6e51ce…`, CONTAINS dead F22 addresses `52.34.144.50`/`35.82.197.197`),
    reproducing the F22 hang despite master being fixed. Our source wasm is 20,319,523
@@ -759,7 +780,7 @@ history of this file (see log below for commit hashes) — keep only load-bearin
    (32 route HTMLs, `_headers`, wasm `cf2b0aef`) and current with all code through
    F25 — user must redeploy it. Verify a deployment by checking the served wasm's
    byte size (8.0MB = stale; 20.3MB = current).
-5. **F26b — Cloudflare Pages deployment switched OFF next-on-pages (2026-10-04)**:
+6. **F26b — Cloudflare Pages deployment switched OFF next-on-pages (2026-10-04)**:
    root cause of all failed deploys since Oct 2: the Pages project used the Next.js
    framework preset, whose build command `npx @cloudflare/next-on-pages@1` broke
    twice — (a) npm ERESOLVE inside the adapter's own deps (workers-types ^4 vs

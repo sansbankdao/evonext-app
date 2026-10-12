@@ -20,7 +20,8 @@ import { hash160 } from '@nexajs/crypto'
 import { binToHex, hexToBin } from '@nexajs/utils'
 import {
     ASSET_LOCK_SATOSHIS,
-    MINIMUM_DEPOSIT_SATOSHIS,
+    CONTESTED_ASSET_LOCK_SATOSHIS,
+    minimumDepositSatoshis,
     broadcastTransaction,
     createAssetLockTransaction,
     deriveFundingKey,
@@ -37,18 +38,25 @@ import {
 export const getFundingInfo = async (
     _network: string,
     _identityIdx: number,
+    _username?: string,
 ) => {
     /* Derive the funding key from the user's own mnemonic. */
     const funding = deriveFundingKey(_network, _identityIdx)
+
+    /* Contested usernames require a LARGER asset lock (masternode voting). */
+    const lockedSatoshis = (_username && dpns_is_contested_username(_username))
+        ? CONTESTED_ASSET_LOCK_SATOSHIS
+        : ASSET_LOCK_SATOSHIS
+    const requiredSatoshis = minimumDepositSatoshis(lockedSatoshis)
 
     /* Return funding info. */
     return {
         address: funding.address,
         path: funding.path,
-        lockedSatoshis: ASSET_LOCK_SATOSHIS,
-        requiredSatoshis: MINIMUM_DEPOSIT_SATOSHIS,
-        lockedDash: ASSET_LOCK_SATOSHIS / 1e8,
-        requiredDash: MINIMUM_DEPOSIT_SATOSHIS / 1e8,
+        lockedSatoshis,
+        requiredSatoshis,
+        lockedDash: lockedSatoshis / 1e8,
+        requiredDash: requiredSatoshis / 1e8,
     }
 }
 
@@ -80,6 +88,13 @@ export const registerIdentityAndUsername = async (
     /* Derive the funding key (same path the UI displayed). */
     const funding = deriveFundingKey(_currentNetwork, _identityIdx)
 
+    /* Contested usernames require a LARGER asset lock (masternode voting). */
+    const isContested = dpns_is_contested_username(_username)
+    const lockedSatoshis = isContested
+        ? CONTESTED_ASSET_LOCK_SATOSHIS
+        : ASSET_LOCK_SATOSHIS
+    const minimumDeposit = minimumDepositSatoshis(lockedSatoshis)
+
     /* Collect funding UTXOs. */
     progress('Checking your deposit...')
     const utxos = await getFundingUtxos(_currentNetwork, funding.address)
@@ -87,15 +102,15 @@ export const registerIdentityAndUsername = async (
     /* Validate funding. */
     const funded = utxos.reduce(
         (sum: number, utxo: any) => sum + utxo.satoshis, 0)
-    if (utxos.length === 0 || funded < MINIMUM_DEPOSIT_SATOSHIS) {
+    if (utxos.length === 0 || funded < minimumDeposit) {
         throw new Error(
-            `Insufficient deposit at ${funding.address}: ${funded} sats available, ${MINIMUM_DEPOSIT_SATOSHIS} required`)
+            `Insufficient deposit at ${funding.address}: ${funded} sats available, ${minimumDeposit} required`)
     }
 
     /* Build + sign the asset-lock transaction (client-side). */
     progress('Building your asset lock transaction...')
     const assetLock = createAssetLockTransaction(
-        _currentNetwork, funding.privateKeyWif, utxos)
+        _currentNetwork, funding.privateKeyWif, utxos, lockedSatoshis)
 
     /* Broadcast (minimal L1 support). */
     progress('Broadcasting to the Dash network...')
@@ -208,7 +223,7 @@ console.log('REGISTRAR (username result)', usernameResult)
         identityId: creationIdentity,
         txid,
         username: _username,
-        isContested: dpns_is_contested_username(_username),
+        isContested,
     }
 }
 

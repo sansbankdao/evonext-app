@@ -18,7 +18,7 @@ import {
     getFundingInfo,
     registerIdentityAndUsername,
 } from '@/lib/registrar-manager'
-import { getFundingUtxos, MINIMUM_DEPOSIT_SATOSHIS } from '@/lib/core-chain'
+import { getFundingUtxos } from '@/lib/core-chain'
 import { storeIdentityIdx } from '@/lib/secure-storage'
 import { getPrivateKeys, getPublicKeys } from '@/lib/wallet-manager'
 import { dpns_is_contested_username } from '@/lib/dash-wasm/compat'
@@ -61,6 +61,8 @@ export function RegistrarModal({
 
     /* Self-custodial funding state. */
     const [fundingAddress, setFundingAddress] = useState<string | undefined>()
+    const [requiredSatoshis, setRequiredSatoshis] = useState<number>(0)
+    const [depositedSatoshis, setDepositedSatoshis] = useState<number>(0)
     const [progressMessage, setProgressMessage] = useState<string | null>(null)
 
     /* Hold the polling interval so the effect cleanup can stop it. */
@@ -186,8 +188,9 @@ export function RegistrarModal({
         const currentNetwork = (network === 'mainnet' ? 'mainnet' : 'testnet') as 'mainnet' | 'testnet'
 console.log('REGISTRAR (currentNetwork)', currentNetwork)
 
-        /* Request funding info (address derived from the user's OWN mnemonic). */
-        const funding = await getFundingInfo(currentNetwork, IDENTITY_INDEX)
+        /* Request funding info (address derived from the user's OWN mnemonic).
+         * The username decides the lock size (contested => 0.2 DASH). */
+        const funding = await getFundingInfo(currentNetwork, IDENTITY_INDEX, username)
             .catch((err: any) => console.error(err))
 
         /* Validate funding info. */
@@ -199,6 +202,8 @@ console.log('REGISTRAR (currentNetwork)', currentNetwork)
 
         /* Show the funding address + QR. */
         setFundingAddress(funding.address)
+        setRequiredSatoshis(funding.requiredSatoshis)
+        setDepositedSatoshis(0)
 console.log('REGISTRAR (funding address)', funding.address)
 console.log('REGISTRAR (required deposit)', funding.requiredDash, 'DASH')
 
@@ -214,13 +219,16 @@ console.log('WAITING (up to 15 minutes) FOR DEPOSIT...')
                 .catch((err: any) => console.error(err))
 
             /* Validate (deposit) response. */
-            if (typeof utxos !== 'undefined' && utxos !== null && utxos.length > 0) {
+            if (typeof utxos !== 'undefined' && utxos !== null) {
                 const funded = utxos.reduce(
                     (sum: number, utxo: any) => sum + utxo.satoshis, 0)
 
+                /* Live balance display (updates every poll cycle). */
+                setDepositedSatoshis(funded)
+
                 /* Require the FULL deposit before proceeding. */
-                if (funded < MINIMUM_DEPOSIT_SATOSHIS) {
-console.log('PARTIAL DEPOSIT', funded, 'of', MINIMUM_DEPOSIT_SATOSHIS)
+                if (funded < funding.requiredSatoshis) {
+console.log('PARTIAL DEPOSIT', funded, 'of', funding.requiredSatoshis)
                     return
                 }
 
@@ -466,7 +474,7 @@ console.log('TIMER STOPPED (after 15 minutes)')
                         className="fixed inset-0 flex items-center justify-center z-40 px-4"
                         onClick={(e) => e.stopPropagation()}
                     >
-                        <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl p-8 max-w-md w-full relative h-full overflow-y-auto">
+                        <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl p-8 max-w-md w-full relative max-h-[90vh] overflow-y-auto">
                             {/* Close button */}
                             <button
                                 onClick={onClose}
@@ -488,7 +496,7 @@ console.log('TIMER STOPPED (after 15 minutes)')
                                 <section className="w-full mb-5 flex flex-col items-center justify-center shadow">
                                     <QRCodeSVG
                                         value={fundingAddress || ''}
-                                        size={360}
+                                        size={180}
                                         onClick={() => handlePayment()}
                                         className="cursor-pointer"
                                     />
@@ -504,7 +512,7 @@ console.log('TIMER STOPPED (after 15 minutes)')
                                                 className="px-1 text-2xl font-bold text-evonext-600"
                                                 onClick={() => handlePayment()}
                                             >
-                                                {Math.ceil(MINIMUM_DEPOSIT_SATOSHIS) / 1e8} DASH
+                                                {(requiredSatoshis / 1e8).toFixed(5)} DASH
                                             </button>
                                             to YOUR OWN funding address shown below -OR- click the QRCode shown above
                                         </h3>
@@ -513,10 +521,38 @@ console.log('TIMER STOPPED (after 15 minutes)')
                                             {fundingAddress ? fundingAddress : 'loading...'}
                                         </button>
 
+                                        {/* LIVE deposit status (polled every 5s) */}
+                                        <div className="space-y-2">
+                                            <div className="flex items-center justify-between text-sm font-medium text-evonext-800">
+                                                <span className="flex items-center gap-2">
+                                                    {depositedSatoshis < requiredSatoshis &&
+                                                        <Loader2 className="h-3 w-3 animate-spin" />
+                                                    }
+                                                    Received
+                                                </span>
+                                                <span>
+                                                    {(depositedSatoshis / 1e8).toFixed(8)} / {(requiredSatoshis / 1e8).toFixed(5)} DASH
+                                                </span>
+                                            </div>
+
+                                            <div className="h-2 w-full rounded bg-evonext-100">
+                                                <div
+                                                    className="h-2 rounded bg-evonext-500 transition-all"
+                                                    style={{ width: `${Math.min(100, requiredSatoshis > 0 ? (depositedSatoshis / requiredSatoshis) * 100 : 0)}%` }}
+                                                />
+                                            </div>
+
+                                            {depositedSatoshis >= requiredSatoshis && requiredSatoshis > 0 &&
+                                                <p className="text-sm font-bold text-green-700 text-center">
+                                                    Deposit detected — continuing registration…
+                                                </p>
+                                            }
+                                        </div>
+
                                         <p className="font-base text-sm text-evonext-800">
                                             <span className="block font-medium text-md tracking-wider">PLEASE NOTE:</span>
                                             This address is derived from YOUR wallet — you control the keys.
-                                            The funds become the asset lock for YOUR new Identity. Registration completes automatically after your deposit is confirmed.
+                                            The funds become the asset lock for YOUR new Identity. Registration completes automatically after your deposit is detected.
                                         </p>
                                     </div>
                                 </section>
@@ -550,6 +586,7 @@ console.log('TIMER STOPPED (after 15 minutes)')
                                             className="pr-10"
                                             autoComplete="off"
                                             maxLength={63}
+                                            disabled={!!fundingAddress}
                                         />
 
                                         <div className="absolute inset-y-0 right-0 flex items-center pr-3">
