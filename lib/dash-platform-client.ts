@@ -163,6 +163,31 @@ console.log('CONTRACT ID', this.contractId)
 
             let privateKeyWIF = getPrivateKey(identityId)
 
+            // If not in memory, try the passkey vault (WebAuthn PRF KEK).
+            // Only when a vault record exists for this identity — otherwise
+            // skip straight to the legacy biometric path without prompting.
+            if (!privateKeyWIF) {
+                try {
+                    const { hasVault, unlockVault } = await import('./passkey-vault')
+
+                    if (hasVault(identityId)) {
+                        console.log('Private key not in memory, attempting passkey vault unlock...')
+
+                        privateKeyWIF = await unlockVault(identityId)
+
+                        if (privateKeyWIF) {
+                            console.log('Retrieved private key via passkey vault')
+                            // Cache in memory for this session to avoid repeated prompts
+                            const { storePrivateKey } = await import('./secure-storage')
+
+                            storePrivateKey(identityId, privateKeyWIF, 3600000) // 1 hour TTL
+                        }
+                    }
+                } catch (e) {
+                    console.log('Passkey vault unlock failed:', e)
+                }
+            }
+
             // If not in memory, try biometric storage
             if (!privateKeyWIF) {
                 try {

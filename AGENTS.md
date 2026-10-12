@@ -634,6 +634,51 @@ history of this file (see log below for commit hashes) — keep only load-bearin
    63/63, lint 0 errors/1 known warning.
 24. **F26y — text fix**: "secured by Dash Platform v2 🛡️" → "secured by
    Dash Platform 🛡️" (maison hero, single occurrence).
+27. **F27b — passkey (WebAuthn PRF) key vault: spike + core lib (2026-10-05)**:
+   Spike `docs/spike-passkey-prf-vault.md` (reviews react-native-passkey v3.6.2
+   + passkey-server-example; they informed the PRF pattern). KEY FINDINGS:
+   - Existing `lib/passkey.ts` is BROKEN BY DESIGN: entropy = SHA-256(rawId ||
+     authenticatorData), but a WebAuthn assertion's authenticatorData contains
+     the incrementing signature counter -> non-deterministic, unrecoverable.
+     Only consumer (gifts/page.tsx) logs it. Must be REPLACED.
+   - `lib/biometric-storage.ts` = auth theater (authenticate() returns true
+     post-credentials.get, no key derivation, no signature verification).
+   - THE PRIMITIVE is the WebAuthn `prf` (hmac-secret) extension: deterministic
+     32-byte secret from (credential, salt); syncs via iCloud Keychain/Google
+     Password Manager; same passkey + salt -> same output cross-device. PRF is
+     NOT universal (older YubiKeys lack it) -> gate on
+     `clientExtensionResults.prf.enabled`; MNEMONIC STAYS AS RECOVERY.
+   - NEW `lib/passkey-vault.ts` (client-only, no server; keeps static-export
+     model): Option A `enrollVault`/`unlockVault` = HKDF-SHA256(PRF output,
+     salt, 'evonext:pv:kek:v1') KEK -> AES-GCM-256-wrap existing identity WIF,
+     record {credentialId,salt,iv,ciphertext} in localStorage `evonext_pv_v1_`
+     (survives page unload, NOT device loss — localStorage doesn't sync).
+     Option C `createIdentityEntropy`/`recoverIdentityEntropy` = DETERMINISTIC
+     salt (SHA-256 'evonext:identity-entropy:v1:N') + HKDF info
+     'evonext:pv:entropy:v1' -> 32B master entropy recoverable on ANY synced
+     device with NOTHING stored; exported as BIP39 24-word mnemonic via
+     @scure/bip39@2.4.0 (added as direct dep; import must be
+     '@scure/bip39/wordlists/english.js' — scure exports only *.js paths).
+     rpId PINNED to 'evonext.app' (parent domain) so test.evonext.app and
+     evonext.app share passkeys (WebAuthn allows registrable-suffix rpId);
+     localhost/IPFS fall back to hostname. Errors: PasskeyVaultError codes
+     UNSUPPORTED/PRF_UNSUPPORTED/CANCELLED/NOT_FOUND/DECRYPT_FAILED/FAILED.
+     Passkeys are NEVER exportable (security property) — the mnemonic is the
+     export path.
+   - Integration: dash-platform-client.ts key-retrieval chain is now
+     memory -> passkey vault (only when hasVault(identityId), so no spurious
+     prompt) -> legacy biometric. Fixes F26 'disconnect on Edit' pain (key
+     re-derivable after page unload).
+   - Tests `test/unit/lib/passkey-vault.test.mts`: 12 tests. WebAuthn mocked
+     with DETERMINISTIC prf (mirrors a real authenticator) so real
+     HKDF/AES-GCM run unmocked; proves Option A round-trip + Option C
+     cross-device entropy identity + multi-index separation. GOTCHAS: jsdom
+     window.crypto lacks subtle -> polyfill via Object.defineProperty(window,
+     'crypto', {value: node webcrypto}); vitest MUST import { vi } from
+     'vitest' even with globals:true (tsc); Uint8Array<ArrayBufferLike> needs
+     'as BufferSource' casts for TS5 webcrypto typings.
+   - Verified: tsc 0, eslint 0/1, 75/75 (7 files), build 35/35. NOT yet wired
+     into any UI — enrollment/recovery UX is the next step.
 26. **F27a — header bell as its own button + nav cleanup (2026-10-05)**:
    - Notification bell moved OUT of the Profile pill into its OWN
      header button (own bg-white/20 rounded-md, 8px left of Profile);
