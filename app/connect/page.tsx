@@ -254,7 +254,11 @@ console.log('CONNECT (publicKey)', publicKey)
         try {
             const { createIdentityEntropy } = await import('@/lib/passkey-vault')
 
-            const result = await createIdentityEntropy(0, 'evonext-identity-0')
+            /* user.name/displayName are frozen into the passkey at creation
+               (no rename API in WebAuthn) and shown by password managers —
+               keep them human-friendly. Index is 0-based internally, but the
+               label is 1-based for humans. */
+            const result = await createIdentityEntropy(0, 'EvoNext Identity 1', 'EvoNext Identity 1')
 
             setPasskeyWords(result.mnemonic.split(' '))
         } catch (err) {

@@ -219,7 +219,7 @@ function extractPrfOutput(credential: PublicKeyCredential): Uint8Array {
     return new Uint8Array(first)
 }
 
-async function createPasskeyWithPrf(username: string, salt: Uint8Array, discoverable: boolean): Promise<{ credential: PublicKeyCredential; prfOutput: Uint8Array }> {
+async function createPasskeyWithPrf(username: string, salt: Uint8Array, discoverable: boolean, displayName?: string): Promise<{ credential: PublicKeyCredential; prfOutput: Uint8Array }> {
     if (typeof window === 'undefined' || !navigator.credentials) {
         throw new PasskeyVaultError('UNSUPPORTED', 'WebAuthn is not supported in this browser')
     }
@@ -228,7 +228,7 @@ async function createPasskeyWithPrf(username: string, salt: Uint8Array, discover
         credential = (await navigator.credentials.create({
             publicKey: {
                 rp: { name: RP_NAME, id: getRpId() },
-                user: { id: randomBytes(16), name: username, displayName: username },
+                user: { id: randomBytes(16), name: username, displayName: displayName ?? username },
                 challenge: randomBytes(32),
                 pubKeyCredParams: [{ alg: -7, type: 'public-key' }],
                 authenticatorSelection: {
@@ -368,10 +368,13 @@ export async function unlockVault(identityId: string): Promise<string> {
  * device the passkey syncs to — nothing needs to be stored locally.
  *
  * `index` distinguishes multiple identities for one user (0, 1, 2, …).
+ * `username` / `displayName` are stored in the authenticator and shown by
+ * password managers — they CANNOT be changed after creation (WebAuthn has
+ * no credential-rename API).
  */
-export async function createIdentityEntropy(index: number, username: string): Promise<PasskeyEntropyResult> {
+export async function createIdentityEntropy(index: number, username: string, displayName?: string): Promise<PasskeyEntropyResult> {
     const salt = await entropySalt(index)
-    const { credential, prfOutput } = await createPasskeyWithPrf(username, salt, true)
+    const { credential, prfOutput } = await createPasskeyWithPrf(username, salt, true, displayName)
     const entropy = await hkdfSha256(prfOutput, salt, ENTROPY_INFO, 16)
     const credentialId = bytesToBase64url(new Uint8Array(credential.rawId))
     // Local hint only (which passkey belongs to which index). NOT required
