@@ -692,7 +692,7 @@ history of this file (see log below for commit hashes) — keep only load-bearin
      mnemonic is 1:1). RECOVER: recoverIdentityEntropy(0) -> same mnemonic ->
      standard hash160 lookup -> login. handleMnemonic gained optional 2nd param
      _skipCreateConfirm (default false; old callers unchanged).
-     Passkey user.name/displayName = 'EvoNext Identity 1' (1-based label for
+     Passkey user.name/displayName = 'EvoNext Identity #1' (1-based label for
      index 0) — WebAuthn has NO credential-rename API, so these strings are
      frozen at creation and shown forever by Apple/Google password managers
      (user hit the old 'evonext-identity-0' placeholder in the Apple

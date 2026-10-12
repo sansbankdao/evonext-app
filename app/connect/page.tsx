@@ -258,7 +258,7 @@ console.log('CONNECT (publicKey)', publicKey)
                (no rename API in WebAuthn) and shown by password managers —
                keep them human-friendly. Index is 0-based internally, but the
                label is 1-based for humans. */
-            const result = await createIdentityEntropy(0, 'EvoNext Identity 1', 'EvoNext Identity 1')
+            const result = await createIdentityEntropy(0, 'EvoNext Identity #1', 'EvoNext Identity #1')
 
             setPasskeyWords(result.mnemonic.split(' '))
         } catch (err) {
