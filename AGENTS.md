@@ -691,7 +691,13 @@ history of this file (see log below for commit hashes) — keep only load-bearin
      INDISTINGUISHABLE from mnemonic identities on-chain (BIP39 entropy <->
      mnemonic is 1:1). RECOVER: recoverIdentityEntropy(0) -> same mnemonic ->
      standard hash160 lookup -> login. handleMnemonic gained optional 2nd param
-     _skipCreateConfirm (default false; old callers unchanged). Errors:
+     _skipCreateConfirm (default false; old callers unchanged).
+     Passkey user.name/displayName = 'EvoNext Identity 1' (1-based label for
+     index 0) — WebAuthn has NO credential-rename API, so these strings are
+     frozen at creation and shown forever by Apple/Google password managers
+     (user hit the old 'evonext-identity-0' placeholder in the Apple
+     Passwords prompt on testnet.evonext.app; createIdentityEntropy gained an
+     optional displayName param). Errors:
      PasskeyVaultError code CANCELLED = silent, PRF_UNSUPPORTED/UNSUPPORTED =
      'use a recovery phrase instead' toast. Verified in-browser: buttons render
      alongside Sign In; clicking Create in headless Chromium (no authenticator)
