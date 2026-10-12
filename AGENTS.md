@@ -679,8 +679,25 @@ history of this file (see log below for commit hashes) — keep only load-bearin
      'crypto', {value: node webcrypto}); vitest MUST import { vi } from
      'vitest' even with globals:true (tsc); Uint8Array<ArrayBufferLike> needs
      'as BufferSource' casts for TS5 webcrypto typings.
-   - Verified: tsc 0, eslint 0/1, 75/75 (7 files), build 35/35. NOT yet wired
-     into any UI — enrollment/recovery UX is the next step.
+   - Verified: tsc 0, eslint 0/1, 75/75 (7 files), build 35/35.
+   - **Connect-page UI WIRED (F27c, 2026-10-05)**: app/connect/page.tsx now has
+     'Create with Passkey' + 'Recover with Passkey' buttons below the mnemonic
+     form (hidden when isUserVerifyingPlatformAuthenticatorAvailable() is false).
+     CREATE: createIdentityEntropy(0, 'evonext-identity-0') -> 12-WORD BACKUP
+     GATE (numbered grid + 'I wrote it down' confirm; passkey and words are the
+     SAME secret) -> handleMnemonic(words, skipCreateConfirm=true) — the
+     existing flow stores the mnemonic (secure-storage) and the registrar modal
+     creates the identity from it, so passkey-derived identities are
+     INDISTINGUISHABLE from mnemonic identities on-chain (BIP39 entropy <->
+     mnemonic is 1:1). RECOVER: recoverIdentityEntropy(0) -> same mnemonic ->
+     standard hash160 lookup -> login. handleMnemonic gained optional 2nd param
+     _skipCreateConfirm (default false; old callers unchanged). Errors:
+     PasskeyVaultError code CANCELLED = silent, PRF_UNSUPPORTED/UNSUPPORTED =
+     'use a recovery phrase instead' toast. Verified in-browser: buttons render
+     alongside Sign In; clicking Create in headless Chromium (no authenticator)
+     does not crash. LIVE passkey ceremony (real Touch ID/Android) NOT yet
+     tested — needs a real authenticator. Multi-identity recovery (indices >0)
+     not exposed in UI yet (recover tries index 0 only).
 26. **F27a — header bell as its own button + nav cleanup (2026-10-05)**:
    - Notification bell moved OUT of the Profile pill into its OWN
      header button (own bg-white/20 rounded-md, 8px left of Profile);

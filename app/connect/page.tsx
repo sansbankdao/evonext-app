@@ -1,6 +1,6 @@
 'use client'
 
-import { ChangeEvent, useState, ClipboardEvent } from 'react'
+import { ChangeEvent, useState, useEffect, ClipboardEvent } from 'react'
 import { useAuth } from '@/contexts/auth-context'
 import { useNetwork } from '@/contexts/network-context'
 import { Button } from '@/components/ui/button'
@@ -23,6 +23,19 @@ export default function LoginPage() {
     const [hasIdentityPrivateKey, setHasIdentityPrivateKey] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [mnemonic, setMnemonic] = useState(Array(12).fill(''))
+    /* Passkey (WebAuthn PRF) state — passkeyWords non-null shows the
+       12-word backup gate for passkey-created identities. */
+    const [passkeyWords, setPasskeyWords] = useState<string[] | null>(null)
+    const [isPasskeyBusy, setIsPasskeyBusy] = useState(false)
+    const [passkeySupported, setPasskeySupported] = useState(true)
+
+    /* Hide the passkey buttons when no platform authenticator exists. */
+    useEffect(() => {
+        import('@/lib/passkey-vault')
+            .then(({ isPasskeyAvailable }) => isPasskeyAvailable())
+            .then(setPasskeySupported)
+            .catch(() => setPasskeySupported(false))
+    }, [])
 
     const handleClose = () => {
         setIsModalOpen(false)
@@ -45,7 +58,7 @@ export default function LoginPage() {
         }
     }
 
-    const handleMnemonic = async (_mnemonic: any) => {
+    const handleMnemonic = async (_mnemonic: any, _skipCreateConfirm = false) => {
         /* Set the mnemonic (store). */
         setMnemonic(_mnemonic)
 
@@ -140,7 +153,7 @@ const privateKeys = getPrivateKeys(currentNetwork, identityIdx!)
 console.log('CONNECT (publicKey)', publicKey)
 
             /* Present user with NEW Identity + Username registration. */
-            if (confirm(`OH NO!\n\nWe COULD NOT find an Identity for you on the Dash Platform. Would you like to create a NEW Identity and register a NEW Username now?\n\nIt should ONLY take about 2 minutes..\nDon't MISS OUT, let's GO!`)) {
+            if (_skipCreateConfirm || confirm(`OH NO!\n\nWe COULD NOT find an Identity for you on the Dash Platform. Would you like to create a NEW Identity and register a NEW Username now?\n\nIt should ONLY take about 2 minutes..\nDon't MISS OUT, let's GO!`)) {
                 setIsModalOpen(true)
             }
         }
@@ -214,6 +227,120 @@ console.log('CONNECT (publicKey)', publicKey)
 
     const togglePrivateKey = () => {
         setHasIdentityPrivateKey(true)
+    }
+
+    /* Friendly toasts for passkey failures (user-cancel is silent). */
+    const handlePasskeyError = (err: unknown) => {
+        const code = (err as { code?: string })?.code
+
+        if (code === 'CANCELLED') {
+            return
+        }
+
+        if (code === 'PRF_UNSUPPORTED' || code === 'UNSUPPORTED') {
+            toast.error('This device or browser does not support passkey key derivation — use a recovery phrase instead.')
+        } else {
+            toast.error((err as { message?: string })?.message || 'Passkey operation failed.')
+        }
+    }
+
+    /* Create a NEW identity whose master entropy comes from the passkey's
+       PRF output. The returned 12-word mnemonic is shown at the backup
+       gate — it is the SAME secret, exportable. */
+    const handlePasskeyCreate = async () => {
+        setError(null)
+        setIsPasskeyBusy(true)
+
+        try {
+            const { createIdentityEntropy } = await import('@/lib/passkey-vault')
+
+            const result = await createIdentityEntropy(0, 'evonext-identity-0')
+
+            setPasskeyWords(result.mnemonic.split(' '))
+        } catch (err) {
+            handlePasskeyError(err)
+        } finally {
+            setIsPasskeyBusy(false)
+        }
+    }
+
+    /* Backup gate confirmed -> feed the passkey-derived mnemonic into the
+       standard flow. No identity can exist yet, so skip the "not found"
+       confirm and go straight to the registrar modal. */
+    const handlePasskeyBackupConfirmed = async () => {
+        if (!passkeyWords) return
+
+        const words = passkeyWords
+
+        setPasskeyWords(null)
+        setIsLoading(true)
+
+        try {
+            await handleMnemonic(words, true)
+        } finally {
+            setIsLoading(false)
+        }
+    }
+
+    /* Recover an EXISTING identity: the synced passkey re-derives the same
+       12 words, and the standard flow finds the identity on Platform. */
+    const handlePasskeyRecover = async () => {
+        setError(null)
+        setIsPasskeyBusy(true)
+        setIsLoading(true)
+
+        try {
+            const { recoverIdentityEntropy } = await import('@/lib/passkey-vault')
+
+            const result = await recoverIdentityEntropy(0)
+
+            await handleMnemonic(result.mnemonic.split(' '))
+        } catch (err) {
+            handlePasskeyError(err)
+        } finally {
+            setIsPasskeyBusy(false)
+            setIsLoading(false)
+        }
+    }
+
+    /* 12-word backup gate for passkey-created identities. */
+    if (passkeyWords) {
+        return (
+            <div className="pt-20 lg:pt-28 pb-48 lg:pb-8 bg-white dark:bg-black flex flex-col items-center px-4 h-screen overflow-y-scroll">
+                <div className="max-w-md w-full space-y-6">
+                    <div className="text-center">
+                        <h1 className="text-3xl font-bold text-gradient mb-2">
+                            Backup Your Recovery Phrase
+                        </h1>
+
+                        <p className="text-gray-600 dark:text-gray-400 text-sm">
+                            Your passkey and these 12 words unlock the SAME identity.
+                            Write them down and keep them safe — they are the ONLY
+                            recovery if your passkey is lost or unavailable.
+                        </p>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                        {passkeyWords.map((word, idx) => (
+                            <div key={idx} className="px-2 py-2 rounded border border-gray-200 dark:border-gray-800 font-mono text-sm">
+                                <span className="text-gray-400 mr-2">{idx + 1}.</span>
+                                {word}
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="space-y-2">
+                        <Button className="w-full" onClick={handlePasskeyBackupConfirmed} disabled={isLoading}>
+                            {isLoading ? 'Continuing…' : 'I wrote it down — Continue'}
+                        </Button>
+
+                        <Button className="w-full" variant="ghost" onClick={() => setPasskeyWords(null)} disabled={isLoading}>
+                            Cancel
+                        </Button>
+                    </div>
+                </div>
+            </div>
+        )
     }
 
     return (<>
@@ -330,6 +457,32 @@ console.log('CONNECT (publicKey)', publicKey)
                             </Button>
                         </div>
                     </form>
+
+                    {passkeySupported && !identityId && (
+                        <div className="mt-6 space-y-3">
+                            <div className="flex items-center gap-3">
+                                <div className="h-px flex-1 bg-gray-200 dark:bg-gray-800" />
+                                <span className="text-xs uppercase tracking-wider text-gray-500">
+                                    or
+                                </span>
+                                <div className="h-px flex-1 bg-gray-200 dark:bg-gray-800" />
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                <Button type="button" onClick={handlePasskeyCreate} disabled={isPasskeyBusy || isLoading}>
+                                    {isPasskeyBusy ? 'Waiting for passkey…' : 'Create with Passkey'}
+                                </Button>
+
+                                <Button type="button" variant="outline" onClick={handlePasskeyRecover} disabled={isPasskeyBusy || isLoading}>
+                                    Recover with Passkey
+                                </Button>
+                            </div>
+
+                            <p className="text-xs text-gray-500 dark:text-gray-500 text-center">
+                                A passkey is your identity — no seed phrase to type. You&apos;ll still get 12 backup words.
+                            </p>
+                        </div>
+                    )}
 
                     <div className="mt-8 space-y-4 text-sm text-gray-600 dark:text-gray-400">
                         <div className="bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-lg p-4 space-y-2">
