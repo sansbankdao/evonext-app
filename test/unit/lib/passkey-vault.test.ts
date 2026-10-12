@@ -149,8 +149,8 @@ describe('passkey-vault', () => {
 
     it('Option C: create then recover yields IDENTICAL entropy (cross-device property)', async () => {
         const created = await createIdentityEntropy(0, 'evonext-user')
-        expect(created.entropy).toHaveLength(32)
-        expect(created.mnemonic.split(' ')).toHaveLength(24)
+        expect(created.entropy).toHaveLength(16)
+        expect(created.mnemonic.split(' ')).toHaveLength(12)
 
         // Wipe local state to simulate a brand-new device, then recover from
         // the passkey alone (the mock keeps its hmac-secret, as a real synced
@@ -173,8 +173,8 @@ describe('passkey-vault', () => {
         // Even with the same mock PRF behaviour, the HKDF info strings differ,
         // so vault KEK material and identity entropy must not collide.
         const c = await createIdentityEntropy(0, 'evonext-user')
-        expect(c.entropy).toHaveLength(32)
-        // Soft assertion: 32 bytes of HKDF-SHA256 should not be constant.
+        expect(c.entropy).toHaveLength(16)
+        // Soft assertion: 16 bytes of HKDF-SHA256 should not be constant.
         expect(new Set(c.entropy).size).toBeGreaterThan(1)
     })
 

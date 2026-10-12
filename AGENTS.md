@@ -656,7 +656,9 @@ history of this file (see log below for commit hashes) — keep only load-bearin
      Option C `createIdentityEntropy`/`recoverIdentityEntropy` = DETERMINISTIC
      salt (SHA-256 'evonext:identity-entropy:v1:N') + HKDF info
      'evonext:pv:entropy:v1' -> 32B master entropy recoverable on ANY synced
-     device with NOTHING stored; exported as BIP39 24-word mnemonic via
+     device with NOTHING stored; exported as BIP39 12-WORD mnemonic (16-byte
+     entropy — 128 bits matches secp256k1's ~128-bit security level; 24 words
+     would add zero brute-force margin, per BIP39 + Pollard-rho facts) via
      @scure/bip39@2.4.0 (added as direct dep; import must be
      '@scure/bip39/wordlists/english.js' — scure exports only *.js paths).
      rpId PINNED to 'evonext.app' (parent domain) so test.evonext.app and

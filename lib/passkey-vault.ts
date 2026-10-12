@@ -15,12 +15,14 @@
  *  localStorage does not sync). The identity's original mnemonic remains
  *  the recovery path.
  *
- *  Option C — Passkey-native entropy: derive the 32-byte master entropy
+ *  Option C — Passkey-native entropy: derive the 16-byte master entropy
  *  for a NEW identity directly from the PRF output (deterministic salt),
  *  so the identity is recoverable on ANY device the passkey syncs to
  *  (iCloud Keychain / Google Password Manager) with nothing stored
- *  locally. The entropy is exportable as a BIP39 24-word mnemonic — the
- *  mnemonic and the passkey are two faces of the same secret.
+ *  locally. The entropy is exportable as a BIP39 12-word mnemonic — the
+ *  mnemonic and the passkey are two faces of the same secret. 128 bits
+ *  match secp256k1's ~128-bit security level (best known discrete-log
+ *  attack ~2^128), so 24 words would add no brute-force margin.
  *
  * The PRF (hmac-secret) extension is the load-bearing mechanism: the
  * authenticator returns a deterministic 32-byte secret for
@@ -68,11 +70,11 @@ export interface VaultRecord {
 }
 
 export interface PasskeyEntropyResult {
-    /** 32-byte deterministic entropy (feeds HD derivation / BIP39) */
+    /** 16-byte deterministic entropy (feeds HD derivation / BIP39) */
     entropy: Uint8Array
     /** base64url of the passkey rawId used */
     credentialId: string
-    /** BIP39 24-word encoding of the entropy — the exportable backup */
+    /** BIP39 12-word encoding of the entropy — the exportable backup */
     mnemonic: string
 }
 
@@ -361,7 +363,7 @@ export async function unlockVault(identityId: string): Promise<string> {
 // ---------------------------------------------------------------------------
 
 /**
- * Create a discoverable (resident) passkey and derive 32 bytes of master
+ * Create a discoverable (resident) passkey and derive 16 bytes of master
  * entropy from its PRF output with a deterministic salt. Recoverable on any
  * device the passkey syncs to — nothing needs to be stored locally.
  *
@@ -370,7 +372,7 @@ export async function unlockVault(identityId: string): Promise<string> {
 export async function createIdentityEntropy(index: number, username: string): Promise<PasskeyEntropyResult> {
     const salt = await entropySalt(index)
     const { credential, prfOutput } = await createPasskeyWithPrf(username, salt, true)
-    const entropy = await hkdfSha256(prfOutput, salt, ENTROPY_INFO)
+    const entropy = await hkdfSha256(prfOutput, salt, ENTROPY_INFO, 16)
     const credentialId = bytesToBase64url(new Uint8Array(credential.rawId))
     // Local hint only (which passkey belongs to which index). NOT required
     // for recovery — the credential is discoverable via rpId alone.
@@ -387,12 +389,12 @@ export async function createIdentityEntropy(index: number, username: string): Pr
 /**
  * Recover the same entropy on any device: the discoverable passkey is found
  * via the rpId (no stored credentialId needed), PRF returns the same output,
- * HKDF yields the same 32 bytes.
+ * HKDF yields the same 16 bytes.
  */
 export async function recoverIdentityEntropy(index: number): Promise<PasskeyEntropyResult> {
     const salt = await entropySalt(index)
     const { credential, prfOutput } = await getPasskeyWithPrf(salt)
-    const entropy = await hkdfSha256(prfOutput, salt, ENTROPY_INFO)
+    const entropy = await hkdfSha256(prfOutput, salt, ENTROPY_INFO, 16)
     return {
         entropy,
         credentialId: bytesToBase64url(new Uint8Array(credential.rawId)),
