@@ -769,10 +769,29 @@ history of this file (see log below for commit hashes) — keep only load-bearin
    (e.g. the 1 tDASH) is reusable — same mnemonic => same funding address.
    Verified: tsc 0, eslint 0/1, 75/75, build 35/35. NOT yet browser-verified
    with a live deposit (funding panel needs a session mnemonic + real L1 tx).
-3. Pending decisions: shielded-balance UI, DIP-17 platform-address features, biometric
+3. **F27e — registration 'Waiting for confirmation' stall FIXED (2026-10-06)**:
+   user got stuck after 'Deposit detected'. Root cause: TESTNET BLOCK
+   PRODUCTION IS IRREGULAR — measured live via insight /blocks: gaps of
+   3-80+ min between blocks (tip 1571313 was ~80 min old, then blocks
+   resumed at 0.5-5 min gaps within the same hour). waitForConfirmation
+   polled /tx/<txid> with NO fetch timeout (a hung insight request would
+   freeze the flow forever) and gave up after 60x15s = 15 min.
+   Fixes (lib/core-chain.ts): fetchWithTimeout (AbortController, 10s) on
+   ALL insight calls in the wait path; 120 attempts (30 min); per-attempt
+   try/catch (404 before mempool propagation / timeouts roll over);
+   onAttempt callback -> UI shows 'Waiting for confirmation… (N/120)
+   tx <16hex>…'; timeout error names the txid + says the deposit is SAFE.
+   RESUME (lib/registrar-manager.ts): the asset-lock txid is persisted to
+   localStorage `evonext_pending_lock_<fundingAddress>` right after
+   broadcast and cleared after confirmation; a retry RESUMES the pending
+   lock instead of broadcasting a SECOND lock (which would double-burn).
+   The modal's deposit poll also skips the required-balance check when a
+   pending lock exists (change output can be below 'required').
+   Verified: tsc 0, eslint 0/1, 75/75, build 35/35.
+4. Pending decisions: shielded-balance UI, DIP-17 platform-address features, biometric
    settings integration, react-hooks v6 cleanup pass.
-4. Known unverified: the -20.33B credit fee breakdown (F25).
-5. **Deployment is MANUAL/stale — F26**: the live evonext.app served the OLD pre-F22
+5. Known unverified: the -20.33B credit fee breakdown (F25).
+6. **Deployment is MANUAL/stale — F26**: the live evonext.app served the OLD pre-F22
    wasm on 2026-10-04 (deployed asset `wasm_sdk_bg.c3177f65.wasm`, 8,013,662 bytes,
    sha256 `ca6e51ce…`, CONTAINS dead F22 addresses `52.34.144.50`/`35.82.197.197`),
    reproducing the F22 hang despite master being fixed. Our source wasm is 20,319,523
@@ -780,7 +799,7 @@ history of this file (see log below for commit hashes) — keep only load-bearin
    (32 route HTMLs, `_headers`, wasm `cf2b0aef`) and current with all code through
    F25 — user must redeploy it. Verify a deployment by checking the served wasm's
    byte size (8.0MB = stale; 20.3MB = current).
-6. **F26b — Cloudflare Pages deployment switched OFF next-on-pages (2026-10-04)**:
+7. **F26b — Cloudflare Pages deployment switched OFF next-on-pages (2026-10-04)**:
    root cause of all failed deploys since Oct 2: the Pages project used the Next.js
    framework preset, whose build command `npx @cloudflare/next-on-pages@1` broke
    twice — (a) npm ERESOLVE inside the adapter's own deps (workers-types ^4 vs

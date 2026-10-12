@@ -95,34 +95,62 @@ export const registerIdentityAndUsername = async (
         : ASSET_LOCK_SATOSHIS
     const minimumDeposit = minimumDepositSatoshis(lockedSatoshis)
 
-    /* Collect funding UTXOs. */
-    progress('Checking your deposit...')
-    const utxos = await getFundingUtxos(_currentNetwork, funding.address)
+    /* Resume support: the asset-lock txid is persisted right after
+     * broadcast. If confirmation timed out (testnet stalls of 80+ minutes
+     * are measured), a retry RESUMES the pending lock instead of
+     * broadcasting a SECOND lock (which would burn funds twice). */
+    const pendingKey = `evonext_pending_lock_${funding.address}`
+    const pendingTxid = typeof window !== 'undefined'
+        ? window.localStorage.getItem(pendingKey)
+        : null
 
-    /* Validate funding. */
-    const funded = utxos.reduce(
-        (sum: number, utxo: any) => sum + utxo.satoshis, 0)
-    if (utxos.length === 0 || funded < minimumDeposit) {
-        throw new Error(
-            `Insufficient deposit at ${funding.address}: ${funded} sats available, ${minimumDeposit} required`)
-    }
+    let txid: string
+    if (pendingTxid) {
+        progress('Resuming your pending asset lock...')
+        txid = pendingTxid
+console.log('REGISTRAR (resuming pending lock)', txid)
+    } else {
+        /* Collect funding UTXOs. */
+        progress('Checking your deposit...')
+        const utxos = await getFundingUtxos(_currentNetwork, funding.address)
 
-    /* Build + sign the asset-lock transaction (client-side). */
-    progress('Building your asset lock transaction...')
-    const assetLock = createAssetLockTransaction(
-        _currentNetwork, funding.privateKeyWif, utxos, lockedSatoshis)
+        /* Validate funding. */
+        const funded = utxos.reduce(
+            (sum: number, utxo: any) => sum + utxo.satoshis, 0)
+        if (utxos.length === 0 || funded < minimumDeposit) {
+            throw new Error(
+                `Insufficient deposit at ${funding.address}: ${funded} sats available, ${minimumDeposit} required`)
+        }
 
-    /* Broadcast (minimal L1 support). */
-    progress('Broadcasting to the Dash network...')
-    const txid = await broadcastTransaction(
-        _currentNetwork, assetLock.hex)
+        /* Build + sign the asset-lock transaction (client-side). */
+        progress('Building your asset lock transaction...')
+        const assetLock = createAssetLockTransaction(
+            _currentNetwork, funding.privateKeyWif, utxos, lockedSatoshis)
+
+        /* Broadcast (minimal L1 support). */
+        progress('Broadcasting to the Dash network...')
+        txid = await broadcastTransaction(
+            _currentNetwork, assetLock.hex)
 console.log('REGISTRAR (asset lock broadcast)', txid)
 
+        /* Persist for resume (cleared after confirmation). */
+        if (typeof window !== 'undefined') {
+            window.localStorage.setItem(pendingKey, txid)
+        }
+    }
+
     /* Wait for confirmation. */
-    progress('Waiting for confirmation...')
+    progress(`Waiting for confirmation (tx ${txid.slice(0, 16)}…)`)
     const { bestHeight } = await waitForConfirmation(
-        _currentNetwork, txid)
+        _currentNetwork, txid, undefined, undefined,
+        (attempt, maxAttempts) => progress(
+            `Waiting for confirmation… (${attempt}/${maxAttempts}) tx ${txid.slice(0, 16)}…`))
 console.log('REGISTRAR (confirmed at best height)', bestHeight)
+
+    /* Clear the pending lock (confirmed). */
+    if (typeof window !== 'undefined') {
+        window.localStorage.removeItem(pendingKey)
+    }
 
     /* Initialize SDK. */
     const sdk = await wasmSdkService.getSdk()

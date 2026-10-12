@@ -235,13 +235,33 @@ export const broadcastTransaction = async (
 }
 
 /**
+ * Fetch With Timeout
+ *
+ * Insight calls below MUST NOT hang forever (a hung HTTP request would
+ * otherwise freeze the registration flow with no error and no retry).
+ */
+const fetchWithTimeout = async (
+    _url: string,
+    _timeoutMs: number = 10_000,
+): Promise<Response> => {
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), _timeoutMs)
+
+    try {
+        return await fetch(_url, { signal: controller.signal })
+    } finally {
+        clearTimeout(timer)
+    }
+}
+
+/**
  * Get Best Height
  */
 export const getBestHeight = async (
     _network: string,
 ): Promise<number> => {
     /* Request status. */
-    const response = await fetch(
+    const response = await fetchWithTimeout(
         `${getInsightUrl(_network)}/status?q=getInfo`,
     )
     const json = await response.json()
@@ -261,22 +281,33 @@ export const waitForConfirmation = async (
     _network: string,
     _txid: string,
     _intervalMs: number = 15_000,
-    _maxAttempts: number = 60,
+    _maxAttempts: number = 120,
+    _onAttempt?: (attempt: number, maxAttempts: number) => void,
 ): Promise<{ blockheight: number, bestHeight: number }> => {
-    /* Poll for confirmation. */
+    /* Poll for confirmation. Testnet block production is IRREGULAR
+     * (measured gaps of 3-80+ minutes), so 120 x 15s = 30 minutes and
+     * per-request errors (timeout, 404 before mempool propagation) just
+     * roll over to the next attempt. */
     for (let i = 0; i < _maxAttempts; i++) {
-        /* Request transaction. */
-        const response = await fetch(
-            `${getInsightUrl(_network)}/tx/${_txid}`,
-        )
-        const json = await response.json()
+        /* Report progress (optional callback). */
+        _onAttempt?.(i + 1, _maxAttempts)
 
-        /* Validate confirmation. */
-        if (json.confirmations > 0) {
-            const bestHeight = await getBestHeight(_network)
+        try {
+            /* Request transaction. */
+            const response = await fetchWithTimeout(
+                `${getInsightUrl(_network)}/tx/${_txid}`,
+            )
+            const json = await response.json()
 
-            /* Return confirmation info. */
-            return { blockheight: json.blockheight, bestHeight }
+            /* Validate confirmation. */
+            if (json.confirmations > 0) {
+                const bestHeight = await getBestHeight(_network)
+
+                /* Return confirmation info. */
+                return { blockheight: json.blockheight, bestHeight }
+            }
+        } catch (error) {
+console.warn('WAIT (poll error — retrying)', error)
         }
 
         /* Wait before the next attempt. */
@@ -284,5 +315,6 @@ export const waitForConfirmation = async (
     }
 
     /* Timeout. */
-    throw new Error('Transaction was not confirmed in time')
+    throw new Error(
+        `Asset lock transaction ${_txid} is still unconfirmed after ${_maxAttempts * _intervalMs / 60000} minutes (the testnet chain may be stalled). Your deposit is SAFE — the tx is already broadcast; retry registration later and it will RESUME from this transaction.`)
 }

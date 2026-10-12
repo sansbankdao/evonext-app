@@ -226,8 +226,14 @@ console.log('WAITING (up to 15 minutes) FOR DEPOSIT...')
                 /* Live balance display (updates every poll cycle). */
                 setDepositedSatoshis(funded)
 
+                /* A pending (broadcast but unconfirmed) asset lock skips the
+                 * deposit check — the funds are already IN the lock, so the
+                 * remaining change can be BELOW the required amount. */
+                const hasPendingLock = window.localStorage.getItem(
+                    `evonext_pending_lock_${funding.address}`) !== null
+
                 /* Require the FULL deposit before proceeding. */
-                if (funded < funding.requiredSatoshis) {
+                if (!hasPendingLock && funded < funding.requiredSatoshis) {
 console.log('PARTIAL DEPOSIT', funded, 'of', funding.requiredSatoshis)
                     return
                 }
