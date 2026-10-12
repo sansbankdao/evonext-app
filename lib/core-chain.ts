@@ -104,13 +104,43 @@ export const deriveFundingKey = (
     }
 }
 
+/* Cache of parent-tx types (txids are network-unique). */
+const txTypeCache = new Map<string, number>()
+
 /**
- * Get Funding UTXOs
+ * Get Tx Type
  *
- * Queries the public Insight API for unspent outputs at the funding
- * address. Returns an empty array while the deposit has not arrived.
+ * Returns the DIP-2 special-transaction type (0 = regular). Used to
+ * detect asset-lock CREDIT OUTPUTS, which are NOT spendable on L1 —
+ * they can only be consumed by Platform via the asset lock proof
+ * (spending one would double-spend the locked value, so Core rejects
+ * the transaction at broadcast). On any lookup error the tx is treated
+ * as regular (previous behavior).
  */
-export const getFundingUtxos = async (
+export const getTxType = async (
+    _network: string,
+    _txid: string,
+): Promise<number> => {
+    const cached = txTypeCache.get(_txid)
+    if (typeof cached === 'number') return cached
+
+    try {
+        const response = await fetchWithTimeout(
+            `${getInsightUrl(_network)}/tx/${_txid}`,
+        )
+        const json = await response.json()
+        const type = typeof json.type === 'number' ? json.type : 0
+        txTypeCache.set(_txid, type)
+        return type
+    } catch {
+        return 0
+    }
+}
+
+/**
+ * Fetch Funding UTXOs (RAW — includes unspendable credit outputs)
+ */
+const fetchFundingUtxos = async (
     _network: string,
     _address: string,
 ): Promise<any[]> => {
@@ -129,6 +159,58 @@ export const getFundingUtxos = async (
 
     /* Return (parsed) UTXOs. */
     return response.json()
+}
+
+/**
+ * Get Funding UTXOs (SPENDABLE)
+ *
+ * Queries the public Insight API for unspent outputs at the funding
+ * address. Returns an empty array while the deposit has not arrived.
+ * Asset-lock credit outputs (vout 1 of a type-8 tx in our builder's
+ * layout) are filtered OUT — Core rejects spending them on L1.
+ */
+export const getFundingUtxos = async (
+    _network: string,
+    _address: string,
+): Promise<any[]> => {
+    const utxos = await fetchFundingUtxos(_network, _address)
+
+    /* Filter UNSPENDABLE asset-lock credit outputs (change at vout 2+
+     * of the same tx IS spendable and stays). */
+    const spendable: any[] = []
+    for (const utxo of utxos) {
+        if (utxo.vout === 1 && await getTxType(_network, utxo.txid) === d.Transaction.TYPES.TRANSACTION_ASSET_LOCK) {
+console.log('SKIP (unspendable asset-lock credit output)', utxo.txid)
+            continue
+        }
+        spendable.push(utxo)
+    }
+
+    /* Return (spendable) UTXOs. */
+    return spendable
+}
+
+/**
+ * Find Unused Asset Lock
+ *
+ * Looks for an asset-lock CREDIT OUTPUT at the funding address — proof
+ * that a previous attempt broadcast a lock but died before the identity
+ * was created (the credit output remains unspent because it cannot be
+ * spent on L1). Returns the lock txid for resume, or null.
+ */
+export const findUnusedAssetLock = async (
+    _network: string,
+    _address: string,
+): Promise<string | null> => {
+    const utxos = await fetchFundingUtxos(_network, _address)
+
+    for (const utxo of utxos) {
+        if (utxo.vout === 1 && await getTxType(_network, utxo.txid) === d.Transaction.TYPES.TRANSACTION_ASSET_LOCK) {
+            return utxo.txid
+        }
+    }
+
+    return null
 }
 
 /**

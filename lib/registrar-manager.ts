@@ -25,6 +25,7 @@ import {
     broadcastTransaction,
     createAssetLockTransaction,
     deriveFundingKey,
+    findUnusedAssetLock,
     getFundingUtxos,
     waitForConfirmation,
 } from './core-chain'
@@ -110,32 +111,50 @@ export const registerIdentityAndUsername = async (
         txid = pendingTxid
 console.log('REGISTRAR (resuming pending lock)', txid)
     } else {
-        /* Collect funding UTXOs. */
-        progress('Checking your deposit...')
-        const utxos = await getFundingUtxos(_currentNetwork, funding.address)
+        /* Auto-resume an UNUSED lock: a previous attempt may have broadcast
+         * the lock but died before identity creation. Its credit output is
+         * UNSPENDABLE on L1, so the locked funds are provably still there —
+         * resume it instead of building a SECOND lock (double burn). */
+        const unusedLockTxid = await findUnusedAssetLock(
+            _currentNetwork, funding.address)
 
-        /* Validate funding. */
-        const funded = utxos.reduce(
-            (sum: number, utxo: any) => sum + utxo.satoshis, 0)
-        if (utxos.length === 0 || funded < minimumDeposit) {
-            throw new Error(
-                `Insufficient deposit at ${funding.address}: ${funded} sats available, ${minimumDeposit} required`)
-        }
+        if (unusedLockTxid) {
+            progress('Resuming your pending asset lock...')
+            txid = unusedLockTxid
+console.log('REGISTRAR (resuming unused lock)', txid)
 
-        /* Build + sign the asset-lock transaction (client-side). */
-        progress('Building your asset lock transaction...')
-        const assetLock = createAssetLockTransaction(
-            _currentNetwork, funding.privateKeyWif, utxos, lockedSatoshis)
+            /* Persist for consistency (cleared after confirmation). */
+            if (typeof window !== 'undefined') {
+                window.localStorage.setItem(pendingKey, txid)
+            }
+        } else {
+            /* Collect funding UTXOs. */
+            progress('Checking your deposit...')
+            const utxos = await getFundingUtxos(_currentNetwork, funding.address)
 
-        /* Broadcast (minimal L1 support). */
-        progress('Broadcasting to the Dash network...')
-        txid = await broadcastTransaction(
-            _currentNetwork, assetLock.hex)
+            /* Validate funding. */
+            const funded = utxos.reduce(
+                (sum: number, utxo: any) => sum + utxo.satoshis, 0)
+            if (utxos.length === 0 || funded < minimumDeposit) {
+                throw new Error(
+                    `Insufficient deposit at ${funding.address}: ${funded} sats available, ${minimumDeposit} required`)
+            }
+
+            /* Build + sign the asset-lock transaction (client-side). */
+            progress('Building your asset lock transaction...')
+            const assetLock = createAssetLockTransaction(
+                _currentNetwork, funding.privateKeyWif, utxos, lockedSatoshis)
+
+            /* Broadcast (minimal L1 support). */
+            progress('Broadcasting to the Dash network...')
+            txid = await broadcastTransaction(
+                _currentNetwork, assetLock.hex)
 console.log('REGISTRAR (asset lock broadcast)', txid)
 
-        /* Persist for resume (cleared after confirmation). */
-        if (typeof window !== 'undefined') {
-            window.localStorage.setItem(pendingKey, txid)
+            /* Persist for resume (cleared after confirmation). */
+            if (typeof window !== 'undefined') {
+                window.localStorage.setItem(pendingKey, txid)
+            }
         }
     }
 

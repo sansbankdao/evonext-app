@@ -788,10 +788,30 @@ history of this file (see log below for commit hashes) — keep only load-bearin
    The modal's deposit poll also skips the required-balance check when a
    pending lock exists (change output can be below 'required').
    Verified: tsc 0, eslint 0/1, 75/75, build 35/35.
-4. Pending decisions: shielded-balance UI, DIP-17 platform-address features, biometric
+4. **F27f — 'Registration failed' on retry: unspendable credit output spent
+   (2026-10-06)**: after the F27e deploy the user retried registration and
+   got an immediate 'Registration failed'. Root cause: their FIRST asset
+   lock (broadcast pre-F27e, confirmed, identityCreate never ran) left a
+   0.2 tDASH CREDIT OUTPUT at their own funding address (vout 1 of the
+   type-8 tx). getFundingUtxos returned ALL utxos including it, the poll
+   counted it toward the balance, and createAssetLockTransaction spent it
+   as an input — Core REJECTS spending asset-lock credit outputs on L1
+   (they can only be consumed by Platform via the lock proof; spending one
+   would double-spend the locked value). Fixes (lib/core-chain.ts):
+   getTxType() (insight /tx/<txid> DOES return the DIP-2 `type` field —
+   verified live: coinbase tx returns version 3 / type 5; txTypeCache
+   map; lookup errors treat as regular), getFundingUtxos now FILTERS vout-1
+   outputs of type-8 txs (change at vout 2+ stays spendable), and
+   findUnusedAssetLock() finds a stranded lock for RESUME.
+   registrar-manager auto-resumes an unused lock (no second burn — this
+   also recovers the user's ORIGINAL 0.2 lock without any manual
+   localStorage hack); the modal poll skips the balance check when EITHER
+   a persisted pending lock OR an on-chain unused lock exists. Verified:
+   tsc 0, eslint 0/1, 75/75, build 35/35.
+5. Pending decisions: shielded-balance UI, DIP-17 platform-address features, biometric
    settings integration, react-hooks v6 cleanup pass.
-5. Known unverified: the -20.33B credit fee breakdown (F25).
-6. **Deployment is MANUAL/stale — F26**: the live evonext.app served the OLD pre-F22
+6. Known unverified: the -20.33B credit fee breakdown (F25).
+7. **Deployment is MANUAL/stale — F26**: the live evonext.app served the OLD pre-F22
    wasm on 2026-10-04 (deployed asset `wasm_sdk_bg.c3177f65.wasm`, 8,013,662 bytes,
    sha256 `ca6e51ce…`, CONTAINS dead F22 addresses `52.34.144.50`/`35.82.197.197`),
    reproducing the F22 hang despite master being fixed. Our source wasm is 20,319,523
@@ -799,7 +819,7 @@ history of this file (see log below for commit hashes) — keep only load-bearin
    (32 route HTMLs, `_headers`, wasm `cf2b0aef`) and current with all code through
    F25 — user must redeploy it. Verify a deployment by checking the served wasm's
    byte size (8.0MB = stale; 20.3MB = current).
-7. **F26b — Cloudflare Pages deployment switched OFF next-on-pages (2026-10-04)**:
+8. **F26b — Cloudflare Pages deployment switched OFF next-on-pages (2026-10-04)**:
    root cause of all failed deploys since Oct 2: the Pages project used the Next.js
    framework preset, whose build command `npx @cloudflare/next-on-pages@1` broke
    twice — (a) npm ERESOLVE inside the adapter's own deps (workers-types ^4 vs

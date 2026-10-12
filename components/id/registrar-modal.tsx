@@ -18,7 +18,7 @@ import {
     getFundingInfo,
     registerIdentityAndUsername,
 } from '@/lib/registrar-manager'
-import { getFundingUtxos } from '@/lib/core-chain'
+import { findUnusedAssetLock, getFundingUtxos } from '@/lib/core-chain'
 import { storeIdentityIdx } from '@/lib/secure-storage'
 import { getPrivateKeys, getPublicKeys } from '@/lib/wallet-manager'
 import { dpns_is_contested_username } from '@/lib/dash-wasm/compat'
@@ -226,11 +226,14 @@ console.log('WAITING (up to 15 minutes) FOR DEPOSIT...')
                 /* Live balance display (updates every poll cycle). */
                 setDepositedSatoshis(funded)
 
-                /* A pending (broadcast but unconfirmed) asset lock skips the
-                 * deposit check — the funds are already IN the lock, so the
+                /* A pending (broadcast but unconfirmed) — or UNUSED (confirmed
+                 * but never consumed by an identity create) — asset lock skips
+                 * the deposit check: the funds are already IN the lock, so the
                  * remaining change can be BELOW the required amount. */
                 const hasPendingLock = window.localStorage.getItem(
                     `evonext_pending_lock_${funding.address}`) !== null
+                    || (await findUnusedAssetLock(
+                        currentNetwork, funding.address)) !== null
 
                 /* Require the FULL deposit before proceeding. */
                 if (!hasPendingLock && funded < funding.requiredSatoshis) {
