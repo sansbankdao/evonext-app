@@ -203,7 +203,7 @@ console.log('REGISTRAR (identity from proof)', creationIdentity)
     ]
     for (const key of keyDefs) {
         // hash160 of the compressed pubkey (bytes), per the platform spec.
-        const pubBytes = hexToBytes(key.derived.publicKey)
+        const pubBytes = hexToBytes(key.derived.public_key)
         const data = key.keyType === 'ECDSA_HASH160'
             ? hash160(pubBytes)
             : pubBytes

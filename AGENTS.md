@@ -808,10 +808,28 @@ history of this file (see log below for commit hashes) — keep only load-bearin
    localStorage hack); the modal poll skips the balance check when EITHER
    a persisted pending lock OR an on-chain unused lock exists. Verified:
    tsc 0, eslint 0/1, 75/75, build 35/35.
-5. Pending decisions: shielded-balance UI, DIP-17 platform-address features, biometric
+5. **F27g — registration 'e.match' crash: F26c snake_case regression FIXED
+   (2026-10-06)**: user error `Registration failed: undefined is not an
+   object (evaluating 'e.match')` (JavaScriptCore phrasing). Root cause:
+   F26c (Oct 4) flipped compat's derive_key_from_seed_with_path to a
+   SNAKE_CASE plain object to fix the CONNECT flow, but
+   lib/registrar-manager.ts still read `key.derived.publicKey` (camelCase,
+   which worked against the raw 4.1.1 class during the F24 live test on
+   Oct 3 — registration was never re-verified after F26c). undefined →
+   hexToBytes(undefined) → `.match` on undefined. Node repro
+   (/tmp/repro-derive.mjs): camelCase read = undefined → TypeError
+   'reading match'; snake_case read = 66-hex → 33 bytes. Fix: one-line
+   read change to `key.derived.public_key`. Audited ALL other
+   getPrivateKeys/derive consumers (wallet-manager getPublicKeys,
+   identity-manager x2, connect page, modal): every other read is already
+   snake_case; core-chain.ts `.publicKey` is dashcore-lib's own API
+   (correct). REGISTRATION HAS NOT BEEN LIVE-VERIFIED end-to-end since
+   F24 — flag for the next testnet run. Verified: tsc 0, eslint 0/1,
+   75/75, build 35/35.
+6. Pending decisions: shielded-balance UI, DIP-17 platform-address features, biometric
    settings integration, react-hooks v6 cleanup pass.
-6. Known unverified: the -20.33B credit fee breakdown (F25).
-7. **Deployment is MANUAL/stale — F26**: the live evonext.app served the OLD pre-F22
+7. Known unverified: the -20.33B credit fee breakdown (F25).
+8. **Deployment is MANUAL/stale — F26**: the live evonext.app served the OLD pre-F22
    wasm on 2026-10-04 (deployed asset `wasm_sdk_bg.c3177f65.wasm`, 8,013,662 bytes,
    sha256 `ca6e51ce…`, CONTAINS dead F22 addresses `52.34.144.50`/`35.82.197.197`),
    reproducing the F22 hang despite master being fixed. Our source wasm is 20,319,523
@@ -819,7 +837,7 @@ history of this file (see log below for commit hashes) — keep only load-bearin
    (32 route HTMLs, `_headers`, wasm `cf2b0aef`) and current with all code through
    F25 — user must redeploy it. Verify a deployment by checking the served wasm's
    byte size (8.0MB = stale; 20.3MB = current).
-8. **F26b — Cloudflare Pages deployment switched OFF next-on-pages (2026-10-04)**:
+9. **F26b — Cloudflare Pages deployment switched OFF next-on-pages (2026-10-04)**:
    root cause of all failed deploys since Oct 2: the Pages project used the Next.js
    framework preset, whose build command `npx @cloudflare/next-on-pages@1` broke
    twice — (a) npm ERESOLVE inside the adapter's own deps (workers-types ^4 vs
