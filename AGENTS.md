@@ -853,10 +853,37 @@ history of this file (see log below for commit hashes) — keep only load-bearin
    transition serialization for identity create (doc transitions ARE
    live-verified on 4.2 via F27a post/reply/like; identity create is NOT).
    Verified: tsc 0, eslint 0/1, 75/75, build 35/35.
-7. Pending decisions: shielded-balance UI, DIP-17 platform-address features, biometric
+7. **F27i — 'Asset lock proof core chain height' root-caused + FIXED
+   (2026-10-06)**: the labeled errors (F27h) pinpointed identityCreate;
+   the rejection is the chain proof's core_chain_locked_height. ROOT
+   CAUSE (live-verified in Node): the proof was built at the insight TIP,
+   but Platform validates it against ITS OWN core-chain-locked height —
+   measured live: metadata.coreChainLockedHeight 1571981 vs insight tip
+   1571983 (tip AHEAD => 'in the future' => rejection; F24 passed because
+   chainlocks kept pace on Oct 3). Fix in registrar-manager: (a) derive
+   creationIdentity from a THROWAWAY proof at the lock's own block height
+   (the id commits to the outpoint only — height-independent); (b) read
+   Platform's chainlocked height from `sdk.getIdentityWithProofInfo(
+   creationIdentity).metadata.coreChainLockedHeight` — Node-verified to
+   work for a MISSING identifier too (data undefined, metadata present,
+   no throw; ResponseMetadata.coreChainLockedHeight is a number getter,
+   .height is BigInt); (c) while that height is < the lock's block, the
+   lock is not chainlocked — progress 'Waiting for the lock to be
+   chainlocked...' + re-poll every 15s; (d) build the FINAL proof at
+   Platform's chainlocked height. ALSO: the same metadata query detects
+   an ALREADY-EXISTING identity (the user's second error 'Object already
+   exists:' — a previous attempt had created it) -> friendly throw
+   telling them to log in and claim the username instead (standalone
+   claim path exists: /claim + useUsernameModal + dpns-service
+   .registerUsername). NOTE: WasmSdkBuilder.withTrustedContext CONSUMES
+   the builder (use its return) — calling build() on the consumed one
+   throws 'null pointer passed to rust'. waitForConfirmation already
+   returned `blockheight` (lowercase, insight field) — now destructured.
+   Verified: tsc 0, eslint 0/1, 75/75, build 35/35.
+8. Pending decisions: shielded-balance UI, DIP-17 platform-address features, biometric
    settings integration, react-hooks v6 cleanup pass.
-8. Known unverified: the -20.33B credit fee breakdown (F25).
-9. **Deployment is MANUAL/stale — F26**: the live evonext.app served the OLD pre-F22
+9. Known unverified: the -20.33B credit fee breakdown (F25).
+10. **Deployment is MANUAL/stale — F26**: the live evonext.app served the OLD pre-F22
    wasm on 2026-10-04 (deployed asset `wasm_sdk_bg.c3177f65.wasm`, 8,013,662 bytes,
    sha256 `ca6e51ce…`, CONTAINS dead F22 addresses `52.34.144.50`/`35.82.197.197`),
    reproducing the F22 hang despite master being fixed. Our source wasm is 20,319,523
@@ -864,7 +891,7 @@ history of this file (see log below for commit hashes) — keep only load-bearin
    (32 route HTMLs, `_headers`, wasm `cf2b0aef`) and current with all code through
    F25 — user must redeploy it. Verify a deployment by checking the served wasm's
    byte size (8.0MB = stale; 20.3MB = current).
-10. **F26b — Cloudflare Pages deployment switched OFF next-on-pages (2026-10-04)**:
+11. **F26b — Cloudflare Pages deployment switched OFF next-on-pages (2026-10-04)**:
    root cause of all failed deploys since Oct 2: the Pages project used the Next.js
    framework preset, whose build command `npx @cloudflare/next-on-pages@1` broke
    twice — (a) npm ERESOLVE inside the adapter's own deps (workers-types ^4 vs

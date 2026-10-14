@@ -160,11 +160,11 @@ console.log('REGISTRAR (asset lock broadcast)', txid)
 
     /* Wait for confirmation. */
     progress(`Waiting for confirmation (tx ${txid.slice(0, 16)}…)`)
-    const { bestHeight } = await waitForConfirmation(
+    const { blockheight } = await waitForConfirmation(
         _currentNetwork, txid, undefined, undefined,
         (attempt, maxAttempts) => progress(
             `Waiting for confirmation… (${attempt}/${maxAttempts}) tx ${txid.slice(0, 16)}…`))
-console.log('REGISTRAR (confirmed at best height)', bestHeight)
+console.log('REGISTRAR (confirmed in block)', blockheight)
 
     /* Clear the pending lock (confirmed). */
     if (typeof window !== 'undefined') {
@@ -174,18 +174,44 @@ console.log('REGISTRAR (confirmed at best height)', bestHeight)
     /* Initialize SDK. */
     const sdk = await wasmSdkService.getSdk()
 
-    /* Build the chain asset-lock proof.
-     * NOTE: the outpoint references the OP_RETURN output at index 0 —
-     * referencing the credit output (index 1) is REJECTED by the platform. */
     /* Untyped: the WASM class constructors take loose option objects. */
     const wasm: any = await import('./dash-wasm/wasm_sdk')
-    const outPoint = new wasm.OutPoint(txid, 0)
-    const assetLockProof = wasm.AssetLockProof.createChainAssetLockProof(
-        bestHeight, outPoint)
 
-    /* Derive the identity ID from the proof. */
-    const creationIdentity = String(assetLockProof.createIdentityId())
+    /* Build the outpoint + derive the identity ID (it commits to the
+     * lock's outpoint only — independent of the proof height).
+     * NOTE: the outpoint references the OP_RETURN output at index 0 —
+     * referencing the credit output (index 1) is REJECTED by the platform. */
+    const outPoint = new wasm.OutPoint(txid, 0)
+    const creationIdentity = String(
+        wasm.AssetLockProof.createChainAssetLockProof(blockheight, outPoint)
+            .createIdentityId())
 console.log('REGISTRAR (identity from proof)', creationIdentity)
+
+    /* Platform validates a chain proof against ITS OWN core-chain-locked
+     * height, which LAGS the insight tip while testnet chainlocks stall
+     * (using the insight tip caused 'Asset lock proof core chain height'
+     * rejections). Read Platform's height from proof metadata; while it
+     * is behind the lock's block, the lock is not chainlocked — wait. */
+    progress('Checking the core chain lock...')
+    let platformStatus = await getPlatformStatus(sdk, creationIdentity)
+
+    /* A previous attempt may have ALREADY created the identity (e.g. it
+     * failed later at the DPNS step) — never re-create it. */
+    if (platformStatus.identityExists) {
+        throw new Error(
+            'Your identity already exists on-chain — close this and log in with your passkey/phrase; you can claim your username after logging in')
+    }
+
+    while (platformStatus.coreChainLockedHeight < blockheight) {
+        progress('Waiting for the lock to be chainlocked...')
+console.log('WAIT (chainlock)', platformStatus.coreChainLockedHeight, 'of', blockheight)
+        await new Promise(resolve => setTimeout(resolve, 15000))
+        platformStatus = await getPlatformStatus(sdk, creationIdentity)
+    }
+
+    /* Build the chain asset-lock proof at PLATFORM's chainlocked height. */
+    const assetLockProof = wasm.AssetLockProof.createChainAssetLockProof(
+        platformStatus.coreChainLockedHeight, outPoint)
 
     /* Request private keys (each derive includes its public key hex). */
     const privateKeys = getPrivateKeys(_currentNetwork, _identityIdx)
@@ -288,6 +314,26 @@ console.log('REGISTRAR (username result)', usernameResult)
 }
 
 /* --- helpers --- */
+
+/**
+ * Get Platform Status
+ *
+ * Reads Platform's own core-chain-locked height from a proof-info
+ * query's response metadata (the queried identity need NOT exist —
+ * metadata is always returned) + whether that identity already exists.
+ * Platform validates chain asset-lock proofs against THIS height, not
+ * the core tip.
+ */
+const getPlatformStatus = async (
+    _sdk: any,
+    _identityId: string,
+): Promise<{ coreChainLockedHeight: number; identityExists: boolean }> => {
+    const response: any = await _sdk.getIdentityWithProofInfo(_identityId)
+    return {
+        coreChainLockedHeight: response.metadata.coreChainLockedHeight,
+        identityExists: typeof response.data !== 'undefined' && response.data !== null,
+    }
+}
 
 const hexToBytes = (hex: string): Uint8Array => {
     return new Uint8Array(hex.match(/.{2}/g)!.map(byte => parseInt(byte, 16)))
