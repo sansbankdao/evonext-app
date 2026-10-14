@@ -880,10 +880,42 @@ history of this file (see log below for commit hashes) — keep only load-bearin
    throws 'null pointer passed to rust'. waitForConfirmation already
    returned `blockheight` (lowercase, insight field) — now destructured.
    Verified: tsc 0, eslint 0/1, 75/75, build 35/35.
-8. Pending decisions: shielded-balance UI, DIP-17 platform-address features, biometric
+8. **F27j — contested-name funding shortfall: top-up + retry at the DPNS
+   step (2026-10-06)**: after the F27i chainlock fix, identity creation
+   SUCCEEDED (identity 7msBY... created with exactly the 0.2-lock's
+   200,000,000,000 credits) but the DPNS step failed 'Insufficient
+   identity balance: 197... required: 200...'. Root cause: DPNS contested
+   cost = action_cost + special_option_cost x 10^4 (the 10^4 multiplier is
+   in the DPNS crate), so a contested name costs ~the full 200B credits,
+   but the identity was funded with exactly the lock amount minus the
+   creation fee (~197.5B left) — ~3M short. ALSO the user saw a SECOND
+   passkey named with an identity id (not 'EvoNext Identity #1'):
+   VERIFIED the deployed testnet.evonext.app build is byte-identical to
+   local (page chunk 7c5bbe + vault chunk 7010 both pass the correct
+   label; vault user.name = the label). The only code paths creating
+   passkeys are handlePasskeyCreate (label 'EvoNext Identity #1') and
+   handlePasskeyRecover (recoverIdentityEntropy(0) — same label). An
+   identity-id-named passkey CANNOT be created by this build; the likely
+   explanation is the user's password manager created/prompted a credential
+   during a WebAuthn ceremony it didn't recognize, OR an older cached chunk
+   ran. No code change made for the passkey naming (no defect found in the
+   deployed build). FIX (top-up retry in registrar-modal): on an
+   /insufficient identity balance/i failure at the DPNS step, call
+   topUpAndRetryUsername() which (a) derives the identity id from the
+   persisted pending lock's outpoint (evonext_pending_lock_<addr>), (b)
+   builds a 0.01-DASH asset lock from the funding wallet's SPENDABLE change
+   (getFundingUtxos excludes unspendable credit outputs), (c) waits for it
+   to confirm + reach Platform's core-chain-locked height, (d) calls
+   sdk.identityTopUp({identity, assetLockProof, assetLockPrivateKey}) —
+   NOTE: IdentityTopUpOptions has NO signer field (authorized purely by the
+   lock key), and (e) retries registerIdentityAndUsername once. New core-
+   chain imports: broadcastTransaction, createAssetLockTransaction,
+   deriveFundingKey, waitForConfirmation. Verified: tsc 0, eslint 0/1,
+   75/75, build 35/35.
+9. Pending decisions: shielded-balance UI, DIP-17 platform-address features, biometric
    settings integration, react-hooks v6 cleanup pass.
-9. Known unverified: the -20.33B credit fee breakdown (F25).
-10. **Deployment is MANUAL/stale — F26**: the live evonext.app served the OLD pre-F22
+10. Known unverified: the -20.33B credit fee breakdown (F25).
+11. **Deployment is MANUAL/stale — F26**: the live evonext.app served the OLD pre-F22
    wasm on 2026-10-04 (deployed asset `wasm_sdk_bg.c3177f65.wasm`, 8,013,662 bytes,
    sha256 `ca6e51ce…`, CONTAINS dead F22 addresses `52.34.144.50`/`35.82.197.197`),
    reproducing the F22 hang despite master being fixed. Our source wasm is 20,319,523
@@ -891,7 +923,7 @@ history of this file (see log below for commit hashes) — keep only load-bearin
    (32 route HTMLs, `_headers`, wasm `cf2b0aef`) and current with all code through
    F25 — user must redeploy it. Verify a deployment by checking the served wasm's
    byte size (8.0MB = stale; 20.3MB = current).
-11. **F26b — Cloudflare Pages deployment switched OFF next-on-pages (2026-10-04)**:
+12. **F26b — Cloudflare Pages deployment switched OFF next-on-pages (2026-10-04)**:
    root cause of all failed deploys since Oct 2: the Pages project used the Next.js
    framework preset, whose build command `npx @cloudflare/next-on-pages@1` broke
    twice — (a) npm ERESOLVE inside the adapter's own deps (workers-types ^4 vs

@@ -18,7 +18,14 @@ import {
     getFundingInfo,
     registerIdentityAndUsername,
 } from '@/lib/registrar-manager'
-import { findUnusedAssetLock, getFundingUtxos } from '@/lib/core-chain'
+import {
+    broadcastTransaction,
+    createAssetLockTransaction,
+    deriveFundingKey,
+    findUnusedAssetLock,
+    getFundingUtxos,
+    waitForConfirmation,
+} from '@/lib/core-chain'
 import { storeIdentityIdx } from '@/lib/secure-storage'
 import { getPrivateKeys, getPublicKeys } from '@/lib/wallet-manager'
 import { dpns_is_contested_username } from '@/lib/dash-wasm/compat'
@@ -179,6 +186,76 @@ export function RegistrarModal({
         }
     }
 
+    /* Top-up from the funding wallet's spendable change, then retry the
+       username step. The identity already exists on-chain (it was just
+       created); its id derives from the lock outpoint we consumed. */
+    const topUpAndRetryUsername = async () => {
+        const currentNetwork = (network === 'mainnet' ? 'mainnet' : 'testnet') as 'mainnet' | 'testnet'
+
+        const { getMnemonic } = await import('@/lib/secure-storage')
+        const mnemonic = getMnemonic()
+        if (!mnemonic) throw new Error('session expired')
+
+        setProgressMessage('Topping up your identity...')
+
+        /* Derive the identity id from the pending lock we consumed. */
+        const lockTxid = JSON.parse(
+            localStorage.getItem(`evonext_pending_lock_${fundingAddress}`) || 'null')
+        if (!lockTxid) throw new Error('no pending lock to derive identity from')
+
+        const wasm: any = await import('@/lib/dash-wasm/wasm_sdk')
+        const identityId = String(
+            wasm.AssetLockProof.createChainAssetLockProof(
+                0, new wasm.OutPoint(lockTxid, 0)).createIdentityId())
+console.log('TOP-UP (identity)', identityId)
+
+        /* Build a small lock (0.01 DASH) from spendable change. */
+        const TOP_UP_SATOSHIS = 1_000_000
+        const funding = deriveFundingKey(currentNetwork, IDENTITY_INDEX)
+        const utxos = await getFundingUtxos(currentNetwork, funding.address)
+        const lockTx = await createAssetLockTransaction(
+            currentNetwork, funding.privateKeyWif, utxos, TOP_UP_SATOSHIS)
+        const topUpTxid = await broadcastTransaction(
+            currentNetwork, lockTx.toString())
+console.log('TOP-UP (lock broadcast)', topUpTxid)
+
+        /* Wait for the top-up lock to confirm + chainlock. */
+        setProgressMessage('Waiting for the top-up to confirm...')
+        const { blockheight } = await waitForConfirmation(
+            currentNetwork, topUpTxid, undefined, undefined,
+            (a, m) => setProgressMessage(`Waiting for confirmation (${a}/${m})...`))
+
+        const sdk = await (await import('@/lib/services/wasm-sdk-service')).wasmSdkService.getSdk()
+        let platformStatus: any
+        do {
+            setProgressMessage('Waiting for the top-up to be chainlocked...')
+            await new Promise(r => setTimeout(r, 15000))
+            const resp: any = await sdk.getIdentityWithProofInfo(identityId)
+            platformStatus = { h: resp.metadata.coreChainLockedHeight }
+        } while (platformStatus.h < blockheight)
+
+        /* Top up the identity (authorized by the asset-lock private key —
+           IdentityTopUpOptions has no signer field). */
+        setProgressMessage('Adding credits to your identity...')
+        const outPoint = new wasm.OutPoint(topUpTxid, 0)
+        const proof = wasm.AssetLockProof.createChainAssetLockProof(
+            platformStatus.h, outPoint)
+        const { PrivateKey } = await import('@/lib/dash-wasm/compat')
+        const assetLockPrivateKey = PrivateKey.fromWIF(funding.privateKeyWif)
+        const identity = await sdk.getIdentity(identityId)
+        if (!identity) throw new Error('identity not found after creation')
+        const newBalance = await sdk.identityTopUp({
+            identity, assetLockProof: proof, assetLockPrivateKey,
+        })
+console.log('TOP-UP (new balance)', newBalance)
+
+        /* Retry the username registration. */
+        setProgressMessage('Retrying your username...')
+        await registerIdentityAndUsername(
+            currentNetwork, IDENTITY_INDEX, username,
+            (message: string) => setProgressMessage(message))
+    }
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
 
@@ -306,6 +383,24 @@ console.log('CONNECT (seedPrivateKey WIF)', seedPrivateKey)
                     }
                 } catch (err) {
 console.error('REGISTRATION FAILED', err)
+
+                    /* The identity can end up ~a few million credits short for a
+                       CONTESTED username (DPNS cost = action_cost +
+                       special_option_cost x 10^4; the identity was funded with
+                       exactly the 0.2-DASH lock minus the creation fee). Top it
+                       up from the funding wallet's SPENDABLE change and retry
+                       the username step ONCE. */
+                    const msg = err instanceof Error ? err.message : String(err)
+                    if (/insufficient identity balance/i.test(msg)) {
+                        try {
+                            await topUpAndRetryUsername()
+                            return
+                        } catch (topUpErr) {
+console.error('TOP-UP FAILED', topUpErr)
+                            toast.error(`Top-up failed: ${topUpErr instanceof Error ? topUpErr.message : 'unknown error'} — your identity WAS created; you can claim your username after logging in`)
+                        }
+                    }
+
                     setIsSubmitting(false)
                     setProgressMessage(null)
                     toast.error(`Registration failed: ${err instanceof Error ? err.message : 'unknown error'}`)
