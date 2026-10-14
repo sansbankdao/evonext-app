@@ -231,12 +231,18 @@ console.log('REGISTRAR (identity keys added)', identity.publicKeys.length)
 
     /* Create the identity (broadcasts + waits for confirmation). */
     progress('Creating your identity...')
-    await sdk.identityCreate({
-        identity,
-        assetLockProof,
-        assetLockPrivateKey,
-        signer,
-    })
+    try {
+        await sdk.identityCreate({
+            identity,
+            assetLockProof,
+            assetLockPrivateKey,
+            signer,
+        })
+    } catch (error: any) {
+console.error('REGISTRAR (identity create failed)', error)
+        throw new Error(
+            `identity create failed: ${error?.message || String(error)}`)
+    }
 console.log('REGISTRAR (identity created)', creationIdentity)
 
     /* Set (actual) key to AUTH (CRITICAL) key. */
@@ -248,21 +254,28 @@ console.log('REGISTRAR (master public key)', masterPublicKey)
 
     /* Request username registration. */
     progress('Registering your username...')
-    const usernameResult = await dpns_register_name(
-        sdk,
-        _username,
-        creationIdentity,   // Use the identity ID from authentication
-        1,                  // Key ID 1 => AUTH (CRITICAL)
-        actualPrivateKey,   // Use the actual private key
-        // Callback for preorder success
-        (preorderInfo: any) => {
+    let usernameResult: any
+    try {
+        usernameResult = await dpns_register_name(
+            sdk,
+            _username,
+            creationIdentity,   // Use the identity ID from authentication
+            1,                  // Key ID 1 => AUTH (CRITICAL)
+            actualPrivateKey,   // Use the actual private key
+            // Callback for preorder success
+            (preorderInfo: any) => {
 // console.log('PRE-ORDER SUCCESSFUL', preorderInfo)
 
-            // Show preorder info in a temporary notification
-            const preorderMsg = `Preorder Document ID: ${preorderInfo.get('documentId')}`;
+                // Show preorder info in a temporary notification
+                const preorderMsg = `Preorder Document ID: ${preorderInfo.get('documentId')}`;
 // console.log('PRE-ORDER MESSAGE', preorderMsg)
-        }
-    )
+            }
+        )
+    } catch (error: any) {
+console.error('REGISTRAR (username registration failed)', error)
+        throw new Error(
+            `username registration failed: ${error?.message || String(error)} — NOTE: your identity WAS created on-chain; refresh and log in, then register the username from your profile`)
+    }
 console.log('REGISTRAR (username result)', usernameResult)
 
     /* Return (registration) result. */

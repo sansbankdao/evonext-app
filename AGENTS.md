@@ -826,10 +826,37 @@ history of this file (see log below for commit hashes) — keep only load-bearin
    (correct). REGISTRATION HAS NOT BEEN LIVE-VERIFIED end-to-end since
    F24 — flag for the next testnet run. Verified: tsc 0, eslint 0/1,
    75/75, build 35/35.
-6. Pending decisions: shielded-balance UI, DIP-17 platform-address features, biometric
+6. **F27h — 'Registration failed: Unknown error' diagnosis + step-labeled
+   errors (2026-10-06)**: the message 'Unknown error' was traced INTO the
+   wasm binary: it is tonic-0.14.6's description for grpc code 2 (UNKNOWN)
+   — i.e., a DAPI call rejected the request with an unmapped/empty status
+   (strings wasm_sdk_bg.wasm -> '...error parsing grpc-status...Unknown
+   error...tonic-0.14.6/src/status.rs:496'). Deterministically RULED OUT
+   via a full Node repro of the registrar's OFFLINE construction sequence
+   (dummy txid): OutPoint/createChainAssetLockProof/createIdentityId
+   (String() -> proper base58; Identifier HAS toString in BOTH 4.1.1 and
+   4.2 — my earlier '[object Object]' theory was wrong, grep window too
+   small)/new Identity/5x IdentityPublicKey+addPublicKey/IdentitySigner/
+   PrivateKey.fromWIF all PASS on 4.2.0-dev.11; IdentityCreateOptions and
+   DpnsRegisterNameOptions field shapes match the call sites. CONCLUSION:
+   the failure is inside identityCreate's broadcast OR the DPNS step —
+   needs the failing STEP from the field. Shipped: try/catch around
+   sdk.identityCreate (-> 'identity create failed: <msg>') and
+   dpns_register_name (-> 'username registration failed: <msg> — NOTE:
+   your identity WAS created on-chain; refresh and log in...'), each with
+   a console.error of the raw error. Next failure toast will name the step.
+   OPEN SUSPECTS for the grpc code-2: (a) the resumed lock is ALREADY
+   SPENT on Platform (Platform-side consumption does NOT spend the L1
+   credit UTXO, so findUnusedAssetLock can resume a spent lock — needs a
+   Platform-side check if confirmed); (b) chain-proof height
+   (current-insight-height vs Platform's core view); (c) 4.2.0-dev.11
+   transition serialization for identity create (doc transitions ARE
+   live-verified on 4.2 via F27a post/reply/like; identity create is NOT).
+   Verified: tsc 0, eslint 0/1, 75/75, build 35/35.
+7. Pending decisions: shielded-balance UI, DIP-17 platform-address features, biometric
    settings integration, react-hooks v6 cleanup pass.
-7. Known unverified: the -20.33B credit fee breakdown (F25).
-8. **Deployment is MANUAL/stale — F26**: the live evonext.app served the OLD pre-F22
+8. Known unverified: the -20.33B credit fee breakdown (F25).
+9. **Deployment is MANUAL/stale — F26**: the live evonext.app served the OLD pre-F22
    wasm on 2026-10-04 (deployed asset `wasm_sdk_bg.c3177f65.wasm`, 8,013,662 bytes,
    sha256 `ca6e51ce…`, CONTAINS dead F22 addresses `52.34.144.50`/`35.82.197.197`),
    reproducing the F22 hang despite master being fixed. Our source wasm is 20,319,523
@@ -837,7 +864,7 @@ history of this file (see log below for commit hashes) — keep only load-bearin
    (32 route HTMLs, `_headers`, wasm `cf2b0aef`) and current with all code through
    F25 — user must redeploy it. Verify a deployment by checking the served wasm's
    byte size (8.0MB = stale; 20.3MB = current).
-9. **F26b — Cloudflare Pages deployment switched OFF next-on-pages (2026-10-04)**:
+10. **F26b — Cloudflare Pages deployment switched OFF next-on-pages (2026-10-04)**:
    root cause of all failed deploys since Oct 2: the Pages project used the Next.js
    framework preset, whose build command `npx @cloudflare/next-on-pages@1` broke
    twice — (a) npm ERESOLVE inside the adapter's own deps (workers-types ^4 vs
