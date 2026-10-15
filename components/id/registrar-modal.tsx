@@ -709,103 +709,131 @@ console.log('TIMER STOPPED (after 15 minutes)')
 
                             {/* BEGIN FUNDING INFORMATION HERE */}
                             {fundingAddress &&
-                                <section className="w-full mb-5 flex flex-col items-center justify-center shadow">
-                                    <QRCodeSVG
-                                        value={fundingAddress || ''}
-                                        size={180}
-                                        onClick={() => handlePayment()}
-                                        className="cursor-pointer"
-                                    />
+                                <section className="w-full mb-5">
+                                    <div className="overflow-hidden rounded-2xl border border-evonext-200 bg-gradient-to-b from-evonext-50 to-white shadow-sm">
+                                        {/* Header */}
+                                        <div className="border-b border-evonext-100 bg-white/60 px-5 py-4 text-center">
+                                            <h2 className="font-semibold text-xl text-evonext-900">
+                                                Fund YOUR Identity
+                                            </h2>
+                                            <p className="mt-0.5 text-xs text-evonext-600">
+                                                Self-custodial — you hold the keys
+                                            </p>
+                                        </div>
 
-                                    <div className="mt-5 px-3 py-5 flex flex-col gap-5 rounded-lg border border-evonext-700 bg-evonext-50">
-                                        <h2 className="font-medium text-2xl text-evonext-800 text-center">
-                                            Fund YOUR Identity — You&apos;re in Control
-                                        </h2>
-
-                                        {/* LIVE identity balance (polled every 4s once the identity exists) */}
-                                        {identityCredits !== null &&
-                                            <div className="px-3 py-2 rounded-lg bg-white/70 border border-evonext-200 text-center">
-                                                <span className="text-sm font-medium text-evonext-800">
-                                                    Identity balance:{" "}
-                                                </span>
-                                                <span className={`text-lg font-bold ${needsTopUp ? 'text-amber-600' : 'text-green-700'}`}>
-                                                    {(identityCredits / 1e3 / 1e8).toFixed(8)} DASH
-                                                </span>
-                                                <span className="block text-xs text-gray-500">
-                                                    {identityCredits.toLocaleString()} credits
-                                                </span>
-                                            </div>
-                                        }
-
-                                        <h3 className="font-medium text-xl text-evonext-800 text-center">
-                                            {needsTopUp
-                                                ? 'Your identity balance is too low for this username — send a top-up of at least'
-                                                : 'Send at least'}
-                                            <button
-                                                className="px-1 text-2xl font-bold text-evonext-600"
-                                                onClick={() => handlePayment()}
-                                            >
-                                                {needsTopUp
-                                                    ? '0.10000'
-                                                    : (requiredSatoshis / 1e8).toFixed(5)} DASH
-                                            </button>
-                                            to YOUR OWN funding address shown below -OR- click the QRCode shown above
-                                        </h3>
-
-                                        <button onClick={() => handlePayment()} className="font-bold text-md text-evonext-600 text-center tracking-tighter break-all">
-                                            {fundingAddress ? fundingAddress : 'loading...'}
-                                        </button>
-
-                                        {/* LIVE deposit status (polled every 5s) — shows the
-                                            creation target normally, the top-up target when the
-                                            identity balance is too low. */}
-                                        {(() => {
-                                            const target = needsTopUp
-                                                ? (10_000_000 * 2 + 5_000)
-                                                : requiredSatoshis
-                                            const received = needsTopUp
-                                                ? Math.max(0, depositedSatoshis)
-                                                : depositedSatoshis
-                                            const pct = target > 0
-                                                ? Math.min(100, (received / target) * 100)
-                                                : 0
-                                            return (
-                                                <div className="space-y-2">
-                                                    <div className="flex items-center justify-between text-sm font-medium text-evonext-800">
-                                                        <span className="flex items-center gap-2">
-                                                            {received < target &&
-                                                                <Loader2 className="h-3 w-3 animate-spin" />
-                                                            }
-                                                            {needsTopUp ? 'Top-up received' : 'Received'}
-                                                        </span>
-                                                        <span>
-                                                            {(received / 1e8).toFixed(8)} / {(target / 1e8).toFixed(5)} DASH
-                                                        </span>
-                                                    </div>
-
-                                                    <div className="h-2 w-full rounded bg-evonext-100">
-                                                        <div
-                                                            className={`h-2 rounded transition-all ${needsTopUp ? 'bg-amber-500' : 'bg-evonext-500'}`}
-                                                            style={{ width: `${pct}%` }}
-                                                        />
-                                                    </div>
-
-                                                    {received >= target && target > 0 &&
-                                                        <p className="text-sm font-bold text-green-700 text-center">
-                                                            {needsTopUp
-                                                                ? 'Top-up detected — processing automatically…'
-                                                                : 'Deposit detected — continuing registration…'}
+                                        <div className="flex flex-col gap-4 px-5 py-5">
+                                            {/* LIVE identity balance (polled every 4s once the identity exists) */}
+                                            {identityCredits !== null &&
+                                                <div className={`flex items-center justify-between rounded-xl border px-4 py-3 ${needsTopUp ? 'border-amber-300 bg-amber-50' : 'border-green-200 bg-green-50'}`}>
+                                                    <div>
+                                                        <p className="text-[11px] font-medium uppercase tracking-wider text-gray-500">
+                                                            Identity balance
                                                         </p>
-                                                    }
+                                                        <p className={`text-lg font-bold leading-tight ${needsTopUp ? 'text-amber-600' : 'text-green-700'}`}>
+                                                            {(identityCredits / 1e3 / 1e8).toFixed(8)} DASH
+                                                        </p>
+                                                    </div>
+                                                    <span className="text-right text-[11px] text-gray-500">
+                                                        {identityCredits.toLocaleString()}
+                                                        <span className="block">credits</span>
+                                                    </span>
                                                 </div>
-                                            )
-                                        })()}
+                                            }
 
-                                        <p className="font-base text-sm text-evonext-800">
-                                            <span className="block font-medium text-md tracking-wider">PLEASE NOTE:</span>
-                                            This address is derived from YOUR wallet — you control the keys.
-                                            The funds become the asset lock for YOUR new Identity. Registration completes automatically after your deposit is detected.
-                                        </p>
+                                            {/* QR + address */}
+                                            <div className="flex flex-col items-center gap-3">
+                                                <div className="rounded-xl border border-evonext-100 bg-white p-3 shadow-sm">
+                                                    <QRCodeSVG
+                                                        value={fundingAddress || ''}
+                                                        size={180}
+                                                        onClick={() => handlePayment()}
+                                                        className="cursor-pointer"
+                                                    />
+                                                </div>
+
+                                                <p className="text-center text-sm text-evonext-800">
+                                                    {needsTopUp
+                                                        ? 'Your balance is too low for this username — send a top-up of at least'
+                                                        : 'Send at least'}{" "}
+                                                    <button
+                                                        className="font-bold text-evonext-600 underline-offset-2 hover:underline"
+                                                        onClick={() => handlePayment()}
+                                                    >
+                                                        {needsTopUp
+                                                            ? '0.10000'
+                                                            : (requiredSatoshis / 1e8).toFixed(5)} DASH
+                                                    </button>{" "}
+                                                    to your funding address
+                                                </p>
+
+                                                <button
+                                                    onClick={() => handlePayment()}
+                                                    className="w-full rounded-lg border border-evonext-100 bg-white px-3 py-2 font-mono text-xs text-evonext-700 break-all transition-colors hover:border-evonext-300 hover:bg-evonext-50"
+                                                    title="Click to copy / open wallet"
+                                                >
+                                                    {fundingAddress ? fundingAddress : 'loading...'}
+                                                </button>
+                                            </div>
+
+                                            {/* LIVE deposit status (polled every 5s) — shows the
+                                                creation target normally, the top-up target when the
+                                                identity balance is too low. */}
+                                            {(() => {
+                                                const target = needsTopUp
+                                                    ? (10_000_000 * 2 + 5_000)
+                                                    : requiredSatoshis
+                                                const received = needsTopUp
+                                                    ? Math.max(0, depositedSatoshis)
+                                                    : depositedSatoshis
+                                                const pct = target > 0
+                                                    ? Math.min(100, (received / target) * 100)
+                                                    : 0
+                                                return (
+                                                    <div className="space-y-2 rounded-xl border border-evonext-100 bg-white px-4 py-3">
+                                                        <div className="flex items-center justify-between text-sm font-medium text-evonext-800">
+                                                            <span className="flex items-center gap-2">
+                                                                {received < target &&
+                                                                    <Loader2 className="h-3.5 w-3.5 animate-spin text-evonext-500" />
+                                                                }
+                                                                {needsTopUp ? 'Top-up received' : 'Received'}
+                                                            </span>
+                                                            <span className="tabular-nums">
+                                                                {(received / 1e8).toFixed(8)} / {(target / 1e8).toFixed(5)} DASH
+                                                            </span>
+                                                        </div>
+
+                                                        <div className="h-2 w-full overflow-hidden rounded-full bg-evonext-100">
+                                                            <div
+                                                                className={`h-full rounded-full transition-all duration-500 ${needsTopUp ? 'bg-amber-500' : 'bg-evonext-500'}`}
+                                                                style={{ width: `${pct}%` }}
+                                                            />
+                                                        </div>
+
+                                                        {received >= target && target > 0 &&
+                                                            <p className="flex items-center justify-center gap-1.5 text-sm font-bold text-green-700">
+                                                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                                {needsTopUp
+                                                                    ? 'Top-up detected — processing automatically…'
+                                                                    : 'Deposit detected — creating your identity…'}
+                                                            </p>
+                                                        }
+                                                    </div>
+                                                )
+                                            })()}
+
+                                            {/* Self-custody note */}
+                                            <div className="rounded-xl border border-evonext-100 bg-evonext-50/60 px-4 py-3">
+                                                <p className="text-[11px] font-semibold uppercase tracking-wider text-evonext-700">
+                                                    Please note
+                                                </p>
+                                                <p className="mt-1 text-xs leading-relaxed text-evonext-800">
+                                                    This address is derived from YOUR wallet — you control the keys.
+                                                    The funds become the asset lock for YOUR new Identity. Registration
+                                                    completes automatically once your deposit is detected (we poll
+                                                    every few seconds).
+                                                </p>
+                                            </div>
+                                        </div>
                                     </div>
                                 </section>
                             }

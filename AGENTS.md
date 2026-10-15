@@ -972,10 +972,31 @@ history of this file (see log below for commit hashes) — keep only load-bearin
    minimal and avoid touching the verified registrar flow).
    Verified: tsc 0, eslint 0/1 (known postsState warning), 75/75, build
    35/35; new strings confirmed in emitted chunks (layout + 6916).
-11. Pending decisions: shielded-balance UI, DIP-17 platform-address features, biometric
+11. **F27m — 'Fund YOUR Identity' screen visual refresh (2026-10-06)**:
+   user asked for a UI refresh of the registrar funding panel 'without
+   losing any information/details'. Redesigned the flat section into a
+   modern rounded-2xl card (gradient header 'Fund YOUR Identity' +
+   'Self-custodial — you hold the keys' subhead). ALL original elements
+   preserved 1:1: (a) live identity-balance card (now a 2-column row:
+   DASH value left, raw credits right; amber/green by needsTopUp); (b) QR
+   in a bordered white tile (still clickable -> handlePayment); (c) 'Send
+   at least X DASH' line (creation amount / 0.10000 top-up amount by
+   needsTopUp) — the amount button still calls handlePayment; (d) the
+   funding address as a full-width monospace button (still handlePayment,
+   break-all); (e) the LIVE deposit-status card (Received/Top-up received
+   X / Y DASH + progress bar + 'Deposit detected — creating your
+   identity…' / 'Top-up detected — processing automatically…') — same
+   IIFE picking creation vs top-up target, same polling
+   (PAYMENT_DETECTION_INTERVAL 5s + the 4s top-up watcher), unchanged
+   logic; (f) the self-custody PLEASE NOTE block ('you control the keys…
+   asset lock for YOUR new Identity… completes automatically…poll every
+   few seconds'). NO behavior/logic changed — pure presentational
+   reorganization. Verified: tsc 0, eslint 0/1, 75/75, build 35/35; all
+   strings confirmed in emitted chunk 6916.
+12. Pending decisions: shielded-balance UI, DIP-17 platform-address features, biometric
    settings integration, react-hooks v6 cleanup pass.
-12. Known unverified: the -20.33B credit fee breakdown (F25).
-13. **Deployment is MANUAL/stale — F26**: the live evonext.app served the OLD pre-F22
+13. Known unverified: the -20.33B credit fee breakdown (F25).
+14. **Deployment is MANUAL/stale — F26**: the live evonext.app served the OLD pre-F22
    wasm on 2026-10-04 (deployed asset `wasm_sdk_bg.c3177f65.wasm`, 8,013,662 bytes,
    sha256 `ca6e51ce…`, CONTAINS dead F22 addresses `52.34.144.50`/`35.82.197.197`),
    reproducing the F22 hang despite master being fixed. Our source wasm is 20,319,523
@@ -983,7 +1004,7 @@ history of this file (see log below for commit hashes) — keep only load-bearin
    (32 route HTMLs, `_headers`, wasm `cf2b0aef`) and current with all code through
    F25 — user must redeploy it. Verify a deployment by checking the served wasm's
    byte size (8.0MB = stale; 20.3MB = current).
-14. **F26b — Cloudflare Pages deployment switched OFF next-on-pages (2026-10-04)**:
+15. **F26b — Cloudflare Pages deployment switched OFF next-on-pages (2026-10-04)**:
    root cause of all failed deploys since Oct 2: the Pages project used the Next.js
    framework preset, whose build command `npx @cloudflare/next-on-pages@1` broke
    twice — (a) npm ERESOLVE inside the adapter's own deps (workers-types ^4 vs
