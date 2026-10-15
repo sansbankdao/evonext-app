@@ -72,6 +72,14 @@ export function RegistrarModal({
     const [depositedSatoshis, setDepositedSatoshis] = useState<number>(0)
     const [progressMessage, setProgressMessage] = useState<string | null>(null)
 
+    /* Identity balance (credits) — polled live once the identity exists.
+     * 1 duff = 1000 credits, so DASH-equivalent = credits / 1e3 / 1e8. */
+    const [identityCredits, setIdentityCredits] = useState<number | null>(null)
+    const [identityIdForBalance, setIdentityIdForBalance] = useState<string | null>(null)
+    const [needsTopUp, setNeedsTopUp] = useState(false)
+    const topUpIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+    const isToppingUpRef = useRef(false)
+
     /* Hold the polling interval so the effect cleanup can stop it. */
     const paymentIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
     const paymentAttemptsRef = useRef(0)
@@ -91,9 +99,107 @@ export function RegistrarModal({
                 clearInterval(paymentIntervalRef.current)
                 paymentIntervalRef.current = null
             }
+            if (topUpIntervalRef.current) {
+                clearInterval(topUpIntervalRef.current)
+                topUpIntervalRef.current = null
+            }
         }
     }, [
         isOpen,
+    ])
+
+    /* Poll the identity balance live (every 4s) once we know the id. */
+    useEffect(() => {
+        if (!identityIdForBalance || !isOpen) return
+
+        const currentNetwork = (network === 'mainnet' ? 'mainnet' : 'testnet') as 'mainnet' | 'testnet'
+        let cancelled = false
+
+        const poll = async () => {
+            try {
+                const sdk = await (await import('@/lib/services/wasm-sdk-service')).wasmSdkService.getSdk()
+                const identity: any = await sdk.getIdentity(identityIdForBalance)
+                if (!cancelled && identity) {
+                    setIdentityCredits(Number(identity.balance))
+                }
+            } catch (error) {
+console.warn('BALANCE (poll error)', error)
+            }
+        }
+
+        poll()
+        const interval = setInterval(poll, 4000)
+
+        return () => {
+            cancelled = true
+            clearInterval(interval)
+        }
+    }, [
+        identityIdForBalance,
+        isOpen,
+        network,
+    ])
+
+    /* Auto-process the top-up: poll the funding address for the required
+     * top-up deposit, then build the lock + top up + retry the username. */
+    useEffect(() => {
+        if (!needsTopUp || !isOpen) return
+
+        const currentNetwork = (network === 'mainnet' ? 'mainnet' : 'testnet') as 'mainnet' | 'testnet'
+
+        topUpIntervalRef.current = setInterval(async () => {
+            /* One top-up at a time. */
+            if (isToppingUpRef.current) return
+
+            const funding = deriveFundingKey(currentNetwork, IDENTITY_INDEX)
+            const utxos = await getFundingUtxos(currentNetwork, funding.address)
+                .catch((err: any) => console.error(err))
+            if (typeof utxos === 'undefined' || utxos === null) return
+
+            const available = utxos.reduce(
+                (sum: number, utxo: any) => sum + utxo.satoshis, 0)
+            const TOP_UP_SATOSHIS = 10_000_000  /* 0.1 DASH */
+            const required = TOP_UP_SATOSHIS * 2 + 5_000
+
+            /* Keep the top-up progress bar live (the original deposit
+               interval has stopped by now). */
+            setDepositedSatoshis(available)
+
+            if (available < required) {
+console.log('TOP-UP (waiting for deposit)', available, 'of', required)
+                return
+            }
+
+            /* Funds are here — process the top-up. */
+            isToppingUpRef.current = true
+            if (topUpIntervalRef.current) {
+                clearInterval(topUpIntervalRef.current)
+                topUpIntervalRef.current = null
+            }
+
+            try {
+                await processTopUp(TOP_UP_SATOSHIS)
+            } catch (error) {
+console.error('TOP-UP FAILED', error)
+                setProgressMessage(null)
+                toast.error(`Top-up failed: ${error instanceof Error ? error.message : 'unknown error'} — you can retry by sending the deposit again`)
+                /* Re-arm so a further deposit can retry. */
+                isToppingUpRef.current = false
+                setNeedsTopUp(true)
+            }
+        }, 4000)
+
+        return () => {
+            if (topUpIntervalRef.current) {
+                clearInterval(topUpIntervalRef.current)
+                topUpIntervalRef.current = null
+            }
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [
+        needsTopUp,
+        isOpen,
+        network,
     ])
 
     /* Set current Identity ID. */
@@ -186,35 +292,31 @@ export function RegistrarModal({
         }
     }
 
-    /* Top-up from the funding wallet's spendable change, then retry the
-       username step. The identity already exists on-chain (it was just
-       created); its id derives from the lock outpoint we consumed. */
-    const topUpAndRetryUsername = async () => {
+    /* Build a fresh asset lock from the funding wallet's spendable change,
+     * top up the identity, then retry the username registration. The identity
+     * id is derived from the mnemonic's auth key (robust — no localStorage). */
+    const processTopUp = async (_topUpSatoshis: number) => {
         const currentNetwork = (network === 'mainnet' ? 'mainnet' : 'testnet') as 'mainnet' | 'testnet'
 
         const { getMnemonic } = await import('@/lib/secure-storage')
         const mnemonic = getMnemonic()
         if (!mnemonic) throw new Error('session expired')
 
-        setProgressMessage('Topping up your identity...')
+        setProgressMessage('Locating your identity...')
 
-        /* Derive the identity id from the pending lock we consumed. */
-        const lockTxid = JSON.parse(
-            localStorage.getItem(`evonext_pending_lock_${fundingAddress}`) || 'null')
-        if (!lockTxid) throw new Error('no pending lock to derive identity from')
-
-        const wasm: any = await import('@/lib/dash-wasm/wasm_sdk')
-        const identityId = String(
-            wasm.AssetLockProof.createChainAssetLockProof(
-                0, new wasm.OutPoint(lockTxid, 0)).createIdentityId())
+        /* Derive the identity id from the mnemonic's auth key. */
+        const { searchByHash160 } = await import('@/lib/identity-manager')
+        const found = await searchByHash160(currentNetwork, IDENTITY_INDEX)
+        const identityId = found?.identityId
+        if (!identityId) throw new Error('identity not found on-chain')
+        setIdentityIdForBalance(identityId)
 console.log('TOP-UP (identity)', identityId)
 
-        /* Build a small lock (0.01 DASH) from spendable change. */
-        const TOP_UP_SATOSHIS = 1_000_000
+        /* Build the top-up lock from spendable change. */
         const funding = deriveFundingKey(currentNetwork, IDENTITY_INDEX)
         const utxos = await getFundingUtxos(currentNetwork, funding.address)
         const lockTx = await createAssetLockTransaction(
-            currentNetwork, funding.privateKeyWif, utxos, TOP_UP_SATOSHIS)
+            currentNetwork, funding.privateKeyWif, utxos, _topUpSatoshis)
         const topUpTxid = await broadcastTransaction(
             currentNetwork, lockTx.toString())
 console.log('TOP-UP (lock broadcast)', topUpTxid)
@@ -237,6 +339,7 @@ console.log('TOP-UP (lock broadcast)', topUpTxid)
         /* Top up the identity (authorized by the asset-lock private key —
            IdentityTopUpOptions has no signer field). */
         setProgressMessage('Adding credits to your identity...')
+        const wasm: any = await import('@/lib/dash-wasm/wasm_sdk')
         const outPoint = new wasm.OutPoint(topUpTxid, 0)
         const proof = wasm.AssetLockProof.createChainAssetLockProof(
             platformStatus.h, outPoint)
@@ -248,6 +351,8 @@ console.log('TOP-UP (lock broadcast)', topUpTxid)
             identity, assetLockProof: proof, assetLockPrivateKey,
         })
 console.log('TOP-UP (new balance)', newBalance)
+        setIdentityCredits(Number(newBalance))
+        setNeedsTopUp(false)
 
         /* Retry the username registration. */
         setProgressMessage('Retrying your username...')
@@ -384,21 +489,28 @@ console.log('CONNECT (seedPrivateKey WIF)', seedPrivateKey)
                 } catch (err) {
 console.error('REGISTRATION FAILED', err)
 
-                    /* The identity can end up ~a few million credits short for a
-                       CONTESTED username (DPNS cost = action_cost +
-                       special_option_cost x 10^4; the identity was funded with
-                       exactly the 0.2-DASH lock minus the creation fee). Top it
-                       up from the funding wallet's SPENDABLE change and retry
-                       the username step ONCE. */
+                    /* The identity can end up short for a CONTESTED username
+                       (DPNS cost = action_cost + special_option_cost x 10^4).
+                       Enter TOP-UP MODE: keep the funding address/QR visible,
+                       show the LIVE identity balance, and auto-process a top-up
+                       the moment a large-enough deposit lands. */
                     const msg = err instanceof Error ? err.message : String(err)
                     if (/insufficient identity balance/i.test(msg)) {
+                        setProgressMessage(null)
+                        setIsSubmitting(false)
+                        setNeedsTopUp(true)
+
+                        /* Discover the identity id for the live balance poll. */
                         try {
-                            await topUpAndRetryUsername()
-                            return
-                        } catch (topUpErr) {
-console.error('TOP-UP FAILED', topUpErr)
-                            toast.error(`Top-up failed: ${topUpErr instanceof Error ? topUpErr.message : 'unknown error'} — your identity WAS created; you can claim your username after logging in`)
+                            const { searchByHash160 } = await import('@/lib/identity-manager')
+                            const found = await searchByHash160(currentNetwork, IDENTITY_INDEX)
+                            if (found?.identityId) setIdentityIdForBalance(found.identityId)
+                        } catch (error) {
+console.warn('BALANCE (discover identity)', error)
                         }
+
+                        toast('Your identity needs a small top-up for this username — send a bit more DASH to the address above; it will complete automatically.', { icon: '\u2139\uFE0F' })
+                        return
                     }
 
                     setIsSubmitting(false)
@@ -610,13 +722,32 @@ console.log('TIMER STOPPED (after 15 minutes)')
                                             Fund YOUR Identity — You&apos;re in Control
                                         </h2>
 
+                                        {/* LIVE identity balance (polled every 4s once the identity exists) */}
+                                        {identityCredits !== null &&
+                                            <div className="px-3 py-2 rounded-lg bg-white/70 border border-evonext-200 text-center">
+                                                <span className="text-sm font-medium text-evonext-800">
+                                                    Identity balance:{" "}
+                                                </span>
+                                                <span className={`text-lg font-bold ${needsTopUp ? 'text-amber-600' : 'text-green-700'}`}>
+                                                    {(identityCredits / 1e3 / 1e8).toFixed(8)} DASH
+                                                </span>
+                                                <span className="block text-xs text-gray-500">
+                                                    {identityCredits.toLocaleString()} credits
+                                                </span>
+                                            </div>
+                                        }
+
                                         <h3 className="font-medium text-xl text-evonext-800 text-center">
-                                            Send at least
+                                            {needsTopUp
+                                                ? 'Your identity balance is too low for this username — send a top-up of at least'
+                                                : 'Send at least'}
                                             <button
                                                 className="px-1 text-2xl font-bold text-evonext-600"
                                                 onClick={() => handlePayment()}
                                             >
-                                                {(requiredSatoshis / 1e8).toFixed(5)} DASH
+                                                {needsTopUp
+                                                    ? '0.10000'
+                                                    : (requiredSatoshis / 1e8).toFixed(5)} DASH
                                             </button>
                                             to YOUR OWN funding address shown below -OR- click the QRCode shown above
                                         </h3>
@@ -625,33 +756,50 @@ console.log('TIMER STOPPED (after 15 minutes)')
                                             {fundingAddress ? fundingAddress : 'loading...'}
                                         </button>
 
-                                        {/* LIVE deposit status (polled every 5s) */}
-                                        <div className="space-y-2">
-                                            <div className="flex items-center justify-between text-sm font-medium text-evonext-800">
-                                                <span className="flex items-center gap-2">
-                                                    {depositedSatoshis < requiredSatoshis &&
-                                                        <Loader2 className="h-3 w-3 animate-spin" />
+                                        {/* LIVE deposit status (polled every 5s) — shows the
+                                            creation target normally, the top-up target when the
+                                            identity balance is too low. */}
+                                        {(() => {
+                                            const target = needsTopUp
+                                                ? (10_000_000 * 2 + 5_000)
+                                                : requiredSatoshis
+                                            const received = needsTopUp
+                                                ? Math.max(0, depositedSatoshis)
+                                                : depositedSatoshis
+                                            const pct = target > 0
+                                                ? Math.min(100, (received / target) * 100)
+                                                : 0
+                                            return (
+                                                <div className="space-y-2">
+                                                    <div className="flex items-center justify-between text-sm font-medium text-evonext-800">
+                                                        <span className="flex items-center gap-2">
+                                                            {received < target &&
+                                                                <Loader2 className="h-3 w-3 animate-spin" />
+                                                            }
+                                                            {needsTopUp ? 'Top-up received' : 'Received'}
+                                                        </span>
+                                                        <span>
+                                                            {(received / 1e8).toFixed(8)} / {(target / 1e8).toFixed(5)} DASH
+                                                        </span>
+                                                    </div>
+
+                                                    <div className="h-2 w-full rounded bg-evonext-100">
+                                                        <div
+                                                            className={`h-2 rounded transition-all ${needsTopUp ? 'bg-amber-500' : 'bg-evonext-500'}`}
+                                                            style={{ width: `${pct}%` }}
+                                                        />
+                                                    </div>
+
+                                                    {received >= target && target > 0 &&
+                                                        <p className="text-sm font-bold text-green-700 text-center">
+                                                            {needsTopUp
+                                                                ? 'Top-up detected — processing automatically…'
+                                                                : 'Deposit detected — continuing registration…'}
+                                                        </p>
                                                     }
-                                                    Received
-                                                </span>
-                                                <span>
-                                                    {(depositedSatoshis / 1e8).toFixed(8)} / {(requiredSatoshis / 1e8).toFixed(5)} DASH
-                                                </span>
-                                            </div>
-
-                                            <div className="h-2 w-full rounded bg-evonext-100">
-                                                <div
-                                                    className="h-2 rounded bg-evonext-500 transition-all"
-                                                    style={{ width: `${Math.min(100, requiredSatoshis > 0 ? (depositedSatoshis / requiredSatoshis) * 100 : 0)}%` }}
-                                                />
-                                            </div>
-
-                                            {depositedSatoshis >= requiredSatoshis && requiredSatoshis > 0 &&
-                                                <p className="text-sm font-bold text-green-700 text-center">
-                                                    Deposit detected — continuing registration…
-                                                </p>
-                                            }
-                                        </div>
+                                                </div>
+                                            )
+                                        })()}
 
                                         <p className="font-base text-sm text-evonext-800">
                                             <span className="block font-medium text-md tracking-wider">PLEASE NOTE:</span>

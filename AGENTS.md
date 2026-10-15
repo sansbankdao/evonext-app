@@ -912,10 +912,41 @@ history of this file (see log below for commit hashes) — keep only load-bearin
    chain imports: broadcastTransaction, createAssetLockTransaction,
    deriveFundingKey, waitForConfirmation. Verified: tsc 0, eslint 0/1,
    75/75, build 35/35.
-9. Pending decisions: shielded-balance UI, DIP-17 platform-address features, biometric
+9. **F27k — automatic top-up flow + live identity balance on the deposit
+   screen (2026-10-06)**: the user's identity (7msBY...) was created with
+   exactly the 0.2-lock (200,000,000,000 credits) but the DPNS contested-
+   name cost exceeded it by ~3M, and the F27j single-shot top-up retry was
+   insufficient UX (fired once, no balance feedback). Reworked the
+   registrar modal per the user's directive: (a) the identity balance is
+   ALWAYS shown on the funding screen once the identity exists — polled
+   live every 4s via sdk.getIdentity(...).balance, displayed in DASH
+   (credits / 1e3 / 1e8 — 1 duff = 1000 credits) + raw credits, amber when
+   a top-up is needed / green otherwise; (b) on an 'insufficient identity
+   balance' DPNS failure the modal now enters TOP-UP MODE (needsTopUp
+   state) instead of firing a one-shot retry: the funding address + QR
+   stay visible, the heading switches to 'send a top-up of at least
+   0.10000 DASH', the progress bar switches to an amber 'Top-up received
+   X / 0.20005' bar, and a dedicated 4s interval watches the funding
+   address's SPENDABLE utxos (getFundingUtxos excludes credit outputs);
+   (c) the moment the top-up deposit lands, processTopUp(0.1 DASH) runs
+   AUTOMATICALLY — derive the identity id from the mnemonic's auth key
+   (searchByHash160, robust — NOT the localStorage pending-lock hack),
+   build a 0.1-DASH asset lock from the change, wait for it to confirm +
+   chainlock, sdk.identityTopUp({identity, assetLockProof,
+   assetLockPrivateKey}) (no signer field), refresh the balance display,
+   and retry registerIdentityAndUsername once. isToppingUpRef prevents
+   concurrent top-ups; a failure re-arms needsTopUp so a further deposit
+   retries. The deposit-status bar is an IIFE picking creation vs top-up
+   target by needsTopUp. NOTE the top-up amount 0.1 DASH was chosen to
+   comfortably cover the ~3M shortfall (0.1 DASH = 100M credits).
+   Verified: tsc 0, eslint 0/1 (only the known postsState warning),
+   75/75, build 35/35; new UI strings confirmed present in the emitted
+   chunk 4110. Full top-up flow NOT browser-verified end-to-end (needs a
+   live funded wallet); each underlying API call is individually verified.
+10. Pending decisions: shielded-balance UI, DIP-17 platform-address features, biometric
    settings integration, react-hooks v6 cleanup pass.
-10. Known unverified: the -20.33B credit fee breakdown (F25).
-11. **Deployment is MANUAL/stale — F26**: the live evonext.app served the OLD pre-F22
+11. Known unverified: the -20.33B credit fee breakdown (F25).
+12. **Deployment is MANUAL/stale — F26**: the live evonext.app served the OLD pre-F22
    wasm on 2026-10-04 (deployed asset `wasm_sdk_bg.c3177f65.wasm`, 8,013,662 bytes,
    sha256 `ca6e51ce…`, CONTAINS dead F22 addresses `52.34.144.50`/`35.82.197.197`),
    reproducing the F22 hang despite master being fixed. Our source wasm is 20,319,523
@@ -923,7 +954,7 @@ history of this file (see log below for commit hashes) — keep only load-bearin
    (32 route HTMLs, `_headers`, wasm `cf2b0aef`) and current with all code through
    F25 — user must redeploy it. Verify a deployment by checking the served wasm's
    byte size (8.0MB = stale; 20.3MB = current).
-12. **F26b — Cloudflare Pages deployment switched OFF next-on-pages (2026-10-04)**:
+13. **F26b — Cloudflare Pages deployment switched OFF next-on-pages (2026-10-04)**:
    root cause of all failed deploys since Oct 2: the Pages project used the Next.js
    framework preset, whose build command `npx @cloudflare/next-on-pages@1` broke
    twice — (a) npm ERESOLVE inside the adapter's own deps (workers-types ^4 vs
