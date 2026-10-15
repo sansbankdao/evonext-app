@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -11,8 +11,16 @@ import { dpnsService } from '@/lib/services/dpns-service'
 import toast from 'react-hot-toast'
 import { CheckCircle2, XCircle, Loader2, RefreshCw, X, Edit2 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { QRCodeSVG } from 'qrcode.react'
 
 import { dpns_is_contested_username } from '@/lib/dash-wasm/compat'
+import {
+    broadcastTransaction,
+    createAssetLockTransaction,
+    deriveFundingKey,
+    getFundingUtxos,
+    waitForConfirmation,
+} from '@/lib/core-chain'
 
 /* Initialize constants. */
 const MAX_USERNAME_LENGTH = 63 // Maximum length - 63 characters
@@ -45,6 +53,18 @@ export function UsernameModal({
     const [isEditingIdentity, setIsEditingIdentity] = useState(false)
     const [customIdentityId, setCustomIdentityId] = useState(initialIdentityId || '')
 
+    /* Top-up state: live identity balance + auto top-up when too low. */
+    const [identityCredits, setIdentityCredits] = useState<number | null>(null)
+    const [needsTopUp, setNeedsTopUp] = useState(false)
+    const [topUpProgress, setTopUpProgress] = useState<string | null>(null)
+    const [depositedSatoshis, setDepositedSatoshis] = useState(0)
+    const topUpIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+    const isToppingUpRef = useRef(false)
+
+    const IDENTITY_INDEX = 0
+    const TOP_UP_SATOSHIS = 10_000_000  /* 0.1 DASH */
+    const TOP_UP_REQUIRED = TOP_UP_SATOSHIS * 2 + 5_000
+
     // Debug SDK state
     useEffect(() => {
         console.log('UsernameModal: SDK ready state:', isSdkReady, 'SDK error:', sdkError)
@@ -54,6 +74,148 @@ export function UsernameModal({
     ])
 
     const currentIdentityId = customIdentityId || initialIdentityId || user?.identityId || ''
+
+    /* Poll the identity balance live (every 4s) while the modal is open. */
+    useEffect(() => {
+        if (!currentIdentityId || !isOpen) return
+
+        let cancelled = false
+
+        const poll = async () => {
+            try {
+                const sdk = await (await import('@/lib/services/wasm-sdk-service')).wasmSdkService.getSdk()
+                const identity: any = await sdk.getIdentity(currentIdentityId)
+                if (!cancelled && identity) {
+                    setIdentityCredits(Number(identity.balance))
+                }
+            } catch (error) {
+console.warn('BALANCE (poll error)', error)
+            }
+        }
+
+        poll()
+        const interval = setInterval(poll, 4000)
+
+        return () => {
+            cancelled = true
+            clearInterval(interval)
+        }
+    }, [
+        currentIdentityId,
+        isOpen,
+    ])
+
+    /* Auto-process the top-up: poll the funding address for the required
+     * deposit, then build the lock + top up + (user re-submits username). */
+    useEffect(() => {
+        if (!needsTopUp || !isOpen) return
+
+        const currentNetwork = (network === 'mainnet' ? 'mainnet' : 'testnet') as 'mainnet' | 'testnet'
+
+        topUpIntervalRef.current = setInterval(async () => {
+            if (isToppingUpRef.current) return
+
+            const funding = deriveFundingKey(currentNetwork, IDENTITY_INDEX)
+            const utxos = await getFundingUtxos(currentNetwork, funding.address)
+                .catch((err: any) => console.error(err))
+            if (typeof utxos === 'undefined' || utxos === null) return
+
+            const available = utxos.reduce(
+                (sum: number, utxo: any) => sum + utxo.satoshis, 0)
+
+            /* Keep the top-up progress bar live. */
+            setDepositedSatoshis(available)
+
+            if (available < TOP_UP_REQUIRED) {
+console.log('TOP-UP (waiting for deposit)', available, 'of', TOP_UP_REQUIRED)
+                return
+            }
+
+            /* Funds are here — process the top-up. */
+            isToppingUpRef.current = true
+            if (topUpIntervalRef.current) {
+                clearInterval(topUpIntervalRef.current)
+                topUpIntervalRef.current = null
+            }
+
+            try {
+                await processTopUp()
+            } catch (error) {
+console.error('TOP-UP FAILED', error)
+                setTopUpProgress(null)
+                toast.error(`Top-up failed: ${error instanceof Error ? error.message : 'unknown error'} — send the deposit again to retry`)
+                isToppingUpRef.current = false
+                setNeedsTopUp(true)
+            }
+        }, 4000)
+
+        return () => {
+            if (topUpIntervalRef.current) {
+                clearInterval(topUpIntervalRef.current)
+                topUpIntervalRef.current = null
+            }
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [
+        needsTopUp,
+        isOpen,
+        network,
+    ])
+
+    /* Build a fresh asset lock from the funding wallet's spendable change and
+     * top up the identity. The identity id is the modal's currentIdentityId. */
+    const processTopUp = async () => {
+        const currentNetwork = (network === 'mainnet' ? 'mainnet' : 'testnet') as 'mainnet' | 'testnet'
+
+        const { getMnemonic } = await import('@/lib/secure-storage')
+        const mnemonic = getMnemonic()
+        if (!mnemonic) throw new Error('session expired — your keys are needed to build the top-up')
+
+        setTopUpProgress('Building the top-up lock...')
+
+        const funding = deriveFundingKey(currentNetwork, IDENTITY_INDEX)
+        const utxos = await getFundingUtxos(currentNetwork, funding.address)
+        const lockTx = await createAssetLockTransaction(
+            currentNetwork, funding.privateKeyWif, utxos, TOP_UP_SATOSHIS)
+        const topUpTxid = await broadcastTransaction(
+            currentNetwork, lockTx.toString())
+console.log('TOP-UP (lock broadcast)', topUpTxid)
+
+        /* Wait for the top-up lock to confirm + chainlock. */
+        setTopUpProgress('Waiting for the top-up to confirm...')
+        const { blockheight } = await waitForConfirmation(
+            currentNetwork, topUpTxid, undefined, undefined,
+            (a, m) => setTopUpProgress(`Waiting for confirmation (${a}/${m})...`))
+
+        const sdk = await (await import('@/lib/services/wasm-sdk-service')).wasmSdkService.getSdk()
+        let platformStatus: any
+        do {
+            setTopUpProgress('Waiting for the top-up to be chainlocked...')
+            await new Promise(r => setTimeout(r, 15000))
+            const resp: any = await sdk.getIdentityWithProofInfo(currentIdentityId)
+            platformStatus = { h: resp.metadata.coreChainLockedHeight }
+        } while (platformStatus.h < blockheight)
+
+        /* Top up the identity (authorized by the asset-lock private key —
+           IdentityTopUpOptions has no signer field). */
+        setTopUpProgress('Adding credits to your identity...')
+        const wasm: any = await import('@/lib/dash-wasm/wasm_sdk')
+        const outPoint = new wasm.OutPoint(topUpTxid, 0)
+        const proof = wasm.AssetLockProof.createChainAssetLockProof(
+            platformStatus.h, outPoint)
+        const { PrivateKey } = await import('@/lib/dash-wasm/compat')
+        const assetLockPrivateKey = PrivateKey.fromWIF(funding.privateKeyWif)
+        const identity = await sdk.getIdentity(currentIdentityId)
+        if (!identity) throw new Error('identity not found')
+        const newBalance = await sdk.identityTopUp({
+            identity, assetLockProof: proof, assetLockPrivateKey,
+        })
+console.log('TOP-UP (new balance)', newBalance)
+        setIdentityCredits(Number(newBalance))
+        setNeedsTopUp(false)
+        setTopUpProgress(null)
+        toast.success('Balance topped up! Click Register Username again.')
+    }
 
     // Check username availability with debounce
     useEffect(() => {
@@ -215,8 +377,14 @@ console.log('USERNAME MODAL (identity)', identity)
             console.error('Failed to register username:', error)
             const errorMessage = error.message || 'Failed to register username'
 
+            /* Insufficient balance: enter TOP-UP MODE — show the funding
+               address/QR + live balance, and auto-process a top-up the
+               moment a large-enough deposit lands. */
+            if (/insufficient identity balance/i.test(errorMessage)) {
+                setNeedsTopUp(true)
+                toast('Your identity balance is too low for this username — send a small top-up to the address below; it completes automatically.', { icon: '\u2139\uFE0F' })
             // Provide more specific error messages
-            if (errorMessage.includes('already taken')) {
+            } else if (errorMessage.includes('already taken')) {
                 toast.error('This username is already taken. Please choose another.')
             } else if (errorMessage.includes('Invalid username')) {
                 toast.error('Invalid username format. Please check the requirements.')
@@ -472,6 +640,88 @@ console.log('USERNAME MODAL (identity)', identity)
                                         </ul>
                                     </div>
                                 </div>
+
+                                {/* LIVE identity balance (polled every 4s) */}
+                                {identityCredits !== null &&
+                                    <div className={`px-3 py-2 rounded-lg border text-center ${needsTopUp ? 'bg-amber-50 border-amber-300' : 'bg-green-50 border-green-200'}`}>
+                                        <span className="text-sm font-medium text-gray-700">
+                                            Identity balance:{" "}
+                                        </span>
+                                        <span className={`text-lg font-bold ${needsTopUp ? 'text-amber-600' : 'text-green-700'}`}>
+                                            {(identityCredits / 1e3 / 1e8).toFixed(8)} DASH
+                                        </span>
+                                        <span className="block text-xs text-gray-500">
+                                            {identityCredits.toLocaleString()} credits
+                                        </span>
+                                    </div>
+                                }
+
+                                {/* TOP-UP funding panel (address + QR + progress) */}
+                                {needsTopUp &&
+                                    <div className="px-3 py-4 flex flex-col gap-4 rounded-lg border border-amber-400 bg-amber-50">
+                                        <h3 className="font-medium text-lg text-amber-800 text-center">
+                                            Top up your identity to register this username
+                                        </h3>
+
+                                        <div className="flex justify-center">
+                                            <QRCodeSVG
+                                                value={deriveFundingKey(
+                                                    (network === 'mainnet' ? 'mainnet' : 'testnet') as 'mainnet' | 'testnet',
+                                                    IDENTITY_INDEX).address}
+                                                size={160}
+                                            />
+                                        </div>
+
+                                        <p className="text-center text-sm text-amber-800">
+                                            Send at least{" "}
+                                            <span className="font-bold">
+                                                {(TOP_UP_REQUIRED / 1e8).toFixed(5)} DASH
+                                            </span>{" "}
+                                            to YOUR OWN funding address:
+                                        </p>
+
+                                        <p className="font-mono text-xs text-amber-900 text-center break-all bg-white/70 rounded p-2">
+                                            {deriveFundingKey(
+                                                (network === 'mainnet' ? 'mainnet' : 'testnet') as 'mainnet' | 'testnet',
+                                                IDENTITY_INDEX).address}
+                                        </p>
+
+                                        {/* LIVE top-up progress bar */}
+                                        <div className="space-y-1">
+                                            <div className="flex items-center justify-between text-xs font-medium text-amber-800">
+                                                <span className="flex items-center gap-1">
+                                                    {depositedSatoshis < TOP_UP_REQUIRED &&
+                                                        <Loader2 className="h-3 w-3 animate-spin" />
+                                                    }
+                                                    Top-up received
+                                                </span>
+                                                <span>
+                                                    {(depositedSatoshis / 1e8).toFixed(8)} / {(TOP_UP_REQUIRED / 1e8).toFixed(5)} DASH
+                                                </span>
+                                            </div>
+
+                                            <div className="h-2 w-full rounded bg-amber-100">
+                                                <div
+                                                    className="h-2 rounded bg-amber-500 transition-all"
+                                                    style={{ width: `${Math.min(100, TOP_UP_REQUIRED > 0 ? (depositedSatoshis / TOP_UP_REQUIRED) * 100 : 0)}%` }}
+                                                />
+                                            </div>
+
+                                            {depositedSatoshis >= TOP_UP_REQUIRED &&
+                                                <p className="text-xs font-bold text-green-700 text-center">
+                                                    Top-up detected — processing automatically…
+                                                </p>
+                                            }
+                                        </div>
+
+                                        {topUpProgress &&
+                                            <p className="text-xs text-amber-800 text-center flex items-center justify-center gap-2">
+                                                <Loader2 className="h-3 w-3 animate-spin" />
+                                                {topUpProgress}
+                                            </p>
+                                        }
+                                    </div>
+                                }
 
                                 <Button
                                     type="submit"

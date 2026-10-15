@@ -943,10 +943,39 @@ history of this file (see log below for commit hashes) — keep only load-bearin
    75/75, build 35/35; new UI strings confirmed present in the emitted
    chunk 4110. Full top-up flow NOT browser-verified end-to-end (needs a
    live funded wallet); each underlying API call is individually verified.
-10. Pending decisions: shielded-balance UI, DIP-17 platform-address features, biometric
+10. **F27l — top-up flow added to the CLAIM modal (username-modal.tsx)
+   (2026-10-06)**: F27k put the top-up UI in the REGISTRAR modal
+   (components/id/registrar-modal.tsx), but the user was actually on the
+   CLAIM flow (/claim -> UsernameModal, the only modal with a 'Register
+   Username' button), which had NO funding capability — so the
+   'insufficient identity balance' error had no recovery there. Ported the
+   full F27k top-up flow into components/dpns/username-modal.tsx:
+   (a) LIVE identity balance card (polled every 4s via getIdentity
+   .balance, credits/1e3/1e8 -> DASH + raw credits; amber when top-up
+   needed / green otherwise) shown above the Register button whenever the
+   balance is known;
+   (b) on an /insufficient identity balance/i failure the modal enters
+   top-up mode (needsTopUp) -> renders an amber funding panel with the
+   funding address (deriveFundingKey) as text + QRCodeSVG, a live
+   'Top-up received X / 0.20005 DASH' progress bar, and a topUpProgress
+   line during processing;
+   (c) a 4s interval watches the funding address's SPENDABLE utxos; when
+   >= 0.20005 DASH lands, processTopUp() runs AUTOMATICALLY (build 0.1-DASH
+   lock from change -> confirm + chainlock -> sdk.identityTopUp (no signer
+   field) -> refresh balance -> toast 'Balance topped up! Click Register
+   Username again'). isToppingUpRef prevents concurrent runs; a failure
+   re-arms the watcher. Identity id = the modal's currentIdentityId (the
+   user is already logged in here, so no searchByHash160 needed — unlike
+   the registrar modal).
+   NOTE the two modals now share the top-up logic but are NOT factored
+   into a shared hook (kept as parallel implementations to keep the diff
+   minimal and avoid touching the verified registrar flow).
+   Verified: tsc 0, eslint 0/1 (known postsState warning), 75/75, build
+   35/35; new strings confirmed in emitted chunks (layout + 6916).
+11. Pending decisions: shielded-balance UI, DIP-17 platform-address features, biometric
    settings integration, react-hooks v6 cleanup pass.
-11. Known unverified: the -20.33B credit fee breakdown (F25).
-12. **Deployment is MANUAL/stale — F26**: the live evonext.app served the OLD pre-F22
+12. Known unverified: the -20.33B credit fee breakdown (F25).
+13. **Deployment is MANUAL/stale — F26**: the live evonext.app served the OLD pre-F22
    wasm on 2026-10-04 (deployed asset `wasm_sdk_bg.c3177f65.wasm`, 8,013,662 bytes,
    sha256 `ca6e51ce…`, CONTAINS dead F22 addresses `52.34.144.50`/`35.82.197.197`),
    reproducing the F22 hang despite master being fixed. Our source wasm is 20,319,523
@@ -954,7 +983,7 @@ history of this file (see log below for commit hashes) — keep only load-bearin
    (32 route HTMLs, `_headers`, wasm `cf2b0aef`) and current with all code through
    F25 — user must redeploy it. Verify a deployment by checking the served wasm's
    byte size (8.0MB = stale; 20.3MB = current).
-13. **F26b — Cloudflare Pages deployment switched OFF next-on-pages (2026-10-04)**:
+14. **F26b — Cloudflare Pages deployment switched OFF next-on-pages (2026-10-04)**:
    root cause of all failed deploys since Oct 2: the Pages project used the Next.js
    framework preset, whose build command `npx @cloudflare/next-on-pages@1` broke
    twice — (a) npm ERESOLVE inside the adapter's own deps (workers-types ^4 vs
