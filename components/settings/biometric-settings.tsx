@@ -8,6 +8,7 @@ import { Switch } from '@radix-ui/react-switch'
 import { Button } from '@/components/ui/button'
 import { ShieldCheckIcon, FingerPrintIcon, FaceSmileIcon } from '@heroicons/react/24/outline'
 import toast from 'react-hot-toast'
+import { showErrorToast } from '@/lib/toast-error'
 
 export function BiometricSettings() {
     const { user } = useAuth()
@@ -69,12 +70,12 @@ export function BiometricSettings() {
 
                         toast.success('Biometric authentication enabled! Your private key will be protected.')
                     } else {
-                        toast.error('Failed to enable biometric authentication')
+                        showErrorToast('Failed to enable biometric authentication')
                     }
                 }
             } catch (error) {
                 console.error('Error toggling biometric:', error)
-                toast.error('Failed to update biometric settings')
+                showErrorToast('Failed to update biometric settings')
             }
     }, [user, isEnabled])
 

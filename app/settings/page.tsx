@@ -29,7 +29,7 @@ import packageJson from '../../package.json'
 import * as RadioGroup from '@radix-ui/react-radio-group'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import toast from 'react-hot-toast'
+import { showErrorToast } from '@/lib/toast-error'
 import { cacheManager } from '@/lib/cache-manager'
 
 type SettingsSection = 'main' | 'account' | 'notifications' | 'privacy' | 'appearance' | 'about'
@@ -75,7 +75,7 @@ function SettingsPage() {
 
     const handleDeleteAccount = () => {
         if (confirm('Are you sure you want to delete your account? This action cannot be undone.')) {
-            toast.error('Account deletion is not yet implemented')
+            showErrorToast('Account deletion is not yet implemented')
         }
     }
 

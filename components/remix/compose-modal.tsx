@@ -10,6 +10,7 @@ import { IconButton } from '@/components/ui/icon-button'
 import { getInitials } from '@/lib/utils'
 import { motion, AnimatePresence } from 'framer-motion'
 import toast from 'react-hot-toast'
+import { showErrorToast } from '@/lib/toast-error'
 import { useAuth } from '@/contexts/auth-context'
 import { useNetwork } from '@/contexts/network-context'
 import { AvatarCanvas } from '@/components/ui/avatar-canvas'
@@ -97,15 +98,15 @@ export function ComposeModal() {
             const errorMessage = error instanceof Error ? error.message : 'Unknown error'
 
             if (errorMessage.includes('no available addresses') || errorMessage.includes('Missing response message')) {
-                toast.error('Dash Platform is temporarily unavailable. Please try again in a few moments.')
+                showErrorToast('Dash Platform is temporarily unavailable. Please try again in a few moments.')
             } else if (errorMessage.includes('Network') || errorMessage.includes('connection') || errorMessage.includes('timeout')) {
-                toast.error('Network error. Please check your connection and try again.')
+                showErrorToast('Network error. Please check your connection and try again.')
             } else if (errorMessage.includes('Private key not found')) {
-                toast.error('Your session has expired. Please log in again.')
+                showErrorToast('Your session has expired. Please log in again.')
             } else if (errorMessage.includes('Not logged in')) {
-                toast.error('Please log in to create posts.')
+                showErrorToast('Please log in to create posts.')
             } else {
-                toast.error(`Failed to create post: ${errorMessage}`)
+                showErrorToast(`Failed to create post: ${errorMessage}`)
             }
         } finally {
             setIsPosting(false)

@@ -7,6 +7,7 @@ import { motion } from 'framer-motion'
 import { QrCodeIcon, SparklesIcon } from '@heroicons/react/24/outline'
 import Image from 'next/image'
 import toast from 'react-hot-toast'
+import { showErrorToast } from '@/lib/toast-error'
 
 export function ClaimGiftFlow() {
   const [claimCode, setClaimCode] = useState('')
@@ -15,7 +16,7 @@ export function ClaimGiftFlow() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if(claimCode.length < 5) {
-      toast.error('Invalid gift code format')
+      showErrorToast('Invalid gift code format')
       return
     }
 

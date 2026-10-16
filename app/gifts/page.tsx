@@ -14,6 +14,7 @@ import {
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import toast from 'react-hot-toast'
+import { showErrorToast } from '@/lib/toast-error'
 
 /* Import (local) components. */
 import { GiftsHero } from '@/components/gifts/GiftsHero'
@@ -56,7 +57,7 @@ export default function GiftsPage() {
             })
         } catch (err) {
             console.error(err)
-            toast.error('Failed to create passkey.')
+            showErrorToast('Failed to create passkey.')
         } finally {
             setIsLoadingPasskey(false)
         }
@@ -83,7 +84,7 @@ export default function GiftsPage() {
             })
         } catch (err) {
             console.error(err)
-            toast.error('Failed to sign in.')
+            showErrorToast('Failed to sign in.')
         } finally {
             setIsLoadingPasskey(false)
         }

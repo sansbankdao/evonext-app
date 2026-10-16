@@ -9,6 +9,7 @@ import { useNetwork } from '@/contexts/network-context'
 import { useSdk } from '@/contexts/sdk-context'
 import { dpnsService } from '@/lib/services/dpns-service'
 import toast from 'react-hot-toast'
+import { showErrorToast } from '../../lib/toast-error'
 import { CheckCircle2, XCircle, Loader2, RefreshCw, X, Edit2 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { QRCodeSVG } from 'qrcode.react'
@@ -143,7 +144,7 @@ console.log('TOP-UP (waiting for deposit)', available, 'of', TOP_UP_REQUIRED)
             } catch (error) {
 console.error('TOP-UP FAILED', error)
                 setTopUpProgress(null)
-                toast.error(`Top-up failed: ${error instanceof Error ? error.message : 'unknown error'} — send the deposit again to retry`)
+                showErrorToast(`Top-up failed: ${error instanceof Error ? error.message : 'unknown error'} — send the deposit again to retry`)
                 isToppingUpRef.current = false
                 setNeedsTopUp(true)
             }
@@ -281,7 +282,7 @@ console.log('TOP-UP (new balance)', newBalance)
                 setIsAvailable(available)
             } catch (error) {
                 console.error('Failed to check username availability:', error)
-                toast.error('Failed to check username availability')
+                showErrorToast('Failed to check username availability')
             } finally {
                 setIsChecking(false)
             }
@@ -302,7 +303,7 @@ console.log('TOP-UP (new balance)', newBalance)
         }
 
         if (!isSdkReady) {
-            toast.error('Service is initializing. Please try again in a moment.')
+            showErrorToast('Service is initializing. Please try again in a moment.')
             return
         }
 
@@ -385,13 +386,13 @@ console.log('USERNAME MODAL (identity)', identity)
                 toast('Your identity balance is too low for this username — send a small top-up to the address below; it completes automatically.', { icon: '\u2139\uFE0F' })
             // Provide more specific error messages
             } else if (errorMessage.includes('already taken')) {
-                toast.error('This username is already taken. Please choose another.')
+                showErrorToast('This username is already taken. Please choose another.')
             } else if (errorMessage.includes('Invalid username')) {
-                toast.error('Invalid username format. Please check the requirements.')
+                showErrorToast('Invalid username format. Please check the requirements.')
             } else if (errorMessage.includes('SDK')) {
-                toast.error('Service initialization failed. Please try again.')
+                showErrorToast('Service initialization failed. Please try again.')
             } else {
-                toast.error(errorMessage)
+                showErrorToast(errorMessage)
             }
         } finally {
             setIsSubmitting(false)
@@ -461,7 +462,7 @@ console.log('USERNAME MODAL (identity)', identity)
         if (!currentIdentityId) return
 
         if (!isSdkReady) {
-            toast.error('Service is initializing. Please try again in a moment.')
+            showErrorToast('Service is initializing. Please try again in a moment.')
             return
         }
 
@@ -495,11 +496,11 @@ console.log('USERNAME MODAL (identity)', identity)
                     router.push('/profile/create')
                 }
             } else {
-                toast.error('No username found. Please register one above.')
+                showErrorToast('No username found. Please register one above.')
             }
         } catch (error) {
             console.error('Failed to check for existing username:', error)
-            toast.error('Failed to check for existing username')
+            showErrorToast('Failed to check for existing username')
         } finally {
             setIsCheckingExisting(false)
         }
@@ -513,11 +514,11 @@ console.log('USERNAME MODAL (identity)', identity)
                 try {
                     // Basic validation - check length and characters
                     if (!/^[1-9A-HJ-NP-Za-km-z]{42,44}$/.test(customIdentityId)) {
-                        toast.error('Invalid identity ID format')
+                        showErrorToast('Invalid identity ID format')
                         return
                     }
                 } catch (error) {
-                    toast.error('Invalid identity ID')
+                    showErrorToast('Invalid identity ID')
                     return
                 }
             }

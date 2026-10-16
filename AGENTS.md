@@ -993,10 +993,33 @@ history of this file (see log below for commit hashes) — keep only load-bearin
    few seconds'). NO behavior/logic changed — pure presentational
    reorganization. Verified: tsc 0, eslint 0/1, 75/75, build 35/35; all
    strings confirmed in emitted chunk 6916.
-12. Pending decisions: shielded-balance UI, DIP-17 platform-address features, biometric
+12. **F27n — errors no longer flash-and-vanish; persistent dismissible
+   error toasts app-wide (2026-10-06)**: user reported errors flash
+   on-screen and disappear before they can be read. Root cause: the global
+   react-hot-toast <Toaster> used duration: 3000 for EVERYTHING including
+   errors. Fix: (a) new shared helper lib/toast-error.tsx exporting
+   showErrorToast(message) — a toast.custom renderer with role='alert',
+   duration: Infinity (persists until dismissed), and an X button
+   (aria-label='Dismiss', toast.dismiss(t.id)); (b) migrated ALL
+   toast.error( call sites across the app to showErrorToast( — 20 files
+   (app/post, marketplace, profile, profile/create, apps, bootstrap,
+   contract, roadmap, settings, gifts, connect, wallet; components:
+   post-card, compose-modal x2, biometric-settings, registrar-modal,
+   username-modal, ClaimGiftFlow, CreateGiftFlow). Success/info toasts
+   keep the 3s auto-dismiss (only errors persist). Removed the now-unused
+   react-hot-toast default import from app/settings/page.tsx and
+   app/connect/page.tsx. NOTE: I deliberately did NOT set a global
+   error:{duration:Infinity} on the Toaster — that would have made the
+   remaining default-style error toasts persist WITHOUT an X button
+   (trapping users); migrating call sites to the X-dismissible helper is
+   the correct fix. Verified: tsc 0, eslint 0/1 (known postsState
+   warning), 75/75, build 35/35; compiled chunk 2670 confirms
+   aria-label:'Dismiss', role:'alert', duration:1/0 (Infinity),
+   animate-enter.
+13. Pending decisions: shielded-balance UI, DIP-17 platform-address features, biometric
    settings integration, react-hooks v6 cleanup pass.
-13. Known unverified: the -20.33B credit fee breakdown (F25).
-14. **Deployment is MANUAL/stale — F26**: the live evonext.app served the OLD pre-F22
+14. Known unverified: the -20.33B credit fee breakdown (F25).
+15. **Deployment is MANUAL/stale — F26**: the live evonext.app served the OLD pre-F22
    wasm on 2026-10-04 (deployed asset `wasm_sdk_bg.c3177f65.wasm`, 8,013,662 bytes,
    sha256 `ca6e51ce…`, CONTAINS dead F22 addresses `52.34.144.50`/`35.82.197.197`),
    reproducing the F22 hang despite master being fixed. Our source wasm is 20,319,523
@@ -1004,7 +1027,7 @@ history of this file (see log below for commit hashes) — keep only load-bearin
    (32 route HTMLs, `_headers`, wasm `cf2b0aef`) and current with all code through
    F25 — user must redeploy it. Verify a deployment by checking the served wasm's
    byte size (8.0MB = stale; 20.3MB = current).
-15. **F26b — Cloudflare Pages deployment switched OFF next-on-pages (2026-10-04)**:
+16. **F26b — Cloudflare Pages deployment switched OFF next-on-pages (2026-10-04)**:
    root cause of all failed deploys since Oct 2: the Pages project used the Next.js
    framework preset, whose build command `npx @cloudflare/next-on-pages@1` broke
    twice — (a) npm ERESOLVE inside the adapter's own deps (workers-types ^4 vs

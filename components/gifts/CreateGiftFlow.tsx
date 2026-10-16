@@ -7,6 +7,7 @@ import { motion } from 'framer-motion'
 import { PaperAirplaneIcon, CheckIcon, SparklesIcon } from '@heroicons/react/24/outline'
 import Image from 'next/image'
 import toast from 'react-hot-toast'
+import { showErrorToast } from '@/lib/toast-error'
 
 export function CreateGiftFlow() {
   const [amount, setAmount] = useState('')
@@ -34,7 +35,7 @@ export function CreateGiftFlow() {
       toast.success('Gift code copied to clipboard')
       setTimeout(() => setCopied(false), 2000)
     } catch (error) {
-      toast.error('Failed to copy code')
+      showErrorToast('Failed to copy code')
     }
   }
 

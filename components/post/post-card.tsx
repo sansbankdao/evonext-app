@@ -28,6 +28,7 @@ import { useAppStore } from '@/lib/store'
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import * as Tooltip from '@radix-ui/react-tooltip'
 import toast from 'react-hot-toast'
+import { showErrorToast } from '@/lib/toast-error'
 import { AvatarCanvas } from '@/components/ui/avatar-canvas'
 import { parseAvatarConfig, DEFAULT_AVATAR_STYLE } from '@/lib/avatar-dicebear'
 import { MarkdownContent } from '@/components/ui/markdown-content'
@@ -69,7 +70,7 @@ console.log('HANDLE LIKE')
         // Yappr contract through the like service, with optimistic UI and
         // rollback on failure.
         if (!user?.identityId) {
-            toast.error('Please log in to like posts')
+            showErrorToast('Please log in to like posts')
 
             return
         }
@@ -104,7 +105,7 @@ console.log('HANDLE LIKE')
             setLiked(previousLiked)
             setLikes(previousLikes)
 
-            toast.error((error as any)?.message || 'Failed to update like')
+            showErrorToast((error as any)?.message || 'Failed to update like')
         } finally {
             setLikePending(false)
         }

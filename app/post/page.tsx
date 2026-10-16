@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { IPost } from '@/lib/types'
 import toast from 'react-hot-toast'
+import { showErrorToast } from '@/lib/toast-error'
 
 interface Reply extends IPost {
     replyToId: string
@@ -152,7 +153,7 @@ function PostDetailPage() {
             } catch (error) {
                 console.error('Failed to load post:', error)
 
-                toast.error((error as any)?.message || 'Failed to load post')
+                showErrorToast((error as any)?.message || 'Failed to load post')
             } finally {
                 setIsLoading(false)
             }
@@ -192,7 +193,7 @@ function PostDetailPage() {
         } catch (error) {
             console.error('Failed to post reply:', error)
 
-            toast.error((error as any)?.message || 'Failed to post reply')
+            showErrorToast((error as any)?.message || 'Failed to post reply')
         } finally {
             setIsReplying(false)
         }

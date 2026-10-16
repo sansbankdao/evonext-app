@@ -6,7 +6,7 @@ import { useNetwork } from '@/contexts/network-context'
 import { Button } from '@/components/ui/button'
 import { RegistrarModal } from '@/components/id/registrar-modal'
 import { useRouter } from 'next/navigation'
-import toast from 'react-hot-toast'
+import { showErrorToast } from '@/lib/toast-error'
 import { getIdentities } from '@/lib/identity-manager'
 import { getPrivateKeys, getPublicKeys } from '@/lib/wallet-manager'
 import { validate_mnemonic } from '@/lib/dash-wasm/compat'
@@ -73,7 +73,7 @@ export default function LoginPage() {
 
         /* Validate mnemonic. */
         if (!isValid) {
-            return toast.error(`Oops! Those seed words are INVALID!`)
+            return showErrorToast(`Oops! Those seed words are INVALID!`)
         }
 
         /* Initialize secure storage. */
@@ -238,9 +238,9 @@ console.log('CONNECT (publicKey)', publicKey)
         }
 
         if (code === 'PRF_UNSUPPORTED' || code === 'UNSUPPORTED') {
-            toast.error('This device or browser does not support passkey key derivation — use a recovery phrase instead.')
+            showErrorToast('This device or browser does not support passkey key derivation — use a recovery phrase instead.')
         } else {
-            toast.error((err as { message?: string })?.message || 'Passkey operation failed.')
+            showErrorToast((err as { message?: string })?.message || 'Passkey operation failed.')
         }
     }
 

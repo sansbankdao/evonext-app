@@ -32,6 +32,7 @@ import {
 } from '@/lib/avatar-dicebear'
 import { AvatarCanvas } from '@/components/ui/avatar-canvas'
 import toast from 'react-hot-toast'
+import { showErrorToast } from '@/lib/toast-error'
 import { withAuth, useAuth } from '@/contexts/auth-context'
 import { useNetwork } from '@/contexts/network-context'
 import {
@@ -183,12 +184,12 @@ console.log('PROFILE CONTRACT ID', getContractId(network!))
         if (!user || !network) return
 
         if (!displayName.trim()) {
-            toast.error('Display name is required')
+            showErrorToast('Display name is required')
             return
         }
 
         if (website && !/^https?:\/\/.+$/.test(website)) {
-            toast.error('Website must start with http:// or https://')
+            showErrorToast('Website must start with http:// or https://')
             return
         }
 
@@ -219,7 +220,7 @@ console.log('PROFILE CONTRACT ID', getContractId(network!))
         } catch (error) {
             console.error('Failed to update profile:', error)
 
-            toast.error(error instanceof Error
+            showErrorToast(error instanceof Error
                 ? error.message
                 : ((error as any)?.message || 'Failed to update profile'))
         } finally {
@@ -249,7 +250,7 @@ console.log('PROFILE CONTRACT ID', getContractId(network!))
             toast.success('Profile link copied to clipboard')
         } catch (error) {
             console.error('Failed to copy profile link:', error)
-            toast.error('Failed to copy profile link')
+            showErrorToast('Failed to copy profile link')
         }
     }
 

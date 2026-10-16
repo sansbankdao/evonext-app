@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { motion } from 'framer-motion'
 import dataContract from '@/contracts/evonext-contract.json'
 import toast from 'react-hot-toast'
+import { showErrorToast } from '@/lib/toast-error'
 
 export default function ContractPage() {
     const [copied, setCopied] = useState(false)
@@ -18,7 +19,7 @@ export default function ContractPage() {
             toast.success('Contract copied to clipboard')
             setTimeout(() => setCopied(false), 2000)
         } catch (error) {
-            toast.error('Failed to copy contract')
+            showErrorToast('Failed to copy contract')
         }
     }
 

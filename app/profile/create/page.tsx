@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { withAuth, useAuth } from '@/contexts/auth-context'
 import { useNetwork } from '@/contexts/network-context'
 import toast from 'react-hot-toast'
+import { showErrorToast } from '@/lib/toast-error'
 import { Loader2 } from 'lucide-react'
 import {
     EVONEXT_CONTRACT_ID_MAINNET,
@@ -82,7 +83,7 @@ function CreateProfilePage() {
         e.preventDefault()
 
         if (!formData.displayName.trim()) {
-            toast.error('Display name is required')
+            showErrorToast('Display name is required')
             return
         }
 
@@ -93,7 +94,7 @@ function CreateProfilePage() {
 
         if (!storedPrivateKey && !privateKey) {
             setShowPrivateKeyInput(true)
-            toast.error('Please enter your private key to continue')
+            showErrorToast('Please enter your private key to continue')
 
             return
         }
@@ -136,13 +137,13 @@ function CreateProfilePage() {
             // Check if it's a duplicate profile error
             if (error.message?.includes('duplicate unique properties') ||
                 error.message?.includes('already exists')) {
-                    toast.error('You already have a profile! Redirecting...')
+                    showErrorToast('You already have a profile! Redirecting...')
 
                     setTimeout(() => {
                         router.push('/profile')
                     }, 2000)
             } else {
-                toast.error(error instanceof Error ? error.message : 'Failed to create profile')
+                showErrorToast(error instanceof Error ? error.message : 'Failed to create profile')
             }
         } finally {
             setIsSubmitting(false)

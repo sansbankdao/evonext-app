@@ -9,6 +9,7 @@ import { useNetwork } from '@/contexts/network-context'
 import { useSdk } from '@/contexts/sdk-context'
 import { dpnsService } from '@/lib/services/dpns-service'
 import toast from 'react-hot-toast'
+import { showErrorToast } from '../../lib/toast-error'
 import { CheckCircle2, XCircle, Loader2, RefreshCw, X, Edit2 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 // @ts-ignore
@@ -182,7 +183,7 @@ console.log('TOP-UP (waiting for deposit)', available, 'of', required)
             } catch (error) {
 console.error('TOP-UP FAILED', error)
                 setProgressMessage(null)
-                toast.error(`Top-up failed: ${error instanceof Error ? error.message : 'unknown error'} — you can retry by sending the deposit again`)
+                showErrorToast(`Top-up failed: ${error instanceof Error ? error.message : 'unknown error'} — you can retry by sending the deposit again`)
                 /* Re-arm so a further deposit can retry. */
                 isToppingUpRef.current = false
                 setNeedsTopUp(true)
@@ -271,7 +272,7 @@ console.error('TOP-UP FAILED', error)
                 setIsAvailable(available)
             } catch (error) {
                 console.error('Failed to check username availability:', error)
-                toast.error('Failed to check username availability')
+                showErrorToast('Failed to check username availability')
             } finally {
                 setIsChecking(false)
             }
@@ -378,7 +379,7 @@ console.log('REGISTRAR (currentNetwork)', currentNetwork)
         /* Validate funding info. */
         if (typeof funding === 'undefined' || funding === null) {
             setIsSubmitting(false)
-            toast.error('Failed to generate your funding address')
+            showErrorToast('Failed to generate your funding address')
             return
         }
 
@@ -515,7 +516,7 @@ console.warn('BALANCE (discover identity)', error)
 
                     setIsSubmitting(false)
                     setProgressMessage(null)
-                    toast.error(`Registration failed: ${err instanceof Error ? err.message : 'unknown error'}`)
+                    showErrorToast(`Registration failed: ${err instanceof Error ? err.message : 'unknown error'}`)
                 }
             }
 
@@ -531,7 +532,7 @@ console.log('TIMER STOPPED (after 15 minutes)')
                 /* Set submission flag. */
                 setIsSubmitting(false)
 
-                toast.error(`Your deposit window has EXPIRED! Please try again...`)
+                showErrorToast(`Your deposit window has EXPIRED! Please try again...`)
             }
         }, PAYMENT_DETECTION_INTERVAL)
     }
@@ -599,7 +600,7 @@ console.log('TIMER STOPPED (after 15 minutes)')
         if (!currentIdentityId) return
 
         if (!isSdkReady) {
-            toast.error('Service is initializing. Please try again in a moment.')
+            showErrorToast('Service is initializing. Please try again in a moment.')
             return
         }
 
@@ -634,11 +635,11 @@ console.log('TIMER STOPPED (after 15 minutes)')
                     router.push('/profile/create')
                 }
             } else {
-                toast.error('No username found. Please register one above.')
+                showErrorToast('No username found. Please register one above.')
             }
         } catch (error) {
             console.error('Failed to check for existing username:', error)
-            toast.error('Failed to check for existing username')
+            showErrorToast('Failed to check for existing username')
         } finally {
             setIsCheckingExisting(false)
         }
@@ -652,11 +653,11 @@ console.log('TIMER STOPPED (after 15 minutes)')
                 try {
                     // Basic validation - check length and characters
                     if (!/^[1-9A-HJ-NP-Za-km-z]{42,44}$/.test(customIdentityId)) {
-                        toast.error('Invalid identity ID format')
+                        showErrorToast('Invalid identity ID format')
                         return
                     }
                 } catch (error) {
-                    toast.error('Invalid identity ID')
+                    showErrorToast('Invalid identity ID')
                     return
                 }
             }
