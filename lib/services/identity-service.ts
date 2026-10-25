@@ -5,6 +5,15 @@ import {
     get_identity_balance,
 } from '../dash-wasm/compat'
 
+/* Read-path proxy (fast, cached) with WASM SDK fallback — performance. */
+import { fetchIdentityViaProxy } from '../dapi-proxy'
+
+/* Resolve the active network for the proxy read-path (raw-host safe). */
+const proxyNetwork = (): 'mainnet' | 'testnet' => {
+    if (typeof window === 'undefined') return 'testnet'
+    return window.location.host === 'evonext.app' ? 'mainnet' : 'testnet'
+}
+
 export interface IdentityInfo {
     id: string;
     balance: number;
@@ -36,9 +45,19 @@ class IdentityService {
 
             const sdk = await getWasmSdk()
 
-            // Fetch identity
+            // Fetch identity — proxy first (fast, cached), WASM SDK fallback.
+            // Both are normalized to a `.toJSON()`-shaped object so the rest
+            // of this method is unchanged.
             console.log(`Fetching identity: ${identityId}`)
-            const identityResponse = await identity_fetch(sdk, identityId)
+            const identityResponse = await fetchIdentityViaProxy(
+                identityId,
+                proxyNetwork(),
+                () => identity_fetch(sdk, identityId),
+            )
+            if (identityResponse && typeof identityResponse.toJSON !== 'function') {
+                /* Proxy returned a plain object — normalize. */
+                identityResponse.toJSON = () => identityResponse
+            }
 console.log('IDENTITY SERVICE (identityResponse)', identityResponse)
             if (!identityResponse) {
                 console.warn(`Identity not found: ${identityId}`)

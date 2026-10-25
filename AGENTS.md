@@ -13,7 +13,9 @@ history of this file (see log below for commit hashes) — keep only load-bearin
 - Stack: Next.js `16.3.8`, React `19.3.0`, TypeScript 5, pnpm `11.21.0`, Node `v24.18.1`
 - Build: static export (`output: 'export'`), webpack forced via `--webpack` in dev/build
   scripts (Turbopack is default in 16; the webpack config is load-bearing, see invariants)
-- WASM SDK: `lib/dash-wasm/` — raw dist of `@dashevo/wasm-sdk@4.1.1` + `compat.ts`
+- WASM SDK: `lib/dash-wasm/` — raw dist of `@dashevo/wasm-sdk@5.0.0-rc.8` + `compat.ts`
+  (upgraded F27o from 4.2.0-dev.11 for testnet protocol v14 / Platform v5.0.0; the wasm
+  grew 20.7MB -> 26.5MB). `dash-platform-sdk` bumped 1.5.0-dev.11 -> 1.5.3 (wallet-manager).
 
 ### Verification status (current baseline; run sequentially, never in parallel)
 
@@ -111,6 +113,15 @@ history of this file (see log below for commit hashes) — keep only load-bearin
 
 - Prover service: `https://prover.sansbank.dev` (Cloudflare Worker, DAO-wide; currently
   only `POST /prove/shield` for `shield_from_asset_lock`; consensus-verified).
+- DAPI read proxy: `https://dapi.sansbank.dev/v1/dapi` (POST `{method,params,network}` ->
+  `{success,result}`; clustered JS-SDK worker pool, cached). Served methods incl.
+  identity_fetch / get_identity_balance / get_documents / get_status. Testnet backend
+  upgraded 2026-10-20 to Core v24 + Platform v5.0.0-rc.5 (protocol v14); mainnet untouched.
+  NOTE: the proxy's get_documents path enforces STRICTER grpc index validation than the
+  WASM SDK — it REJECTS the `$createdAt > 0` range clauses the Yappr feed relies on
+  (returns 'where clause on non indexed property'), so document queries stay on the WASM
+  SDK. `lib/dapi-proxy.ts` uses the proxy ONLY for identity reads (its cache wins there),
+  with the WASM SDK as automatic fallback. Handoff: `dev-dapi-proxy/docs/HANDOFF-testnet-v24-platform-v5.md`.
 - Shielded sync reference (port target for web): `platform/packages/rs-platform-wallet/src/
   wallet/shielded/` — `keys.rs` (ZIP-32 `m/32/coin_type/account`, coin types 5 mainnet /
   1 testnet, `SpendingKey::from_zip32_seed`), `coordinator.rs` (fetch + trial-decrypt +
@@ -1016,18 +1027,48 @@ history of this file (see log below for commit hashes) — keep only load-bearin
    warning), 75/75, build 35/35; compiled chunk 2670 confirms
    aria-label:'Dismiss', role:'alert', duration:1/0 (Infinity),
    animate-enter.
-13. Pending decisions: shielded-balance UI, DIP-17 platform-address features, biometric
+13. **F27o — WASM SDK 5.0.0-rc.8 + DAPI read proxy for identity reads (2026-10-25)**:
+   (a) **SDK upgrade** for the testnet protocol-v14 / Platform-v5.0.0 upgrade (handoff
+   `dev-dapi-proxy/docs/HANDOFF-testnet-v24-platform-v5.md`): the testnet backend moved
+   4.2.0-dev.11 -> 5.0.0-rc.5 on 2026-10-20 after a 10-15->10-20 network HALT (the
+   v13->v14 upgrade block). We vendored `@dashevo/wasm-sdk@5.0.0-rc.8` (raw dist ->
+   lib/dash-wasm; backups of the 4.2.0-dev.11 files in /tmp/backup_4211_*). The 5.0 d.ts
+   keeps every compat.ts wrapper signature (Document/IdentitySigner/PlatformVersion/WasmSdk,
+   documentCreate, identityCreate/identityTopUp, getIdentityWithProofInfo, dpns*,
+   deriveKeyFromSeedWithPath, WasmTrustedContext.prefetchTestnet) — compat.ts needed NO
+   changes. `dash-platform-sdk` bumped 1.5.0-dev.11 -> 1.5.3 (wallet-manager's
+   DashPlatformSDK; its `rc`/`dev` tags are OLDER — 1.5.3 `latest` is correct).
+   (b) **SMOKE-VERIFIED against the upgraded testnet** (Node, /tmp/smoke-wasm5.mjs +
+   smoke-wasm5-write.mjs): reads (getIdentity balance, getIdentityWithProofInfo
+   coreChainLockedHeight, getIdentityNonce) PASS; the WRITE path (new Document +
+   sdk.documentCreate + documentDelete — the app's exact state-transition-service
+   path) created and deleted a probe post on protocol v14. 75/75 unit tests pass on the
+   5.0 wasm. identityCreate/identityTopUp with a chain asset-lock proof NOT re-run (no
+   funded wallet in CI) — the F27i/F27j flow is the one to re-verify live.
+   (c) **DAPI read proxy for identity reads (performance)**: new `lib/dapi-proxy.ts`
+   wraps `https://dapi.sansbank.dev/v1/dapi` (12s AbortController timeout, unwraps the
+   {success,result} envelope). identity-service.getIdentity now calls
+   fetchIdentityViaProxy (proxy-first, WASM SDK fallback, plain-object result normalized
+   with a `.toJSON()` shim so downstream logic is unchanged). NOTE the proxy's
+   get_documents path enforces STRICTER grpc index validation than the WASM SDK — it
+   REJECTS the `$createdAt > 0` range clause the Yappr feed uses ('where clause on non
+   indexed property'; the WASM SDK silently tolerates it) — so document queries were
+   deliberately LEFT on the WASM SDK; only identity reads (identity_fetch,
+   get_identity_balance) go through the proxy. Verified: tsc 0, eslint 0/1 (known
+   postsState warning), 75/75, build 35/35; emitted wasm e9693c35 = 26,513,399 bytes.
+14. Pending decisions: shielded-balance UI, DIP-17 platform-address features, biometric
    settings integration, react-hooks v6 cleanup pass.
-14. Known unverified: the -20.33B credit fee breakdown (F25).
-15. **Deployment is MANUAL/stale — F26**: the live evonext.app served the OLD pre-F22
+15. Known unverified: the -20.33B credit fee breakdown (F25).
+16. **Deployment is MANUAL/stale — F26**: the live evonext.app served the OLD pre-F22
    wasm on 2026-10-04 (deployed asset `wasm_sdk_bg.c3177f65.wasm`, 8,013,662 bytes,
    sha256 `ca6e51ce…`, CONTAINS dead F22 addresses `52.34.144.50`/`35.82.197.197`),
    reproducing the F22 hang despite master being fixed. Our source wasm is 20,319,523
    bytes (sha256 `5b779125…`), zero embedded IPs. Local `out/` (Oct 4) is complete
    (32 route HTMLs, `_headers`, wasm `cf2b0aef`) and current with all code through
    F25 — user must redeploy it. Verify a deployment by checking the served wasm's
-   byte size (8.0MB = stale; 20.3MB = current).
-16. **F26b — Cloudflare Pages deployment switched OFF next-on-pages (2026-10-04)**:
+   byte size (8.0MB = stale pre-F22; 20.3MB = F22-F27 4.2.0-dev.11; 26.5MB = F27o+
+   5.0.0-rc.8 current).
+17. **F26b — Cloudflare Pages deployment switched OFF next-on-pages (2026-10-04)**:
    root cause of all failed deploys since Oct 2: the Pages project used the Next.js
    framework preset, whose build command `npx @cloudflare/next-on-pages@1` broke
    twice — (a) npm ERESOLVE inside the adapter's own deps (workers-types ^4 vs
