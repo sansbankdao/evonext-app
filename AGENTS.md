@@ -175,7 +175,13 @@ history of this file (see log below for commit hashes) — keep only load-bearin
   tree-append), `file_store.rs` (`ClientPersistentCommitmentTree` from
   `grovedb_commitment_tree` over SQLite), `note_selection.rs`, `operations.rs`,
   `prover.rs`. Mobile's `platform-wallet-ffi` builds from this crate.
-- Sighash extra_data (`rs-dpp/src/shield/sighash.rs`): shield/transfer = empty; withdrawal =
+- Sighash extra_data (`rs-dpp/src/shielded/sighash.rs` — the local platform
+  checkout 2811ac3bf6 PREDATES the v14 binding; authoritative source = GitHub tag
+  `v5.0.0-rc.8` copy of that file): transfer = empty; **shield / outputs-only =
+  `bundle_tag(1) || owner(32)` at protocol v14** (`credit_pool_bundle_binding =
+  Some(0)`: ShieldFromAssetLock `0x86 || assetLockProof.createIdentityId()`;
+  ShieldFromIdentity `0x85 || identity_id`; Shield `0x84 || sha256(concat of the
+  21-byte input addresses in BTreeMap key order)`); withdrawal =
   `output_script || amount(u64 LE) || coreFee(u32 LE) || pooling(u8)`; unshield =
   `output_address || amount(u64 LE)`. Sighash = SHA-256("DashPlatformSighash" || commitment
   || extra_data). Orchard fork `builder.rs:1105/1154/1217`: `prepare -> sign -> finalize`
@@ -212,13 +218,128 @@ history of this file (see log below for commit hashes) — keep only load-bearin
    cold proving-key build ~63 s in the worker). 167/167 tests, tsc 0,
    eslint 0 errors (1 known postsState warning). The FRESH-SESSION plan
    for end-to-end SHIELD / TRANSFER / UNSHIELD is
-   `docs/HANDOFF-shielded-e2e.md`. NETWORK FACTS (verified live
-   2026-11-10): testnet = Platform 5.0.0-rc.8 protocol v14 current
-   (shielded live; pool state queryable via the WASM SDK, NOT via the DAPI
-   proxy — `get_shielded_pool_state` unsupported there); MAINNET =
-   Platform 4.2.0-dev.11 protocol v13 current / v14 pending — shielded is
-   NOT live on mainnet yet, so mainnet end-to-end is BLOCKED on the
-   mainnet protocol-v14 activation (no date known; do not guess).
+   `docs/HANDOFF-shielded-e2e.md` (execution started 2026-11-11 — see F29).
+   **F29c — the full PCZT build+prove loop is LIVE-VERIFIED with OUR OWN
+   frames**: `lib/shielded/prove.ts` builds a complete output-only PCZT
+   locally (dummy spend halves per the fork's Note::dummy / MerklePath::dummy
+   / Nullifier::dummy — rho = extract_p of a random point, random sk -> fvk
+   -> address, random position + 32 uniform-base path nodes, has_matching_-
+   anchor = true for value-ZERO spends so anchor = Anchor::empty_tree();
+   output rho = the spend half's wire nullifier; per-action cv_net =
+   V*(spend - output) + R*rcv; sighash = ZIP-244 digest ->
+   computePlatformSighash + the v14 33-byte extra data; EVERY spend half
+   signed with its own ask incl. dummy_asks over the sighash; bsk = Σ rcv),
+   `postPcztFrame` POSTs the raw wire frame (application/octet-stream — the
+   HANDOFF's "no JSON wrapper" is literal: the wire parser reads the BODY as
+   a frame) and verifies the response frame is byte-identical except the
+   zkproof trailer. Live round-trip (/tmp/prove-roundtrip.mjs): 2-action
+   output-only frame (1 real self-send of 1_000_000 credits + 1 filler
+   dummy) = 3,673 wire bytes -> HTTP 200 with a 7,264-byte proof (the EXACT
+   size of the prover team's own 2-action fixture — fixed-size halo2 proofs
+   per action count) in 47.5 s (pkWasCached = false, fresh isolate). The
+   prover's strict builders recomputed every cv/cmx/nf/psi/esk from our
+   fields and the proof's circuits enforce every public-input relation —
+   the strongest possible pre-broadcast verification of the whole
+   encrypt/value/keys/sighash/wire stack. Binding signature (signBinding,
+   bvk = [bsk]binding_G, RedDSA^{Orchard-binding}(bsk, sighash)) verifies
+   locally. 199/199 tests (18 files; vitest testTimeout raised 30s -> 60s —
+   the heavyweight pure-TS crypto suites breached 30s under parallel load),
+   tsc 0, eslint 0. NETWORK FACTS (verified live
+   2026-11-11): BOTH networks run protocol v14 — testnet = Platform
+   5.0.0-rc.8 (== vendored SDK, version-matched), MAINNET = Platform 5.0.3
+   (dapi+drive, tenderdash 1.8.2) since the epoch 87->88 boundary
+   2026-11-08 21:53:16 UTC (verified via the pshenmic platform-explorer
+   JSON API — network evo1, indexer synced 100%, epoch 88, protocol
+   current 14 — AND via the vendored rc.8 WASM SDK on mainnet:
+   getShieldedPoolState = 819781434098910 credits, 27 anchors, notes'
+   encryptedNote exactly 216 B). **Shielded IS LIVE ON MAINNET** — the
+   2026-11-10 'mainnet v13 / blocked' claim came from the
+   dapi.sansbank.dev proxy's STALE mainnet backend (get_status reports
+   software 4.2.0-dev.11, protocol current 13, epoch 87, time.block frozen
+   at 2026-11-08 21:50 UTC ~65 h behind its own fresh time.local;
+   node/chain/network/stateSync null). Mainnet proxy-first identity reads
+   (lib/dapi-proxy.ts) served stale data until the proxy backend was
+   upgraded — RESOLVED same-day (2026-11-11, deployed 17:04Z): the DAPI team
+   upgraded the mainnet backend to drive/dapi 5.0.3 + tenderdash 1.8.2 +
+   dashd 24.0.0 (live-re-verified by us: get_status 5.0.3 / protocol
+   14/14/14 / epoch 88 / ~33 s block lag), shipped six shielded read
+   methods on the proxy live on BOTH networks (get_shielded_pool_state /
+   get_shielded_anchors / get_shielded_most_recent_anchor /
+   get_shielded_notes_count / get_shielded_encrypted_notes /
+   get_shielded_nullifiers — {data,dataB64} field wrappers, string
+   balances, startIndex as string-or-number; live-verified by us), and
+   added a /health/deep freshness guard (503 when time.block lags >30 min;
+   verified: mainnet freshness 'ok', blockLagMs 47463). Follow-up doc:
+   dev-dapi-proxy commit 257aaec
+   (docs/HANDOFF-mainnet-backend-upgrade-v5-deployed.md — their repo purges
+   resolved handoffs, read it from git history); they also noted
+   dash-platform-sdk@1.6.1 ships a ShieldedController (our pinned 1.5.3
+   lacks it). THEIR OPEN ASK OF US — migrate lib/shielded/ sync reads to
+   the six proxy methods — DONE same-day (F29 below): proxy is now the
+   PRIMARY gateway with per-call WASM fallback
+   (lib/dapi-proxy.ts makeProxyFirstShieldedSource).
+   Writes: testnet FIRST (version-matched),
+   then mainnet (user-funded, approved 2026-11-11).
+   **F29d — v1 ShieldFromAssetLockTransition runtime-mapped + assembly
+   module built (2026-11-11)**: the whole transition surface was verified
+   by DRIVING the vendored wasm-sdk in Node (not just reading rc.8
+   rs-dpp — sparse clone at /tmp/platform-rc8, branch v5.0.0-rc.8).
+   Facts: (a) v1 struct {assetLockProof, actions[], valueBalance: u64,
+   anchor, proof, bindingSignature, surplusOutput: Option<PlatformAddress>,
+   signature}; v0 is REFUSED from protocol v14 (version.rs). (b) The
+   StateTransition umbrella enum is Encode/PlatformSerialize-derived
+   (state_transition/mod.rs:547); ShieldFromAssetLock = index 18 =
+   0x12. (c) Wire framing (runtime-dumped for a dummy fixture): 0x12 ||
+   0x01 (V1) || bincode config::standard().with_big_endian() fields
+   (rs-platform-serialization enc/mod.rs:71-74 — varint: <=250 single
+   byte, 0xfb u16 BE, 0xfc u32 BE, 0xfd u64 BE). AssetLockProof Chain
+   variant = 0x01, height = varint, OutPoint = 0x20 || txid(32 raw) ||
+   vout u32 varint. getSignableBytes() = all-except-signature (empty
+   signature = trailing 0x00 len prefix). (d) SerializedAction.
+   encrypted_note = epk(32) || enc_ciphertext(104) || out_ciphertext(80)
+   = 216 B (rs-dpp shielded/mod.rs:252 + builder/mod.rs:134
+   serialize_authorized_bundle — matches the DAPI-served note size).
+   (e) value_balance = -bundle.value_sum as a POSITIVE u64 magnitude
+   (build_bound_bundle, builder/shield_from_asset_lock.rs:152) — pass
+   frame.valueSumMagnitude, never the signed sum. (f) Signing =
+   stateTransition.signByPrivateKey(privateKey, keyId?, keyType?):
+   SHA-256d(getSignableBytes()), 65-byte [v=27+4+recid | r | s] low-S
+   recoverable ECDSA, RETURN VALUE = THE SIGNED WIRE BYTES (mutates the
+   signature in place); keyId/keyType IGNORED for this transition type
+   (runtime-verified identical output for 0/ECDSA_SECP256K1 vs null).
+   (g) AssetLockProof.createIdentityId() = SHA-256d(outPoint36) —
+   runtime-verified == ChainAssetLockProof::create_identifier — this is
+   the 32-byte identifier for the 0x86 extra-sighash builder AND the
+   transition's unique identifier (v1 state_transition_like.rs). (h)
+   broadcast = sdk.broadcastStateTransition(stateTransition) (re-parsed
+   via StateTransition.fromBytes(signedBytes)); WasmSdkBuilder
+   .withTrustedContext CONSUMES the builder (use its return). NEW
+   lib/shielded/assemble.ts: assembleShieldFromAssetLock({assetLockProof,
+   assetLockPrivateKey, build, provedFrame, surplusOutput?, platform-
+   Version?, rand?}) — re-validates the proved frame against the local
+   build (byte equality with zkproof:null), guards valueSumIsNegative,
+   maps frame halves -> SerializedOrchardAction instances, computes the
+   RedDSA binding sig (signBinding, bvk = [bsk]binding_G), constructs the
+   wasm transition, signs, re-parses; returns {stateTransition,
+   wireBytes, bindingSignature}. BUG FOUND + FIXED in prove.ts by the
+   assembly KAT: fork MIN_ACTIONS parity was missing — builder.rs:94
+   pads a non-empty transactional bundle to max(requested, 2) actions
+   with AUTOMATIC dummies (rs-dpp relies on this: build_output_only_bundle
+   passes dummy_outputs=0 and still gets 2 on-wire actions; consensus
+   prices the shielded fee from the on-wire action count vs a wallet
+   reservation of exactly 2 — a 1-action shield would be rejected).
+   prove.ts now appends dummies to >= 2. GOTCHA (noble 2.x):
+   secp256k1.verify DEFAULTS prehash:true (hashes the input again) —
+   pass {prehash:false} for a 32-byte digest (bit the first assemble
+   test iteration). test/unit/lib/shielded-assemble.test.mts (4 tests,
+   REAL vendored wasm via initSync — same pattern as compat-derive):
+   full field-by-field wire decode with a big-endian varint walker,
+   ECDSA verify + recovery-id->pub match, binding-sig verify, 3
+   rejection guards. 203/203 tests (19 files), tsc 0, eslint 0 errors
+   (1 known postsState warning). REMAINING for the live shield: the
+   funding-side UX (core-chain asset lock + wait for Platform's
+   core-chain-locked height — the F27i flow) feeding assemble() ->
+   broadcastStateTransition on TESTNET first.
 1. **Q4 spike DONE** (2026-10-04): report at `docs/spike-q4-shielded-tree-witness.md`.
    Key findings: all tree inputs are served by DAPI in authenticated form (notes in tree
    order with cmx + nullifier + cvNet + encryptedNote; per-note nullifier is served for
@@ -230,6 +351,34 @@ history of this file (see log below for commit hashes) — keep only load-bearin
    ClientPersistentCommitmentTree -> match checkpoint root against getShieldedAnchors
    (shallowest depth wins; 100 checkpoints retention). Proposed client-toolkit API in
    report section 4.
+18. **F29 — proxy-PRIMARY shielded reads + SHIELD/TRANSFER/UNSHIELD
+   execution started (2026-11-11)**: user directive: the DAPI proxy is the
+   PRIMARY read gateway with WASM fallback, and the shielded write pipeline
+   is to be executed end-to-end on testnet AND mainnet (testnet first, per
+   the approved order). TRACK A (DONE + live-verified): lib/dapi-proxy.ts
+   gained the six shielded wrappers (fetchShieldedEncryptedNotesViaProxy —
+   startIndex sent as a STRING, rows decoded {data hex} -> Uint8Array with
+   exact length checks 32/32/216/32; fetchShieldedAnchorsViaProxy;
+   fetchMostRecentShieldedAnchorViaProxy (proxy null -> undefined);
+   fetchShieldedNullifiersViaProxy (inputs sent as 64-char hex, isSpent
+   boolean); fetchShieldedPoolStateViaProxy + fetchShieldedNotesCountViaProxy
+   (decimal STRING -> bigint, null -> undefined)) and
+   makeProxyFirstShieldedSource(network, wasmSource) returning a
+   ShieldedSyncSource that is proxy-FIRST with per-call WASM fallback.
+   New test/unit/lib/dapi-proxy-shielded.test.mts (10 tests: request shape,
+   decoding, malformed -> fallback, per-call independence). Live-verified
+   through the esbuild-bundled REAL code against dapi.sansbank.dev on BOTH
+   networks: testnet pool 85,092,626,948,858 credits / 6,667 notes / 2
+   anchors; mainnet pool 809,521,943,371,910 credits (matches the DAPI
+   team's deploy-time number exactly) / 5,194 notes / 34 anchors; the
+   most-recent anchor IS a member of the recorded anchor set on both
+   networks (list is not newest-first ordered); simulated outage falls back
+   to WASM; zero unexpected fallbacks. NOTE ShieldedSync still has NO
+   production call site (tests only) — wiring it into the UI is part of the
+   write-pipeline work. Verified: tsc 0, eslint 0/1, 177/177 (15 files).
+   TRACK B (in progress): the handoff Steps 1-7 (cv_net, ock, prove.ts,
+   signatures incl. the v14 tag||owner extra_data, broadcast via
+   broadcastStateTransition, SHIELD/UNSHIELD specifics, live verification).
 2. **F26c — login `.length` crash FIXED (2026-10-04)**: after the F26b deployment,
    connect threw `Cannot read properties of undefined (reading 'length')`. Root cause
    (Node-reproduced): the 4.1.1 `deriveKeyFromSeedWithPath` returns a `PathDerived

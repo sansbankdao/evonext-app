@@ -18,6 +18,9 @@ export default defineConfig({
         // whose module load + 20MB wasm init can exceed the 10s default hook
         // timeout when several workers run in parallel on a loaded machine.
         hookTimeout: 60000,
-        testTimeout: 30000,
+        // 60s: the heavyweight pure-TS crypto suites (tree/poseidon/bundle/sync)
+        // can exceed 30s wall time under full parallel load alongside the other
+        // suites (the 30s->60s bump mirrors the earlier 10s->60s hook bump).
+        testTimeout: 60000,
     },
 })

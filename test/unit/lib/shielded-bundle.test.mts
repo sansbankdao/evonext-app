@@ -10,6 +10,16 @@ import {
   hashBundleTxidData,
   shieldedWithdrawalExtraSighashData,
   unshieldExtraSighashData,
+  creditPoolOutputOnlyExtraSighashDataV0,
+  platformAddressToBytes,
+  shieldFundingDigestV0,
+  shieldExtraSighashData,
+  shieldFromIdentityExtraSighashData,
+  shieldFromAssetLockExtraSighashData,
+  sortPlatformAddresses,
+  PLATFORM_ADDRESS_P2PKH_TYPE,
+  PLATFORM_ADDRESS_P2SH_TYPE,
+  SHIELD_BUNDLE_TAG,
 } from '@/lib/shielded/bundle';
 import {
   diversifierAtIndex,
@@ -131,6 +141,42 @@ describe('platform sighash + v0 extra_data layouts', () => {
     const hex = Buffer.from(data).toString('hex');
     expect(hex).toBe('76'.repeat(25) + '0102030405060708' + 'd4c3b2a1' + '00');
     expect(data.length).toBe(25 + 8 + 4 + 1);
+  });
+
+  it('v14 credit-pool output-only binding: tag || owner + platform-address encodings', () => {
+    const ab = new Uint8Array(20).fill(0xab);
+    const cd = new Uint8Array(20).fill(0xcd);
+    // platform_address.rs:83-96 pinning tests (bincode standard = variant || hash160).
+    expect(Buffer.from(platformAddressToBytes({ type: PLATFORM_ADDRESS_P2PKH_TYPE, hash160: ab })).toString('hex'))
+      .toBe('00abababababababababababababababababababab');
+    expect(Buffer.from(platformAddressToBytes({ type: PLATFORM_ADDRESS_P2SH_TYPE, hash160: cd })).toString('hex'))
+      .toBe('01cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd');
+    // shield_funding_digest_v0 (SHA-256 over the 21-byte encodings in map-key order) —
+    // expected values computed with node:crypto sha256 over the exact layout.
+    const one = [{ type: PLATFORM_ADDRESS_P2PKH_TYPE, hash160: ab } as const];
+    expect(Buffer.from(shieldFundingDigestV0(one)).toString('hex'))
+      .toBe('e9b5ee0735ba1c91c51226d50a8b0c34fb7f370557e740ccce82d1dc79a8e134');
+    expect(Buffer.from(shieldExtraSighashData(one)).toString('hex'))
+      .toBe('84e9b5ee0735ba1c91c51226d50a8b0c34fb7f370557e740ccce82d1dc79a8e134');
+    // Map-key order = derived Ord (variant, then hash): P2pkh sorts before P2sh even
+    // when supplied in the reverse order.
+    const two = sortPlatformAddresses([
+      { type: PLATFORM_ADDRESS_P2SH_TYPE, hash160: cd },
+      { type: PLATFORM_ADDRESS_P2PKH_TYPE, hash160: ab },
+    ]);
+    expect(two[0].type).toBe(PLATFORM_ADDRESS_P2PKH_TYPE);
+    expect(Buffer.from(shieldFundingDigestV0(two)).toString('hex'))
+      .toBe('985b0577748100d0d6eede978f9ad306fae226f8e39ad12ed9b68795b13c89b6');
+    // Identity / asset-lock variants: tag || 32-byte owner verbatim (sighash.rs:834-884).
+    const id32 = new Uint8Array(32).fill(0x11);
+    expect(Buffer.from(shieldFromIdentityExtraSighashData(id32)).toString('hex'))
+      .toBe('851111111111111111111111111111111111111111111111111111111111111111');
+    expect(Buffer.from(shieldFromAssetLockExtraSighashData(id32)).toString('hex'))
+      .toBe('861111111111111111111111111111111111111111111111111111111111111111');
+    expect(() => creditPoolOutputOnlyExtraSighashDataV0(SHIELD_BUNDLE_TAG, new Uint8Array(31)))
+      .toThrow(/32 bytes/);
+    expect(() => platformAddressToBytes({ type: PLATFORM_ADDRESS_P2PKH_TYPE, hash160: new Uint8Array(19) }))
+      .toThrow(/20 bytes/);
   });
 
   it('reject malformed widths instead of silently hashing wrong bytes', () => {
