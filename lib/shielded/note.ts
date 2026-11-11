@@ -5,7 +5,9 @@
 // src/lib.rs (try_note_decryption, check_note_validity, try_compact_note_decryption).
 
 import { chacha20, chacha20poly1305 } from '@noble/ciphers/chacha.js';
-import { PallasPoint, bigintToBytes32LE } from './pasta';
+import { FP_MOD, FR_MOD, PallasPoint, bigintToBytes32LE, bytes32LEToBigint, fp } from './pasta';
+import { hashToPallas } from './swu';
+import { prfNf } from './poseidon';
 import { PrfExpand, prfExpand } from './hash';
 import { kaAgreePoint, diversifyHash, kdfOrchard, toScalar, toBase, NOTE_COMMITMENT_PERSONALIZATION } from './keys';
 import { sinsemillaCommitToPoint } from './sinsemilla';
@@ -87,7 +89,72 @@ export function noteCommitment(
   pushScalarBits(v, 64);
   pushBytesBits(rho, 255);
   pushScalarBits(psi, 255);
-  return sinsemillaCommitToPoint(NOTE_COMMITMENT_PERSONALIZATION, bits, rcm).extractP();
+  return noteCommitmentPointFromBits(bits, rcm).extractP();
+}
+
+/** The un-extracted note commitment POINT (NoteCommitment::0) — needed by
+ *  deriveNullifier, which adds the Poseidon nullifier tag to it. */
+export function noteCommitmentPoint(
+  gD: PallasPoint,
+  pkD: PallasPoint,
+  v: bigint,
+  rho: Uint8Array,
+  psi: bigint,
+  rcm: bigint,
+): PallasPoint {
+  const bits: number[] = [];
+  const pushScalarBits = (x: bigint, len: number) => {
+    for (let i = 0; i < len; i++) bits.push(Number((x >> BigInt(i)) & 1n));
+  };
+  const pushBytesBits = (bytes: Uint8Array, len: number) => {
+    let x = 0n;
+    for (let i = bytes.length - 1; i >= 0; i--) x = (x << 8n) | BigInt(bytes[i]);
+    pushScalarBits(x, len);
+  };
+  pushBytesBits(gD.toBytes(), 256);
+  pushBytesBits(pkD.toBytes(), 256);
+  pushScalarBits(v, 64);
+  pushBytesBits(rho, 255);
+  pushScalarBits(psi, 255);
+  return noteCommitmentPointFromBits(bits, rcm);
+}
+
+function noteCommitmentPointFromBits(bits: number[], rcm: bigint): PallasPoint {
+  return sinsemillaCommitToPoint(NOTE_COMMITMENT_PERSONALIZATION, bits, rcm);
+}
+
+/** Nullifier::derive (note/nullifier.rs) — DeriveNullifier from the Zcash
+ *  protocol spec § 4.16:
+ *    nf = extract_p( [mod_r_p(prf_nf(nk, rho) + psi)] · K^orchard + cm_point )
+ *  where K^orchard = hash_to_curve("z.cash:Orchard")("K"), prf_nf is Poseidon,
+ *  and mod_r_p reduces the Fp sum into the Fq scalar field.
+ *  Returns the 32-byte nullifier encoding (all-zero when the point is the
+ *  identity, matching Rust's extract_p(identity) = 0). */
+let cachedOrchardK: PallasPoint | null = null;
+export function getOrchardK(): PallasPoint {
+  if (cachedOrchardK === null) {
+    const k = hashToPallas('pallas', 'z.cash:Orchard', new TextEncoder().encode('K'));
+    if (k === null) throw new Error('getOrchardK: hash_to_curve returned null');
+    cachedOrchardK = k;
+  }
+  return cachedOrchardK;
+}
+export function deriveNullifier(
+  nk: Uint8Array,
+  rho: Uint8Array,
+  psi: bigint,
+  cmPoint: PallasPoint,
+): Uint8Array {
+  if (nk.length !== 32) throw new Error('deriveNullifier: nk must be 32 bytes');
+  if (rho.length !== 32) throw new Error('deriveNullifier: rho must be 32 bytes');
+  const nkFp = bytes32LEToBigint(nk);
+  const rhoFp = bytes32LEToBigint(rho);
+  if (nkFp >= FP_MOD) throw new Error('deriveNullifier: nk is not a canonical Fp element');
+  if (rhoFp >= FP_MOD) throw new Error('deriveNullifier: rho is not a canonical Fp element');
+  const sum = fp.add(prfNf(nkFp, rhoFp), psi);
+  const scalar = sum % FR_MOD; // mod_r_p: Fp -> Fq via the integer repr
+  const point = getOrchardK().mul(scalar).add(cmPoint);
+  return bigintToBytes32LE(point.extractP() ?? 0n);
 }
 
 /**
