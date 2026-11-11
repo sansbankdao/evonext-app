@@ -192,6 +192,33 @@ history of this file (see log below for commit hashes) — keep only load-bearin
 
 ## Active work
 
+0. **F28b — shielded Milestones 1–4 COMPLETE (2026-11-10, commit `1520d90`)**:
+   PCZT v1 wire port (`lib/shielded/pczt-wire.ts`, round-trip KAT on a real
+   1154-byte 2-action fixture from wasm-prover), incremental note-commitment
+   tree (`lib/shielded/tree.ts`, 8/8 KATs vs the fork's own
+   `commitment_tree.json`), sync engine with Platform-anchor verification
+   (`lib/shielded/sync.ts`, 7 tests, real-crypto encryptor), RedDSA sign /
+   verify / randomize (`lib/shielded/reddsa.ts`, 6 Rust-generated KATs),
+   ZIP-244 bundle digest + `compute_platform_sighash` + rs-dpp v0 extra-data
+   builders (`lib/shielded/bundle.ts`, golden-vector KAT
+   `4129796966e9...b21b7f7e` from `bundle/commitments.rs`), Poseidon
+   P128Pow5T3 (`lib/shielded/poseidon.ts` + generated
+   `poseidon-constants.ts`, 4 crate permute KATs), and `deriveNullifier`
+   in `lib/shielded/note.ts` (3 KATs generated on the pinned fork via
+   `Note::nullifier`). **The full prover wire loop is LIVE-VERIFIED**: POST
+   of the 2-action fixture to `https://prover.sansbank.dev/prove/pczt`
+   returned HTTP 200 with a JSON-hex envelope whose frame parses with our
+   TS parser (2 actions, valueSum 40000, proof 7264 bytes, valid anchor;
+   cold proving-key build ~63 s in the worker). 167/167 tests, tsc 0,
+   eslint 0 errors (1 known postsState warning). The FRESH-SESSION plan
+   for end-to-end SHIELD / TRANSFER / UNSHIELD is
+   `docs/HANDOFF-shielded-e2e.md`. NETWORK FACTS (verified live
+   2026-11-10): testnet = Platform 5.0.0-rc.8 protocol v14 current
+   (shielded live; pool state queryable via the WASM SDK, NOT via the DAPI
+   proxy — `get_shielded_pool_state` unsupported there); MAINNET =
+   Platform 4.2.0-dev.11 protocol v13 current / v14 pending — shielded is
+   NOT live on mainnet yet, so mainnet end-to-end is BLOCKED on the
+   mainnet protocol-v14 activation (no date known; do not guess).
 1. **Q4 spike DONE** (2026-10-04): report at `docs/spike-q4-shielded-tree-witness.md`.
    Key findings: all tree inputs are served by DAPI in authenticated form (notes in tree
    order with cmx + nullifier + cvNet + encryptedNote; per-note nullifier is served for
