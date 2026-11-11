@@ -189,8 +189,19 @@ history of this file (see log below for commit hashes) — keep only load-bearin
 - Fees for shielded spends are consensus-computed, NOT request parameters (builders return
   `(StateTransition, Credits)`); client must not invent a fee field.
 - Insight APIs (CORS *): `https://insight.dash.org/insight-api` (mainnet),
-  `https://insight.testnet.networks.dash.org/insight-api` (testnet). Faucet:
-  `https://faucet.testnet.networks.dash.org` (3/hr, Cap captcha).
+  `https://insight.testnet.networks.dash.org/insight-api` (testnet). Faucets:
+  `https://faucet.testnet.networks.dash.org` (3/hr, Cap captcha) and
+  **`https://faucet.thepasta.org` (the 'yappr testnet faucet', user-verified
+  2026-11-11)** — GET `/api/status` returns {balance, coreFaucetAmount: 1
+  (DASH/req), rateLimits: {soft: 3, turnstile: 10, hard: 25},
+  capEndpoint `/cap/v1/`, hardCapEndpoint `/cap/hard/`, turnstileSiteKey
+  0x4AAAAAAEc7OCY_Mbh19FLS, network testnet}; the request endpoint is POST
+  `/api/core-faucet` (JSON body incl. deposit address + CAP/turnstile token —
+  client implementation lives in the Dash Core→Platform Bridge app bundle at
+  `https://bridge.thepasta.org` whose testnet network config sets
+  faucetBaseUrl to this host; the front `https://faucet.yappr.io` currently
+  301s to `faucet.yipyapyop.net` which is NXDOMAIN — use thepasta.org
+  directly).
 - System withdrawals contract: `4fJLR2GYTPFdomuTVvNy3VRrvWgvkKPzqehEBpNf2nk6` (doc type
   `withdrawal`; status 2 = signed, 3 = complete). EvoNext contracts: testnet
   `465jdPpFCZefhb4g2k2FpCcrKpPYhJJskDqbGFsKu6wb`, mainnet
