@@ -108,6 +108,53 @@ history of this file (see log below for commit hashes) — keep only load-bearin
   nonce=1, DPNS nonce=2 — no third party moved funds); fee breakdown UNVERIFIED.
   Spend-proof handoff issued: `docs/handoff-wasm-prover-spend-proofs.md`; prover team
   replied: `wasm-prover/docs/reply-evonext-spend-proofs.md` — all their citations verified.
+- **F28a — ALL packages upgraded to latest across every dist-tag + pipeline restored;
+  shielded-crypto KAT resolved to 114/114 (2026-11-10/11)**:
+  (a) **Package sweep**: newest version across ALL dist-tags including dev/pre-release.
+  Notables: next 16.3.8 -> 16.5.0-canary.47 (eslint-config-next matched), tailwindcss
+  3.3.0 -> 4.3.5 (postcss.config.js now uses '@tailwindcss/postcss'; globals.css uses
+  `@import 'tailwindcss';` + `@config '../tailwind.config.js';` to keep the JS theme),
+  eslint 10.14.0, framer-motion 14.12.0, zustand 5.1.0, tailwind-merge 3.7.0, uuid 14.0.3,
+  date-fns 4.4.0, dash-platform-sdk 1.6.1, pshenmic-dpp 2.0.1-dev.6, @types/node 26.6.6,
+  jsdom 31.0.0, msw 3.0.5, vitest 5.1.0, @playwright/test + playwright
+  1.66.0-alpha-2026-11-11, lucide-react 1.72.0, moment 2.31.0.
+  (b) **Two forced pins**: @dicebear/core stays on 9.4.3 (must match @dicebear/collection
+  9.4.2 — v10/v11 removed createAvatar and their Style types are incompatible with
+  lib/avatar-dicebear.ts) and typescript stays on 5.9.3, the newest 5.x (typescript-eslint
+  hard-blocks TS >= 7.0, issue #10940 — eslint-config-next threw from dis/index.js).
+  TS 7.1.0-dev also removed tsconfig `baseUrl` (TS5102); the `@/*` paths mapping stays.
+  (c) **dash-platform-sdk 1.6.1 signature change**: wallet-manager.ts documents.create now
+  takes a 5th arg identityContractNonce (hoisted `const identityContractNonce = BigInt(1)`
+  passed positionally; still reused by createStateTransition; the whole function remains a
+  TODO stub — no real contract/type/data yet).
+  (d) **Shielded KAT root cause — JSON float64 corruption of u64 vectors**: the two failing
+  cmx assertions (keys-vector[0] 4502e339… and notes-vector[0] a5706f3d…) were NOT library
+  bugs. Rust ground truth (evorunner crate ~/orchard-kat against the fork's own types)
+  proved every intermediate correct: g_d/pk_d (byte-exact), psi/rcm/esk (LE-mod from the
+  fork's spec.rs from_uniform_bytes — NO input reversal), value bit widths (g_d/pk_d 256,
+  v 64, rho/psi 255 — total 1086 bits). The true defect: test/fixtures/shielded-vectors.json
+  stored note values as JSON NUMBERS — notes[].v = 8567075990963576717 and keys[].note_v =
+  15643327852135767324 both exceed Number.MAX_SAFE_INTEGER, so JS JSON.parse rounded them
+  (…6832 / …8064) and BigInt(corrupted) produced a wrong v -> wrong cmx. FIX: the fixture
+  now stores both u64 fields as decimal STRINGS; the test's existing `BigInt(v.v)` /
+  `BigInt(v.note_v)` calls work unchanged. GOTCHA for any future fixture with u64/u128:
+  always emit decimal strings, never JSON numbers.
+  (e) Probe-harness lesson: an earlier intermediate dump probe added a bogus `.reverse()`
+  before from_uniform_bytes, printing psi/rcm as the BE-reduction — that corrupted the
+  'ground truth' and sent the hunt down a wrong branch; trust only probes whose final
+  public API output matches a known-good reference (the fork's Note::commitment x-coord
+  a5706f3d…).
+  (f) Rust probe working notes: fork rev dashpay/orchard tag dashified-0.14.1 = commit
+  38ac9c19 (crate 0.14.0). API names that differ from upstream Zcash: RandomSeed (was
+  Rseed) with from_bytes([u8;32], &Rho) validating esk; Note::from_parts(Address,
+  NoteValue, Rho, RandomSeed); IncomingViewingKey::from_bytes(&[u8;64]) is ONE-arg
+  (dk || ivk LE); PreparedIncomingViewingKey has no payment_address() (use
+  IncomingViewingKey::address(Diversifier)); Diversifier::from_bytes([u8;11]) (tuple ctor
+  private); Address::to_raw_address_bytes() = d(11)||pk_d(32).
+  (g) Build/test context: builds run on evorunner (never the host — see the hard rule
+  below); `export PATH=$HOME/.cargo/bin:$PATH` required there. Verified after the fix:
+  tsc 0, eslint 0 errors / 1 known postsState warning, **114/114 tests (8 files)**, build
+  35/35 static pages.
 
 ## Key external references
 
@@ -1091,4 +1138,8 @@ history of this file (see log below for commit hashes) — keep only load-bearin
 
 - Follow the global instruction at `/home/shomari/.pi/agent/AGENTS.md` (deterministic
   facts, no guesses, full sources, minimum diff, 1:1 logic parity).
+- **NEVER build Rust/native toolchains on the host** (user directive, 2026-10-25).
+  Always build on a remote machine: `sansbank` VM (ssh alias, 127.0.0.1:2223, cargo
+  1.98.1, 4 cores, 4 GB RAM) or `evorunner` (ssh alias, 172.81.178.120, cargo 1.92.0,
+  6 cores, 16 GB RAM — prefer for heavy builds). Both verified live 2026-10-25.
 - After each completed task, update this file (mark done + record verification).

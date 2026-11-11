@@ -518,13 +518,14 @@ export const createDocument = async (
     /* Set (document) data. */
     const data = {}
 
-    /* Create document. */
-    const document = sdk.documents
-        .create(dataContract, documentType, data, _identityId)
-
     /* Set identity contract nonce. */
 // FIXME IS THIS STILL NECESSARY??
     const identityContractNonce = BigInt(1)
+
+    /* Create document. */
+    const document = sdk.documents
+        .create(dataContract, documentType, data, _identityId,
+            identityContractNonce)
 
     const tokenPaymentInfo = {
         tokenContractId: '...',
