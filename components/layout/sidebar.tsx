@@ -15,6 +15,7 @@ import {
     HomeIcon,
     MagnifyingGlassIcon,
     PencilSquareIcon,
+    ShieldCheckIcon,
     SparklesIcon,
     Squares2X2Icon,
     UserIcon,
@@ -30,6 +31,7 @@ import {
     HashtagIcon as HashtagIconSolid,
     HomeIcon as HomeIconSolid,
     MagnifyingGlassIcon as SearchIconSolid,
+    ShieldCheckIcon as ShieldCheckIconSolid,
     SparklesIcon as SparklesIconSolid,
     Squares2X2Icon as Squares2X2IconSolid,
     UserIcon as UserIconSolid,
@@ -53,6 +55,7 @@ const getNavigation = (isLoggedIn: boolean) => {
             { name: 'Home', href: '/', icon: HomeIcon, activeIcon: HomeIconSolid },
             { name: 'Explore', href: '/explore', icon: MagnifyingGlassIcon, activeIcon: SearchIconSolid },
             { name: 'Claim Identity', href: '/claim', icon: UserIcon, activeIcon: UserIconSolid },
+            { name: 'Shielded Pool', href: '/shielded', icon: ShieldCheckIcon, activeIcon: ShieldCheckIconSolid },
         ]
     }
 
@@ -63,6 +66,7 @@ const getNavigation = (isLoggedIn: boolean) => {
         { name: 'Mini Apps', href: '/apps', icon: Squares2X2Icon, activeIcon: Squares2X2IconSolid },
         { name: 'Wallet', href: '/wallet', icon: WalletIcon, activeIcon: WalletIconSolid },
         { name: 'Favorites', href: '/bookmarks', icon: BookmarkSquareIcon, activeIcon: BookmarkSquareIconSolid },
+        { name: 'Shielded Pool', href: '/shielded', icon: ShieldCheckIcon, activeIcon: ShieldCheckIconSolid },
     ]
 }
 

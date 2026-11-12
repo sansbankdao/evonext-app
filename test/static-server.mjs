@@ -43,6 +43,15 @@ const server = createServer(async (req, res) => {
         const body = await readFile(filePath)
         res.writeHead(200, {
             'Content-Type': MIME[extname(filePath)] || 'application/octet-stream',
+            // Mirror public/_headers (Cloudflare Pages honours it natively; this
+            // local server must do it by hand). COOP+COEP require-corp gives the
+            // page cross-origin isolation (SharedArrayBuffer) exactly as in prod.
+            'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: blob:; font-src 'self'; connect-src 'self' https: wss:; worker-src 'self' blob:; child-src 'self' blob:",
+            'Cross-Origin-Embedder-Policy': 'require-corp',
+            'Cross-Origin-Opener-Policy': 'same-origin',
+            ...(filePath.includes('/_next/static/')
+                ? { 'Cache-Control': 'public, max-age=31536000, immutable' }
+                : {}),
         })
         res.end(body)
     } catch {

@@ -21,7 +21,8 @@ history of this file (see log below for commit hashes) — keep only load-bearin
 
 - `tsc --noEmit` -> 0
 - `pnpm lint` (`eslint .`) -> 0 errors, 0 warnings
-- `pnpm test:run` -> 5 files, 62 tests passed
+- `pnpm test:run` -> 8 files, 167 tests passed (F28b); live e2e tests under `test/e2e/`
+  are EXCLUDED from this suite (vitest.config.ts excludes `**/e2e/**`)
 - `pnpm build` -> exit 0, 35/35 pages + 2 route handlers, `out/_headers` + 20MB wasm emitted
 - `playwright test --project=chromium` -> 2 passed (serves `./out` via `test/static-server.mjs`)
 
@@ -208,6 +209,43 @@ history of this file (see log below for commit hashes) — keep only load-bearin
   `6fBkKSne1xQ5GCPW9fdwEkH7nk8oYPu48vYiYssWzhX8` (`lib/constants.ts`).
 
 ## Active work
+
+-1. **F30 — /shielded pool viewer page (2026-11-12)**: user asked to SEE shielded
+   transactions; the platform-explorer API has NO shielded endpoints at all
+   (probed /shielded-pool[/state|/transactions|/notes], /shielded[/transactions]
+   — all 'Route GET:... not found') and its indexer was wedged at block 672010
+   (~20 min behind) — handoff for the DAPI team:
+   dev-dapi-proxy/docs/HANDOFF-explorer-indexer-first-shielded-tx.md. So the app
+   now has its own viewer:
+   (a) **app/shielded/page.tsx** (public, no auth): pool balance (credits → DASH
+   at 1e11 credits/DASH), note-tree size (2048-chunk walk, start MUST be BigInt
+   multiple of 2048), most-recent anchor hex, and the full note list (index, cmx,
+   nullifier — PUBLIC fields only) newest-first, 100/page. 'Find my notes'
+   (logged-in only) trial-decrypts locally with the session mnemonic's IVK
+   (spendingKeyFromSeed(seed, 1, 0) testnet coin type) — highlights MINE rows
+   with value + memo; keys never leave the page. Mainnet shows the 'not live on
+   mainnet yet' notice (guard is `network === 'mainnet'`, the F26j gotcha).
+   Every SDK call wrapped in a page-level withTimeout (30s/60s) — the wasm
+   request-timeout can leave its future pending forever.
+   (b) **test/static-server.mjs now mirrors public/_headers** (CSP/COOP/COEP +
+   immutable cache for /_next/static/*) — WITHOUT COOP/COEP require-corp the
+   browser throws `DataCloneError: postMessage on Worker: SharedArrayBuffer
+   transfer requires cross-origin isolation` and shielded queries misbehave;
+   Cloudflare Pages serves _headers natively, the local server must do it by
+   hand. This was load-bearing for the viewer working locally.
+   (c) **Sidebar + RightSidebar are mounted PER PAGE, not in app/layout.tsx** —
+   new pages must render <Sidebar /> themselves (explore-page pattern:
+   min-h-screen flex > Sidebar + py-20 flex-1 > main max-w-[600px] border-x +
+   RightSidebar). Sidebar nav gained 'Shielded Pool' (ShieldCheckIcon) in BOTH
+   the logged-out and logged-in lists (public data).
+   (d) Browser gotchas proven: innerText returns CSS-uppercased text (probe
+   regexes must be case-insensitive); `<T>` generic arrow in .tsx parses as JSX
+   — write `<T,>`; Playwright 1.66 alpha's chromium_headless_shell is not
+   downloaded on this host — launch with `channel: 'chrome'` (system Chrome).
+   (e) Verified live in the browser via Playwright against out/: pool balance
+   855.21116229858 DASH (matches the Node read exactly), full 6,691-note walk
+   completes, note row #6689 (our first shield) renders, sidebar link renders,
+   zero page errors. tsc 0, lint 0/1 known, build 36/36 (new page = +1).
 
 0. **F28b — shielded Milestones 1–4 COMPLETE (2026-11-10, commit `1520d90`)**:
    PCZT v1 wire port (`lib/shielded/pczt-wire.ts`, round-trip KAT on a real
@@ -1292,6 +1330,68 @@ history of this file (see log below for commit hashes) — keep only load-bearin
    postsState warning), 75/75, build 35/35; emitted wasm e9693c35 = 26,513,399 bytes.
 14. Pending decisions: shielded-balance UI, DIP-17 platform-address features, biometric
    settings integration, react-hooks v6 cleanup pass.
+18. **F29 — first-ever testnet SHIELD end-to-end LIVE-VERIFIED (2026-11-12)**:
+   the full pipeline from L1 asset lock to an on-chain Orchard note, driven
+   entirely by the pure-TS port + live prover. Sequence + findings:
+   (a) **Fee constants for protocol v14** (from /tmp/platform-rc8 sparse
+   checkout, `DRIVE_ABCI_VALIDATION_VERSIONS_V10` +
+   `FEE_STORAGE_VERSION1` + `ShieldFromAssetLockTransition` v1 validation):
+   pool_fee for N actions = (40,000,000 + N x 22,000,000) compute +
+   N x 550 x (27,000+400) storage + 50,000 x CREDITS_PER_DUFF asset-lock
+   base; the v1 validator checks `remaining_credit_value >= shield_amount
+   + pool_fee` as a FLAT fee (no GroveDB-derived pool-read fee). Chosen
+   sizing: shield 1,000,000,000 credits (0.01 DASH); asset lock 1,200,000
+   sats -> 1.2B credits; surplus 35,860,000 credits < the 20,000,000,000
+   implicit cap (no surplus output used — donated to pools).
+   (b) **Asset lock**: `wasm.AssetLockProof.createChainAssetLockProof(
+   blockheight, outPoint)`; the Platform chainlocked height came from
+   `sdk.getIdentityWithProofInfo(assetLockProof.createIdentityId()).
+   metadata.coreChainLockedHeight` (works for a MISSING identifier — data
+   undefined, metadata present). The lock proof's height MUST be <=
+   Platform's chainlocked height (F27i lesson).
+   (c) **PCZT**: `buildOutputOnlyPczt` auto-pads to MIN_ACTIONS=2 on-wire
+   actions internally (no exported constant; no need to pass dummyOutputs).
+   `postPcztFrame()` returns `{ frame, bytes, meta? }` (NOT {frameBytes});
+   frame = `{ flags, valueSumMagnitude, valueSumIsNegative, anchor,
+   actions[], zkproof }` — serializePcztFrame/parsePcztFrame live in
+   `lib/shielded/pczt-wire.ts` (NOT prove.ts). Live prover: 3,673-byte
+   frame -> 99.4s cold prove -> 10,941-byte frame with a 7,264-byte proof.
+   (d) **Assembly**: `assembleShieldFromAssetLock()` is ASYNC and returns
+   `{ stateTransition, wireBytes, bindingSignature }` (NOT {raw}).
+   (e) **Broadcast**: `sdk.broadcastStateTransition(stateTransition)`
+   returned OK (network CheckTx accepted = asset lock, funding, fees,
+   nullifiers and the Orchard ZK proof all verified); transition
+   skip-signature hash from `stateTransition.hash(true)` (hex string).
+   `sdk.waitForStateTransitionResult(hash)` kept hitting its internal
+   30s grpc deadline — DO NOT treat that as failure: definitive
+   execution proof = fetch the encrypted-note tree via
+   `sdk.getShieldedEncryptedNotes(startIndex: bigint, limit)` (startIndex
+   MUST be a BigInt literal — `0` throws 'Cannot convert 0 to a BigInt')
+   and trial-decrypt with the ivk via `tryDecryptNoteWireWithMemo` from
+   `lib/shielded/note.ts`.
+   (f) **RESULT**: note at tree index 6689 of 6691 (index 6690 = my own
+   auto-padded dummy output), value 1,000,000,000 credits, memo
+   'evonext e2e shield' — trial-decrypted and recorded in
+   `scratch-shield-state.json` (gitignored, holds the mnemonic/WIF —
+   local e2e scratch state). Lock tx
+   `d01ebd24d7fa3e2e56920a3d81761ec79cbf2ee1ede948026752dacb8ccce6f4`
+   (block 1589964); transition hash
+   `50f6daf7469c8f7e9d760b285901d345ecde5a03ecf9c43672d1d81f69930aa8`.
+   (g) **Live e2e harness**: `test/e2e/*.live.mts` + one-off config
+   `/tmp/vitest.live.config.mjs` (see file headers for why it lives in
+   /tmp: vite 8's config bundler breaks on the dotted `evonext.app` path
+   AND on `import 'vitest/config'` from /tmp — the /tmp config imports
+   defineConfig from the repo's absolute node_modules path and sets
+   root/alias/setupFiles to the repo). Run:
+   `pnpm vitest run --config /tmp/vitest.live.config.mjs <filter>`.
+   Per-file pattern: vi.mock('@/lib/dash-wasm/wasm_sdk.js',
+   importOriginal + initSync(bytes)) to override the setup.ts mock;
+   setup.ts's `crypto.getRandomValues: (a) => a` returns ZEROED arrays,
+   so build/assemble calls MUST pass an explicit `rand` (node:crypto
+   randomFillSync) — otherwise prove.ts's dummy-rho guard throws
+   'random point is the identity'.
+   (h) WasmSdkError objects are NOT Error instances — read `.message`
+   via a getter (F27h pattern); console.dir shows only the pointer.
 15. Known unverified: the -20.33B credit fee breakdown (F25).
 16. **Deployment is MANUAL/stale — F26**: the live evonext.app served the OLD pre-F22
    wasm on 2026-10-04 (deployed asset `wasm_sdk_bg.c3177f65.wasm`, 8,013,662 bytes,
