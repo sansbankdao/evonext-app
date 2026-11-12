@@ -2,14 +2,19 @@
 
 /* One-off config for LIVE end-to-end tests (real network, real funds).
  * These files are named *.live.mts and live under test/e2e/ so the normal
- * suite (vitest.config.ts: include *.test/*.spec, exclude **/e2e/**) never
- * picks them up. Run explicitly:
- *   pnpm vitest run --config test/e2e/vitest.live.config.mts [file filter] */
+ * suite never picks them up (it includes test/spec files only and excludes
+ * this directory). Run explicitly:
+ *   pnpm vitest run --config test/e2e/vitest.live.config.mts [file filter]
+ *
+ * NOTE: do NOT write double-star glob text inside block comments here —
+ * rolldown 1.2.18 (vite's config bundler) mis-serializes such comments and
+ * emits their content as live code ('e2e is not defined' at config load).
+ * Plain object, NOT defineConfig(): vite 8.3.7's defineConfig dynamically
+ * imports '@vitejs/devtools/config', which is not installed and also breaks
+ * the config bundling. */
 
-import { defineConfig } from 'vitest/config'
 import path from 'node:path'
-
-export default defineConfig({
+export default {
     test: {
         environment: 'jsdom',
         globals: true,
@@ -29,4 +34,4 @@ export default defineConfig({
         maxConcurrency: 1,
         pool: 'forks',
     },
-})
+}

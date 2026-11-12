@@ -346,6 +346,14 @@ export interface BuildTransferOptions {
   /** The LIVE bundle anchor the spend witnesses were built against (32 bytes).
    *  Must be one of Platform's recorded anchors (100-checkpoint retention). */
   anchor: Uint8Array;
+  /** Transparent extra_data bound into the platform sighash. EMPTY for a
+   *  ShieldedTransfer (rs-dpp shielded_transfer.rs: prove_and_sign_bundle
+   *  (..., &[])); a ShieldedWithdrawal passes
+   *  shieldedWithdrawalExtraSighashData(outputScript, required, coreFee,
+   *  pooling) where required == the resulting value_balance (withdrawal
+   *  amount + withdrawal fee) — rs-dpp shielded_withdrawal.rs binds exactly
+   *  those fields so a relay cannot malleate the Core-facing payout. */
+  extraSighashData?: Uint8Array;
   rand?: RandFn;
 }
 
@@ -502,9 +510,10 @@ export function buildTransferPczt(options: BuildTransferOptions): TransferBuild 
 
   const anchor = new Uint8Array(options.anchor);
   const commitment = hashBundleTxidData(effects, FLAGS_ENABLED, valueBalance, anchor);
-  /* ShieldedTransfer has no extra_data in the sighash (rs-dpp
-   * shielded_transfer.rs: prove_and_sign_bundle(builder, prover, [ask], &[])). */
-  const sighash = computePlatformSighash(commitment, new Uint8Array(0));
+  /* Extra_data is empty for a ShieldedTransfer (rs-dpp shielded_transfer.rs:
+   * prove_and_sign_bundle(builder, prover, [ask], &[])) and the withdrawal
+   * field bundle for a ShieldedWithdrawal (see BuildTransferOptions). */
+  const sighash = computePlatformSighash(commitment, options.extraSighashData ?? new Uint8Array(0));
 
   for (let i = 0; i < actions.length; i++) {
     const { ask, alpha } = signers[i];

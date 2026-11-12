@@ -216,3 +216,76 @@ export async function assembleShieldedTransfer(
         bindingSignature,
     }
 }
+
+export interface AssembleShieldedWithdrawalOptions {
+    /* The local spend build whose frame was sent to the prover (built with
+     * buildTransferPczt + extraSighashData =
+     * shieldedWithdrawalExtraSighashData(...)). */
+    build: TransferBuild
+    /* The proved frame returned by postPcztFrame (zkproof !== null). */
+    provedFrame: PcztFrame
+    /* Core fee rate (u32). Consensus: non-zero Fibonacci, >= 1
+     * (MIN_CORE_FEE_PER_BYTE); pinned into the sighash. */
+    coreFeePerByte: number
+    /* Pooling strategy (u8). Consensus: must be 0 (Pooling::Never — pooling
+     * is not yet supported). */
+    pooling: number
+    /* Canonical Core output script receiving the funds (P2PKH 25 bytes or
+     * P2SH 23 bytes — consensus rejects anything else). */
+    outputScript: Uint8Array
+    /* Deterministic randomness override for the binding signature (tests). */
+    rand?: RandFn
+}
+
+/* Assembly of a protocol-v14 ShieldedWithdrawalTransition (v0) from a proved
+ * PCZT frame (rs-dpp shielded_withdrawal_transition/v0/mod.rs). Like the
+ * transfer there is NO outer signature — the transition is exactly {actions,
+ * unshielding_amount, anchor, proof, binding_signature, core_fee_per_byte,
+ * pooling, output_script}; authorization is the in-bundle binding signature,
+ * which also authorizes the Core-facing fields via the sighash extra_data.
+ * unshielding_amount = the frame's value balance = withdrawal_amount + fee
+ * (the total credits leaving the pool). */
+export async function assembleShieldedWithdrawal(
+    options: AssembleShieldedWithdrawalOptions,
+): Promise<AssembledTransition> {
+    const { build, provedFrame } = options
+    const rand = options.rand ?? defaultRand
+
+    /* 1. The proved frame must be the local build's frame plus a zkproof. */
+    assertProvedFrameMatchesBuild(build.frame, provedFrame)
+
+    /* 2. The bundle spends INTO the withdrawal + fee: the signed value sum
+     * must be positive (unshielding_amount > 0 per consensus). */
+    if (provedFrame.valueSumIsNegative || provedFrame.valueSumMagnitude === 0n) {
+        throw new Error('assemble: withdrawal bundle value_balance must be positive (unshielding_amount)')
+    }
+    const unshieldingAmount = BigInt(provedFrame.valueSumMagnitude)
+
+    /* 3. Map frame actions onto SerializedAction options. */
+    const wasm: any = await import('../dash-wasm/wasm_sdk')
+    const actions = mapActionsToWasm(wasm, provedFrame.actions)
+
+    /* 4. Binding signature over the sighash with the summed trapdoor bsk. */
+    const bindingSignature = signBinding(build.bsk, build.sighash, rand(80)).sig
+
+    /* 5. Build the wasm transition. No signature step exists for this type —
+     * the state transition is broadcast exactly as constructed. */
+    const transition = new wasm.ShieldedWithdrawalTransition({
+        actions,
+        unshieldingAmount,
+        anchor: provedFrame.anchor,
+        proof: provedFrame.zkproof,
+        bindingSignature,
+        coreFeePerByte: options.coreFeePerByte,
+        pooling: options.pooling,
+        outputScript: options.outputScript,
+    })
+    const stateTransition = transition.toStateTransition()
+    const wireBytes: Uint8Array = stateTransition.toBytes()
+
+    return {
+        stateTransition: wasm.StateTransition.fromBytes(wireBytes),
+        wireBytes,
+        bindingSignature,
+    }
+}

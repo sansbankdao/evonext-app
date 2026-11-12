@@ -45,3 +45,24 @@ export function computeMinimumShieldedFee(numActions: number): bigint {
   const storageFee = n * SHIELDED_STORAGE_BYTES_PER_ACTION * SHIELDED_STORAGE_PER_BYTE_RATE
   return computeFee + storageFee
 }
+
+/* Flat storage component added for ShieldedWithdrawal ONLY: the transition
+ * inserts a Core withdrawal document (plus its withdrawals-contract index
+ * entries, `AddWithdrawalDocument`) whose GroveDB-metered cost (~110M
+ * credits) is flat regardless of action count. Priced as 4100 effective
+ * bytes at the same per-byte storage rate. Source: rs-dpp
+ * src/shielded/mod.rs:51 `SHIELDED_WITHDRAWAL_DOCUMENT_STORAGE_BYTES: u64 =
+ * 4100`, applied in compute_shielded_withdrawal_fee_v0
+ * (src/shielded/compute_minimum_shielded_fee/v0/mod.rs:122). */
+const SHIELDED_WITHDRAWAL_DOCUMENT_STORAGE_BYTES = 4_100n
+
+/** compute_shielded_withdrawal_fee (v0): the ShieldedWithdrawal fee =
+ *  computeMinimumShieldedFee(numActions) + 4100 * per-byte storage rate.
+ *  Consensus carves EXACTLY this from the pool on every withdrawal (rs-dpp
+ *  shielded/builder/shielded_withdrawal.rs: 'The fee is not a parameter').
+ *  For numActions = 2 on protocol v14: 114,140,000 + 112,340,000 =
+ *  226,480,000 credits. */
+export function computeShieldedWithdrawalFee(numActions: number): bigint {
+  return computeMinimumShieldedFee(numActions)
+    + SHIELDED_WITHDRAWAL_DOCUMENT_STORAGE_BYTES * SHIELDED_STORAGE_PER_BYTE_RATE
+}

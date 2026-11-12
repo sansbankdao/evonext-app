@@ -31,6 +31,9 @@ yarn-error.log*
 .env
 .env.contract
 
+# live e2e state cursor — contains a real (testnet) funding WIF; NEVER commit
+/scratch-shield-state.json
+
 # vercel
 .vercel
 

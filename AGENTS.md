@@ -1489,6 +1489,77 @@ history of this file (see log below for commit hashes) — keep only load-bearin
 
 ## Working Rules For This Repo
 
+## F32 — testnet UNSHIELD (ShieldedWithdrawal) LIVE-VERIFIED + resumable
+stage-5 verifier (2026-10-06)
+
+The withdrawal had ALREADY been executed live (build -> prover 75.4s ->
+assemble 8,217-byte wire -> broadcast -> execute): spend nullifier
+`591049d46966833098640fa96e40f32fa7af4298fcc4ace543279cb47cfeaf2c`
+(note tree index 6691, value 500,000,000), pool decreased EXACTLY 426,480,000
+(= 200,000,000 withdrawal + 226,480,000 consensus fee), tree +2, change note
+73,520,000 decrypts at diversifier-0 (tree index 6693), withdrawal doc
+`DjyR83gzThy2jRn7DUfjoxtfFDuu8KwBiHVPMhYEVeGT` (contract
+`4fJLR2GYTPFdomuTVvNy3VRvWgvkKPzqehEBpNf2nk6`, owner = the all-zeros
+contract-owner identifier `11111111111111111111111111111111`, amount 200,000,000,
+coreFeePerByte 1, pooling 0, status 3, transactionIndex 4332), and the L1
+asset-unlock payout of EXACTLY 199,810 sats (= 200,000 duffs - 190-duff
+ASSET_UNLOCK_TX_SIZE at coreFeePerByte 1; 190 pinned from
+rs-platform-version system_limits/v1.rs:39 + the observed payout match)
+landed as UTXO `37992de4fffac8f5fd52bb8dcf17414d217a1046883565504090750c508dbac1:0`
+at funding address `ycxZZzW9waTpSewrTLc7Se2CEhQgZqv9AS`.
+
+(a) **`test/e2e/shield-stage5-withdrawal.live.mts` REWRITTEN as a RESUMABLE
+verifier** (373 lines): step 5 branches on `sdk.getShieldedNullifiers([nf])` —
+if already spent, the build/prove/assemble/broadcast block is SKIPPED (a
+re-broadcast would double-pay the L1 leg) and the remaining effects are
+verified against live state. Withdrawal doc found by querying the system
+contract by contract-owner `$ownerId` + `$updatedAt desc` and matching OUR
+doc by base64-decoded `outputScript` (12x5s poll). L1 payout matched by
+`scriptPubKey` + exact satoshis with a pre-broadcast txid snapshot (fresh
+mode only); 24x20s poll. Audit block persisted to `scratch-shield-state.json`
+with `stage: 'unshielded'`, `executedByThisRun: false` in resume mode
+(transition hash is NOT stored — proving randomness is not recoverable).
+RESUME RUN VERIFIED GREEN 2026-10-06 (20.8s): all checks above re-confirmed;
+change note re-found by trial-decryption scan (changeNoteIndex 6693,
+noteCountAfter 6721 — the pool had grown to 6,721 notes by third-party
+activity).
+
+(b) **Uncommitted lib additions finalized** (part of the live-verified flow):
+`lib/shielded/fees.ts` +`computeShieldedWithdrawalFee` (4,100 storage bytes,
+226,480,000 for 2 actions); `lib/shielded/prove.ts` +`extraSighashData`
+option on `BuildTransferOptions` (empty for transfer, withdrawal extra-data
+for unshield); `lib/shielded/assemble.ts` +`assembleShieldedWithdrawal`
+(positive value sum asserted; NO outer signature — binding sig only).
+
+(c) **GOTCHAS, two real ones hit at config load**:
+(1) vite 8.3.7 bundles configs with ROLLDOWN 1.2.18, which MIS-SERIALIZES
+block comments containing double-star glob text — `exclude **/e2e/**` in a
+comment terminated the comment early and emitted `e2e;` as live code
+(ReferenceError 'e2e is not defined' at config load, opaque stack). The
+config's comment was reworded; NEVER put `**/.../**` glob text in block
+comments in config files bundled by vite 8.
+(2) vite 8's `defineConfig` dynamically imports `@vitejs/devtools/config`,
+which is not installed and also broke config bundling — `vitest.live.config.mjs`
+now exports a plain object (equivalent semantics).
+(3) **`tsc --noEmit` does NOT see `*.mts`** (root tsconfig glob `**/*.ts`);
+new `tsconfig.e2e-check.json` (include `test/e2e/**/*.mts` + `lib/**`) is
+now the ONLY real type-check for the live tests — it surfaced 5 real errors
+(dashcore-lib typings stricter than the live-proven runtime: cast-only
+fixes on the funding-key/`buildPublicKeyHashOut` lines, one duplicate
+`const scriptHex` that was a genuine load-time SyntaxError, one
+`transitionHash!` non-null assertion) — ALL FIXED; e2e-check tsc = 0,
+eslint on the 4 files = 0.
+
+(d) `scratch-shield-state.json` added to `.gitignore` (contains a real
+testnet funding WIF — never commit). Run the live test ONLY via
+`pnpm vitest run --config test/e2e/vitest.live.config.mjs shield-stage5`.
+
+(e) Verified this session: tsc 0, eslint 0 errors/1 known postsState
+warning, 203/203 unit tests, e2e tsc-check 0, RESUME live run green x2.
+Mainnet work remains PAUSED until the /shielded deploy is confirmed.
+
+## Working Rules For This Repo
+
 - Follow the global instruction at `/home/shomari/.pi/agent/AGENTS.md` (deterministic
   facts, no guesses, full sources, minimum diff, 1:1 logic parity).
 - **NEVER build Rust/native toolchains on the host** (user directive, 2026-10-25).
