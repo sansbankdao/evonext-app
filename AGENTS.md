@@ -1576,6 +1576,97 @@ token + the Pages project name from the user. NOTE: `git ls-files` shows
 pnpm-lock.yaml IS committed (F31b's 'no lockfile' note was wrong on the
 filename).
 
+## F36 — MAINNET SHIELD→TRANSFER→UNSHIELD EXECUTED END-TO-END (REAL FUNDS,
+2026-11-12): the entire chain the testnet proved (F29–F32) now ran live on
+MAINNET protocol v14 with a dedicated wallet funded by the user.
+
+**Wallet** (scratch-mainnet-state.json, gitignored — 24-word mnemonic,
+BIP44 m/44'/5'/0'/0/0): funding address `XbQbuiQaxAqVAu7NLKTDDmvd6ngUK2ySAS`,
+funded 0.02432924 DASH (~$1) — one input, sized to the exact testnet-parity
+run.
+
+**Stage 1 — L1 ASSET LOCK** (scratch-mainnet-stage1-lock.mjs, testnet
+mirror; broadcast gated behind MAINNET_BROADCAST_OK=1): type-8 v23-format
+lock of 1,200,000 sats — tx
+`f7126f9d3068e4594b316bf8ab5af5ad0515fed37427c5d4cb76d90ece93049e`, mined at
+block **2571235** (39+ confs). Stage 1b (scratch-mainnet-stage1b-wait.mjs):
+proof identifier `BAbJFnkpB84yoFHMCSHtfPwkqJJwFNahj5iMxYx47m6Y`, chainlocked
+at platform height 2571260. GOTCHA: mainnet insight (insight.dash.org)
+CRYPTFLARE-challenges non-browser UAs (returned HTML challenges and even
+connect timeouts to node-fetch) — every insight fetch now sends a browser
+User-Agent with retry-on-challenge; AND insight `/tx/<txid>` lacked the
+`blockheight` field on mainnet, so confirmation is detected via the
+`/addr/<addr>/utxo` `height` field of the lock's vout-1 credit output.
+
+**Stage 2 — SHIELD** (scratch-mainnet-stage2-shield.mts → esbuild bundle;
+ZIP-32 coin_type 5): output-only PCZT (1B credits to diversifier-0, memo
+'evonext mainnet shield', extra-sighash 0x86 over the asset-lock
+identifier), proved by the live prover in 60–134s, assembled 8,296 bytes,
+broadcast, ACCEPTED. Proof: stage 3 (scratch-mainnet-stage3-find.mts)
+trial-decrypted the mainnet tree with the coin-type-5 IVK — note at tree
+index 5257 of 5259, cmx `e775bc9faee6793faeb231dc34fcc85a69fcd241260ee838c
+6bba74398daca0e`, nullifier
+`5a16eff710dc1bb2dfbba320da071e2ea701209061331e82802e590fddf73339`, value
+exactly 1,000,000,000 credits, memo intact.
+
+**Stage 3 GOTCHA (esbuild+wasm two-instance bug)**: the scratch scripts
+dynamically import the wasm glue via a runtime `import(new URL(...).href)`
+— esbuild leaves that as a RUNTIME import (instance A) while
+lib/shielded/assemble.ts's internal `import('../dash-wasm/wasm_sdk')` gets
+BUNDLED (instance B): initSync initialized only A and assembly crashed with
+'cannot read serializedorchardaction_constructor of undefined'. Fix: STATIC
+`import * as wasm from './lib/dash-wasm/wasm_sdk.js'` at the top so both
+share the bundled instance. Also: esbuild-bundled dashcore-lib needs the
+`--banner:js=import { createRequire }...` shim (dynamic require of crypto).
+
+**Stage 4 — TRANSFER** (scratch-mainnet-stage4-transfer.mts, RESUMABLE via
+the nullifier gate): 500M credits to diversifier-1, change 385.86M to
+diversifier-0, fee 114,140,000 (consensus-pinned); local tree root == live
+anchor `8b01ce50…b432`, witness folds at position 5257; proved 56.2s;
+assembled 8,189 bytes; broadcast + EXECUTION PROVED — state-transition hash
+`83bbb079ecc75ccf06149cc83bbb39553c4d40434140dff99c0ec2efa41ac4b3`
+(skip-sig pre-sign hash `3d02e932…` differs, expected). Nullifier revealed;
+recipient note at index 5261 (500M @ d1), change note 5262 (385.86M @ d0).
+NOTE: the mainnet pool is BUSY — pool-delta exactness is broken by
+third-party transitions (tree +4 in the window); identity checks (notes
+decrypt + nullifier + tree root) are the proof.
+
+**Stage 5 — UNSHIELD** (scratch-mainnet-stage5-unshield.mts, RESUMABLE):
+spend the 500M recipient note (index 5261) -> withdraw 200M credits to the
+funding address (P2PKH `76a91407e5d915fecfef7e3f29e9bd8c436128e797ea9888ac`),
+fee 226,480,000, unshielding_amount 426,480,000, change 73,520,000; proved
+121.3s; assembled 8,217 bytes (same wire size as testnet); broadcast +
+executed. Verified: nullifier
+`f5e0c00eaab66f16beb8f3776b3a4906f339fcbbc2ca4108977e7d8b3cad7c1c` spent;
+change note index 5263 (73.52M @ d0) decrypts; withdrawal document
+`2usNzQ7qDLCeZFjTqUnyLa2AdWXBFK2fxvbYxWBLmxao` in the system contract
+`4fJLR2GYTPFdomuTVvNy3VRrvWgvkKPzqehEBpNf2nk6` (owner = all-zeros — same
+contract ID on mainnet, verified live via sdk.getDataContract; status 2 at
+insert, transitions to 3 after the unlock tx confirms; transactionIndex
+15657, signHeight 2571273); **L1 PAYOUT tx
+`c86f7d590ad77a904a076aaa4633d48e1ee97680bf3410e4ddc817a95c2bc7ce`** =
+EXACTLY 199,810 sats (= 200,000 − ASSET_UNLOCK_TX_SIZE 190 @ coreFeePerByte
+1 — the same net-payout math as testnet) at the funding address. GOTCHA:
+the run's final state-save initially crashed ('changeNoteIndex is not
+defined' — local var renamed changeIdx); the resume re-run re-verified ALL
+on-chain effects and saved the audit block (transitionHash = the skip-sig
+`1ff3eefae764258474aa8dce7760a03be6d20949c9a372090c4cc9aa9c189db5`; the
+post-sign execution hash was not captured — minor audit gap, the L1 payout
+tx + doc + nullifier are the definitive evidence).
+
+**Economics on mainnet (real funds)**: 0.02432924 DASH in → 0.012 lock
+(0.012 burned into the pool + 0.012 credit output consumed by Platform) →
+1B credits shielded → 500M transferred (fee 0.11414 credits-M) → 200M
+withdrawn → 0.0019981 DASH back on L1; change notes 385.86M (d0) + 73.52M
+(d0) remain in the pool + 500M sits at d1. L1 residue after the chain:
+~31,924 duffs change + 199,810 payout.
+
+Remaining mainnet work: /shielded viewer + app services are still
+testnet-hardcoded in places (lib/network.ts getNetwork returns 'mainnet' on
+production) — app-level mainnet enablement is a SEPARATE task; this F36 is
+the protocol/e2e milestone. The stage harnesses (scratch-mainnet-*.mts/.mjs)
+stay untracked (contain no secrets; read the gitignored state file).
+
 ## F35 — MAINNET SHIELDING KICKOFF: protocol v14 LIVE-VERIFIED on mainnet,
 shielded-address codec KAT'd from the fork, funding wallet generated
 (2026-11-12)
