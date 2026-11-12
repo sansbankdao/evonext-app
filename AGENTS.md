@@ -1576,6 +1576,64 @@ token + the Pages project name from the user. NOTE: `git ls-files` shows
 pnpm-lock.yaml IS committed (F31b's 'no lockfile' note was wrong on the
 filename).
 
+## F34 — REAL assetlinks.json served at evonext.app; Android passkey
+unblock for evonext-mobile (2026-11-12)
+
+The mobile team's handoff (evonext-mobile
+`docs/HANDOFF-assetlinks-evonext-web.md`) blocked Android Credential-Manager
+passkeys on our PLACEHOLDER `/.well-known/assetlinks.json`
+(`package_name: "com.example"`, fingerprint `0x0`) — Android rejects every
+passkey request before any UI (CreateCredentialNoCreateOptionException;
+device-verified on a Pixel 5). FIXED in
+`app/.well-known/assetlinks.json/route.ts`, committed `9e40da0`, deployed
+and verified LIVE the same hour (200, `application/json`, exact two-entry
+statement).
+
+(a) **Answer to 'is assetlinks required by the WEB passkey flow?' — NO.**
+Browsers never fetch it; web-only WebAuthn needs nothing but the rpId to
+match the origin's registrable domain (lib/passkey-vault.ts pins
+`getRpId()` to 'evonext.app' for evonext.app AND subdomains, hostname
+fallback for localhost/IPFS). The file exists to authorize the ANDROID app
+to use the same RP ID (`delegate_permission/common.get_login_creds`) —
+that grant is what enables web<->app passkey sharing. It must be hosted at
+the rpId domain root, hence the web repo.
+
+(b) **Web passkey implementation audited COMPLETE** (F27b/F27c):
+lib/passkey-vault.ts — PRF (hmac-secret) requested in BOTH create and get,
+`extractPrfOutput` gates on `prf.results.first` (PRF_UNSUPPORTED),
+full error taxonomy (UNSUPPORTED/PRF_UNSUPPORTED/CANCELLED via
+NotAllowedError/NOT_FOUND/DECRYPT_FAILED/FAILED), Option A AES-GCM-wrap of
+the WIF under HKDF(KEK) in localStorage, Option C deterministic salt
+SHA-256('evonext:identity-entropy:v1:N') -> HKDF -> 16B entropy -> BIP39
+12 words with a DISCOVERABLE credential (recovery needs no stored id),
+connect-page create/recover wired with the 12-word backup gate. 12/12 unit
+tests pass (test/unit/lib/passkey-vault.test.ts). NO change needed for the
+web flow; nothing else is required web-side for Android passkeys beyond
+this file. iOS remains a SEPARATE handoff (the AASA route still carries a
+placeholder team-id; webcredentials only matters for an iOS APP).
+
+(c) **Fingerprint provenance (both verified this session)**:
+- PRODUCTION `app.evonext` = 00:C6:BA:5C:09:68:A4:8C:DB:6D:64:65:B1:8C:2D:
+  C1:8B:36:02:1D:01:AF:7F:FE:3B:AE:86:61:7C:23:44:3A — extracted from the
+  signed production APK by evonext-mobile via `apksigner verify
+  --print-certs` (release keystore alias `sansbank`, valid to 2053). The
+  release keystore is NOT on this host (no SANSBANK_UPLOAD_STORE_FILE env,
+  no apksigner) so it could not be re-derived here — mobile team's
+  extraction is the authoritative source.
+- DEBUG `app.evonext.debug` = FA:C6:17:45:DC:09:03:78:6F:B9:ED:E6:2A:96:2B:
+  39:9F:73:48:F0:BB:6F:89:9B:83:32:66:75:91:03:3B:9C — verified HERE via
+  `keytool -list -v -keystore android/app/debug.keystore -storepass android`
+  against the COMMITTED keystore that build.gradle's debug signingConfig
+  applies to every debug build (file unchanged since the mobile repo's
+  initial commit), so debug APKs on ANY machine match.
+
+(d) **Timing flake fixed**: test/unit/lib/shielded-sync.test.mts 'rewinds
+the mutable tail chunk' sits at the 60s global cap when the full parallel
+suite saturates the host (68-82s observed at load 7-9; 10-25s standalone;
+three gate failures 2026-11-12 before the cause was clear — host load from
+the verification runs themselves, not a code regression). Explicit
+300_000ms per-test timeout added (no logic change). 203/203 green after.
+
 ## F33 — the deploy blocker was CLOUDFLARE'S 25 MiB PER-FILE LIMIT; wasm
 moved out of the Pages bundle and served by a Pages Function (2026-11-12)
 
