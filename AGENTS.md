@@ -1562,8 +1562,10 @@ Mainnet work remains PAUSED until the /shielded deploy is confirmed.
 
 - Follow the global instruction at `/home/shomari/.pi/agent/AGENTS.md` (deterministic
   facts, no guesses, full sources, minimum diff, 1:1 logic parity).
-- **NEVER build Rust/native toolchains on the host** (user directive, 2026-10-25).
-  Always build on a remote machine: `sansbank` VM (ssh alias, 127.0.0.1:2223, cargo
-  1.98.1, 4 cores, 4 GB RAM) or `evorunner` (ssh alias, 172.81.178.120, cargo 1.92.0,
-  6 cores, 16 GB RAM — prefer for heavy builds). Both verified live 2026-10-25.
+- **NEVER build on the host — user directive RE-EMPHASIZED 2026-11-12, now
+  covering ALL builds (Rust/native AND `pnpm build`/`next build`), not just
+  Rust/native toolchains.** Always build on a remote machine: `sansbank` VM
+  (ssh alias, 127.0.0.1:2223, cargo 1.98.1, 4 cores, 4 GB RAM) or `evorunner`
+  (ssh alias, 172.81.178.120, cargo 1.92.0, 6 cores, 16 GB RAM — prefer for
+  heavy builds). Both verified live 2026-10-25.
 - After each completed task, update this file (mark done + record verification).
