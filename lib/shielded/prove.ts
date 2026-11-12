@@ -32,10 +32,10 @@ import { PallasPoint, bigintToBytes32LE } from './pasta';
 import { derivePsi, deriveRcm, deriveEsk, noteCommitment, noteCommitmentPoint, deriveNullifier, DASH_MEMO_SIZE } from './note';
 import { valueCommitment, sumRcvIntoBsk } from './value';
 import { encryptNotePlaintext, encryptOutgoingPlaintext } from './encrypt';
-import { hashBundleTxidData, computePlatformSighash, type BundleActionEffects } from './bundle';
+import { hashBundleTxidData, computePlatformSighash, FLAGS_ENABLED, type BundleActionEffects } from './bundle';
 import { reddsaSign, randomizeVerificationKey, spendAuthSign, getBindingG } from './reddsa';
 import { emptyRoots } from './tree';
-import { TREE_DEPTH, serializePcztFrame, parsePcztFrame, type PcztAction, type PcztFrame, type PcztSpend, type PcztOutput } from './pczt-wire';
+import { TREE_DEPTH, serializePcztFrame, parsePcztFrame, type PcztAction, type PcztFrame, type PcztSpend, type PcztOutput, type PcztWitness } from './pczt-wire';
 
 /** Bundle flags byte for the credit pool's output-only bundles: rs-dpp builds
  *  with BundleType::Transactional { flags: OrchardFlags::SPENDS_DISABLED,
@@ -287,6 +287,240 @@ export function buildOutputOnlyPczt(options: BuildOutputOnlyOptions): OutputOnly
       flags: FLAGS_OUTPUT_ONLY,
       valueSumMagnitude: -valueBalance,
       valueSumIsNegative: true,
+      anchor,
+      actions,
+      zkproof: null,
+    },
+    sighash,
+    bsk,
+    anchor,
+    valueBalance,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Transfer bundles (ShieldedTransfer): real spends + real outputs. Ported 1:1
+// from rs-dpp v5.0.0-rc.8 (shielded/builder/shielded_transfer.rs
+// build_shielded_transfer_transition) layered on the fork Builder pairing rule
+// (builder.rs: spend i pairs with output i in ONE action; the short side pads
+// with dummies; MIN_ACTIONS = 2). Differences from buildOutputOnlyPczt:
+//   * the spend half of action i < spends.length is the REAL note (real
+//     nullifier under the owner's nk, rk = ak randomized by alpha, witness
+//     against the LIVE bundle anchor — not the empty-tree anchor);
+//   * action i >= spends.length reuses the proven dummy-spend machinery of
+//     buildAction unchanged;
+//   * an action's v_net = spend_value - output_value (value.ts
+//     signedValueToScalar handles the sign);
+//   * bundle flags = FLAGS_ENABLED (0x03 — spends + outputs enabled), the
+//     sighash extra_data is EMPTY (rs-dpp prove_and_sign_bundle(..., &[])),
+//     and value_balance = total_spent - total_output = the fee (POSITIVE;
+//     consensus pins it to compute_minimum_shielded_fee — fees.ts).
+// ---------------------------------------------------------------------------
+
+/** One real note being spent, with everything the prover needs to build the
+ *  spend circuit (pczt_wire.rs parse_spend fields). */
+export interface TransferSpendSpec {
+  /** 43-byte raw Orchard address of the note (d(11) || pk_d(32)). */
+  recipient: Uint8Array;
+  /** Note value in credits (u64). */
+  value: bigint;
+  /** 32-byte rho — the nullifier of the action that CREATED this note
+   *  (Rho::from_nf_old). */
+  rho: Uint8Array;
+  /** 32-byte rseed (derives psi/rcm; prover recomputes the note commitment). */
+  rseed: Uint8Array;
+  /** Full viewing key parts owning the note (ak / nk / rivk). */
+  fvk: FullViewingKeyParts;
+  /** Spend authorizing key scalar (reduced mod r) for the spendAuthSig. */
+  ask: bigint;
+  /** Merkle witness against the bundle anchor: leaf position + the 32-node
+   *  leaf-to-root authentication path (OrchardTree.authPath). */
+  witness: PcztWitness;
+}
+
+export interface BuildTransferOptions {
+  spends: TransferSpendSpec[];
+  /** Real outputs, rs-dpp order: the recipient output first, then the change
+   *  output (if any). Filler dummies pad to max(spends, outputs, 2). */
+  outputs: OutputOnlySpec[];
+  /** The LIVE bundle anchor the spend witnesses were built against (32 bytes).
+   *  Must be one of Platform's recorded anchors (100-checkpoint retention). */
+  anchor: Uint8Array;
+  rand?: RandFn;
+}
+
+export interface TransferBuild {
+  /** Fully signed PCZT frame, ready for serializePcztFrame + POST. */
+  frame: PcztFrame;
+  /** The platform sighash every spend-auth signature was made over. */
+  sighash: Uint8Array;
+  /** bsk = Σ rcv mod r — for the post-prove binding signature. */
+  bsk: bigint;
+  /** The bundle anchor (the live anchor passed in). */
+  anchor: Uint8Array;
+  /** Signed value balance (POSITIVE for a transfer — the fee leaving the pool). */
+  valueBalance: bigint;
+}
+
+/** Assemble one (real spend + output) action pair. The spend half mirrors the
+ *  fork's SpendInfo::build (builder.rs:264-...): the note commitment is
+ *  recomputed from the note fields, the wire nullifier is the note's real
+ *  nullifier under the owner fvk's nk, and rk = ak randomized by a fresh
+ *  alpha. The output half is byte-identical math to buildAction's output half
+ *  (rho = this action's nullifier via Rho::from_nf_old). */
+function buildRealSpendAction(
+  spendSpec: TransferSpendSpec,
+  output: OutputOnlySpec,
+  rand: RandFn,
+): { action: PcztAction; effects: BundleActionEffects; rcv: bigint; alpha: bigint } {
+  // --- real spend half ---
+  const spendD = spendSpec.recipient.slice(0, 11);
+  const spendPkD = PallasPoint.fromBytes(spendSpec.recipient.slice(11, 43));
+  const spendGD = diversifyHash(spendD);
+  const spendPsi = derivePsi(spendSpec.rseed, spendSpec.rho);
+  const spendRcm = deriveRcm(spendSpec.rseed, spendSpec.rho);
+  const spendCmPoint = noteCommitmentPoint(spendGD, spendPkD, spendSpec.value, spendSpec.rho, spendPsi, spendRcm);
+  const nkBytes = bigintToBytes32LE(spendSpec.fvk.nk);
+  const wireNullifier = deriveNullifier(nkBytes, spendSpec.rho, spendPsi, spendCmPoint);
+  const alpha = toScalar(rand(64));
+  const rkPoint = randomizeVerificationKey(spendSpec.fvk.ak, alpha, getSpendAuthG());
+  if (rkPoint.isIdentity()) throw new Error('rk: randomized key is the identity (redraw)');
+  const rkBytes = rkPoint.toBytes();
+  const spend: PcztSpend = {
+    nullifier: wireNullifier,
+    rk: rkBytes,
+    spendAuthSig: null, // signed AFTER the sighash is computed
+    recipient: spendSpec.recipient,
+    value: spendSpec.value,
+    rho: spendSpec.rho,
+    rseed: spendSpec.rseed,
+    // Real spends carry Some(fvk) exactly like dummies (PROVER_MISSING_FVK = 100).
+    fvk: fvkToBytes(spendSpec.fvk),
+    witness: spendSpec.witness,
+    alpha: bigintToBytes32LE(alpha),
+  };
+
+  // --- output half (OutputInfo::build; rho = Rho::from_nf_old(this nullifier)) ---
+  const outRho = wireNullifier;
+  const outRseed = rand(32);
+  const outEsk = deriveEsk(outRseed, outRho);
+  if (outEsk === 0n) throw new Error('output esk is zero (redraw)');
+  const { epkBytes, encCiphertext } = encryptNotePlaintext(output.recipient, output.value, outRseed, output.memo, outEsk);
+  const rcv = toScalar(rand(64));
+  // v_net = spend_value - output_value (the action's real value flow).
+  const cvNetPoint = valueCommitment(spendSpec.value - output.value, rcv);
+  const outPkD = PallasPoint.fromBytes(output.recipient.slice(11, 43));
+  const outCmx = noteCommitmentPoint(
+    diversifyHash(output.recipient.slice(0, 11)),
+    outPkD,
+    output.value,
+    outRho,
+    derivePsi(outRseed, outRho),
+    deriveRcm(outRseed, outRho),
+  ).extractP();
+  if (outCmx === null) throw new Error('output cmx: commitment is the identity (redraw)');
+  const outCmxBytes = bigintToBytes32LE(outCmx);
+  const outCiphertext = output.senderOvk !== null
+    ? encryptOutgoingPlaintext(output.senderOvk, cvNetPoint.toBytes(), outCmxBytes, epkBytes, output.recipient.slice(11, 43), bigintToBytes32LE(outEsk))
+    : encryptOutgoingPlaintext(rand(32), cvNetPoint.toBytes(), outCmxBytes, epkBytes, rand(32), rand(32)); // fork's ovk=None branch: random ock + random plaintext
+  const outputHalf: PcztOutput = {
+    cmx: outCmxBytes,
+    ephemeralKey: epkBytes,
+    encCiphertext,
+    outCiphertext,
+    recipient: output.recipient,
+    value: output.value,
+    rseed: outRseed,
+    ock: null, // build_for_pczt leaves ock unset (pczt-wire.ts Output doc)
+  };
+
+  const action: PcztAction = { cvNet: cvNetPoint.toBytes(), rcv: bigintToBytes32LE(rcv), spend, output: outputHalf };
+  const effects: BundleActionEffects = {
+    nullifier: wireNullifier,
+    cmx: outCmxBytes,
+    ephemeralKey: epkBytes,
+    encCiphertext,
+    cvNet: cvNetPoint.toBytes(),
+    rk: rkBytes,
+    outCiphertext,
+  };
+  return { action, effects, rcv, alpha };
+}
+
+/** Build a fully signed transfer PCZT request, mirroring rs-dpp's
+ *  build_shielded_transfer_transition up to (but excluding) the Halo2 proof:
+ *  action pairing, fee-carving value balance, empty extra sighash data, and
+ *  every spend's spendAuthSig over the platform sighash. The caller chooses
+ *  outputs so that Σ spends − Σ outputs = computeMinimumShieldedFee(action
+ *  count) EXACTLY — consensus pins value_balance to that fee. */
+export function buildTransferPczt(options: BuildTransferOptions): TransferBuild {
+  const rand = options.rand ?? defaultRand;
+  if (options.spends.length === 0) throw new Error('buildTransferPczt: at least one spend is required');
+  if (options.outputs.length === 0) throw new Error('buildTransferPczt: at least one output is required');
+  if (options.anchor.length !== 32) throw new Error('buildTransferPczt: anchor must be 32 bytes');
+  const spends = [...options.spends];
+  const outputs = [...options.outputs];
+  /* rs-dpp: num_actions = spends.len().max(2) — outputs always fit because
+   * the wallet emits exactly one recipient + one change output. Here the
+   * caller controls outputs, so pad to max(spends, outputs, 2) (the fork
+   * Builder pads the short side with dummies — same pairing rule). */
+  const numActions = Math.max(spends.length, outputs.length, 2);
+  while (outputs.length < numActions) outputs.push(dummyOutput(rand));
+
+  const material = { dummies: [] as DummySpendMaterial[] };
+  const signers: { ask: bigint; alpha: bigint }[] = [];
+  const actions: PcztAction[] = [];
+  const effects: BundleActionEffects[] = [];
+  const rcvs: bigint[] = [];
+  let valueBalance = 0n;
+  for (let i = 0; i < numActions; i++) {
+    const out = outputs[i];
+    valueBalance -= out.value;
+    if (i < spends.length) {
+      const built = buildRealSpendAction(spends[i], out, rand);
+      actions.push(built.action);
+      effects.push(built.effects);
+      rcvs.push(built.rcv);
+      signers.push({ ask: spends[i].ask, alpha: built.alpha });
+      valueBalance += spends[i].value;
+    } else {
+      /* Dummy-spend action — reuse the proven buildAction machinery as-is. */
+      const built = buildAction(out, material, rand);
+      actions.push(built.action);
+      effects.push(built.effects);
+      rcvs.push(built.rcv);
+      const dm = material.dummies[material.dummies.length - 1];
+      signers.push({ ask: dm.ask, alpha: dm.alpha });
+    }
+  }
+
+  /* Consensus: a shielded transfer's value_balance IS the fee and must be
+   * positive (state_transition_validation.rs:34-44). */
+  if (valueBalance <= 0n) {
+    throw new Error('buildTransferPczt: total spent must exceed total output (value_balance = fee > 0)');
+  }
+
+  const anchor = new Uint8Array(options.anchor);
+  const commitment = hashBundleTxidData(effects, FLAGS_ENABLED, valueBalance, anchor);
+  /* ShieldedTransfer has no extra_data in the sighash (rs-dpp
+   * shielded_transfer.rs: prove_and_sign_bundle(builder, prover, [ask], &[])). */
+  const sighash = computePlatformSighash(commitment, new Uint8Array(0));
+
+  for (let i = 0; i < actions.length; i++) {
+    const { ask, alpha } = signers[i];
+    const { rk, sig } = spendAuthSign(ask, alpha, sighash, rand(80));
+    if (Buffer.from(rk).toString('hex') !== Buffer.from(actions[i].spend.rk).toString('hex')) {
+      throw new Error('spendAuthSign rk mismatch with the action rk (internal inconsistency)');
+    }
+    actions[i].spend.spendAuthSig = sig;
+  }
+
+  const bsk = sumRcvIntoBsk(rcvs);
+  return {
+    frame: {
+      flags: FLAGS_ENABLED,
+      valueSumMagnitude: valueBalance,
+      valueSumIsNegative: false,
       anchor,
       actions,
       zkproof: null,

@@ -23,9 +23,9 @@
  * the frame's valueSumMagnitude and REQUIRE valueSumIsNegative.
  */
 
-import type { PcztFrame } from './pczt-wire'
+import type { PcztFrame, PcztAction } from './pczt-wire'
 import { serializePcztFrame } from './pczt-wire'
-import type { OutputOnlyBuild, RandFn } from './prove'
+import type { OutputOnlyBuild, TransferBuild, RandFn } from './prove'
 import { defaultRand, signBinding } from './prove'
 
 export interface AssembleShieldFromAssetLockOptions {
@@ -62,44 +62,14 @@ export interface AssembledTransition {
 /* rs-dpp SerializedAction.encrypted_note layout (216 bytes). */
 const ENCRYPTED_NOTE_SIZE = 216
 
-/* Assemble + sign. Async because the wasm classes are loaded lazily. */
-export async function assembleShieldFromAssetLock(
-    options: AssembleShieldFromAssetLockOptions,
-): Promise<AssembledTransition> {
-    const { assetLockProof, assetLockPrivateKey, build, provedFrame, surplusOutput, platformVersion } = options
-    const rand = options.rand ?? defaultRand
-
-    /* 1. The proved frame must be the local build's frame plus a zkproof —
-     * nothing else may differ (postPcztFrame enforces this for its own
-     * responses; enforce it again here for frames from any other source). */
-    if (!provedFrame.zkproof || provedFrame.zkproof.length === 0) {
-        throw new Error('assemble: proved frame has no zkproof')
-    }
-    const localBytes = serializePcztFrame(build.frame)
-    const provedMinusProof = serializePcztFrame({ ...provedFrame, zkproof: null })
-    if (localBytes.length !== provedMinusProof.length) {
-        throw new Error('assemble: proved frame does not match the local build (length)')
-    }
-    for (let i = 0; i < localBytes.length; i++) {
-        if (localBytes[i] !== provedMinusProof[i]) {
-            throw new Error(`assemble: proved frame does not match the local build (byte ${i})`)
-        }
-    }
-
-    /* Shield-from-asset-lock bundles are output-only: the signed value sum
-     * must be negative (value entering the pool); the transition carries the
-     * positive magnitude (build_bound_bundle's checked_neg guard). */
-    if (!provedFrame.valueSumIsNegative) {
-        throw new Error('assemble: bundle value_balance is not negative')
-    }
-    const valueBalance = BigInt(provedFrame.valueSumMagnitude)
-
-    /* 2. Map frame actions onto SerializedAction options. The spend half
-     * supplies nullifier / rk / spendAuthSig; the output half supplies cmx /
-     * cvNet / epk / enc / out. */
-    /* Untyped: the WASM class constructors take loose option objects. */
-    const wasm: any = await import('../dash-wasm/wasm_sdk')
-    const actions = provedFrame.actions.map((action) => {
+/* Map the frame's action halves onto rs-dpp's SerializedAction layout: the
+ * spend half supplies nullifier / rk / spendAuthSig; the output half supplies
+ * cmx / cvNet / epk / enc / out (encryptedNote = epk(32) || enc_ciphertext
+ * (104) || out_ciphertext(80) = 216 bytes — serialize_authorized_bundle,
+ * rc.8 packages/rs-dpp/src/shielded/builder/mod.rs:134). Untyped: the WASM
+ * class constructors take loose option objects. */
+function mapActionsToWasm(wasm: any, actions: PcztAction[]): unknown[] {
+    return actions.map((action) => {
         const encryptedNote = new Uint8Array(ENCRYPTED_NOTE_SIZE)
         encryptedNote.set(action.output.ephemeralKey, 0)
         encryptedNote.set(action.output.encCiphertext, 32)
@@ -113,6 +83,52 @@ export async function assembleShieldFromAssetLock(
             spendAuthSig: action.spend.spendAuthSig,
         })
     })
+}
+
+/* Re-validate a proved frame against the local build: the prover must not
+ * have changed anything outside the zkproof (postPcztFrame enforces this for
+ * its own responses; enforce it again here for frames from any other source). */
+function assertProvedFrameMatchesBuild(
+    localFrame: PcztFrame,
+    provedFrame: PcztFrame,
+): void {
+    if (!provedFrame.zkproof || provedFrame.zkproof.length === 0) {
+        throw new Error('assemble: proved frame has no zkproof')
+    }
+    const localBytes = serializePcztFrame(localFrame)
+    const provedMinusProof = serializePcztFrame({ ...provedFrame, zkproof: null })
+    if (localBytes.length !== provedMinusProof.length) {
+        throw new Error('assemble: proved frame does not match the local build (length)')
+    }
+    for (let i = 0; i < localBytes.length; i++) {
+        if (localBytes[i] !== provedMinusProof[i]) {
+            throw new Error(`assemble: proved frame does not match the local build (byte ${i})`)
+        }
+    }
+}
+
+/* Assemble + sign. Async because the wasm classes are loaded lazily. */
+export async function assembleShieldFromAssetLock(
+    options: AssembleShieldFromAssetLockOptions,
+): Promise<AssembledTransition> {
+    const { assetLockProof, assetLockPrivateKey, build, provedFrame, surplusOutput, platformVersion } = options
+    const rand = options.rand ?? defaultRand
+
+    /* 1. The proved frame must be the local build's frame plus a zkproof —
+     * nothing else may differ. */
+    assertProvedFrameMatchesBuild(build.frame, provedFrame)
+
+    /* Shield-from-asset-lock bundles are output-only: the signed value sum
+     * must be negative (value entering the pool); the transition carries the
+     * positive magnitude (build_bound_bundle's checked_neg guard). */
+    if (!provedFrame.valueSumIsNegative) {
+        throw new Error('assemble: bundle value_balance is not negative')
+    }
+    const valueBalance = BigInt(provedFrame.valueSumMagnitude)
+
+    /* 2. Map frame actions onto SerializedAction options. */
+    const wasm: any = await import('../dash-wasm/wasm_sdk')
+    const actions = mapActionsToWasm(wasm, provedFrame.actions)
 
     /* 3. Binding signature over the sighash with the summed trapdoor bsk. */
     const bindingSignature = signBinding(build.bsk, build.sighash, rand(80)).sig
@@ -134,6 +150,65 @@ export async function assembleShieldFromAssetLock(
     })
     const stateTransition = transition.toStateTransition()
     const wireBytes: Uint8Array = stateTransition.signByPrivateKey(assetLockPrivateKey, null, undefined)
+
+    return {
+        stateTransition: wasm.StateTransition.fromBytes(wireBytes),
+        wireBytes,
+        bindingSignature,
+    }
+}
+
+export interface AssembleShieldedTransferOptions {
+    /* The local transfer build whose frame was sent to the prover. */
+    build: TransferBuild
+    /* The proved frame returned by postPcztFrame (zkproof !== null). */
+    provedFrame: PcztFrame
+    /* Deterministic randomness override for the binding signature (tests). */
+    rand?: RandFn
+}
+
+/* Assembly of a protocol-v14 ShieldedTransferTransition (v0) from a proved
+ * PCZT frame. Unlike the shield flows there is NO asset-lock proof and NO
+ * outer signature: ShieldedTransferTransitionV0 carries exactly
+ * {actions, value_balance, anchor, proof, binding_signature} (rs-dpp
+ * shielded_transfer_transition/v0/mod.rs) — authorization lives entirely
+ * inside the bundle (spendAuthSig per spend + the binding signature).
+ * value_balance = the fee LEAVING the pool (positive; the frame's value sum
+ * must be non-negative). */
+export async function assembleShieldedTransfer(
+    options: AssembleShieldedTransferOptions,
+): Promise<AssembledTransition> {
+    const { build, provedFrame } = options
+    const rand = options.rand ?? defaultRand
+
+    /* 1. The proved frame must be the local build's frame plus a zkproof. */
+    assertProvedFrameMatchesBuild(build.frame, provedFrame)
+
+    /* Transfer bundles spend INTO a fee: the signed value sum must be
+     * positive (inputs exceed outputs by the fee). */
+    if (provedFrame.valueSumIsNegative || provedFrame.valueSumMagnitude === 0n) {
+        throw new Error('assemble: transfer bundle value_balance must be positive (it is the fee)')
+    }
+    const valueBalance = BigInt(provedFrame.valueSumMagnitude)
+
+    /* 2. Map frame actions onto SerializedAction options. */
+    const wasm: any = await import('../dash-wasm/wasm_sdk')
+    const actions = mapActionsToWasm(wasm, provedFrame.actions)
+
+    /* 3. Binding signature over the sighash with the summed trapdoor bsk. */
+    const bindingSignature = signBinding(build.bsk, build.sighash, rand(80)).sig
+
+    /* 4. Build the wasm transition. No signature step exists for this type —
+     * the state transition is broadcast exactly as constructed. */
+    const transition = new wasm.ShieldedTransferTransition({
+        actions,
+        valueBalance,
+        anchor: provedFrame.anchor,
+        proof: provedFrame.zkproof,
+        bindingSignature,
+    })
+    const stateTransition = transition.toStateTransition()
+    const wireBytes: Uint8Array = stateTransition.toBytes()
 
     return {
         stateTransition: wasm.StateTransition.fromBytes(wireBytes),

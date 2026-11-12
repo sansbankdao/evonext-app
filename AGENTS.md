@@ -210,6 +210,57 @@ history of this file (see log below for commit hashes) — keep only load-bearin
 
 ## Active work
 
+-2. **F31 — shielded TRANSFER end-to-end LIVE-VERIFIED on testnet (2026-11-12)**:
+   the second shielded milestone is done: pool -> pool transfer of the stage-2
+   note, executed, broadcast and cryptographically verified on-chain.
+   (a) **New client modules**: `lib/shielded/fees.ts`
+   (`computeMinimumShieldedFee` — v14 constants pinned from rs-platform-version
+   `v14.rs:201/223` -> `DRIVE_ABCI_VALIDATION_VERSIONS_V10` (40M proof
+   verification + 22M/action processing + 550 storage-bytes/action,
+   v10.rs:343/352/361) x `FEE_STORAGE_VERSION1` per-byte rate 27,400;
+   multiplier permille 1000 = no-op); `buildTransferPczt` in prove.ts (real
+   spend halves: note cm/nullifier recomputed from secrets, rk = ak randomized
+   by alpha, live witness; action i pairs spend i with output i, dummy padding
+   reuses buildAction; FLAGS_ENABLED 0x03; EMPTY extra sighash data;
+   value_balance = spends - outputs = fee > 0, guard enforced);
+   `assembleShieldedTransfer` in assemble.ts (NO asset-lock proof, NO outer
+   signature — ShieldedTransferTransitionV0 is exactly {actions, value_balance,
+   anchor, proof, binding_signature}, authorization entirely in-bundle;
+   wasm.ShieldedTransferTransition + toStateTransition() broadcast as-is).
+   assemble.ts shared helpers extracted (mapActionsToWasm,
+   assertProvedFrameMatchesBuild) — shield path behavior unchanged.
+   (b) **CONSENSUS-PINNED FEE confirmed live**: value_balance must EQUAL
+   computeMinimumShieldedFee(2) = **114,140,000 credits** on protocol v14 —
+   overpayment is rejected (rs-dpp shielded_transfer.rs: overpayment buys
+   nothing and leaks a fee fingerprint). The executed transfer's pool delta
+   matched the computed fee EXACTLY.
+   (c) **CRITICAL wire-semantics discovery**: the encrypted-notes row's
+   `nullifier` field is the ACTION's spend-side nullifier = the output note's
+   **RHO** (Rho::from_nf_old), NOT the note's own spend nullifier. The spend
+   nullifier must be recomputed as Note::nullifier(nk, rho, psi, cm) from the
+   note secrets. This burned the first stage-4 run (assertion mismatch vs the
+   stage-3b record, which had stored the row value under both names — they
+   are identical for that row).
+   (d) **The executed transfer**: transition hash
+   `6cac3ee70bbad133ab84689638253e8a26d7baaa94a5124d20df2745cd4c6f9f` — spent
+   note idx 6689 (1e9 credits, nullifier `3034a45c…b422`) -> 500M credits to
+   self at a FRESH diversifier (idx 1, note idx 6691) + 385,860,000 change to
+   the default address (idx 0, note idx 6692) + 114,140,000 fee. On-chain
+   verifications ALL passed: local OrchardTree root == live
+   getMostRecentShieldedAnchor; 32-node witness folds to the anchor;
+   getShieldedNullifiers isSpent false-before / true-after; pool balance delta
+   == fee exactly; tree +2 notes (6693 total); both new notes trial-decrypt
+   with exact values/addresses. Total wall time 141.83s (incl. cold spend
+   proving-key build in the prover worker).
+   (e) Live test `test/e2e/shield-stage4-transfer.live.mts` (run via
+   /tmp/vitest.live.config.mjs — the dotted-path-safe config); state advances
+   to stage 'transferred' in scratch-shield-state.json. tsc 0, lint 0/1 known,
+   203/203 unit tests, build 36/36. UNSHIELD is the remaining testnet
+   milestone (ShieldedWithdrawalTransitionOptions exists in the wasm d.ts:
+   {actions, unshieldingAmount, anchor, proof, bindingSignature,
+   coreFeePerByte, pooling, outputScript}; sighash extra_data = output_script
+   || amount u64 LE || coreFee u32 LE || pooling u8).
+
 -1. **F30 — /shielded pool viewer page (2026-11-12)**: user asked to SEE shielded
    transactions; the platform-explorer API has NO shielded endpoints at all
    (probed /shielded-pool[/state|/transactions|/notes], /shielded[/transactions]
