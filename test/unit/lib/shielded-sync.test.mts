@@ -194,6 +194,10 @@ describe('shielded sync layer', () => {
     expect(restored.notes[0].position).toBe(5);
   });
 
+  /* Heavy multi-pass Poseidon/decryption loop: sits near the 60s global
+   * cap when the FULL parallel suite saturates the host (observed 68-82s
+   * at load 7-9 on 2026-11-12; passes in ~10-25s standalone). Explicit
+   * headroom so suite-level load spikes can't fail the gate. */
   it('rewinds the mutable tail chunk on the next pass (no duplicates, notes re-recorded)', async () => {
     // Grow the pool to CHUNK + 3: one full chunk + a 3-note tail containing
     // our note at position CHUNK + 1.
@@ -224,7 +228,7 @@ describe('shielded sync layer', () => {
     expect(sync.notes.length).toBe(1); // our note re-recorded exactly once
     expect(sync.notes[0].position).toBe(SHIELDED_CHUNK_SIZE + 1);
     expect(sync.balance()).toBe(4242n);
-  });
+  }, 300_000);
 
   it('refreshSpent marks spent notes and drops them from the balance', async () => {
     source.wires.push(encryptToUs(0, 100n, new Uint8Array(32).fill(1)));
