@@ -1,6 +1,7 @@
 {
   "name": "evonext-app",
-  "version": "26.10.5",
+  "version": "26.11.12",
+  "packageManager": "pnpm@11.21.0",
   "license": "MIT",
   "scripts": {
     "dev": "next dev --webpack",

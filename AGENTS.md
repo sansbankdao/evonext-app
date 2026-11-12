@@ -1453,6 +1453,21 @@ history of this file (see log below for commit hashes) — keep only load-bearin
    F25 — user must redeploy it. Verify a deployment by checking the served wasm's
    byte size (8.0MB = stale pre-F22; 20.3MB = F22-F27 4.2.0-dev.11; 26.5MB = F27o+
    5.0.0-rc.8 current).
+- **F31b — live site confirmed STALE at a pre-F27o build (2026-11-12)**: user
+  reported evonext.app/shielded = 404 after the F30 push. Verified live via
+  curl: the served wasm is `_next/static/media/wasm_sdk_bg.2bb31420.wasm` =
+  20,761,711 bytes (the F22–F27-era 4.2.0-dev.11 size class, zero dead IPs) —
+  NOT the F27o+ 26,513,399-byte 5.0.0-rc.8; /notifications + /claim exist
+  (post-Oct-5) but /shielded 404s. **Cloudflare Pages has not successfully
+  built ANY push since ~2026-10-25.** Repo-side findings: the repo has NO
+  lockfile at all (no pnpm-lockfile.yaml — not on disk, not in git; no
+  package-lock.json), no .nvmrc/.node-version, and no packageManager field,
+  so the Pages image picked its own toolchain; after the F28a sweep (Next
+  16.5.0-canary.47 needs a modern Node) the builds stopped succeeding (the
+  dashboard build log — user-side — is the definitive record). Repo-side fix
+  shipped: `.nvmrc` = 24 + `packageManager: pnpm@11.21.0` (corepack) in
+  package.json, version bumped 26.10.5 -> 26.11.12. If the next build still
+  fails, the dashboard needs NODE_VERSION=24 (and the build log read).
 17. **F26b — Cloudflare Pages deployment switched OFF next-on-pages (2026-10-04)**:
    root cause of all failed deploys since Oct 2: the Pages project used the Next.js
    framework preset, whose build command `npx @cloudflare/next-on-pages@1` broke
