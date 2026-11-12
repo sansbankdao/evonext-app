@@ -1621,11 +1621,26 @@ intact, 0 files >24M; out/ rsync'd back to the host. Playwright
 c config, fixed by naming the default export; config load re-verified by
 re-running shield-stage5 resume -> green).
 
-(e) Deploy watch: after push, verify live serves wasm
-`/_next/static/media/wasm_sdk_bg.e9693c35.wasm` (or the new hash) with
-content-type application/wasm + sha256 4c50b471... and /shielded = 200.
-First cold Function response includes a ~26MB GitHub-raw fetch (a few s);
-edge-cached thereafter. If the Function 502s, check repo publicness first.
+(e) **DEPLOY VERIFIED LIVE 2026-11-12 (~14:12 UTC, commit `3761cd4`)**: the
+F33 push deployed on the FIRST try — the first successful Pages build since
+~2026-10-25. Verified live: wasm URL
+`/_next/static/media/wasm_sdk_bg.e9693c35.wasm` -> 200,
+`content-type: application/wasm`, `content-length: 26513399`, sha256
+`4c50b471...` = EXACTLY the live-verified artifact; GET response carries the
+Function's immutable cache-control (NOTE: HEAD on that URL returns odd
+text/html+no-store headers from the asset layer — harmless, browsers GET);
+`/shielded` -> 200; home HTML chunk set = the new build (old stale
+`webpack-03e76a20` gone; `2bb31420` wasm URL still 200s because the
+Function's regex serves the CURRENT bytes under ANY wasm hash — harmless,
+unreferenced). Real-browser check (headless chromium on the live site):
+/shielded renders, and the browser actually fetched the wasm through the
+Function (200 application/wasm). Known live quirks recorded as backlog:
+footer links /privacy /cookies /about /terms = 404 (routes not in the
+export) and Cloudflare's own injected beacon (cloudflareinsights) is blocked
+by our CSP script-src list. Chunk-hash note: `main-app-*.js` hashes differ
+across build environments (evorunner Node 22 vs Cloudflare Node 24) —
+benign environment nondeterminism; the cross-environment invariants are the
+WASM sha256 + page set + _headers, NOT chunk hashes.
 
 ## Working Rules For This Repo
 
