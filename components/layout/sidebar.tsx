@@ -31,7 +31,6 @@ import {
     HashtagIcon as HashtagIconSolid,
     HomeIcon as HomeIconSolid,
     MagnifyingGlassIcon as SearchIconSolid,
-    ShieldCheckIcon as ShieldCheckIconSolid,
     SparklesIcon as SparklesIconSolid,
     Squares2X2Icon as Squares2X2IconSolid,
     UserIcon as UserIconSolid,
@@ -49,13 +48,15 @@ import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import { AvatarCanvas } from '@/components/ui/avatar-canvas'
 import { useAuth } from '@/contexts/auth-context'
 
+/* F37: 'Shielded Pool' was REMOVED from the main menu per user directive —
+ * it is now linked from the identity account dropdown (the ellipsis menu
+ * on the identity block below). The route itself is unchanged. */
 const getNavigation = (isLoggedIn: boolean) => {
     if (!isLoggedIn) {
         return [
             { name: 'Home', href: '/', icon: HomeIcon, activeIcon: HomeIconSolid },
             { name: 'Explore', href: '/explore', icon: MagnifyingGlassIcon, activeIcon: SearchIconSolid },
             { name: 'Claim Identity', href: '/claim', icon: UserIcon, activeIcon: UserIconSolid },
-            { name: 'Shielded Pool', href: '/shielded', icon: ShieldCheckIcon, activeIcon: ShieldCheckIconSolid },
         ]
     }
 
@@ -66,7 +67,6 @@ const getNavigation = (isLoggedIn: boolean) => {
         { name: 'Mini Apps', href: '/apps', icon: Squares2X2Icon, activeIcon: Squares2X2IconSolid },
         { name: 'Wallet', href: '/wallet', icon: WalletIcon, activeIcon: WalletIconSolid },
         { name: 'Favorites', href: '/bookmarks', icon: BookmarkSquareIcon, activeIcon: BookmarkSquareIconSolid },
-        { name: 'Shielded Pool', href: '/shielded', icon: ShieldCheckIcon, activeIcon: ShieldCheckIconSolid },
     ]
 }
 
@@ -240,6 +240,18 @@ export function Sidebar() {
                                             return `${dashBalance.toFixed(8)} DASH`
                                         })()}
                                     </div>
+                                </DropdownMenu.Item>
+
+                                <DropdownMenu.Separator className="h-px bg-gray-200 dark:bg-gray-800 my-1" />
+
+                                {/* F37: Shielded Pool moved here from the main
+                                    menu (per user directive). */}
+                                <DropdownMenu.Item
+                                    className="px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-900 cursor-pointer outline-none flex items-center gap-2"
+                                    onClick={() => router.push('/shielded')}
+                                >
+                                    <ShieldCheckIcon className="h-4 w-4" />
+                                    Shielded Pool
                                 </DropdownMenu.Item>
 
                                 <DropdownMenu.Separator className="h-px bg-gray-200 dark:bg-gray-800 my-1" />

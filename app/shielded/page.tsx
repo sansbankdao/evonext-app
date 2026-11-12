@@ -16,7 +16,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { wasmSdkService, getWasmSdk } from '@/lib/services/wasm-sdk-service'
-import { EVONEXT_CONTRACT_ID_TESTNET } from '@/lib/constants'
+import { EVONEXT_CONTRACT_ID_TESTNET, EVONEXT_CONTRACT_ID_MAINNET } from '@/lib/constants'
 import { useNetwork } from '@/contexts/network-context'
 import { useAuth } from '@/contexts/auth-context'
 import { Button } from '@/components/ui/button'
@@ -68,17 +68,25 @@ export default function ShieldedPoolPage() {
     const cancelledRef = useRef(false)
 
     const isMainnet = network === 'mainnet'
+    /* ZIP-32 coin types (rs-platform-wallet keys.rs): 5 = mainnet, 1 = testnet. */
+    const coinType = isMainnet ? 5 : 1
 
     useEffect(() => {
-        if (isMainnet) return
+        const sdkNetwork: 'mainnet' | 'testnet' = isMainnet ? 'mainnet' : 'testnet'
+        /* F37: mainnet shielded went LIVE (protocol v14 verified on-chain
+         * 2026-11-12, pool 812T credits) — the old 'not live on mainnet'
+         * guard is gone; the pool loads on BOTH networks. */
         cancelledRef.current = false
         const load = async () => {
             try {
-                if (!wasmSdkService.isReady()) {
+                /* initialize() no-ops when the config matches, so force a
+                 * re-init whenever the live service is built for the WRONG
+                 * network (cross-page navigation flips it). */
+                if (!wasmSdkService.isReady() || wasmSdkService.initializedNetwork() !== sdkNetwork) {
                     setStatus('Initializing WASM SDK…')
                     await wasmSdkService.initialize({
-                        network: 'testnet',
-                        contractId: EVONEXT_CONTRACT_ID_TESTNET,
+                        network: sdkNetwork,
+                        contractId: isMainnet ? EVONEXT_CONTRACT_ID_MAINNET : EVONEXT_CONTRACT_ID_TESTNET,
                     })
                 }
                 const sdk = await getWasmSdk()
@@ -141,7 +149,7 @@ export default function ShieldedPoolPage() {
                 return
             }
             const seed = mnemonicToSeedSync(mnemonic)
-            const sk = spendingKeyFromSeed(seed, 1, 0) /* testnet coin_type */
+            const sk = spendingKeyFromSeed(seed, coinType, 0) /* 5 mainnet / 1 testnet */
             const fvk = fullViewingKeyFromSpendingKey(sk)
             const { dk } = deriveDkOvk(fvk)
             const ivk = ivkFromFvk(fvk)
@@ -185,22 +193,11 @@ export default function ShieldedPoolPage() {
             <div className="sticky top-0 z-10 bg-white/80 dark:bg-black/80 backdrop-blur border-b border-gray-200 dark:border-gray-800 px-4 py-3">
                 <h1 className="text-xl font-bold">Shielded Pool</h1>
                 <p className="text-2xs text-gray-500 dark:text-gray-400">
-                    Live from Dash Platform testnet via DAPI — no explorer indexes this yet
+                    Live from Dash Platform {isMainnet ? 'mainnet' : 'testnet'} via DAPI — no explorer indexes this yet
                 </p>
             </div>
 
-            {isMainnet ? (
-                <div className="p-4">
-                    <div className="rounded-2xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 p-5">
-                        <p className="font-semibold text-amber-800 dark:text-amber-200">Shielded pool is not live on mainnet yet</p>
-                        <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
-                            Mainnet runs Platform 4.2.0-dev.11 (protocol v13); shielded activates with protocol v14.
-                            Switch to testnet to view the pool.
-                        </p>
-                    </div>
-                </div>
-            ) : (
-                <div className="p-4 space-y-4">
+            <div className="p-4 space-y-4">
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         <div className="rounded-2xl border border-gray-200 dark:border-gray-800 p-4">
                             <p className="text-2xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Pool balance</p>
@@ -299,7 +296,6 @@ export default function ShieldedPoolPage() {
                         )}
                     </div>
                 </div>
-            )}
                 </main>
             </div>
 

@@ -271,6 +271,15 @@ class WasmSdkService {
         return this._isInitialized && this.sdk !== null;
     }
 
+    /** The network the CURRENT SDK instance was built for (null = not
+     *  initialized). Callers that need a specific network must compare this
+     *  and re-initialize when it differs — initialize() no-ops when the
+     *  config matches, so a testnet-initialized service would otherwise
+     *  silently serve testnet data to a mainnet caller (F37). */
+    initializedNetwork(): 'testnet' | 'mainnet' | null {
+        return this.config?.network ?? null;
+    }
+
     /**
      * Check if SDK is initialized
      */
