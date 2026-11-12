@@ -40,6 +40,20 @@ const server = createServer(async (req, res) => {
             filePath += '.html'
         }
 
+        // Production parity (F33): on Cloudflare Pages the wasm is served by
+        // the functions/[[path]].js proxy (the 25 MiB per-file limit keeps it
+        // out of the deploy bundle — scripts/strip-wasm-from-out.mjs deletes
+        // it postbuild). Locally the same URL is answered from the committed
+        // source file in lib/ so Playwright exercises the real bytes either
+        // way: prefer the exported asset when present, fall back to lib/.
+        if (/^\/_next\/static\/media\/wasm_sdk_bg\.[a-f0-9]+\.wasm$/.test(pathname)) {
+            try {
+                await readFile(filePath)
+            } catch {
+                filePath = 'lib/dash-wasm/wasm_sdk_bg.wasm'
+            }
+        }
+
         const body = await readFile(filePath)
         res.writeHead(200, {
             'Content-Type': MIME[extname(filePath)] || 'application/octet-stream',

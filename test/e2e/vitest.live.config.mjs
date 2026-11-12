@@ -14,7 +14,8 @@
  * the config bundling. */
 
 import path from 'node:path'
-export default {
+
+const config = {
     test: {
         environment: 'jsdom',
         globals: true,
@@ -35,3 +36,5 @@ export default {
         pool: 'forks',
     },
 }
+
+export default config

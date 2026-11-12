@@ -1576,6 +1576,57 @@ token + the Pages project name from the user. NOTE: `git ls-files` shows
 pnpm-lock.yaml IS committed (F31b's 'no lockfile' note was wrong on the
 filename).
 
+## F33 — the deploy blocker was CLOUDFLARE'S 25 MiB PER-FILE LIMIT; wasm
+moved out of the Pages bundle and served by a Pages Function (2026-11-12)
+
+ROOT CAUSE of every failed Pages deploy since ~2026-10-25 (user read the
+dashboard): `Error: Pages only support files up to 25 MiB in size
+_next/static/media/wasm_sdk_bg.e9693c35.wasm is 25.3 MiB in size`. The F27o
+SDK upgrade grew the vendored wasm 20.7MB -> 26,513,399 bytes (25.29 MiB),
+0.29 MiB over the limit; the limit applies to the stored file (transfer is
+already brotli-compressed) and to the WHOLE deploy bundle, so NOTHING could
+deploy, not just the wasm. Analysis: the wasm carries only 124 bytes of
+custom sections (no DWARF/name sections to strip) — trimming was a dead end,
+and ANY serving scheme still requires the file OUT of out/. Fix shipped:
+
+(a) **`functions/_next/static/media/[[path]].js`** (Pages Function,
+tokenless): intercepts `/_next/static/media/wasm_sdk_bg*` on the live site,
+server-side fetches the COMMITTED wasm from
+`raw.githubusercontent.com/sansbankdao/evonext-app/master/lib/dash-wasm/
+wasm_sdk_bg.wasm` (repo is PUBLIC — verified 200), returns it with
+`application/wasm` + immutable cache-control + edge-cache (cf.cacheTtl 3600).
+Byte-identical to the live-verified artifact; client code unchanged; the
+glue's instantiateStreaming works (arrayBuffer fallback as belt-and-braces).
+Branch-based (not SHA-pinned) ON PURPOSE: the URL carries the webpack
+content hash, so a new wasm = new URL = fresh fetch; a pinned SHA would go
+stale when the file changes.
+
+(b) **`scripts/strip-wasm-from-out.mjs` + build script**:
+`"build": "next build --webpack && node scripts/strip-wasm-from-out.mjs"`.
+The postbuild deletes out/_next/static/media/wasm_sdk_bg.*.wasm (warning on
+any OTHER file over 26,214,400 bytes) and writes `out/_routes.json`
+(include ONLY `/_next/static/media/wasm_sdk_bg*`) so the Function does not
+shadow other media files.
+
+(c) **`test/static-server.mjs`**: the same URL locally is answered from
+`lib/dash-wasm/wasm_sdk_bg.wasm` (source of truth) when the exported asset
+is absent — Playwright exercises the real bytes either way.
+
+(d) Built + verified ON EVORUNNER (per the no-host-builds directive): fresh
+build -> out/ has NO wasm, _routes.json present, 32 route HTMLs, _headers
+intact, 0 files >24M; out/ rsync'd back to the host. Playwright
+(`npx playwright install chromium` was needed — F28a bumped the package) ->
+2 passed; unit 203/203; tsc 0; eslint 0 errors/1 known postsState warning
+(the second new warning, import/no-anonymous-default-export on the live
+c config, fixed by naming the default export; config load re-verified by
+re-running shield-stage5 resume -> green).
+
+(e) Deploy watch: after push, verify live serves wasm
+`/_next/static/media/wasm_sdk_bg.e9693c35.wasm` (or the new hash) with
+content-type application/wasm + sha256 4c50b471... and /shielded = 200.
+First cold Function response includes a ~26MB GitHub-raw fetch (a few s);
+edge-cached thereafter. If the Function 502s, check repo publicness first.
+
 ## Working Rules For This Repo
 
 - Follow the global instruction at `/home/shomari/.pi/agent/AGENTS.md` (deterministic
