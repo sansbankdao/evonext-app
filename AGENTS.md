@@ -1558,6 +1558,24 @@ testnet funding WIF — never commit). Run the live test ONLY via
 warning, 203/203 unit tests, e2e tsc-check 0, RESUME live run green x2.
 Mainnet work remains PAUSED until the /shielded deploy is confirmed.
 
+(f) **Live-deploy status re-verified 2026-11-12 (~18:15-18:35 UTC)**:
+evonext.app still serves the STALE build (wasm
+`_next/static/media/wasm_sdk_bg.2bb31420.wasm` = 20,761,711 bytes, the
+F22-F27 4.2.0-dev.11 class; zero chunk overlap with the F32 build; /shielded
+= 404, /notifications + /claim = 200). The F32 push (d1082e6) did NOT
+deploy within ~30 min — consistent with F31b: no successful Pages build
+since ~2026-10-25; the dashboard build log (user-side) is the definitive
+record. **F32 build proven green on evorunner** (rsync'd repo to
+~/evonext/web, Node 22.22.2 + corepack pnpm 11.21.0,
+`pnpm install --frozen-lockfile` 12.9s + `pnpm build`): out/ byte-identical
+to the verified artifact (wasm sha256 4c50b471... = e9693c35, 26,513,399
+bytes, shielded.html + _headers present, 32 route HTMLs) — the build is
+Node-version-tolerant (22 vs 24). Fallback deploy path: `wrangler pages
+deploy out` from evorunner (upload, not a build) — needs a Cloudflare API
+token + the Pages project name from the user. NOTE: `git ls-files` shows
+pnpm-lock.yaml IS committed (F31b's 'no lockfile' note was wrong on the
+filename).
+
 ## Working Rules For This Repo
 
 - Follow the global instruction at `/home/shomari/.pi/agent/AGENTS.md` (deterministic
