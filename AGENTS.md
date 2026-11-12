@@ -1576,6 +1576,40 @@ token + the Pages project name from the user. NOTE: `git ls-files` shows
 pnpm-lock.yaml IS committed (F31b's 'no lockfile' note was wrong on the
 filename).
 
+## F37 — /shielded LIVE ON MAINNET in production + Shielded Pool moved out
+of the main menu (2026-11-12, commit `e6bb241`)
+
+The user reported evonext.app/shielded still showing the STALE banner
+'Shielded pool is not live on mainnet yet / Mainnet runs Platform
+4.2.0-dev.11 (protocol v13)'. NOT a stale deploy (F33+ pipeline works) —
+the TEXT was baked into app/shielded/page.tsx in the F30 era when mainnet
+really was v13. Fixed:
+
+(a) `app/shielded/page.tsx`: the mainnet guard + stale banner REMOVED; the
+pool/notes/anchor load on BOTH networks. SDK init is network-aware AND
+force-re-initializes when the live service is built for the wrong network
+(initialize() no-ops on a matching config, so a testnet-initialized service
+would otherwise silently serve testnet data to a mainnet caller).
+`wasm-sdk-service.ts` gained an additive `initializedNetwork()` accessor.
+The header shows the active network; 'Find my notes' uses ZIP-32 coin_type
+5 (mainnet) / 1 (testnet).
+
+(b) **Shielded Pool REMOVED from the sidebar main menu** (user directive:
+'I DO NOT WANT /shielded LINKED FROM THE MAIN MENU') and linked from the
+identity ACCOUNT DROPDOWN (the ellipsis menu next to the identity block —
+navigates via router.push('/shielded')). Both logged-in and logged-out nav
+arrays cleaned; the unused ShieldCheckIconSolid import removed.
+
+(c) Verified: tsc 0, eslint clean on changed files, 213/213 (a 4-file
+failure batch during one run was pure host-load flake — load 12.9-16.3 —
+re-run green), evorunner build green, out/shielded.html has ZERO 'not live
+on mainnet' strings, playwright 2/2. **DEPLOYED + verified in a real
+browser against the live site**: header 'Live from Dash Platform mainnet
+via DAPI', stale banner gone, mainnet pool balance rendering (855.99 DASH
+at check time — the pool grows with third-party activity; was 812.17T
+credits at the F35 probe), notes in tree 6,745 (was 5,259), ZERO page
+errors.
+
 ## F36 — MAINNET SHIELD→TRANSFER→UNSHIELD EXECUTED END-TO-END (REAL FUNDS,
 2026-11-12): the entire chain the testnet proved (F29–F32) now ran live on
 MAINNET protocol v14 with a dedicated wallet funded by the user.
