@@ -76,3 +76,6 @@ lib/wasm-sdk/
 
 # Keep only the necessary WASM files in dash-wasm
 # (the actual SDK files we need are in lib/dash-wasm/)
+
+# MAINNET e2e state — real-funds mnemonic/WIF; NEVER commit
+/scratch-mainnet-state.json

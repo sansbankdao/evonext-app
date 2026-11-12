@@ -69,6 +69,9 @@ importers:
       '@radix-ui/react-tooltip':
         specifier: 1.4.2-rc.1791984254107
         version: 1.4.2-rc.1791984254107(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      '@scure/base':
+        specifier: 2.4.0
+        version: 2.4.0
       '@scure/bip39':
         specifier: 2.4.0
         version: 2.4.0

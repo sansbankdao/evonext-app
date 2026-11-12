@@ -1576,6 +1576,62 @@ token + the Pages project name from the user. NOTE: `git ls-files` shows
 pnpm-lock.yaml IS committed (F31b's 'no lockfile' note was wrong on the
 filename).
 
+## F35 — MAINNET SHIELDING KICKOFF: protocol v14 LIVE-VERIFIED on mainnet,
+shielded-address codec KAT'd from the fork, funding wallet generated
+(2026-11-12)
+
+(a) **MAINNET IS LIVE ON PROTOCOL V14 — blocker from F28b resolved with
+live evidence (no more guessing)**: node probe with the vendored WASM SDK
+(`initSync` + `WasmTrustedContext.prefetchMainnet()` +
+`WasmSdkBuilder.mainnet().withTrustedContext(ctx)`):
+`getProtocolVersionUpgradeState()` = `{currentProtocolVersion: 14,
+nextProtocolVersion: null, voteCount: null}`; `getShieldedPoolState()` =
+**812,167,531,230,910 credits**; `getShieldedAnchors()` = 39 anchors
+(newest `fce21c0d…0ee11`); `getShieldedEncryptedNotes(0,5)` returns notes.
+Mainnet shielded queries go through the WASM SDK ONLY (the DAPI proxy's
+mainnet backend is stale v13 — proxy-mainnet-stale caveat stands).
+
+(b) **Shielded-address codec** `lib/shielded/address.ts` + 10 KAT tests:
+1:1 port of rs-dpp address_funds (orchard_address.rs + platform_address.rs
+:255-257): raw = diversifier(11) || pk_d(32); bech32m payload = type byte
+0x10 ++ raw (44 bytes); HRP 'dash' mainnet / 'tdash' testnet; decode
+validates HRP class, length, type byte AND pk_d as a valid Pallas point
+(PallasPoint.fromBytes); decode tries bech32m then bech32 (rust
+`bech32::decode` is variant-generic). Added DIRECT dep `@scure/base@2.4.0`
+(audited BIP-350 codec; was already in the store transitively).
+**GROUND-TRUTH KATs generated ON EVORUNNER from the pinned crates**
+(orchard-kat `src/bin/addrkat.rs`: SpendingKey::from_bytes([42u8;32]) ->
+FVK::address_at(0, External) — the fork's own test constructor — encoded
+via bech32 0.11.1, the crate+version rs-dpp pins): raw43
+`2640ba3ff9dc38a3e65275869874ec3b5b6d68b9a36464be848d9ae8fa2ca25814f93427c
+76097005a5425`, mainnet
+`dash1zqnypw3ll8wr3glx2f6cdxr5asa4kmtghx3kge97sjxe46869j39s98exsnuwcyhqpd9
+gfg2x9vhj`, testnet `tdash1z…g6mehdt` (same payload, HRP-dependent
+checksum). Structural negatives ported from the fork's tests (wrong type
+byte 0xb0 -> dash1k, wrong length, invalid pk_d, corrupted checksum).
+213/213 unit tests, tsc 0, lint 0/1, evorunner build green.
+
+(c) **Dedicated MAINNET funding wallet generated** (REAL FUNDS —
+`scratch-mainnet-state.json`, gitignored, NEVER commit): 24-word mnemonic
+(256-bit entropy), BIP44 `m/44'/5'/0'/0/0` (coin_type 5 = mainnet),
+funding address **`XbQbuiQaxAqVAu7NLKTDDmvd6ngUK2ySAS`** (X-prefix mainnet
+P2PKH; WIF X-prefix mainnet). AWAITING USER FUNDING — the stage chain
+(lock -> shield -> transfer -> unshield) mirrors the testnet F29-F32
+sequence with network=mainnet once funded. Generator:
+`scratch-mainnet-wallet.mjs` (dashcore-lib `Mnemonic` ->
+`HDPrivateKey.fromSeed(seed,'livenet')`; note plain-node ESM needs the
+default export for dashcore-lib CJS interop).
+
+(d) **evorunner cargo registry corrupted mid-session**: cargo fetch failed
+with 'failed to read .../Cargo.toml' on ~60 crates (corrupt extractions);
+a buggy cleanup loop DELETED the entire registry src dir (operator error —
+recovered: `cargo fetch` re-downloads everything; 854->919 crates
+re-fetched over ~5 iterations of clean+fetch). The orchard-kat crate
+rebuilt fine (12.43s) after recovery. If future evorunner cargo builds hit
+'failed to read' errors: delete the named crate from BOTH
+`~/.cargo/registry/src/index.crates.io-*/` AND
+`~/.cargo/registry/cache/index.crates.io-*/` then re-fetch.
+
 ## F34 — REAL assetlinks.json served at evonext.app; Android passkey
 unblock for evonext-mobile (2026-11-12)
 

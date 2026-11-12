@@ -39,6 +39,7 @@
     "@radix-ui/react-switch": "1.4.2-rc.1791984254107",
     "@radix-ui/react-tabs": "1.2.2-rc.1791984254107",
     "@radix-ui/react-tooltip": "1.4.2-rc.1791984254107",
+    "@scure/base": "2.4.0",
     "@scure/bip39": "2.4.0",
     "bs58": "6.0.0",
     "buffer": "^6.0.3",
