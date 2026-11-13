@@ -8,7 +8,7 @@ import { chacha20, chacha20poly1305 } from '@noble/ciphers/chacha.js';
 import { FP_MOD, FR_MOD, PallasPoint, bigintToBytes32LE, bytes32LEToBigint, fp } from './pasta';
 import { hashToPallas } from './swu';
 import { prfNf } from './poseidon';
-import { PrfExpand, prfExpand } from './hash';
+import { PrfExpand, PRF_OCK_PERSONALIZATION, prfExpand, blake2b256Personal } from './hash';
 import { kaAgreePoint, diversifyHash, kdfOrchard, toScalar, toBase, NOTE_COMMITMENT_PERSONALIZATION } from './keys';
 import { sinsemillaCommitToPoint } from './sinsemilla';
 
@@ -22,6 +22,92 @@ export const ENC_CIPHERTEXT_SIZE = NOTE_PLAINTEXT_SIZE + 16; // 104 (16 = AEAD t
 
 /** Full encrypted_note wire length (rs-sdk decrypt.rs): epk(32) || enc(104) || out(80) = 216. */
 export const FULL_ENCRYPTED_NOTE_LEN = 32 + ENC_CIPHERTEXT_SIZE + 80;
+
+/** A recovered OUTGOING note (ZIP-144 sender recovery): the sender re-derives
+ *  the FULL note (recipient address, value, memo) of an output they created,
+ *  from the output ciphertext alone. */
+export interface RecoveredOutgoingNote {
+  /** 43-byte recipient address (diversifier || pk_d). */
+  address: Uint8Array;
+  value: bigint;
+  memo: Uint8Array;
+  rseed: Uint8Array;
+}
+
+/**
+ * ZIP-144 sender recovery (note_encryption.rs try_recovering_note_from its
+ * OutgoingCiphertext): for an output WE created, the out_ciphertext (encrypted
+ * to OUR ovk) decrypts to pk_d || esk; re-deriving shared = [esk]pk_d then
+ * opens the note ciphertext — the sender learns the recipient address, value
+ * and memo of their own payment with no extra state.
+ *
+ *   ock = BLAKE2b-256("Zcash_Orchardock", ovk || cv || cmx || epk)
+ *   out_plaintext = AEAD-Open(ock, 0, out_ct) = pk_d(32) || esk(32)
+ *   shared = [esk]pk_d ; key = KDF(shared || epk)
+ *   note_plaintext = AEAD-Open(key, 0, enc_ct) = [0x02] || d(11) || v(8) || rseed(32) || memo(36)
+ *
+ * Returns null when the AEAD open fails (not an output of ours) or parsing
+ * rejects. `cvNet` is the action's value commitment (the served row field).
+ */
+export function tryRecoverOutgoingNoteWire(
+  ovk: Uint8Array,
+  cvNet: Uint8Array,
+  cmx: Uint8Array,
+  encryptedNote: Uint8Array,
+  rho: Uint8Array,
+): RecoveredOutgoingNote | null {
+  try {
+    if (ovk.length !== 32 || cvNet.length !== 32 || cmx.length !== 32
+      || encryptedNote.length !== FULL_ENCRYPTED_NOTE_LEN || rho.length !== 32) {
+      return null;
+    }
+    const epkBytes = encryptedNote.slice(0, 32);
+    const encCt = encryptedNote.slice(32, 32 + ENC_CIPHERTEXT_SIZE);
+    const outCt = encryptedNote.slice(32 + ENC_CIPHERTEXT_SIZE);
+    const ock = blake2b256Personal(PRF_OCK_PERSONALIZATION, ovk, cvNet, cmx, epkBytes);
+    const outPlaintext = chacha20poly1305(ock, new Uint8Array(12)).decrypt(outCt);
+    if (outPlaintext.length !== 64) return null; // pk_d(32) || esk(32)
+    const pkDBytes = outPlaintext.slice(0, 32);
+    /* esk is a canonical Fq in the out_plaintext (the fork's Fq::from_bytes);
+     * NOT the 64-byte uniform input keys.ts's toScalar expects. */
+    const esk = bytes32LEToBigint(outPlaintext.slice(32, 64));
+    if (esk >= FR_MOD) return null;
+    const shared = kaAgreePoint(esk, PallasPoint.fromBytes(pkDBytes));
+    const key = kdfOrchard(shared, epkBytes);
+    const plaintext = chacha20poly1305(key, new Uint8Array(12)).decrypt(encCt);
+    if (plaintext.length !== NOTE_PLAINTEXT_SIZE) return null;
+    if (plaintext[0] !== 0x02) return null; // ZIP-212 version
+    const note = parseCompactPlaintext(plaintext.slice(0, COMPACT_NOTE_SIZE), rho);
+    if (note === null) return null;
+    const address = new Uint8Array(43);
+    address.set(note.d, 0);
+    address.set(pkDBytes, 11);
+    return { address, value: note.v, memo: plaintext.slice(COMPACT_NOTE_SIZE), rseed: note.rseed };
+  } catch {
+    return null; // wrong key / not our output
+  }
+}
+
+/**
+ * Sender-side outgoing-ciphertext ENCRYPTION (test helper mirroring the
+ * fork's OutgoingCiphertext construction, builder.rs -> encrypt_outgoing_plaintext):
+ * ock over (ovk || cv || cmx || epk); out_plaintext = pk_d || esk, zero nonce.
+ * Used by unit tests to build REAL out_ciphertexts for recovery KATs.
+ */
+export function encryptOutgoingCiphertext(
+  ovk: Uint8Array,
+  cvNet: Uint8Array,
+  cmx: Uint8Array,
+  epkBytes: Uint8Array,
+  pkDBytes: Uint8Array,
+  eskBytes: Uint8Array,
+): Uint8Array {
+  const ock = blake2b256Personal(PRF_OCK_PERSONALIZATION, ovk, cvNet, cmx, epkBytes);
+  const pt = new Uint8Array(64);
+  pt.set(pkDBytes, 0);
+  pt.set(eskBytes, 32);
+  return chacha20poly1305(ock, new Uint8Array(12)).encrypt(pt);
+}
 
 /** AEAD tag size. */
 export const AEAD_TAG_SIZE = 16;

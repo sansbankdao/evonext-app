@@ -92,8 +92,9 @@ export function makeShieldedSync(
     const seed = mnemonicToSeedSync(mnemonic)
     const keys = deriveShieldedWalletKeys(seed, network)
     /* nk is REQUIRED for correct spend-status queries (the on-chain registry
-     * holds spend nullifiers, not the rows' rhos — F40 fix). */
-    return new ShieldedSync(source, storage, `evonext_shielded_sync_${network}`, keys.ivk, keys.fvk.nk)
+     * holds spend nullifiers, not the rows' rhos — F40 fix); ovk enables
+     * ZIP-144 recovery of OUR outgoing payments (history, F41). */
+    return new ShieldedSync(source, storage, `evonext_shielded_sync_${network}`, keys.ivk, keys.fvk.nk, keys.ovk)
 }
 
 /** 36-byte Dash memo: 4-byte kind tag ([1,0,0,0] = text) + UTF-8 payload
@@ -353,6 +354,81 @@ export async function shieldWithAssetLock(options: ShieldCreditsOptions): Promis
 
 export { recommendedAssetLockCredits }
 
+/* --- Transaction history (F41) --- */
+
+export type ShieldedHistoryKind = 'sent' | 'received' | 'self'
+
+export interface ShieldedHistoryEntry {
+  kind: ShieldedHistoryKind
+  /** Credits moved (for 'sent': the outgoing amount; for notes: the value). */
+  credits: bigint
+  /** Recipient (bech32, 'sent' + 'self' entries) or our address (change). */
+  address?: string
+  /** Decoded memo text (printable prefix). */
+  memo: string
+  /** Tree index of the note this entry refers to. */
+  treeIndex: number
+  /** Current on-chain spend status of the backing note. */
+  spent: boolean
+}
+
+/** Decode the printable text of a 36-byte memo (kind tag [1,0,0,0] + UTF-8). */
+const memoTextOf = (memoHex: string): string => {
+  try {
+    const bytes = hexToBytes(memoHex)
+    const payload = bytes.slice(4)
+    const text = new TextDecoder('utf-8', { fatal: false }).decode(payload)
+    return text.replace(/\0+$/g, '').trim()
+  } catch {
+    return ''
+  }
+}
+
+/** Build the wallet's transaction history from the sync state:
+ *  - 'sent': rows that do NOT decrypt for us but whose out_ciphertext opens
+ *    under our OVK — payments to OTHERS, with the exact amount + recipient
+ *    (ZIP-144 sender recovery, from chain data — no local log needed);
+ *  - 'self': owned notes created by OUR actions (send changes, self-sends,
+ *    shields-to-self, dummy-paired changes — the OVK opens them);
+ *  - 'received': owned notes we did NOT create — incoming transfers from
+ *    another party (or a shield built by another device of the same seed).
+ *  Sorted newest-first (tree order). */
+export function buildShieldedHistory(
+  sync: ShieldedSync,
+  keys: ShieldedWalletKeys,
+  network: 'mainnet' | 'testnet',
+): ShieldedHistoryEntry[] {
+  const entries: ShieldedHistoryEntry[] = []
+
+  for (const sent of sync.sent) {
+    entries.push({
+      kind: 'sent',
+      credits: BigInt(sent.value),
+      address: encodeOrchardAddress(hexToBytes(sent.recipient), network),
+      memo: memoTextOf(sent.memo),
+      treeIndex: sent.position,
+      spent: false, /* outgoing payments never "spend" — they are final */
+    })
+  }
+
+  for (const note of sync.notes) {
+    entries.push({
+      kind: note.createdByUs ? 'self' : 'received',
+      credits: BigInt(note.value),
+      address: shieldedAddressAtFromRaw(hexToBytes(note.recipient), network),
+      memo: memoTextOf(note.memo),
+      treeIndex: note.position,
+      spent: note.spent,
+    })
+  }
+
+  return entries.sort((a, b) => b.treeIndex - a.treeIndex)
+}
+
+/** bech32-encode a RAW 43-byte address (history display). */
+const shieldedAddressAtFromRaw = (raw: Uint8Array, network: 'mainnet' | 'testnet'): string =>
+  encodeOrchardAddress(raw, network)
+
 /* --- SHIELD from the identity's L1 balance (asset-lock path, proven) --- */
 
 const SHIELD_PENDING_KEY = (address: string) => `evonext_shield_pending_lock_${address}`
@@ -433,6 +509,29 @@ export async function shieldFromBalance(options: {
         network, txid, undefined, undefined,
         (attempt, max) => progress(`Waiting for confirmation… (${attempt}/${max})`))
     blockheight = confirmed.blockheight
+    if (!blockheight) {
+        /* Mainnet insight /tx/<txid> can LACK the blockheight field (F36
+         * gotcha) — derive it from the credit output's utxo confirmation
+         * height (the same method the mainnet stage-1 harness verified). */
+        const insightBase = network === 'mainnet'
+            ? 'https://insight.dash.org/insight-api'
+            : 'https://insight.testnet.networks.dash.org/insight-api'
+        for (let i = 0; i < 20 && !blockheight; i++) {
+            await sleep(15000)
+            try {
+                const response = await fetch(
+                    `${insightBase}/addr/${funding.address}/utxo`)
+                const utxos = await response.json()
+                const credit = Array.isArray(utxos)
+                    ? utxos.find((u: any) => u.txid === txid && u.vout === 1)
+                    : undefined
+                if (credit && typeof credit.height === 'number') blockheight = credit.height
+            } catch { /* keep polling */ }
+        }
+        if (!blockheight) {
+            throw new Error('The asset lock confirmed but its block height could not be read — retry to resume')
+        }
+    }
     try { window.localStorage.setItem(pendingKey, JSON.stringify({ txid, blockheight })) } catch { /* ignore */ }
 
     /* Platform validates the proof against ITS core-chain-locked height (F27i). */

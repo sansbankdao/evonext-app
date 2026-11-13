@@ -26,15 +26,26 @@ import {
   kdfOrchard,
   deriveAddressBytes,
 } from '@/lib/shielded/keys';
-import { derivePsi, deriveEsk, deriveRcm, noteCommitment } from '@/lib/shielded/note';
+import {
+  derivePsi, deriveEsk, deriveRcm, noteCommitment, noteCommitmentPoint,
+  deriveNullifier, encryptOutgoingCiphertext,
+} from '@/lib/shielded/note';
 import { bigintToBytes32LE, bytes32LEToBigint } from '@/lib/shielded/pasta';
+import { PallasPoint } from '@/lib/shielded/pasta';
 
 // Deterministic test identity (NOT a real wallet).
 const SEED = hexToBytes('ab'.repeat(32));
 const sk = spendingKeyFromSeed(SEED, 1, 0); // coin type 1 = testnet
 const fvk = fullViewingKeyFromSpendingKey(sk);
 const ivk = ivkFromFvk(fvk);
-const { dk } = deriveDkOvk(fvk);
+const { dk, ovk } = deriveDkOvk(fvk);
+
+// A second deterministic party (the payment RECIPIENT in the recovery test).
+const SEED2 = hexToBytes('cd'.repeat(32));
+const sk2 = spendingKeyFromSeed(SEED2, 1, 0);
+const fvk2 = fullViewingKeyFromSpendingKey(sk2);
+const ivk2 = ivkFromFvk(fvk2);
+const { dk: dk2 } = deriveDkOvk(fvk2);
 
 interface Wire {
   cmx: Uint8Array;
@@ -79,6 +90,52 @@ function encryptToUs(j: number, value: bigint, rho: Uint8Array, memoByte = 0): W
   const wire = new Uint8Array(216);
   wire.set(epkBytes, 0);
   wire.set(ct, 32); // out_ciphertext (80) left as zeros — not needed for sync
+  return { cmx: bigintToBytes32LE(cmx), cvNet: new Uint8Array(32).fill(9), encryptedNote: wire, nullifier: rho };
+}
+
+/** Encrypt a note to ANY target (the recovery test's recipient) with a REAL
+ *  out_ciphertext under the SENDER's ovk — the full ZIP-144 sender path.
+ *  The note ct key = KDF([esk]pk_d || epk); out_ct = AEAD(ock, pk_d || esk). */
+function encryptToRecipient(
+  targetIvk: bigint,
+  targetDk: Uint8Array,
+  value: bigint,
+  rho: Uint8Array,
+  senderOvk: Uint8Array,
+  memoText = 'paid',
+): Wire {
+  const d = diversifierAtIndex(targetDk, 0);
+  const gD = diversifyHash(d);
+  const pkD = kaDerivePublic(gD, targetIvk);
+  const rseed = new Uint8Array(32);
+  rseed[0] = 0x77;
+  const esk = deriveEsk(rseed, rho);
+  const epk = kaAgreePoint(esk, gD);
+  const epkBytes = epk.toBytes();
+  const shared = kaAgreePoint(esk, pkD);
+  const key = kdfOrchard(shared, epkBytes);
+  const pt = new Uint8Array(88);
+  pt[0] = 0x02;
+  pt.set(d, 1);
+  const vBytes = new Uint8Array(8);
+  let v = value;
+  for (let i = 0; i < 8; i++) { vBytes[i] = Number(v & 0xffn); v >>= 8n; }
+  pt.set(vBytes, 12);
+  pt.set(rseed, 20);
+  /* DashMemo layout (memo.rs / textMemo): kind tag [1,0,0,0] + UTF-8 payload. */
+  pt.set([1, 0, 0, 0], 52);
+  pt.set(new TextEncoder().encode(memoText).slice(0, 32), 56);
+  const ct = chacha20poly1305(key, new Uint8Array(12)).encrypt(pt);
+  const psi = derivePsi(rseed, rho);
+  const rcm = deriveRcm(rseed, rho);
+  const cmx = noteCommitment(gD, pkD, value, rho, psi, rcm);
+  if (cmx === null) throw new Error('test encryptor: null commitment');
+  const outCt = encryptOutgoingCiphertext(
+    senderOvk, new Uint8Array(32).fill(9), bigintToBytes32LE(cmx), epkBytes, pkD.toBytes(), bigintToBytes32LE(esk));
+  const wire = new Uint8Array(216);
+  wire.set(epkBytes, 0);
+  wire.set(ct, 32);
+  wire.set(outCt, 136);
   return { cmx: bigintToBytes32LE(cmx), cvNet: new Uint8Array(32).fill(9), encryptedNote: wire, nullifier: rho };
 }
 
@@ -140,7 +197,7 @@ describe('shielded sync layer', () => {
   beforeEach(() => {
     source = new MockSource();
     storage = memStorage();
-    sync = new ShieldedSync(source, storage, 'test_shielded', ivk, fvk.nk);
+    sync = new ShieldedSync(source, storage, 'test_shielded', ivk, fvk.nk, ovk);
   });
 
   it('syncs a sub-chunk pool and decrypts exactly our notes', async () => {
@@ -188,7 +245,7 @@ describe('shielded sync layer', () => {
     for (let i = 0; i < 5; i++) source.wires.push(foreignNote(i));
     source.wires.push(encryptToUs(0, 777n, new Uint8Array(32).fill(0x0d)));
     await sync.syncPass();
-    const restored = new ShieldedSync(source, storage, 'test_shielded', ivk, fvk.nk);
+    const restored = new ShieldedSync(source, storage, 'test_shielded', ivk, fvk.nk, ovk);
     expect(restored.size).toBe(6);
     expect(restored.balance()).toBe(777n);
     expect(restored.notes[0].position).toBe(5);
@@ -230,6 +287,47 @@ describe('shielded sync layer', () => {
     expect(sync.balance()).toBe(4242n);
   }, 300_000);
 
+  it('recovers OUR outgoing payments via the ovk (ZIP-144 sender recovery)', async () => {
+    /* 1. OUR note is spent by an action that creates (a) a change note back
+     *    to us and (b) a payment to the SECOND party. The child rows' rho =
+     *    the parent's spend nullifier (F31 semantics). The payment row does
+     *    NOT decrypt for us — it must be recovered via the out_ciphertext. */
+    const rhoParent = new Uint8Array(32).fill(0x1a);
+    source.wires.push(encryptToUs(0, 5000n, rhoParent));
+    await sync.syncPass();
+    expect(sync.notes.length).toBe(1);
+    const parent = sync.notes[0];
+    expect(parent.spendNullifier).toBeDefined();
+
+    /* The parent's REAL spend nullifier = the child rows' rho. */
+    const rhoChild = hexToBytes(parent.spendNullifier!);
+    source.wires.push(encryptToUs(1, 2000n, rhoChild)); /* change -> us */
+    source.wires.push(encryptToRecipient(
+      ivk2, dk2, 3000n, rhoChild, ovk, 'paid'));
+    source.wires.push(foreignNote(900));
+
+    const ok = await sync.syncPass();
+    expect(ok).toBe(true);
+    expect(sync.notes.map((n) => n.position)).toEqual([0, 1]);
+
+    /* The payment row: recovered with the exact recipient + value + memo. */
+    expect(sync.sent.length).toBe(1);
+    const sent = sync.sent[0];
+    expect(sent.position).toBe(2);
+    expect(sent.value).toBe('3000');
+    expect(sent.recipient).toBe(bytesToHex(deriveAddressBytes(ivk2, diversifierAtIndex(dk2, 0))));
+    expect(new TextDecoder().decode(hexToBytes(sent.memo).slice(4)).replace(/\0+$/, '')).toBe('paid');
+
+    /* The balance counts only our notes (the payment is not ours). */
+    expect(sync.balance()).toBe(7000n);
+
+    /* Rewind + re-fetch reproduces the sent entry exactly once (dedupe). */
+    source.wires.push(foreignNote(901));
+    const ok2 = await sync.syncPass();
+    expect(ok2).toBe(true);
+    expect(sync.sent.length).toBe(1);
+  });
+
   it('refreshSpent marks spent notes and drops them from the balance', async () => {
     source.wires.push(encryptToUs(0, 100n, new Uint8Array(32).fill(1)));
     source.wires.push(encryptToUs(1, 200n, new Uint8Array(32).fill(2)));
@@ -241,7 +339,7 @@ describe('shielded sync layer', () => {
     expect(sync.notes[1].spent).toBe(false);
     expect(sync.balance()).toBe(200n);
     // Persistence round-trip keeps the spent flag.
-    const restored = new ShieldedSync(source, storage, 'test_shielded', ivk, fvk.nk);
+    const restored = new ShieldedSync(source, storage, 'test_shielded', ivk, fvk.nk, ovk);
     expect(restored.balance()).toBe(200n);
   });
 
@@ -274,11 +372,11 @@ describe('shielded sync layer', () => {
 
   it('a corrupted storage blob falls back to a fresh state', () => {
     storage.map.set('test_shielded', '{not json');
-    const fresh = new ShieldedSync(source, storage, 'test_shielded', ivk, fvk.nk);
+    const fresh = new ShieldedSync(source, storage, 'test_shielded', ivk, fvk.nk, ovk);
     expect(fresh.size).toBe(0);
     expect(fresh.balance()).toBe(0n);
     storage.map.set('test_shielded', JSON.stringify({ version: 99 }));
-    const fresh2 = new ShieldedSync(source, storage, 'test_shielded', ivk, fvk.nk);
+    const fresh2 = new ShieldedSync(source, storage, 'test_shielded', ivk, fvk.nk, ovk);
     expect(fresh2.size).toBe(0);
   });
 });

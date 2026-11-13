@@ -31,6 +31,7 @@ import { hexToBytes, bytesToHex } from '@noble/hashes/utils.js';
 import { OrchardTree, leafFromBytes, leafToBytes } from './tree';
 import {
     tryDecryptNoteWireWithMemo, derivePsi, deriveRcm, noteCommitmentPoint, deriveNullifier,
+    tryRecoverOutgoingNoteWire,
 } from './note';
 import { diversifyHash } from './keys';
 import { PallasPoint, bigintToBytes32LE } from './pasta';
@@ -73,11 +74,25 @@ export interface OwnedShieldedNote {
   recipient: string; // hex, 43-byte raw Orchard address (diversifier || pk_d)
   memo: string; // hex, 36-byte Dash memo
   spent: boolean; // refreshed via getShieldedNullifiers
+  /** True when the out_ciphertext opened under OUR ovk — the note was
+   *  created by an action WE built (send/shield/withdrawal change), even
+   *  when its action's spend half was a DUMMY (padding). */
+  createdByUs?: boolean;
 }
 
 interface PersistedCheckpoint {
   count: number; // tree leaf count at checkpoint time
   root: string; // hex, 32-byte tree root (anchor candidate)
+}
+
+/** A payment WE made, recovered from the chain via ZIP-144 sender recovery
+ *  (the recipient's note never decrypts for us; the out_ciphertext does).
+ *  Fields are hex/decimal strings (u64 string rule). */
+export interface SentShieldedEntry {
+  position: number; // tree index of the recipient's note
+  recipient: string; // hex, 43-byte raw Orchard address
+  value: string; // decimal credits
+  memo: string; // hex, 36-byte Dash memo
 }
 
 interface PersistedSyncStateV1 {
@@ -87,6 +102,7 @@ interface PersistedSyncStateV1 {
   leaves: string[]; // hex cmx in tree order
   notes: OwnedShieldedNote[];
   checkpoints: PersistedCheckpoint[]; // newest first
+  sent?: SentShieldedEntry[]; // outgoing payments recovered via ovk (F41)
 }
 
 export interface ShieldedSyncProgress {
@@ -119,6 +135,10 @@ export class ShieldedSync {
    *  (refreshSpent): the on-chain nullifier registry holds spend nullifiers
    *  (Note::nullifier(nk, rho, psi, cm)), NOT the rows' rho values. */
   private readonly nk: bigint | undefined;
+  /** Outgoing viewing key — when provided, rows created by OUR spends that
+   *  do NOT decrypt for us (payments to OTHERS) are recovered via ZIP-144
+   *  sender recovery and recorded in state.sent (history). */
+  private readonly ovk: Uint8Array | undefined;
 
   private state: PersistedSyncStateV1;
   private tree: OrchardTree | null = null;
@@ -130,12 +150,14 @@ export class ShieldedSync {
     storageKey: string,
     ivk: bigint,
     nk?: bigint,
+    ovk?: Uint8Array,
   ) {
     this.source = source;
     this.storage = storage;
     this.storageKey = storageKey;
     this.ivk = ivk;
     this.nk = nk;
+    this.ovk = ovk;
     this.state = this.load();
   }
 
@@ -189,6 +211,11 @@ export class ShieldedSync {
     return this.state.notes;
   }
 
+  /** Outgoing payments recovered via the OVK (position order). */
+  get sent(): readonly SentShieldedEntry[] {
+    return this.state.sent ?? [];
+  }
+
   /** Sum of UNSPENT note values (credits). Call refreshSpent() first for a
    *  live answer. */
   balance(): bigint {
@@ -212,11 +239,14 @@ export class ShieldedSync {
     if (this.state.leaves.length > start) {
       this.state.leaves.length = start;
       this.state.notes = this.state.notes.filter((n) => n.position < start);
+      if (this.state.sent) this.state.sent = this.state.sent.filter((s) => s.position < start);
       this.state.alignedCount = start;
       this.tree = null; // force rebuild from the truncated leaves
       this.lastProbe = null;
     }
     const tree = this.getTree();
+
+    if (!this.state.sent) this.state.sent = [];
 
     let scanned = this.state.alignedCount;
     for (;;) {
@@ -237,22 +267,42 @@ export class ShieldedSync {
         }
         tree.append(leaf);
         this.state.leaves.push(bytesToHex(wire.cmx));
+        /* Universal sender detection (F41): the out_ciphertext opens under
+         * OUR ovk iff the creating action was OURS (zero false positives —
+         * the AEAD tag binds the ock to our key). Cheap: blake2b + AEAD,
+         * no curve math — safe to attempt on EVERY row. */
+        const recovered = this.ovk
+          ? tryRecoverOutgoingNoteWire(this.ovk, wire.cvNet, wire.cmx, wire.encryptedNote, wire.nullifier)
+          : null;
         // The served nullifier IS the note's rho for trial decryption.
         const hit = tryDecryptNoteWireWithMemo(this.ivk, wire);
         if (hit) {
+          const spendNfHex = this.nk !== undefined
+            ? bytesToHex(this.spendNullifierFor(
+              bytesToHex(wire.nullifier), hit.note.rseed, hit.address, hit.note.v))
+            : undefined;
           this.state.notes.push({
             position: scanned + i,
             nullifier: bytesToHex(wire.nullifier),
-            ...(this.nk !== undefined
-              ? { spendNullifier: bytesToHex(this.spendNullifierFor(
-                bytesToHex(wire.nullifier), hit.note.rseed, hit.address, hit.note.v)) }
-              : {}),
+            ...(spendNfHex ? { spendNullifier: spendNfHex } : {}),
             value: hit.note.v.toString(),
             rseed: bytesToHex(hit.note.rseed),
             recipient: bytesToHex(hit.address),
             memo: bytesToHex(hit.memo),
             spent: false,
+            ...(recovered ? { createdByUs: true } : {}),
           });
+        } else if (recovered) {
+          /* Not decryptable by us but sealed to OUR ovk = a payment to
+           * SOMEONE ELSE (ZIP-144 sender recovery). */
+          if (!this.state.sent.some((s) => s.position === scanned + i)) {
+            this.state.sent.push({
+              position: scanned + i,
+              recipient: bytesToHex(recovered.address),
+              value: recovered.value.toString(),
+              memo: bytesToHex(recovered.memo),
+            });
+          }
         }
       }
       scanned += page.length;

@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { showErrorToast } from '@/lib/toast-error'
 import toast from 'react-hot-toast'
-import { Loader2, Copy, RefreshCw, ShieldCheck, Send, Download } from 'lucide-react'
+import { Loader2, Copy, RefreshCw, ShieldCheck, Send, Download, ArrowUpRight, ArrowDownLeft, Repeat2, History } from 'lucide-react'
 // @ts-ignore
 import { QRCodeSVG } from 'qrcode.react'
 
@@ -24,8 +24,8 @@ import { EVONEXT_CONTRACT_ID_TESTNET, EVONEXT_CONTRACT_ID_MAINNET } from '@/lib/
 import { getMnemonic } from '@/lib/secure-storage'
 import {
     deriveShieldedWalletKeys, makeShieldedSync, sendShielded, shieldFromBalance,
-    shieldedAddressAt,
-    type ShieldedWalletKeys,
+    shieldedAddressAt, buildShieldedHistory,
+    type ShieldedWalletKeys, type ShieldedHistoryEntry,
 } from '@/lib/shielded/wallet'
 import type { OwnedShieldedNote } from '@/lib/shielded/sync'
 
@@ -56,6 +56,17 @@ export function WalletShielded({ isFullScreen }: { isFullScreen?: boolean }) {
     const [keys, setKeys] = useState<ShieldedWalletKeys | null>(null)
     const [balanceCredits, setBalanceCredits] = useState<bigint | null>(null)
     const [myNotes, setMyNotes] = useState<OwnedShieldedNote[]>([])
+    const [history, setHistory] = useState<ShieldedHistoryEntry[]>([])
+    /* Ref mirror of `keys` — applySync must NEVER capture a stale pre-init
+     * keys value (the scan runs before the re-render that publishes keys). */
+    const keysRef = useRef<ShieldedWalletKeys | null>(null)
+
+    /* One place to project a sync state into the UI (balance + notes + history). */
+    const applySync = useCallback((sync: NonNullable<Awaited<ReturnType<typeof loadSync>>>) => {
+        setBalanceCredits(sync.balance())
+        setMyNotes([...sync.notes])
+        setHistory(keysRef.current ? buildShieldedHistory(sync, keysRef.current, sdkNetwork) : [])
+    }, [sdkNetwork])
     const [scanStatus, setScanStatus] = useState<string | null>(null)
     const [scanning, setScanning] = useState(false)
     const [needsMnemonic, setNeedsMnemonic] = useState(false)
@@ -90,11 +101,10 @@ export function WalletShielded({ isFullScreen }: { isFullScreen?: boolean }) {
                 await sync.refreshSpent()
             } catch { /* keep polling */ }
             const credits = sync.balance()
-            setBalanceCredits(credits)
-            setMyNotes([...sync.notes])
+            applySync(sync)
             if (compare(credits)) return
         }
-    }, [])
+    }, [applySync])
 
     const loadSync = useCallback(async () => {
         const mnemonic = getMnemonic()
@@ -115,6 +125,7 @@ export function WalletShielded({ isFullScreen }: { isFullScreen?: boolean }) {
         const sdk = await getWasmSdk()
         const walletKeys = deriveShieldedWalletKeys(
             (await import('@scure/bip39')).mnemonicToSeedSync(mnemonic), sdkNetwork)
+        keysRef.current = walletKeys
         setKeys(walletKeys)
         return makeShieldedSync(sdk, sdkNetwork, mnemonic)
     }, [sdkNetwork, isMainnet])
@@ -134,15 +145,14 @@ export function WalletShielded({ isFullScreen }: { isFullScreen?: boolean }) {
                 if (!ok) throw new Error('The note-tree scan was interrupted — try again')
             }
             await sync.refreshSpent()
-            setBalanceCredits(sync.balance())
-            setMyNotes([...sync.notes])
+            applySync(sync)
         } catch (err: any) {
             showErrorToast(err?.message || 'Shielded balance scan failed')
         } finally {
             setScanStatus(null)
             setScanning(false)
         }
-    }, [loadSync])
+    }, [loadSync, applySync])
 
     useEffect(() => {
         let cancelled = false
@@ -208,8 +218,7 @@ export function WalletShielded({ isFullScreen }: { isFullScreen?: boolean }) {
              * block — poll until the balance drops below the pre-send value. */
             setSendPhase('Waiting for the transaction to settle…')
             await pollUntilSettled((credits) => credits < before)
-            setBalanceCredits(sync.balance())
-            setMyNotes([...sync.notes])
+            applySync(sync)
         } catch (err: any) {
             showErrorToast(err?.message || 'Shielded send failed')
         } finally {
@@ -248,8 +257,7 @@ export function WalletShielded({ isFullScreen }: { isFullScreen?: boolean }) {
             const before = syncRef.current?.balance() ?? 0n
             setShieldPhase('Waiting for the note to appear…')
             await pollUntilSettled((credits) => credits > before)
-            setBalanceCredits(syncRef.current?.balance() ?? null)
-            setMyNotes([...(syncRef.current?.notes ?? [])])
+            if (syncRef.current) applySync(syncRef.current)
         } catch (err: any) {
             showErrorToast(err?.message || 'Shielding failed')
         } finally {
@@ -313,6 +321,66 @@ export function WalletShielded({ isFullScreen }: { isFullScreen?: boolean }) {
                     </div>
                 )}
             </div>
+
+            {/* HISTORY */}
+            {history.length > 0 && (
+                <div className="rounded-2xl border border-gray-200 dark:border-gray-800 overflow-hidden">
+                    <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-200 dark:border-gray-800">
+                        <History className="w-4 h-4 text-sky-600 dark:text-sky-400" />
+                        <h2 className="font-semibold">Transaction history</h2>
+                    </div>
+                    <div className="divide-y divide-gray-100 dark:divide-gray-800">
+                        {history.map((entry) => {
+                            const isIncoming = entry.kind === 'received'
+                            const Icon = entry.kind === 'sent'
+                                ? ArrowUpRight
+                                : entry.kind === 'self' ? Repeat2 : ArrowDownLeft
+                            const badge = entry.kind === 'sent'
+                                ? 'text-amber-600 dark:text-amber-400 border-amber-300 dark:border-amber-700'
+                                : entry.kind === 'self'
+                                    ? 'text-gray-500 dark:text-gray-400 border-gray-300 dark:border-gray-700'
+                                    : 'text-emerald-600 dark:text-emerald-400 border-emerald-300 dark:border-emerald-700'
+                            return (
+                                <div key={`${entry.kind}-${entry.treeIndex}`} className="px-4 py-3 flex items-center gap-3">
+                                    <div className={`shrink-0 rounded-full border p-1.5 ${badge}`}>
+                                        <Icon className="w-3.5 h-3.5" />
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                            <span className="text-xs font-semibold">
+                                                {entry.kind === 'sent' ? 'Sent'
+                                                    : entry.kind === 'self' ? 'To your address'
+                                                        : 'Received'}
+                                            </span>
+                                            {entry.spent && (
+                                                <span className="text-2xs text-gray-400 uppercase">spent</span>
+                                            )}
+                                            <span className="text-2xs font-mono text-gray-400">#{entry.treeIndex}</span>
+                                        </div>
+                                        <p className="text-2xs text-gray-500 dark:text-gray-400 break-all truncate">
+                                            {entry.memo || (entry.kind === 'sent' ? 'no memo' : '—')}
+                                        </p>
+                                        {entry.kind === 'sent' && entry.address && (
+                                            <p className="text-2xs font-mono text-gray-400 break-all truncate">
+                                                to {entry.address.slice(0, 24)}…
+                                            </p>
+                                        )}
+                                    </div>
+                                    <div className="text-right shrink-0">
+                                        <p className={`text-xs font-semibold ${isIncoming ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-700 dark:text-gray-300'}`}>
+                                            {entry.kind === 'received' ? '+' : entry.kind === 'sent' ? '−' : '~'}{creditsToDash(entry.credits)} DASH
+                                        </p>
+                                    </div>
+                                </div>
+                            )
+                        })}
+                    </div>
+                    <p className="px-4 py-2 text-2xs text-gray-400 border-t border-gray-200 dark:border-gray-800">
+                        Derived locally from the note tree and your outgoing-viewing key —
+                        amounts and memos never leave this device.
+                    </p>
+                </div>
+            )}
 
             {/* RECEIVE */}
             <div className="rounded-2xl border border-gray-200 dark:border-gray-800 p-4">
