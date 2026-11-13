@@ -142,7 +142,7 @@ export function ComposeModal() {
                                 animate={{ opacity: 1, scale: 1 }}
                                 exit={{ opacity: 0, scale: 0.95 }}
                                 transition={{ duration: 0.15 }}
-                                className="fixed mx-5 top-20 lg:left-1/4 -translate-x-1/2 w-full max-w-[600px] bg-white dark:bg-black rounded-2xl shadow-xl z-40"
+                                className="fixed mx-5 top-20 md:left-1/4 -translate-x-1/2 w-full max-w-[600px] bg-white dark:bg-black rounded-2xl shadow-xl z-40"
                             >
                                 {/* Add Dialog Title for accessibility */}
                                 <Dialog.Title className="sr-only">

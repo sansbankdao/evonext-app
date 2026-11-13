@@ -111,7 +111,7 @@ export function WalletSwap({ isFullScreen }: WalletSwapProps) {
                 <div onClick={() => { setIsShowingDash(false); setIsShowingSans(true) }} className="cursor-pointer px-2 flex-1 h-24 sm:h-32 flex justify-center items-center border border-lime-500 rounded-lg shadow bg-gradient-to-b from-lime-400 to-lime-200">
                     <div className="flex flex-col items-center">
                         <h2 className="text-2xl sm:text-3xl text-lime-900 font-medium whitespace-nowrap">
-                            Dash USD
+                            USD
                         </h2>
 
                         <h3 className="text-sm sm:text-base text-lime-700 font-medium">

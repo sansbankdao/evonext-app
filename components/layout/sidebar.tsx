@@ -98,7 +98,7 @@ export function Sidebar() {
     }
 
     return (
-        <div className="hidden h-screen max-w-sm w-full pt-16 lg:flex flex-col px-2 sticky top-0">
+        <div className="hidden h-screen max-w-sm w-full pt-16 md:flex flex-col px-2 sticky top-0">
             <div className="flex-1 space-y-1 py-4 overflow-y-auto scrollbar-hide">
                 <nav className="space-y-1">
                     {navigation.map((item) => {

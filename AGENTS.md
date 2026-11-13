@@ -1489,6 +1489,72 @@ history of this file (see log below for commit hashes) — keep only load-bearin
 
 ## Working Rules For This Repo
 
+## F44 — SHIELDED ENGINE moved to a Web Worker + asset-list polish +
+## RESPONSIVENESS boundary fixed (2026-11-14)
+
+User reports, all addressed: (1) "the WALLET is hanging — refactor with
+JS Workers; I DON'T WANT ANY TABS BLOCKING; KEEP EVERYTHING ASYNC";
+(2) DASH logo on BOTH Transparent and Shielded rows, small shield badge
+on the Shielded one; (3) 'Dash USD' → 'USD' + appropriate icon;
+(4) header gradient kept but the padding/vertical alignment REGRESSED —
+root cause found: the F42 header makeover added `relative` to the inner
+row, which ACTIVATED the previously-inert `top-2.5` and shifted the whole
+row 10px down — FIXED by removing `top-2.5` (gradient kept);
+(5) asset items needed a bordered icon + background shading; (6) the
+bottom (mobile) nav SHOWED on desktop windows — the responsiveness
+boundary was `lg` (1024px), so 768–1023px desktop windows got the mobile
+footer with NO sidebars.
+
+(a) **SHIELDED ENGINE WEB WORKER** — NEW `lib/shielded/engine-worker.ts`
+(module worker) + `lib/shielded/engine-client.ts` (main-thread RPC
+client). The worker owns: the wasm SDK init (the exact WasmSdkService
+sequence — `init()` + WasmTrustedContext.prefetch* + builder +
+`withSettings(undefined, 8000, …)` — minus window/localStorage), ZIP-32
+keys, the ShieldedSync (proxy-first source), the bounded+retried scan
+loop (6×, 150s/60s caps — 1:1 from F43), history, send (sendShielded),
+and the post-broadcast settle poll (8×15s). Persistence stays in MAIN-
+thread localStorage: the worker posts every state blob ('persist') and
+the client writes it; the worker seeds from the blob passed in the 'init'
+message (workers have no localStorage). `proverBaseUrl()` (lib/shielded/
+prove.ts) now returns '/api' in WORKER scope too (`typeof self !==
+'undefined' && typeof document === 'undefined' && typeof location !==
+'undefined'`) — the prover answers no CORS preflight, and under COEP an
+opaque no-cors response is unusable. Consumers: `components/wallet/
+assets.tsx` (Shielded row: instant seed from
+`persistedShieldedBalance(network)` + worker scan) and `components/wallet/
+shielded.tsx` (balance/notes/history/send/settle/receive-address via RPC;
+the SHIELD flow stays MAIN-thread — its wasm AssetLockProof/PrivateKey
+objects live in the MAIN thread's SDK; its keys come from the worker's
+'keys' RPC — key exposure unchanged, they always lived in this page's
+memory). Worker CSP: `worker-src 'self' blob:` already permitted
+(invariant 4). `pnpm test:run` (214) green UNCHANGED — the unit suite
+never drove the worker.
+
+(b) **Asset rows**: both Transparent and Shielded rows carry the DASH
+logo in a BORDED icon tile (`rounded-xl bg-white border border-sky-200
+shadow-sm`); the Shielded row adds a small `ShieldCheckIcon` badge at the
+bottom-right corner of the tile. Row shading: `bg-gradient-to-br
+from-white via-sky-50/80 to-sky-100` + `rounded-2xl border-sky-200` +
+hover (`hover:border-sky-400 hover:shadow-md hover:-translate-y-px
+transition-all`) — applied to assets AND collections rows. The dUSD row
+renamed 'Dash USD' → **'USD'** with a NEW minimal icon
+`public/icons/usd.svg` (dollar-in-circle, sky). swap.tsx 'Dash USD' →
+'USD' (DUSD sublabel kept).
+
+(c) **RESPONSIVENESS boundary moved lg(1024) → md(768) for the NAV
+STRUCTURE only** — desktop-sized windows (≥768px) now get the full
+desktop layout: footer `md:hidden`, Sidebar + RightSidebar `md:flex`,
+header heights `md:h-[72px]` + its internal `md:` offsets, the
+footer-clearance paddings (`pb-16 md:pb-0` profile/notifications/shielded,
+`pb-48 md:pb-8` + `pt-20 md:pt-28` connect, compose-modal `md:left-1/4`).
+Cosmetic grids/sizes elsewhere keep `lg:`. LIVE-VERIFIED in-browser
+(`scratch-responsive-e2e.mjs`): 1280×800 → footer present-but-HIDDEN,
+header 72px, brand row aligned (center 30 vs 36), sidebar flex; 700×900
+→ footer visible + Wallet nav item.
+
+Gates: tsc 0, eslint 0 errors/1 known warning, 214/214, playwright 2/2,
+evorunner build green.
+
 ## F43 — F42 CORRECTION: Shielded/Transparent live in the EXISTING asset
 ## list (no dashboard section), per user directive (2026-11-14)
 

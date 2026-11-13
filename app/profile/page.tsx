@@ -275,7 +275,7 @@ function ProfilePage() {
             <Sidebar />
 
             {/* pb clears the fixed mobile footer (h-[45px], hidden on lg+) */}
-            <main className="flex-1 border-x border-gray-200 dark:border-gray-800 h-screen overflow-y-scroll pb-16 lg:pb-0">
+            <main className="flex-1 border-x border-gray-200 dark:border-gray-800 h-screen overflow-y-scroll pb-16 md:pb-0">
                 {/* Header */}
                 <header className="sticky top-0 z-30 bg-white/80 dark:bg-black/80 backdrop-blur-xl">
                     <div className="flex items-center gap-4 px-4 py-3">

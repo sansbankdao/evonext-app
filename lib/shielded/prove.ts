@@ -556,8 +556,16 @@ export const PROVER_BASE_URL = 'https://prover.sansbank.dev';
  *  pczt.js) because the prover worker answers NO CORS preflight (verified
  *  live 2026-11-13: OPTIONS -> 405, no Access-Control-* headers — a browser
  *  POST dies with net::ERR_FAILED); Node keeps the direct URL. */
+/* Client scopes = browser main thread AND Web Workers (the shielded
+ * engine worker posts to /api too — the prover answers no CORS preflight,
+ * and under COEP an opaque no-cors response is unusable). Node probes
+ * (window/self/location all absent) still hit the absolute prover URL. */
+const isClientScope = (): boolean =>
+  typeof window !== 'undefined' ||
+  (typeof self !== 'undefined' && typeof document === 'undefined' && typeof location !== 'undefined');
+
 export const proverBaseUrl = (): string =>
-  (typeof window !== 'undefined') ? '/api' : PROVER_BASE_URL;
+  isClientScope() ? '/api' : PROVER_BASE_URL;
 
 export interface ProvePcztResult {
   /** The parsed frame with the zkproof trailer filled. */

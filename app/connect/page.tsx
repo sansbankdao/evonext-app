@@ -258,7 +258,7 @@ storeIdentityIdx(credentials?.identityIdx ?? 0)
     /* 12-word backup gate for passkey-created identities. */
     if (passkeyWords) {
         return (
-            <div className="pt-20 lg:pt-28 pb-48 lg:pb-8 bg-white dark:bg-black flex flex-col items-center px-4 h-screen overflow-y-scroll">
+            <div className="pt-20 md:pt-28 pb-48 md:pb-8 bg-white dark:bg-black flex flex-col items-center px-4 h-screen overflow-y-scroll">
                 <div className="max-w-md w-full space-y-6">
                     <div className="text-center">
                         <h1 className="text-3xl font-bold text-gradient mb-2">
@@ -296,7 +296,7 @@ storeIdentityIdx(credentials?.identityIdx ?? 0)
     }
 
     return (<>
-            <div className="pt-20 lg:pt-28 pb-48 lg:pb-8 bg-white dark:bg-black flex flex-col items-center px-4 h-screen overflow-y-scroll">
+            <div className="pt-20 md:pt-28 pb-48 md:pb-8 bg-white dark:bg-black flex flex-col items-center px-4 h-screen overflow-y-scroll">
                 <div className="max-w-md w-full space-y-8">
                     <div className="text-center">
                         <h1 className="text-4xl font-bold text-gradient mb-2">

@@ -221,7 +221,7 @@ export default function ShieldedPoolPage() {
             <Sidebar />
 
             <div className="py-20 flex-1 flex justify-center h-screen overflow-y-scroll">
-                <main className="w-full max-w-[600px] border-x border-gray-200 dark:border-gray-800 pb-16 lg:pb-0">
+                <main className="w-full max-w-[600px] border-x border-gray-200 dark:border-gray-800 pb-16 md:pb-0">
             <div className="sticky top-0 z-10 bg-white/80 dark:bg-black/80 backdrop-blur border-b border-gray-200 dark:border-gray-800 px-4 py-3">
                 <h1 className="text-xl font-bold">Shielded Pool</h1>
                 <p className="text-2xs text-gray-500 dark:text-gray-400">

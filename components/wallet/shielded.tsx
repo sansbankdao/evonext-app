@@ -2,13 +2,17 @@
 
 // components/wallet/shielded.tsx
 //
-// The SHIELDED wallet tab: balance (local trial-decrypt scan via
-// lib/shielded/wallet.ts + the proxy-first sync engine), receive (bech32m
-// dash1z… address + QR), send (pool → pool transfer through the live
-// prover), and shield (identity L1 balance → pool via the self-custodial
-// asset-lock path). All keys derive from the session mnemonic locally.
+// The SHIELDED wallet view: balance, receive (bech32m dash1z… address +
+// QR), send (pool → pool transfer through the live prover), and shield
+// (identity L1 balance → pool via the self-custodial asset-lock path).
+// The scan, history and send pipelines run in the SHIELDED ENGINE WEB
+// WORKER (lib/shielded/engine-worker.ts) so the main thread never blocks
+// on curve math; this component only renders engine snapshots. The shield
+// flow still assembles on the main thread (its wasm AssetLockProof
+// objects live in the MAIN thread's SDK). All keys derive from the
+// session mnemonic locally.
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { showErrorToast } from '@/lib/toast-error'
@@ -22,9 +26,9 @@ import { useNetwork } from '@/contexts/network-context'
 import { wasmSdkService, getWasmSdk } from '@/lib/services/wasm-sdk-service'
 import { EVONEXT_CONTRACT_ID_TESTNET, EVONEXT_CONTRACT_ID_MAINNET } from '@/lib/constants'
 import { getMnemonic } from '@/lib/secure-storage'
+import { shieldedEngine, type ShieldedSnapshot } from '@/lib/shielded/engine-client'
 import {
-    deriveShieldedWalletKeys, makeShieldedSync, sendShielded, shieldFromBalance,
-    shieldedAddressAt, buildShieldedHistory,
+    shieldFromBalance,
     type ShieldedWalletKeys, type ShieldedHistoryEntry,
 } from '@/lib/shielded/wallet'
 import type { OwnedShieldedNote } from '@/lib/shielded/sync'
@@ -62,22 +66,13 @@ export function WalletShielded({ isFullScreen, onBack }: {
     const [balanceCredits, setBalanceCredits] = useState<bigint | null>(null)
     const [myNotes, setMyNotes] = useState<OwnedShieldedNote[]>([])
     const [history, setHistory] = useState<ShieldedHistoryEntry[]>([])
-    /* Ref mirror of `keys` — applySync must NEVER capture a stale pre-init
-     * keys value (the scan runs before the re-render that publishes keys). */
-    const keysRef = useRef<ShieldedWalletKeys | null>(null)
-
-    /* One place to project a sync state into the UI (balance + notes + history). */
-    const applySync = useCallback((sync: NonNullable<Awaited<ReturnType<typeof loadSync>>>) => {
-        setBalanceCredits(sync.balance())
-        setMyNotes([...sync.notes])
-        setHistory(keysRef.current ? buildShieldedHistory(sync, keysRef.current, sdkNetwork) : [])
-    }, [sdkNetwork])
     const [scanStatus, setScanStatus] = useState<string | null>(null)
     const [scanning, setScanning] = useState(false)
     const [needsMnemonic, setNeedsMnemonic] = useState(false)
 
     /* Receive */
     const [receiveIdx, setReceiveIdx] = useState(0)
+    const [receiveAddress, setReceiveAddress] = useState('')
 
     /* Send form */
     const [sendRecipient, setSendRecipient] = useState('')
@@ -91,82 +86,66 @@ export function WalletShielded({ isFullScreen, onBack }: {
     const [shielding, setShielding] = useState(false)
     const [shieldPhase, setShieldPhase] = useState<string | null>(null)
 
-    const syncRef = useRef<Awaited<ReturnType<typeof loadSync>> | null>(null)
+    /* One place to project an ENGINE SNAPSHOT into the UI (balance + notes
+     * + history). The engine runs in the Web Worker — the main thread only
+     * renders state. */
+    const applySnapshot = useCallback(async (snapshot: ShieldedSnapshot) => {
+        setBalanceCredits(BigInt(snapshot.balance))
+        setMyNotes(snapshot.notes)
+        try {
+            const rows = await shieldedEngine.history()
+            setHistory(rows.map((row) => ({ ...row, credits: BigInt(row.credits) })))
+        } catch { /* history is best-effort; balance + notes still apply */ }
+    }, [])
 
-    /* After a broadcast, the chain state (nullifier registry / note tree)
-     * only updates with the next block — poll until the balance reflects the
-     * transition (or give up after ~2 min; Refresh stays available). */
-    const pollUntilSettled = useCallback(async (compare: (credits: bigint) => boolean) => {
-        const sync = syncRef.current
-        if (!sync) return
-        for (let i = 0; i < 8; i++) {
-            await new Promise((r) => setTimeout(r, 15000))
-            try {
-                await sync.syncPass()
-                await sync.refreshSpent()
-            } catch { /* keep polling */ }
-            const credits = sync.balance()
-            applySync(sync)
-            if (compare(credits)) return
-        }
-    }, [applySync])
-
-    const loadSync = useCallback(async () => {
+    /* Load the engine (idempotent per network + mnemonic). Returns false
+     * when there is no session phrase. */
+    const loadEngine = useCallback(async (): Promise<boolean> => {
         const mnemonic = getMnemonic()
         if (!mnemonic) {
             setNeedsMnemonic(true)
-            return null
+            return false
         }
         setNeedsMnemonic(false)
-
-        /* initialize() no-ops on a matching config; re-init when the live
-         * service was built for the WRONG network (F37 gotcha). */
-        if (!wasmSdkService.isReady() || wasmSdkService.initializedNetwork() !== sdkNetwork) {
-            await wasmSdkService.initialize({
-                network: sdkNetwork,
-                contractId: isMainnet ? EVONEXT_CONTRACT_ID_MAINNET : EVONEXT_CONTRACT_ID_TESTNET,
-            })
+        await shieldedEngine.start({ network: sdkNetwork, mnemonic })
+        /* Keys for the main-thread SHIELD flow only (its wasm AssetLockProof
+         * objects live in the MAIN thread's SDK) — scan/send/history never
+         * touch main-thread key material. */
+        if (keys === null) {
+            try { setKeys(await shieldedEngine.keys()) } catch { /* re-fetched on use */ }
         }
-        const sdk = await getWasmSdk()
-        const walletKeys = deriveShieldedWalletKeys(
-            (await import('@scure/bip39')).mnemonicToSeedSync(mnemonic), sdkNetwork)
-        keysRef.current = walletKeys
-        setKeys(walletKeys)
-        return makeShieldedSync(sdk, sdkNetwork, mnemonic)
-    }, [sdkNetwork, isMainnet])
+        return true
+    }, [sdkNetwork, keys])
 
-    const runScan = useCallback(async (fresh: boolean) => {
+    const runScan = useCallback(async () => {
         setScanning(true)
-        setScanStatus(fresh ? 'Syncing the note tree…' : 'Refreshing spend status…')
+        setScanStatus('Syncing the note tree…')
+        /* Live progress from the worker (per page + per pass). */
+        const off = shieldedEngine.onScanStatus(({ scanned }) => {
+            setScanStatus(`Scanned ${scanned.toLocaleString()} notes…`)
+        })
         try {
-            const sync = syncRef.current ?? await loadSync()
-            if (!sync) return
-            syncRef.current = sync
-
-            if (fresh) {
-                const ok = await sync.syncPass(({ scanned }) => {
-                    setScanStatus(`Scanned ${scanned.toLocaleString()} notes…`)
-                })
-                if (!ok) throw new Error('The note-tree scan was interrupted — try again')
-            }
-            await sync.refreshSpent()
-            applySync(sync)
+            const snapshot = await shieldedEngine.runScan()
+            await applySnapshot(snapshot)
         } catch (err: any) {
             showErrorToast(err?.message || 'Shielded balance scan failed')
         } finally {
+            off()
             setScanStatus(null)
             setScanning(false)
         }
-    }, [loadSync, applySync])
+    }, [applySnapshot])
 
     useEffect(() => {
         let cancelled = false
         ;(async () => {
             try {
-                const sync = await loadSync()
-                if (cancelled || !sync) return
-                syncRef.current = sync
-                await runScan(true)
+                if (!await loadEngine()) return
+                if (cancelled) return
+                /* Instant paint from the persisted state; the scan refines. */
+                await applySnapshot(await shieldedEngine.snapshot())
+                if (cancelled) return
+                await runScan()
             } catch (err: any) {
                 if (!cancelled) showErrorToast(err?.message || 'Shielded wallet init failed')
             }
@@ -175,7 +154,18 @@ export function WalletShielded({ isFullScreen, onBack }: {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [sdkNetwork])
 
-    const receiveAddress = keys ? shieldedAddressAt(keys, receiveIdx, sdkNetwork) : ''
+    /* The receive address is derived IN THE WORKER (the keys live there). */
+    useEffect(() => {
+        let cancelled = false
+        ;(async () => {
+            try {
+                const address = await shieldedEngine.receiveAddress(receiveIdx)
+                if (!cancelled) setReceiveAddress(address)
+            } catch { /* the engine is not started yet — re-tried on the
+                        * next scan/refresh render */ }
+        })()
+        return () => { cancelled = true }
+    }, [receiveIdx, scanning])
 
     const copyAddress = async () => {
         try {
@@ -194,25 +184,16 @@ export function WalletShielded({ isFullScreen, onBack }: {
         if (!sendRecipient.trim().startsWith(isMainnet ? 'dash1z' : 'tdash1z')) {
             return showErrorToast(`Please enter a valid shielded address (${isMainnet ? 'dash1z…' : 'tdash1z…'}).`)
         }
-        const sync = syncRef.current
-        if (!keys || !sync) {
-            return showErrorToast('The shielded wallet is still initializing — try again in a moment.')
-        }
 
         setSending(true)
         setSendPhase('Preparing…')
+        const off = shieldedEngine.onSendPhase((phase) => setSendPhase(phase))
         try {
-            const sdk = await getWasmSdk()
-            const before = sync.balance()
-            const result = await sendShielded({
-                sdk,
-                keys,
-                sync,
-                network: sdkNetwork,
+            const before = balanceCredits ?? 0n
+            const result = await shieldedEngine.send({
                 recipient: sendRecipient.trim(),
-                amountCredits: amount,
+                amountCredits: amount.toString(),
                 memoText: sendMemo || undefined,
-                onProgress: (phase) => setSendPhase(phase),
             })
             toast.success(`Sent ${creditsToDash(amount)} DASH — transition ${result.transitionHash.slice(0, 16)}…`)
             setSendRecipient('')
@@ -220,13 +201,14 @@ export function WalletShielded({ isFullScreen, onBack }: {
             setSendMemo('')
 
             /* The spent note's nullifier enters the registry with the next
-             * block — poll until the balance drops below the pre-send value. */
+             * block — the WORKER polls until the balance drops below the
+             * pre-send value (or ~2 min; Refresh stays available). */
             setSendPhase('Waiting for the transaction to settle…')
-            await pollUntilSettled((credits) => credits < before)
-            applySync(sync)
+            await applySnapshot(await shieldedEngine.settle('below', before.toString()))
         } catch (err: any) {
             showErrorToast(err?.message || 'Shielded send failed')
         } finally {
+            off()
             setSending(false)
             setSendPhase(null)
         }
@@ -242,10 +224,21 @@ export function WalletShielded({ isFullScreen, onBack }: {
         }
         const identityIdx = Number(localStorage.getItem('identity_idx') || 0)
 
+        /* initialize() no-ops on a matching config; re-init when the live
+         * service was built for the WRONG network (F37 gotcha) — the shield
+         * flow's wasm asset-lock objects live on the MAIN thread's SDK. */
+        if (!wasmSdkService.isReady() || wasmSdkService.initializedNetwork() !== sdkNetwork) {
+            await wasmSdkService.initialize({
+                network: sdkNetwork,
+                contractId: isMainnet ? EVONEXT_CONTRACT_ID_MAINNET : EVONEXT_CONTRACT_ID_TESTNET,
+            })
+        }
+        const sdk = await getWasmSdk()
+
         setShielding(true)
         setShieldPhase('Preparing…')
         try {
-            const sdk = await getWasmSdk()
+            const before = balanceCredits ?? 0n
             const result = await shieldFromBalance({
                 sdk,
                 keys,
@@ -257,12 +250,11 @@ export function WalletShielded({ isFullScreen, onBack }: {
             toast.success(`Shielded ${creditsToDash(result.shieldCredits)} DASH — transition ${result.transitionHash.slice(0, 16)}…`)
             setShieldAmount('')
 
-            /* The new note enters the tree with the next block — poll with
-             * full re-syncs until the balance rises above the pre-shield value. */
-            const before = syncRef.current?.balance() ?? 0n
+            /* The new note enters the tree with the next block — the WORKER
+             * polls with full re-syncs until the balance rises above the
+             * pre-shield value. */
             setShieldPhase('Waiting for the note to appear…')
-            await pollUntilSettled((credits) => credits > before)
-            if (syncRef.current) applySync(syncRef.current)
+            await applySnapshot(await shieldedEngine.settle('above', before.toString()))
         } catch (err: any) {
             showErrorToast(err?.message || 'Shielding failed')
         } finally {
@@ -305,7 +297,7 @@ export function WalletShielded({ isFullScreen, onBack }: {
                         <ShieldCheck className="w-5 h-5 text-sky-600 dark:text-sky-400" />
                         <h2 className="font-semibold">Shielded balance</h2>
                     </div>
-                    <Button size="sm" variant="outline" onClick={() => runScan(true)} disabled={scanning}>
+                    <Button size="sm" variant="outline" onClick={() => runScan()} disabled={scanning}>
                         {scanning ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
                         <span className="ml-1.5">Refresh</span>
                     </Button>

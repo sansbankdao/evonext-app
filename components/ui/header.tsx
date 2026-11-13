@@ -11,7 +11,7 @@ export function Header() {
     const { network } =  useNetwork()
 
     return (
-        <div className="absolute top-0 z-40 w-screen h-14 sm:h-16 lg:h-[72px] text-white px-4 py-2 text-sm overflow-hidden shadow-[0_2px_16px_rgba(199,2,132,0.35)]">
+        <div className="absolute top-0 z-40 w-screen h-14 sm:h-16 md:h-[72px] text-white px-4 py-2 text-sm overflow-hidden shadow-[0_2px_16px_rgba(199,2,132,0.35)]">
             {/* Layered background: brand gradient + light blooms + a fine
                 diagonal weave + a top sheen — replaces the flat fuchsia. */}
             <div
@@ -42,13 +42,17 @@ export function Header() {
                 aria-hidden="true"
                 className="absolute inset-x-0 bottom-0 h-px bg-black/15"
             />
-            <div className="relative z-10 pr-7 top-2.5 w-full max-w-7xl mx-auto flex items-center justify-between">
-                <Link href="/" className="-mt-2 sm:-mt-2 lg:-mt-1 flex md:flex-col text-sm font-mono tracking-wider items-center">
+            {/* relative+z-10 keeps the row above the absolute background
+                layers; top-2.5 was REMOVED — it was inert before the
+                makeover (static div) and activating it shifted the whole
+                row 10px down (the vertical-alignment regression). */}
+            <div className="relative z-10 pr-7 w-full max-w-7xl mx-auto flex items-center justify-between">
+                <Link href="/" className="-mt-2 sm:-mt-2 md:-mt-1 flex md:flex-col text-sm font-mono tracking-wider items-center">
                     <span className={`px-2 text-4xl sm:text-5xl font-bold inline tracking-wider ${network !== 'mainnet' ? '' : 'pt-3'}`}>
                         ΞvoNext
 
                         {network !== 'mainnet' && <>
-                            <span className="w-fit flex ml-40 sm:ml-52 lg:ml-52 -mt-7 sm:-mt-9 lg:-mt-9">
+                            <span className="w-fit flex ml-40 sm:ml-52 md:ml-52 -mt-7 sm:-mt-9 md:-mt-9">
                                 <h3 className="-rotate-90 tracking-tighter text-xs sm:text-sm uppercase text-yellow-100 font-bold animate-pulse">
                                     Testnet
                                 </h3>
@@ -61,7 +65,7 @@ export function Header() {
                     </span>
                 </Link>
 
-                <div className="-mt-0 sm:mt-1 -mr-7 sm:-mr-6 lg:mr-0 lg:mt-2 flex items-center gap-2">
+                <div className="-mt-0 sm:mt-1 -mr-7 sm:-mr-6 md:mr-0 md:mt-2 flex items-center gap-2">
                     {user && <Link
                         href="/notifications"
                         className="flex items-center px-2 py-1 bg-white/20 hover:bg-white/30 rounded-md transition-colors"
