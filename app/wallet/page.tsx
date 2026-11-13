@@ -6,8 +6,6 @@ import {
     ArrowPathIcon,
     ArrowUpTrayIcon,
     BarsArrowDownIcon,
-    ChevronRightIcon,
-    ShieldCheckIcon,
 } from '@heroicons/react/24/outline'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -18,12 +16,8 @@ import { showErrorToast } from '@/lib/toast-error'
 // @ts-ignore
 import numeral from 'numeral'
 
-import { wasmSdkService, getWasmSdk } from '../../lib/services/wasm-sdk-service'
+import { getWasmSdk } from '../../lib/services/wasm-sdk-service'
 
-import {
-    EVONEXT_CONTRACT_ID_MAINNET,
-    EVONEXT_CONTRACT_ID_TESTNET,
-} from '@/lib/constants'
 import { useAuth } from '@/contexts/auth-context'
 import { useNetwork } from '@/contexts/network-context'
 
@@ -33,8 +27,6 @@ import { WalletSwap } from '@/components/wallet/swap'
 import { WalletHistory } from '@/components/wallet/history'
 import { WalletSend } from '@/components/wallet/send'
 import { WalletShielded } from '@/components/wallet/shielded'
-import { getMnemonic } from '@/lib/secure-storage'
-import { makeShieldedSync } from '@/lib/shielded/wallet'
 
 export default function WalletPage() {
     const { user } = useAuth()
@@ -49,17 +41,13 @@ export default function WalletPage() {
     const [isFullScreen, setIsFullScreen] = useState(false)
     const [isShowingAssets, setIsShowingAssets] = useState(true)
 
-    /* Shielded dashboard line item (mobile-parity balance model):
-     * the shielded-pool balance from the local note scan. */
+    /* The Shielded ASSET-LIST row opens the full-screen shielded wallet. */
     const [showShielded, setShowShielded] = useState(false)
-    const [shieldedCredits, setShieldedCredits] = useState<bigint | null>(null)
-    const [shieldedUsd, setShieldedUsd] = useState<string>('')
-    const [dashUsdPrice, setDashUsdPrice] = useState(0)
 
     const [Identity, setIdentity] = useState({
         asset: {
             iconUrl: '/icons/dash.svg',
-            ticker: 'Dash Credits',
+            ticker: 'Transparent',
         }
     })
     // const contractString = JSON.stringify(dataContract, null, 2)
@@ -124,89 +112,11 @@ export default function WalletPage() {
         fetchData()
     }, [user])
 
-    /* DASH/USD price for the Shielded line item (same feed as above, cached
-     * 10 min so a page view never hammers the API). */
-    useEffect(() => {
-        let cancelled = false
-        const KEY = 'evonext_dash_usd'
-        const TTL_MS = 10 * 60 * 1000
-        try {
-            const cached = JSON.parse(localStorage.getItem(KEY) ?? 'null')
-            if (cached && typeof cached.price === 'number' && Date.now() - cached.at < TTL_MS) {
-                setDashUsdPrice(cached.price)
-            }
-        } catch { /* ignore malformed cache */ }
-        fetch('https://dashswap.xyz/v1/ticker/DASH')
-            .then((r) => r.json())
-            .then((t) => {
-                const p = Number(t?.quote?.USD?.price)
-                if (!cancelled && Number.isFinite(p) && p > 0) {
-                    setDashUsdPrice(p)
-                    try { localStorage.setItem(KEY, JSON.stringify({ price: p, at: Date.now() })) } catch { /* ignore */ }
-                }
-            })
-            .catch(() => { /* keep cached value / 0 */ })
-        return () => { cancelled = true }
-    }, [])
-
-    /* Shielded balance for the dashboard line item: a local note scan
-     * (persisted — incremental after the first pass). Skipped silently when
-     * no recovery phrase is in the session. The wasm request-timeout can
-     * leave a query pending FOREVER (F30) and the proxy has a 12s fetch cap,
-     * so every pass is bounded + retried — syncPass is resumable. */
-    useEffect(() => {
-        let cancelled = false
-        const withTimeout = <T,>(p: Promise<T>, ms: number, what: string): Promise<T> =>
-            Promise.race([
-                p,
-                new Promise<T>((_, reject) => setTimeout(() => reject(new Error(`${what} timed out after ${ms / 1000}s`)), ms)),
-            ])
-        const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
-
-        ;(async () => {
-            try {
-                const mnemonic = getMnemonic()
-                if (!mnemonic) return
-                const sdkNetwork = network === 'mainnet' ? 'mainnet' : 'testnet'
-                /* initialize() no-ops on a matching config; re-init when the
-                 * live service was built for the WRONG network (F37). */
-                if (!wasmSdkService.isReady() || wasmSdkService.initializedNetwork() !== sdkNetwork) {
-                    await wasmSdkService.initialize({
-                        network: sdkNetwork,
-                        contractId: sdkNetwork === 'mainnet'
-                            ? EVONEXT_CONTRACT_ID_MAINNET
-                            : EVONEXT_CONTRACT_ID_TESTNET,
-                    })
-                }
-                const sdk = await getWasmSdk()
-                const sync = makeShieldedSync(sdk, sdkNetwork, mnemonic)
-                for (let attempt = 0; attempt < 3 && !cancelled; attempt++) {
-                    try {
-                        const ok = await withTimeout(sync.syncPass(), 120000, `shielded scan (attempt ${attempt + 1})`)
-                        if (!ok) throw new Error('scan interrupted')
-                        await withTimeout(sync.refreshSpent(), 60000, 'spend-status refresh')
-                        if (cancelled) return
-                        setShieldedCredits(sync.balance())
-                        return
-                    } catch (err: any) {
-                        if (cancelled) return
-                        console.error(`shielded dashboard scan attempt ${attempt + 1} failed:`, err?.message)
-                        await sleep(8000) /* the pass is resumable — retry */
-                    }
-                }
-            } catch (err: any) {
-                /* The line item simply stays empty — never block the wallet. */
-                console.error('shielded dashboard scan failed:', err?.message)
-            }
-        })()
-        return () => { cancelled = true }
-    }, [network])
-
     return (
         <main className="pt-14 py-10 w-full grid grid-cols-1 gap-8 h-screen">
             <div className="sm:mt-2 lg:mt-4 w-full overflow-y-scroll">
                 {showShielded && <WalletShielded isFullScreen onBack={() => setShowShielded(false)} />}
-                <div
+                <button
                     onClick={() => setActiveTab('assets')}
                     className={`cursor-pointer group w-full px-5 py-3 bg-gradient-to-b from-sky-100 to-sky-50 border-t border-x border-sky-400 rounded-x-lg shadow-md hover:bg-sky-100 ${showShielded ? 'hidden' : ''}`}
                 >
@@ -251,72 +161,6 @@ export default function WalletPage() {
                     <section className="{[ isShowingAssets ? 'visible' : 'hidden' ]}">
                         <div className="my-2 border-t border-sky-500" />
 
-                        {/* Asset line items (mobile-parity balance model):
-                         * Shielded (pool) + Transparent (identity credits). */}
-                        <div className="flex flex-col gap-1 mb-3">
-                            <button
-                                onClick={(e) => { e.stopPropagation(); setShowShielded(true) }}
-                                className="flex flex-row items-center justify-between px-3 py-2.5 bg-white/70 border border-sky-200 rounded-lg shadow-sm hover:bg-white transition-colors"
-                            >
-                                <span className="flex flex-row items-center gap-2">
-                                    <ShieldCheckIcon className="w-6 h-6 text-sky-600" />
-                                    <span className="flex flex-col items-start">
-                                        <span className="text-sm font-semibold text-sky-800">Shielded</span>
-                                        <span className="text-2xs text-sky-600">Orchard pool · DASH</span>
-                                    </span>
-                                </span>
-                                <span className="flex flex-row items-center gap-2">
-                                    <span className="flex flex-col items-end">
-                                        <span className="text-sm font-semibold text-sky-700 tabular-nums">
-                                            {shieldedCredits !== null
-                                                ? `${numeral(Number(shieldedCredits) / 1e11).format('0,0.0000[0000]')} DASH`
-                                                : '—'}
-                                        </span>
-                                        <span className="text-2xs text-gray-500">
-                                            {shieldedCredits !== null && dashUsdPrice > 0
-                                                ? numeral((Number(shieldedCredits) / 1e11) * dashUsdPrice).format('$0,0.00[00]')
-                                                : ''}
-                                        </span>
-                                    </span>
-                                    <ChevronRightIcon className="w-4 h-4 text-sky-400" />
-                                </span>
-                            </button>
-
-                            <button
-                                onClick={(e) => { e.stopPropagation(); setActiveTab('send') }}
-                                className="flex flex-row items-center justify-between px-3 py-2.5 bg-white/70 border border-sky-200 rounded-lg shadow-sm hover:bg-white transition-colors"
-                            >
-                                <span className="flex flex-row items-center gap-2">
-                                    <Image
-                                        src="/icons/dash.svg"
-                                        className="h-6 w-auto p-0.5"
-                                        alt=""
-                                        width={0}
-                                        height={0}
-                                    />
-                                    <span className="flex flex-col items-start">
-                                        <span className="text-sm font-semibold text-sky-800">Transparent</span>
-                                        <span className="text-2xs text-sky-600">Identity credits · DASH</span>
-                                    </span>
-                                </span>
-                                <span className="flex flex-row items-center gap-2">
-                                    <span className="flex flex-col items-end">
-                                        <span className="text-sm font-semibold text-sky-700 tabular-nums">
-                                            {user?.balance !== undefined && user?.balance !== null
-                                                ? `${numeral(Number(user.balance) / 1e11).format('0,0.0000[0000]')} DASH`
-                                                : '—'}
-                                        </span>
-                                        <span className="text-2xs text-gray-500">
-                                            {user?.balance && dashUsdPrice > 0
-                                                ? numeral((Number(user.balance) / 1e11) * dashUsdPrice).format('$0,0.00[00]')
-                                                : ''}
-                                        </span>
-                                    </span>
-                                    <ChevronRightIcon className="w-4 h-4 text-sky-400" />
-                                </span>
-                            </button>
-                        </div>
-
                         <div className="grid grid-cols-2 gap-4 text-center">
                             <div>
                                 <h3 className="text-xs tracking-widest text-sky-700 font-medium uppercase">
@@ -343,7 +187,7 @@ export default function WalletPage() {
                             </div>
                         </div>
                     </section>
-                </div>
+                </button>
 
                 <div className={`block ${showShielded ? 'hidden' : ''}`}>
                     <nav className="isolate grid grid-cols-4 divide-x divide-gray-200 rounded-x-lg rounded-b-lg shadow" aria-label="Tabs">
@@ -392,6 +236,7 @@ export default function WalletPage() {
                 <div className="my-5 px-2">
                     {activeTab === 'assets' && <WalletAssets
                         isFullScreen={isFullScreen}
+                        onOpenShielded={() => setShowShielded(true)}
                     />}
 
                     {activeTab === 'send' && <WalletSend

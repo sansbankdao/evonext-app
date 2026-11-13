@@ -1489,6 +1489,48 @@ history of this file (see log below for commit hashes) — keep only load-bearin
 
 ## Working Rules For This Repo
 
+## F43 — F42 CORRECTION: Shielded/Transparent live in the EXISTING asset
+## list (no dashboard section), per user directive (2026-11-14)
+
+The user REJECTED F42's dashboard line-items section: "WE ALREADY HAVE A
+LIST OF ASSETS — USE THE SAME LIST — REPLACE DASH CREDIT WITH
+TRANSPARENT". Done:
+
+(a) **`app/wallet/page.tsx` REVERTED to the F41 dashboard** (the original
+outer `<button>`, no line items, no scan/price effects; the added imports
+and state removed; `Identity.asset.ticker` renamed 'Dash Credits' →
+'Transparent' for the dashboard's SPENDABLE label). KEPT: 4-tab nav (no
+Assistant/Shielded tabs), `showShielded` + the full-screen
+`<WalletShielded isFullScreen onBack>` render; WalletAssets now receives
+`onOpenShielded`.
+
+(b) **`components/wallet/assets.tsx`**: the EXISTING Assets list now
+carries the mobile-parity balance model — the id-'0' row RENAMED
+'Dash Credit' → **'Transparent'** (displayTokenName + the IToken name),
+and a NEW **'Shielded'** row (id 'shielded', DASH ticker,
+`ShieldCheckIcon` instead of the dash image — 'transparent' and
+'shielded' are BOTH ticker DASH, so the marks must differ, mobile lesson)
+added right after it when the scan has landed. The row's balance comes
+from the bounded+retried local note scan (moved here from the page:
+6×150s-capped syncPass + 60s-capped refreshSpent, 5s backoff — resumable).
+The Shielded row's click calls `onOpenShielded()` (NOT handleActiveAsset);
+its value flows through the SHARED displayDecimalAmount (4-decimal row
+format: 131,100,000 credits → 0.0013).
+
+(c) **LIVE-VERIFIED in-browser** (`scratch-dashboard-e2e-browser.mjs`):
+dashboard has NO new section; nav = exactly Deposit/Send/Swap/History;
+Assets list = TRANSPARENT (0.1762) + SHIELDED (0.0013 / $0.05) + tokens;
+Shielded row → full-screen shielded wallet (back + history) → Back
+restores the list; ZERO page errors. DEBUG ARTEFACTS REMOVED before
+commit. Locator GOTCHAS (driver-side, for future runs): getByText matches
+the DOM text ('Shielded'), NOT the CSS-uppercased innerText ('SHIELDED')
+— use `text=Shielded` (case-insensitive engine) or case-insensitive
+regexes on innerText; the row value has responsive duplicate spans (one
+hidden) — use `.last()`/nth, not strict getByText.
+
+Gates: tsc 0, eslint 0 errors/1 known warning, 214/214, playwright 2/2,
+evorunner build green.
+
 ## F42 — WALLET RESTRUCTURE: Shielded/Transparent line items, tabs trimmed;
 ## HEADER gradient makeover (2026-11-14)
 

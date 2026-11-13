@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { BoltIcon, UserIcon } from '@heroicons/react/24/outline'
+import { BoltIcon, ShieldCheckIcon, UserIcon } from '@heroicons/react/24/outline'
 // @ts-ignore
 import numeral from 'numeral'
 
@@ -19,6 +19,9 @@ import {
     DUSD_DECIMALS,
     DUSD_USD_VALUE,
 
+    EVONEXT_CONTRACT_ID_MAINNET,
+    EVONEXT_CONTRACT_ID_TESTNET,
+
     SANS_CONTRACT_ID_MAINNET,
     SANS_CONTRACT_ID_TESTNET,
     SANS_DECIMALS,
@@ -27,16 +30,21 @@ import {
 import {
     getAsset,
     getIdentityIdx,
+    getMnemonic,
     storeAsset,
     storeIdentityIdx,
 } from '@/lib/secure-storage'
-import { getWasmSdk } from '@/lib/services/wasm-sdk-service'
+import { wasmSdkService, getWasmSdk } from '@/lib/services/wasm-sdk-service'
+import { makeShieldedSync } from '@/lib/shielded/wallet'
 
 interface WalletAssetProps {
     isFullScreen: boolean;
+    /* The Shielded row opens the full-screen shielded wallet (the wallet
+     * page owns the show/hide state). */
+    onOpenShielded?: () => void;
 }
 
-export function WalletAssets({ isFullScreen }: WalletAssetProps) {
+export function WalletAssets({ isFullScreen, onOpenShielded }: WalletAssetProps) {
     const { user } = useAuth()
     const { network } = useNetwork()
 
@@ -49,6 +57,67 @@ export function WalletAssets({ isFullScreen }: WalletAssetProps) {
     const [displayDusdBalanceUsd, setDisplayDusdBalanceUsd] = useState(BigInt(0))
     const [displaySansBalance, setDisplaySansBalance] = useState(BigInt(0))
     const [displaySansBalanceUsd, setDisplaySansBalanceUsd] = useState(BigInt(0))
+
+    /* The Shielded row's balance — a local note scan (persisted;
+     * incremental after the first pass). Skipped without a session phrase.
+     * The wasm request-timeout can leave a query pending FOREVER (F30) and
+     * the dapi-proxy fetch has a 12s cap, so every pass is bounded +
+     * retried — syncPass is resumable. */
+    const [shieldedCredits, setShieldedCredits] = useState<bigint | null>(null)
+
+    useEffect(() => {
+        let cancelled = false
+        const withTimeout = <T,>(p: Promise<T>, ms: number, what: string): Promise<T> =>
+            Promise.race([
+                p,
+                new Promise<T>((_, reject) => setTimeout(() => reject(new Error(`${what} timed out after ${ms / 1000}s`)), ms)),
+            ])
+        const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+
+        ;(async () => {
+            try {
+                const mnemonic = getMnemonic()
+                if (!mnemonic) return
+                const sdkNetwork = network === 'mainnet' ? 'mainnet' : 'testnet'
+                /* initialize() no-ops on a matching config; re-init when the
+                 * live service was built for the WRONG network (F37). */
+                if (!wasmSdkService.isReady() || wasmSdkService.initializedNetwork() !== sdkNetwork) {
+                    await wasmSdkService.initialize({
+                        network: sdkNetwork,
+                        contractId: sdkNetwork === 'mainnet'
+                            ? EVONEXT_CONTRACT_ID_MAINNET
+                            : EVONEXT_CONTRACT_ID_TESTNET,
+                    })
+                }
+                await wasmSdkService.initialize({
+                    network: sdkNetwork,
+                    contractId: sdkNetwork === 'mainnet'
+                        ? EVONEXT_CONTRACT_ID_MAINNET
+                        : EVONEXT_CONTRACT_ID_TESTNET,
+                })
+                const sdk = await getWasmSdk()
+                const sync = makeShieldedSync(sdk, sdkNetwork, mnemonic)
+                for (let attempt = 0; attempt < 6 && !cancelled; attempt++) {
+                    try {
+                        const ok = await withTimeout(sync.syncPass(), 150000, `shielded scan (attempt ${attempt + 1})`)
+                        if (!ok) throw new Error('scan interrupted')
+                        await withTimeout(sync.refreshSpent(), 60000, 'spend-status refresh')
+                        if (cancelled) return
+                        setShieldedCredits(sync.balance())
+                        return
+                    } catch (err: any) {
+                        if (cancelled) return
+                        console.error(`shielded asset scan attempt ${attempt + 1} failed:`, err?.message)
+                        await sleep(5000) /* the pass is resumable — retry */
+                    }
+                }
+            } catch (err: any) {
+                /* The row simply shows no balance — never block the list. */
+                console.error('shielded asset scan failed:', err?.message)
+            }
+        })()
+        return () => { cancelled = true }
+    }, [network])
 
     const displayIcon = (_token: IToken) => {
         /* Handle token icon URL. */
@@ -63,7 +132,9 @@ export function WalletAssets({ isFullScreen }: WalletAssetProps) {
         /* Handle token ID. */
         switch(_tokenid) {
         case '0':
-            return 'Dash Credit'
+            return 'Transparent'
+        case 'shielded':
+            return 'Shielded'
         case DUSD_CONTRACT_ID_MAINNET:
         case DUSD_CONTRACT_ID_TESTNET:
             return 'Dash USD'
@@ -204,10 +275,12 @@ export function WalletAssets({ isFullScreen }: WalletAssetProps) {
                 const ticker = await response.json()
                 const dashUsdValue = ticker.quote.USD.price
 
-                /* Build AVAILABLE (Platform) assets collection. */
+                /* Build AVAILABLE (Platform) assets collection — the
+                 * mobile-parity balance model: Transparent (identity
+                 * credits) + Shielded (the Orchard pool), then tokens. */
                 const assets: IToken[] = [{
                     id: '0',
-                    name: 'Dash Credit',
+                    name: 'Transparent',
                     ticker: 'DASH',
                     token_id_hex: dusdContractId,
                     iconUrl: '/icons/dash.svg',
@@ -217,6 +290,22 @@ export function WalletAssets({ isFullScreen }: WalletAssetProps) {
                         USD: dashUsdValue * (user.balance / (10 ** DASH_DECIMALS)),
                     },
                 }]
+
+                /* Shielded row (balance from the local note scan). */
+                if (shieldedCredits !== null) {
+                    assets.push({
+                        id: 'shielded',
+                        name: 'Shielded',
+                        ticker: 'DASH',
+                        token_id_hex: dusdContractId,
+                        iconUrl: '/icons/dash.svg',
+                        amount: shieldedCredits,
+                        decimal_places: DASH_DECIMALS,
+                        fiat: {
+                            USD: dashUsdValue * (Number(shieldedCredits) / (10 ** DASH_DECIMALS)),
+                        },
+                    })
+                }
 
                 /* Validate DUSD balance. */
                 if (typeof dusdBalance !== 'undefined' && dusdBalance !== null) {
@@ -255,11 +344,13 @@ export function WalletAssets({ isFullScreen }: WalletAssetProps) {
             }
         }
 
-        /* Fetch (async) data. */
+        /* Fetch (async) data. Re-runs when the shielded scan lands so the
+         * Shielded row appears with its balance. */
         fetchData()
     }, [
         network,
         user,
+        shieldedCredits,
     ])
 
     return (
@@ -299,17 +390,30 @@ export function WalletAssets({ isFullScreen }: WalletAssetProps) {
                 {assets && assets.map((token) => (
                     <div
                         key={token.id}
-                        onClick={() => handleActiveAsset(token.id)}
+                        onClick={() => {
+                            /* The Shielded row opens the full-screen shielded
+                             * wallet; regular assets select. */
+                            if (token.id === 'shielded') {
+                                onOpenShielded?.()
+                                return
+                            }
+                            handleActiveAsset(token.id)
+                        }}
                         className="flex flex-row justify-between items-end pl-1 pr-3 pt-2 pb-1 sm:py-3 bg-gradient-to-b from-sky-100 to-sky-50 border border-sky-300 rounded-lg shadow hover:bg-sky-200 cursor-pointer"
                     >
                         <div className="w-1/2 flex flex-row items-start">
-                            <Image
-                                src={displayIcon(token)}
-                                className="-mt-0.5 mr-1 h-12 w-auto p-2 opacity-80"
-                                alt="Asset icon"
-                                width={0}
-                                height={0}
-                            />
+                            {token.id === 'shielded'
+                                ? /* 'transparent' and 'shielded' are BOTH ticker
+                                   DASH — a distinct mark so the user can tell
+                                   which pool each row refers to (mobile parity). */
+                                  <ShieldCheckIcon className="-mt-0.5 mr-1 h-12 w-12 p-2 text-sky-600" />
+                                : <Image
+                                    src={displayIcon(token)}
+                                    className="-mt-0.5 mr-1 h-12 w-auto p-2 opacity-80"
+                                    alt="Asset icon"
+                                    width={0}
+                                    height={0}
+                                />}
 
                             <div className="flex flex-col">
                                 <h3 className="text-base text-sky-800 font-medium uppercase truncate">
