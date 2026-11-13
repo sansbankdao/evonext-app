@@ -73,6 +73,29 @@ const server = createServer(async (req, res) => {
             return
         }
 
+        // Dev parity for the Pages Function (functions/api/dashswap/[[path]].js):
+        // forward /api/dashswap/* to the DashSwap API (DASHSWAP_API_BASE
+        // overrides the default upstream; dev key via DASHSWAP_API_KEY).
+        if (pathname.startsWith('/api/dashswap/')) {
+            const base = process.env.DASHSWAP_API_BASE || 'https://dashswap.xyz'
+            const rest = pathname.slice('/api/dashswap/'.length)
+            const chunks = []
+            for await (const c of req) chunks.push(c)
+            const headers = { 'Content-Type': req.headers['content-type'] || 'application/json' }
+            if (process.env.DASHSWAP_API_KEY) headers['X-API-Key'] = process.env.DASHSWAP_API_KEY
+            const upstream = await fetch(`${base}/v1/${rest}${url.search}`, {
+                method: req.method,
+                headers,
+                body: ['GET', 'HEAD'].includes(req.method) ? undefined : Buffer.concat(chunks),
+            })
+            res.writeHead(upstream.status, {
+                'Content-Type': upstream.headers.get('content-type') || 'application/json',
+                'Cache-Control': 'no-store',
+            })
+            res.end(Buffer.from(await upstream.arrayBuffer()))
+            return
+        }
+
         const body = await readFile(filePath)
         res.writeHead(200, {
             'Content-Type': MIME[extname(filePath)] || 'application/octet-stream',

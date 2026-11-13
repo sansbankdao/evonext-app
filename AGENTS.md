@@ -1489,6 +1489,56 @@ history of this file (see log below for commit hashes) — keep only load-bearin
 
 ## Working Rules For This Repo
 
+## F47 — SWAP TAB rebuilt Uniswap-style, wired to the DashSwap API through
+## a same-origin key-holding proxy + handoff dropped in ../dashswap-api
+## (2026-11-14)
+
+The old Swap tab was a static mock (dead Vue attributes, hardcoded
+numbers). Rebuilt for the DashSwap exchange (dashswap.xyz, API at /v1 —
+their repo `../dashswap-api`, bootstrap phase = ONE-WAY swaps only:
+DASH→SANS and DASH→DUSD, per their README).
+
+(a) **`functions/api/dashswap/[[path]].js`** (NEW Pages Function): the
+static wallet can NEVER hold the API key, so all keyed calls route
+same-origin: `/api/dashswap/<rest>` → `https://dashswap.xyz/v1/<rest>`
+with `X-API-Key` injected from the **`DASHSWAP_API_KEY` Pages secret**
+(one-time: `wrangler pages secret put DASHSWAP_API_KEY` — needs the
+DashSwap team to provision the key; handoff item 1).
+`scripts/strip-wasm-from-out.mjs` gained `/api/dashswap*` in the
+_routes.json include list; `test/static-server.mjs` has dev parity
+(`/api/dashswap/*` forwarded to `DASHSWAP_API_BASE` (default
+dashswap.xyz) with `DASHSWAP_API_KEY`).
+
+(b) **`components/wallet/swap.tsx`** (FULL REWRITE, Uniswap layout in
+the wallet's sky design): bootstrap-notice card; pair chips (DASH→SANS,
+DASH→DUSD — the flip button is DISABLED with the one-way note); two-
+panel form (You pay [DASH amount + 'Balance: X available to swap' from
+the funding wallet via coreChain.getFundingUtxos — an operational line
+for the swap form ONLY, not an asset row] / You receive (estimated,
+rate × amount)); Swap → POST /api/dashswap/swap
+{direction, platformid, dest_platformid (= the session identity —
+bootstrap v1 settles to self), amount_in (duffs, 8 decimals)}; on
+create: the deposit card (QR + copy + the API's indicative `rate`) and
+a 10s status poller on GET /api/dashswap/swap/:id (status vocabulary is
+pattern-matched — pinned pending the team's answer); 'Your swaps' list
+from localStorage (`evonext_swaps_<network>`, last 25). The status/
+unit semantics are the team's TODO answers in the handoff.
+
+(c) **`../dashswap-api/EVONEXT-SWAP-UI-HANDOFF.md`** (NEW in THEIR
+repo): how the wallet calls them + TEN numbered questions — (1) the key
+for the proxy, (2) a dynamic direction/min-max endpoint, (3) the exact
+status vocabulary, (4) expected_out/amount_out units + what `rate`
+means, (5) the settlement artifact to deep-link, (6) the testnet host
+(our proxy is mainnet-hardcoded until they confirm), (7) confirm keyed
+endpoints stay CORS-free (proxy-only), (8) overpayment/underpayment
+refund semantics, (9) webhook/SSE future, (10) rate limits.
+
+Browser e2e (`scratch-swap-e2e.mjs`): bootstrap notice, both pair
+chips, the two-panel form, the balance line, chip switching, the
+disabled button pre-amount, the old mock GONE, zero page errors.
+Gates: tsc 0, eslint 0 errors/1 known warning, 214/214, playwright 2/2,
+evorunner build green.
+
 ## F46 — Balance model corrected: Transparent = the DIP-17 Platform-address
 ## pool (NOT the identity balance); identity balance + WITHDRAW-TO-CORE on
 ## the dashboard; testnet withdraw LIVE-VERIFIED (2026-11-14)

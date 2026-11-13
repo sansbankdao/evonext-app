@@ -60,6 +60,6 @@ writeFileSync(
     // /api/prove/pczt must be INCLUDED or Pages 404s it (no static file):
     // it is the CORS-free same-origin proxy to the PCZT prover
     // (functions/api/prove/pczt.js) the browser wallet depends on (F40).
-    JSON.stringify({ version: 1, include: ['/_next/static/media/wasm_sdk_bg*', '/api/prove/pczt'], exclude: [] }, null, 2),
+    JSON.stringify({ version: 1, include: ['/_next/static/media/wasm_sdk_bg*', '/api/prove/pczt', '/api/dashswap*'], exclude: [] }, null, 2),
 )
 console.log('strip-wasm-from-out: wrote out/_routes.json (Function covers only /​_next/static/media/wasm_sdk_bg*)')
