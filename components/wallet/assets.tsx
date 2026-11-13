@@ -262,21 +262,20 @@ export function WalletAssets({ isFullScreen, onOpenShielded }: WalletAssetProps)
                     },
                 }]
 
-                /* Shielded row (balance from the local note scan). */
-                if (shieldedCredits !== null) {
-                    assets.push({
-                        id: 'shielded',
-                        name: 'Shielded',
-                        ticker: 'DASH',
-                        token_id_hex: dusdContractId,
-                        iconUrl: '/icons/dash.svg',
-                        amount: shieldedCredits,
-                        decimal_places: DASH_DECIMALS,
-                        fiat: {
-                            USD: dashUsdValue * (Number(shieldedCredits) / (10 ** DASH_DECIMALS)),
-                        },
-                    })
-                }
+                /* Shielded row — ALWAYS present (even at ZERO, before the
+                 * worker scan lands), right after Transparent. */
+                assets.push({
+                    id: 'shielded',
+                    name: 'Shielded',
+                    ticker: 'DASH',
+                    token_id_hex: dusdContractId,
+                    iconUrl: '/icons/dash.svg',
+                    amount: shieldedCredits ?? 0n,
+                    decimal_places: DASH_DECIMALS,
+                    fiat: {
+                        USD: dashUsdValue * (Number(shieldedCredits ?? 0n) / (10 ** DASH_DECIMALS)),
+                    },
+                })
 
                 /* Validate DUSD balance. */
                 if (typeof dusdBalance !== 'undefined' && dusdBalance !== null) {

@@ -13,6 +13,7 @@ import {
     ArrowRightIcon
 } from '@heroicons/react/24/outline'
 import { Button } from '@/components/ui/button'
+import { Sidebar } from '@/components/layout/sidebar'
 import { PostCard } from '@/components/post/post-card'
 import { useNetwork } from '@/contexts/network-context'
 import Link from 'next/link'
@@ -175,7 +176,12 @@ export function MaisonPage() {
 
     return (
         <div className="min-h-screen flex">
-            <main className="pt-16 pb-32 w-full flex flex-col px-3 sm:px-8 h-screen overflow-y-scroll">
+            {/* Desktop shell: the same left menu every core page mounts
+                (the home page was missing it — 'mobile layout on
+                desktop' report). */}
+            <Sidebar />
+
+            <main className="pt-16 pb-32 flex-1 min-w-0 flex flex-col px-3 sm:px-8 h-screen overflow-y-scroll">
                 {/* Hero Section */}
                 <section className="py-12 text-center">
                     <motion.div

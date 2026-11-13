@@ -1489,6 +1489,41 @@ history of this file (see log below for commit hashes) — keep only load-bearin
 
 ## Working Rules For This Repo
 
+## F45 — Shielded row ALWAYS rendered (0 before the scan) + the WALLET and
+## HOME pages got the desktop Sidebar shell (2026-11-14)
+
+Follow-ups to the user's F44 session reports:
+
+(a) **The Shielded asset row is now UNCONDITIONAL** — it renders right
+after Transparent even at ZERO, before/without the worker scan landing
+(`amount: shieldedCredits ?? 0n`). The F44 code only pushed the row once
+the scan had completed — if the scan never lands (slow edge, worker
+ hiccup), the row vanished entirely, which is exactly what the user saw.
+
+(b) **THE DESKTOP SHELL WAS MISSING FROM THE WALLET AND HOME PAGES** —
+`app/wallet/page.tsx` and `app/maison.tsx` (the '/' home, a COMPONENT
+imported by app/page.tsx — NOT a route; /maison 404s) never mounted
+`<Sidebar />`, so those pages showed NO left menu at ANY width. On a
+desktop window the result was exactly the user's report: 'mobile layout,
+no left side menu' + no bottom nav (the global footer is md-hidden
+≥768) = ZERO navigation. Both pages now follow the explore-page pattern:
+`min-h-screen flex` wrapper + `<Sidebar />` + main switched `w-full` →
+`flex-1 min-w-0` (all content/classes otherwise 1:1). Pages like
+profile/posts/explore already mounted it — the wallet page was built in
+F40 without the shell. The login/bootstrap/landing/test pages stay
+sidebar-less by design.
+
+(c) LIVE-VERIFIED in-browser (`scratch-responsive-e2e.mjs`): 1280×800 →
+/wallet sidebar visible, home sidebar visible, Shielded row present
+IMMEDIATELY after login and ordered right after Transparent, header 72px
+aligned, footer hidden; 700×900 → footer visible + Wallet nav item.
+NOTE for future drivers: CSS-uppercased labels make innerText
+'case-sensitive indexOf' checks fail — lowercase the haystack; and
+app/maison.tsx is a component (home = '/'), /maison is a 404.
+
+Gates: tsc 0, eslint 0 errors/1 known warning, 214/214, playwright 2/2,
+evorunner build green.
+
 ## F44 — SHIELDED ENGINE moved to a Web Worker + asset-list polish +
 ## RESPONSIVENESS boundary fixed (2026-11-14)
 

@@ -21,6 +21,7 @@ import { getWasmSdk } from '../../lib/services/wasm-sdk-service'
 import { useAuth } from '@/contexts/auth-context'
 import { useNetwork } from '@/contexts/network-context'
 
+import { Sidebar } from '@/components/layout/sidebar'
 import { WalletAssets } from '@/components/wallet/assets'
 import { WalletDeposit } from '@/components/wallet/deposit'
 import { WalletSwap } from '@/components/wallet/swap'
@@ -113,7 +114,13 @@ export default function WalletPage() {
     }, [user])
 
     return (
-        <main className="pt-14 py-10 w-full grid grid-cols-1 gap-8 h-screen">
+        <div className="min-h-screen flex">
+            {/* Desktop shell: the same left menu every core page mounts
+                (the wallet page was missing it — 'mobile layout on
+                desktop' report). */}
+            <Sidebar />
+
+            <main className="pt-14 py-10 flex-1 min-w-0 grid grid-cols-1 gap-8 h-screen">
             <div className="sm:mt-2 lg:mt-4 w-full overflow-y-scroll">
                 {showShielded && <WalletShielded isFullScreen onBack={() => setShowShielded(false)} />}
                 <button
@@ -256,6 +263,7 @@ export default function WalletPage() {
                     />}
                 </div>
             </div>
-        </main>
+            </main>
+        </div>
     )
 }
