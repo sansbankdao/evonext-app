@@ -1,203 +1,201 @@
 <!-- docs/HANDOFF-NEW-TEAM.md -->
 
-# FULL PROJECT HANDOFF — evonext-app
+# FULL PROJECT HANDOFF — evonext-app (2026-11-13 edition)
 
-**Written:** 2026-10-06 · **Baseline commit:** `6aeea79` (master) · **For:** incoming team
-taking over from zero context.
+**Written:** 2026-11-13 (end of the F29–F37b session) · **Baseline commit:**
+`cd1df66` (master) · **For:** incoming team with ZERO context.
 
-Every fact below is backed by a file path, a command output, or a live chain
-observation. Nothing here is guessed. Where something is unverified it is marked
-**OPEN**.
+Every fact is backed by a file path, a command, or a live chain observation
+— nothing guessed. Unverified items are marked **OPEN**.
 
-If you read only one other file, read `/AGENTS.md` (repo root) — it is the
-living engineering log with the full F1–F31 history and the 12 load-bearing
-invariants. This handoff is the map; AGENTS.md is the terrain.
+READ `/AGENTS.md` SECOND. It is the complete engineering log (F22–F37b) with
+all load-bearing invariants; this document is the map into it.
 
 ---
 
-## 1. What this project is
+## 1. What happened in the last two sessions (the headline)
 
-- **App:** `evonext-app` v`26.1.30` (`package.json`) — a Next.js web client for
-  Dash Evolution (Platform) + a Dash-native shielded payments layer, currently
-  being built out against **testnet** only.
-- **Stack:** Next.js `16.3.8`, React `19.3.0`, TypeScript 5, pnpm `11.21.0`,
-  Node `v24.18.1`. Static export (`output: 'export'`), webpack forced via
-  `--webpack` in dev/build scripts.
-- **Where it runs:** static hosting (Cloudflare Pages for `/shielded`; main app
-  at `evonext.app`). There is **no server** — anything stateful is either
-  on-chain, in localStorage, or through the two external services in §7.
-- **Working rules (inherited, non-negotiable):** see the root `AGENTS.md`
-  system prompt block — deterministic fact engine, no guessing, cite sources or
-  say "CONFIDENCE: 0", minimum diffs, 1:1 logic parity, never drop
-  "secondary" logic (debug logs, fallbacks, comments, blank lines).
+**SHIELDED DASH IS NOW A WORKING PRODUCT ON MAINNET.** The complete chain —
+L1 asset lock → SHIELD (into the Orchard-style pool) → in-pool TRANSFER →
+UNSHIELD (back to L1) — was executed **live on MAINNET with real funds**
+(F36), after being proven on testnet (F29–F32). The `/shielded` viewer is
+live in production on BOTH networks (F37/F37b), the deploy pipeline that was
+broken for 3 weeks is fixed (F33), and the Android passkey unblock shipped
+(F34).
 
-## 2. Repository layout (only what matters)
+Mainnet evidence (all verified live):
+- Asset lock tx `f7126f9d3068e4594b316bf8ab5af5ad0515fed37427c5d4cb76d90ece93049e`
+  (1.2M sats, block 2571235, insight:
+  https://insight.dash.org/insight-api/tx/<txid>)
+- Shielded note at tree index 5257/5259, 1B credits, decrypted with the
+  coin-type-5 IVK — cryptographic proof the shield executed
+- Transfer executed: hash
+  `83bbb079ecc75ccf06149cc83bbb39553c4d40434140dff99c0ec2efa41ac4b3`
+  (https://platform-explorer.com/transaction/<hash>)
+- Unshield executed: withdrawal doc
+  `2usNzQ7qDLCeZFjTqUnyLa2AdWXBFK2fxvbYxWBLmxao` in the system contract
+  `4fJLR2GYTPFdomuTVvNy3VRrvWgvkKPzqehEBpNf2nk6` (SAME contract ID on both
+  networks), **L1 payout tx
+  `c86f7d590ad77a904a076aaa4633d48e1ee97680bf3410e4ddc817a95c2bc7ce` =
+  exactly 199,810 sats** (= 200,000 − ASSET_UNLOCK_TX_SIZE 190)
+- Live pool on production: https://evonext.app/shielded renders the mainnet
+  balance (856.8463 DASH ≈ $35,036 USD at last check; pool grows with
+  third-party activity)
 
-| Path | What it is |
-|---|---|
-| `app/` | Next.js App Router pages (35 routes, static export) |
-| `components/` | UI (post cards, modals, sidebar, etc.) |
-| `lib/dash-wasm/` | **Vendored** `@dashevo/wasm-sdk@5.0.0-rc.8` dist + `compat.ts` wrappers — do not regenerate casually (see AGENTS.md invariant 7) |
-| `lib/shielded/` | The Orchard/shielded port — see §4 |
-| `lib/core-chain.ts` | L1 (Dash Core) chain access: BIP44 funding keys, insight UTXOs, v23 asset locks |
-| `lib/network.ts` | **The** shared network/contract-id source. All services must use `getContractId(get())` |
-| `lib/dapi.ts` | External DAPI read-proxy client (identity reads only) |
-| `test/e2e/*.live.mts` | Live end-to-end shielded tests (real funds) — see §5 |
-| `scratch-shield-state.json` | Live e2e state cursor — see §6 |
-| `docs/` | Spike reports + shielded e2e handoff |
-| `AGENTS.md` | The source of truth for invariants + F1–F31 history |
+## 2. Project snapshot
 
-## 3. How to verify anything (the gates)
+- `evonext-app` v`26.11.12` — Next.js `16.3.8` + React `19.3.0`, TypeScript
+  5.9.3, pnpm `11.21.0`, Node 24 (`.nvmrc`); static export (`output:
+  'export'`), webpack forced via `--webpack`. Host: `/Workspace/sansbank/
+  evonext.app`; remote `git@github.com:sansbankdao/evonext-app.git` (public).
+- Deploys: Cloudflare Pages, git-triggered, framework preset **None**,
+  build `npm run build`, output `out` (F26b). The 25 MiB/file limit (F33)
+  is handled by the wasm Pages Function — see §6.
+- Live: https://evonext.app — production network = mainnet
+  (`lib/network.ts` getNetwork: host `evonext.app` → mainnet; everything
+  else → testnet; SSR fallback testnet).
 
-Run **sequentially, never in parallel** (parallel runs caused false TS6053 /
-exit-124 failures historically).
+## 3. Verification gates — run SEQUENTIALLY, never in parallel
 
-| Command | Expected (verified 2026-10-06) |
+| Command | Expected |
 |---|---|
 | `npx tsc --noEmit` | 0 errors |
-| `npx eslint .` (i.e. `pnpm lint`) | **0 errors, 1 warning** — the intentional `react-hooks/exhaustive-deps` in `app/posts/page.tsx` (documented in F26o; fixing it re-introduces a re-render loop) |
-| `pnpm test:run` | 203+ unit tests, all pass |
-| `pnpm build` | exit 0, 35/35 pages, `out/_headers` + ~26.5MB wasm emitted |
-| `npx tsc -p tsconfig.e2e-check.json --noEmit` | 0 errors — **this is the ONLY check that sees the `.mts` e2e files** (the root tsconfig's `**/*.ts` glob does not match `.mts`; every historical "tsc 0" claim about stage-2/3/4/5 files was vacuous) |
-| Live e2e | `pnpm vitest run --config test/e2e/vitest.live.config.mts <filter>` — real network, real funds, NEVER parallel, 15 min test timeout |
+| `npx eslint .` | 0 errors, **1 warning** (intentional `postsState` exhaustive-deps in `app/posts/page.tsx`, F26o — fixing it re-breaks the feed) |
+| `pnpm test:run` | **213 tests / 20 files**, all green |
+| `pnpm build` | exit 0, 32 route HTMLs + `_headers` + `out/_routes.json`, NO wasm in `out/` (stripped) |
+| `npx tsc -p tsconfig.e2e-check.json --noEmit` | 0 — **the ONLY type-check that sees `.mts` files** (root tsconfig glob excludes them; historical "tsc 0" over e2e was vacuous) |
+| `npx playwright test --project=chromium` | 2 passed (serves `./out` via `test/static-server.mjs`) |
+| Live e2e | `pnpm vitest run --config test/e2e/vitest.live.config.mjs shield-stage5` (testnet) — real network; never parallel; 15-min timeout |
 
-## 4. The shielded payments work — where it stands
+**NEVER BUILD ON THE HOST.** User directive, re-emphasized 2026-11-12 and
+covering ALL builds (Rust AND `pnpm build`): build on `evorunner`
+(ssh alias, 172.81.178.120, Node 22.22 + corepack pnpm 11.21.0, repo rsync'd
+to `~/evonext/web`) or the `sansbank` VM (127.0.0.1:2223). Host `tsc` /
+`eslint` / unit tests / playwright / network probes are fine.
 
-Goal: shield (Dash credits → Orchard-style pool), transfer in-pool, and
-unshield (pool → L1 DASH) entirely client-side, using a vendored WASM SDK plus
-a from-scratch TypeScript port of the Orchard protocol (no external wallet).
+## 4. Secrets and state files — HANDLE WITH CARE
 
-| Stage | Status | Evidence |
+| File | Contents | Rules |
 |---|---|---|
-| 1 — Asset lock (L1 → credits) | ✅ Live on testnet | `scratch-shield-state.json`: lockTxid `d01ebd24…e6f4`, 1,200,000 sats locked at block 1589964, chainlocked 1589965 |
-| 2 — SHIELD (credits → pool) | ✅ Live on testnet | State file: 1,000,000,000 credits shielded, note at tree index 6689, tree count 6,691 |
-| 3/3b — Sync + tree verification | ✅ | `lib/shielded/sync.ts`, `tree.ts` — 8/8 KATs vs the fork's `commitment_tree.json`; local root matched the live anchor |
-| 4 — TRANSFER (in-pool send) | ✅ **Committed** (`d5c0053`, F31) | Live: transitionHash `6cac3ee7…`, fee 114,140,000, spent 500,000,000, change 385,860,000; recipient note at index 6691, change at 6692 |
-| 5 — UNSHIELD (pool → L1) | ⚠️ **Cryptography + execution verified LIVE; test harness rewritten but not yet re-run in resume mode; code UNCOMMITTED** | See §5 |
+| `scratch-mainnet-state.json` | **REAL mainnet mnemonic (24-word) + WIF** for the dedicated e2e wallet; the wallet holds **~959M shielded credits in the pool** (500M d1 idx 5261, 385.86M d0 idx 5262, 73.52M d0 idx 5263) + ~31.9K duffs change on L1 | GITIGNORED (`/scratch-mainnet-state.json`). NEVER commit. It is the resume key for every mainnet stage script. |
+| `scratch-shield-state.json` | testnet mnemonic/WIF + full stage state (`stage: 'unshielded'`) | GITIGNORED. Testnet funds only. |
+| `scratch-*.mjs/.mts/.bundle.mjs` | stage harnesses (testnet + mainnet, NO secrets inside — they read the state files) | Untracked by convention; keep for reproducibility, delete at will. |
 
-### `lib/shielded/` module map (all KAT-verified against the fork's Rust test vectors)
+## 5. The shielded stack — what exists and where
 
-`pasta.ts` (Pallas/Vesta curves) · `hash.ts` (BLAKE2b `PrfExpand::*`) ·
-`swu.ts` (hash-to-curve) · `sinsemilla.ts` · `ff1.ts` (AES diversifiers) ·
-`keys.ts` (ZIP-32: spending key → ask/ak → DK/OVK → FVK/IVK; diversifiers) ·
-`note.ts` (note commitment + **deriveNullifier** + trial decryption) ·
-`pczt-wire.ts` (PCZT v1 serialization, parsed a real 1154-byte prover frame) ·
-`bundle.ts` (ZIP-244 digest + `compute_platform_sighash` + extra-data builders) ·
-`reddsa.ts` (RedPallas sign/verify) · `poseidon.ts` (P128Pow5T3 + constants) ·
-`prove.ts` (spend build, witnesses, PCZT assembly) · `assemble.ts` (wasm
-transition construction) · `tree.ts` (incremental commitment tree) ·
-`sync.ts` (anchor-verified sync engine).
+`lib/shielded/` (~4,400 lines, all KAT-verified against the pinned fork):
+`pasta.ts` (curves) · `hash.ts` · `swu.ts` · `sinsemilla.ts` · `ff1.ts` ·
+`keys.ts` (ZIP-32; **coin_type 5 = mainnet, 1 = testnet**) · `note.ts`
+(encrypt/decrypt/`deriveNullifier`) · `pczt-wire.ts` · `bundle.ts` (ZIP-244
+digest + `compute_platform_sighash` + extra-data builders) · `reddsa.ts` ·
+`poseidon.ts` · `prove.ts` (`buildOutputOnlyPczt` / `buildTransferPczt` +
+`extraSighashData`) · `assemble.ts` (`assembleShieldFromAssetLock`,
+`assembleShieldedTransfer`, `assembleShieldedWithdrawal`) · `tree.ts`
+(incremental tree + witnesses) · `sync.ts` · `fees.ts` (`computeMinimum
+ShieldedFee` = 114,140,000 for 2 actions; `computeShieldedWithdrawalFee` =
+226,480,000) · **`address.ts` (F35: bech32m `dash1z…` codec, HRP dash/
+tdash, type byte 0x10, pk_d Pallas validation)**.
 
-Full provenance table: `docs/HANDOFF-shielded-e2e.md`.
+Fees are CONSENSUS-PINNED — never invent a fee field. value_balance must
+equal the computed fee EXACTLY. Provenance table: `docs/HANDOFF-shielded-e2e.md`.
 
-## 5. UNSHIELD (stage 5) — the exact state of play
+## 6. Deployment architecture (F33 — read before touching the build)
 
-**On-chain, verified live (2026-10-05/06):** the withdrawal WAS built, proved
-(75.4s on the prover), assembled (8,217-byte wire), broadcast, and executed on
-testnet. Confirmed independently against chain state: spend nullifier
-`591049d4…af2c` is spent; pool decreased by exactly 426,480,000; tree grew by
-2 notes; change note (73,520,000) decrypts to the operator's diversifier-0
-address; withdrawal document `DjyR83gzThy2jRn7DUfjoxtfFDuu8KwBiHVPMhYEVeGT`
-exists in contract `4fJLR2GYTPFdomuTVvNy3VRvWgvkKPzqehEBpNf2nk6` (owner =
-`1111…1111`, status 3, transactionIndex 4332); L1 payout UTXO
-`37992de4fffac8f5fd52bb8dcf17414d217a1046883565504090750c508dbac1:0` of
-exactly 199,810 sats landed at `ycxZZzW9waTpSewrTLc7Se2CEhQgZqv9AS`.
+- Cloudflare Pages rejects any bundle file > 25 MiB; the wasm SDK is
+  26,513,399 bytes (25.29 MiB, no strippable sections — checked). So:
+  - `pnpm build` = `next build --webpack && node scripts/strip-wasm-from-out.mjs`
+    → deletes the wasm from `out/` + writes `out/_routes.json`
+    (Function covers ONLY `/_next/static/media/wasm_sdk_bg*`).
+  - `functions/_next/static/media/[[path]].js` proxies the COMMITTED wasm
+    from raw.githubusercontent (repo public), `application/wasm` +
+    immutable cache. Client code unchanged.
+- Verify a deploy: served wasm URL (content-hashed, e.g.
+  `wasm_sdk_bg.e9693c35.wasm`) → 200 + `application/wasm` +
+  `content-length: 26513399` + sha256 `4c50b471b45466c2…`; `/shielded` →
+  200. NOTE: HEAD on that URL returns odd text/html headers from the asset
+  layer — harmless; browsers GET.
+- `main-app-*.js` chunk hashes differ per build environment (evorunner Node
+  22 vs Cloudflare Node 24) — benign; the cross-env invariants are the wasm
+  sha256 + page set + `_headers`, NOT chunk hashes.
 
-**The catch:** the script that did this was a one-shot. Re-running it blindly
-would try to spend the SAME note again (double fee burn + a second L1 payout
-attempt). It has been **rewritten as a resumable verifier**:
+## 7. Hard-won gotchas (each one cost a session; do not rediscover)
 
-- It snapshots on-chain state via `scratch-shield-state.json` and branches on
-  the spend nullifier's spent status.
-- Resume mode skips the spend leg entirely and re-verifies every on-chain
-  effect (pool, tree, change note by trial-decryption scan, withdrawal doc,
-  L1 UTXO).
-- Fresh-mode assertions are unchanged from the verified live run.
+1. **Mainnet insight (`insight.dash.org`) Cloudflare-challenges non-browser
+   UAs** — every fetch needs a browser `User-Agent` + retry-on-challenge;
+   `/tx/<txid>` may LACK `blockheight` — confirm via the
+   `/addr/<addr>/utxo` `height` field of the lock's vout-1 credit output.
+2. **esbuild + wasm two-instance bug** in scratch harnesses: a runtime
+   `import(new URL(...).href)` of the wasm glue creates a SECOND, uninitialized
+   instance beside the one bundled into `lib/shielded/assemble.ts`. ALWAYS
+   `import * as wasm from './lib/dash-wasm/wasm_sdk.js'` STATICALLY. Also:
+   esbuild-bundled dashcore-lib needs
+   `--banner:js="import { createRequire } from 'module'; const require = createRequire(import.meta.url);"`.
+3. **`signByPrivateKey` requires a PrivateKey INSTANCE** (`wasm.PrivateKey
+   .fromWIF(wif)`) — not a WIF string ('expected instance of _PrivateKey').
+4. **vite 8 bundles vitest configs with rolldown 1.2.18**, which emits glob
+   text (`**/…/**`) from BLOCK COMMENTS as live code — never put glob text in
+   config-file comments. Also `defineConfig` breaks on `@vitejs/devtools/config`
+   (not installed) — `test/e2e/vitest.live.config.mjs` exports a plain named
+   object.
+5. **Mainnet pool is BUSY**: pool-delta exactness across a window is broken by
+   third-party transitions (tree grew +4 during one stage). Proof = identity
+   checks (local tree root == live anchor, witness fold, nullifier reveal,
+   notes decrypt) — not pool deltas.
+6. Asset locks (Core v23): ONE OP_RETURN (`6a00`) at vout 0 + equal P2PKH
+   credit output; proof references vout 0; locking X costs ~2X on-chain;
+   L1 payout = amount − 190×coreFeePerByte. Credit outputs (vout 1) are NOT
+   L1-spendable — `lib/core-chain.ts` filters them (F27f).
+7. `initialize()` no-ops on a matching config — cross-network callers MUST
+   compare `wasmSdkService.initializedNetwork()` and re-init (F37).
+8. The one expected lint warning (F26o) and the disabled react-hooks v6
+   compiler rules are documented decisions.
+9. Host-side quirk: long-running bash under load — the shielded-sync
+   "rewinds the mutable tail" test has an explicit 300s timeout (F34) because
+   full-suite parallelism saturates the host.
+10. evorunner cargo registry can have corrupt extractions ('failed to read
+    …/Cargo.toml') — delete the named crate from BOTH
+    `~/.cargo/registry/src/index.crates.io-*/` and `…/cache/…` then re-fetch.
 
-**What remains (the next team's first tasks, in order):**
+## 8. Backlog — recommended order (from the 2026-11-13 review)
 
-1. `npx tsc -p tsconfig.e2e-check.json --noEmit` → must be 0 (was 5 errors;
-   all fixed — re-verify).
-2. `npx eslint test/e2e/shield-stage5-withdrawal.live.mts lib/shielded/{fees,prove,assemble}.ts` → 0.
-3. Read the fresh-branch broadcast block (≈ lines 248–266) once with your own
-   eyes: confirm the `preBroadcastTxids` snapshot sits immediately before
-   `broadcastStateTransition`.
-4. Run it: `pnpm vitest run --config test/e2e/vitest.live.config.mts shield-stage5`.
-   Expected in resume mode: nullifier-spent branch → change-note scan from
-   index 6693 to current tip (~14,492 notes as of 2026-10-06; ~7,800 trial
-   decryptions — if it approaches the 900s timeout, scan newest-first) →
-   withdrawal doc found → payout matched → state file updated to
-   `stage: 'unshielded'`.
-5. Commit as **F32** per AGENTS.md conventions (minimum diff, full sources,
-   relative-path header comments), including the three `lib/shielded/` changes
-   and the new test; append the withdrawal record to AGENTS.md in the F31
-   style.
-6. Delete throwaway probes in `/tmp` and decide the fate of the `scratch-*`
-   files (keep `scratch-shield-state.json`; the rest are one-off scripts).
+1. **In-app shielded wallet (TOP PICK)** — balance ("Find my notes" scan
+   already computes it), **send to a `dash1z…` address** (`lib/shielded/
+   address.ts` decodes it; build/assemble pipeline proven 3× live),
+   receive = display your address. Turns shielding into a user feature; the
+   e2e wallet's ~959M credits are perfect real-funds test funds.
+2. **Dependabot triage — 85 vulns, 8 critical** (GitHub actively flags it).
+3. **Hygiene batch:** footer links 404 (`/privacy` `/cookies` `/about`
+   `/terms` — routes not in the export); CSP blocks Cloudflare's injected
+   analytics beacon (allow or disable RUM); confirm withdrawal doc status
+   flipped 2 → 3 (payout confirmed).
+4. **Decide the e2e wallet funds** — keep as task-1 test funds (recommended)
+   or unshield the remainder.
+5. Later: app-services mainnet enablement (social needs a mainnet Yappr
+   contract that doesn't exist — `EVONEXT_CONTRACT_ID_MAINNET = ''`),
+   react-hooks v6 cleanup, multi-identity passkey recovery, DIP-17 address
+   features, biometric-settings UI.
 
-## 6. Secrets, state, and money — read before touching anything
+## 9. External services
 
-- **`scratch-shield-state.json` contains a real testnet WIF**
-  (`fundingWif` field). It is currently **untracked** in git. Do NOT commit it
-  as-is; if it must be versioned, redact the WIF. Testnet funds only, but
-  treat it as sensitive anyway.
-- The e2e mnemonic is embedded in `test/e2e/shield-stage5-withdrawal.live.mts`
-  (testnet-only, funds already mostly spent). Same rule.
-- Mainnet funding verification and mainnet shielded-address (bech32m) work are
-  **explicitly paused** until UNSHIELD is green and committed. Do not start
-  them early.
-
-## 7. External services this codebase depends on
-
-| Service | URL | Used for |
+| Service | URL | Notes |
 |---|---|---|
-| Shielded prover | `https://prover.sansbank.dev` (Cloudflare Worker) | `POST /prove/pczt` — the only proving path (WASM SDK has no prover). Frame format pinned by KAT. |
-| DAPI read proxy | `https://dapi.sansbank.dev/v1/dapi` | Identity reads only (faster + cached). Its `get_documents` rejects `$createdAt > 0` clauses, so **document queries stay on the WASM SDK**. Handoff: `docs/HANDOFF-shielded-e2e.md` §services |
-| Insight (testnet) | `https://insight.testnet.networks.dash.org/insight-api` | L1 UTXOs, asset-lock broadcast/confirm. Fee floor 1,000 sats/kB; rejects >20,000. |
-| Testnet faucet | `faucet.testnet.networks.dash.org` (3/hr, captcha) | Funding test identities |
+| Shielded prover | `https://prover.sansbank.dev` (`POST /prove/pczt`) | The only proving path; ~60–135s; consensus-verified 4× live |
+| DAPI proxy | `https://dapi.sansbank.dev/v1/dapi` | Identity reads only; mainnet backend was stale v13 (proxy-mainnet-stale caveat); shielded queries go through the WASM SDK directly |
+| Insight mainnet | `https://insight.dash.org/insight-api` | UA-challenged (gotcha 1) |
+| Insight testnet | `https://insight.testnet.networks.dash.org/insight-api` | |
+| Price feed | `https://dashswap.xyz/v1/ticker/DASH` | CORS *, used by wallet + /shielded |
+| Platform explorer | `https://platform-explorer.com/transaction/<hash>`, `/document/<id>`, `/dataContract/<id>` | Verified routes (mainnet) |
+| Assetlinks | `https://evonext.app/.well-known/assetlinks.json` | F34 — production + debug fingerprints; blocks Android passkeys if wrong |
 
-## 8. Known landmines (do not "fix" without reading AGENTS.md first)
+## 10. If you only remember five things
 
-1. The webpack `pshenmic-dpp` → `pshenmic-dpp/wasm` alias, the `Buffer`
-   ProvidePlugin, and the `fs/path/crypto: false` fallbacks in `next.config.js`
-   are all load-bearing (class-identity unity + Emscripten shims).
-2. `lib/network.ts` SSR guard and `getContractId(get())` in every service
-   constructor — an `undefined` contract id silently breaks every query.
-3. `public/_headers` carries CSP/COOP/COEP (`require-corp` is required for
-   future SharedArrayBuffer/wasm-threads; `worker-src 'self' blob:` for
-   workers). Static export cannot set headers any other way.
-4. `coreFeePerByte` must be an integer in raw wasm bindings (float throws).
-5. Asset locks are Dash Core v23 format: ONE OP_RETURN (`6a00`) at vout 0;
-   `ChainAssetLockProof` must reference **vout 0**; `PrivateKey.toString()`
-   returns hex (use `.toWID()` with explicit network).
-6. Identity keys: `m/9/{5|1}/5/0/0/{idx}/{n}`, n=1 auth-critical, n=3 transfer.
-7. The one expected lint warning (F26o) and the disabled react-hooks v6
-   compiler rules in `eslint.config.mjs` (~22 pre-existing patterns) are
-   documented decisions, not sloppiness.
-8. pnpm 11 ignores `pnpm.overrides` in package.json — pins live in
-   `pnpm-workspace.yaml` (`elliptic` 6.6.1, `lodash` 4.18.1).
-9. **Vitest gotcha:** an async `vi.waitFor` callback that awaits a dynamic
-   import never sees mock updates — use a sync callback and pre-import mocked
-   modules in `beforeEach` (F26p).
-10. Dash Core v23 credit outputs (vout 1 of a type-8 tx) are NOT spendable on
-    L1 — `lib/core-chain.ts` filters them out of funding UTXOs. Never remove
-    that filter (F27f: a user burned a registration on exactly this).
+1. Read `/AGENTS.md` — it is the truth (F22–F37b, invariants 1–12).
+2. NEVER build on the host — `evorunner` or `sansbank` only.
+3. Gates sequentially: tsc 0 · eslint 0/1 · 213/213 · build (no wasm in out/)
+   · e2e-tsc 0 · playwright 2/2.
+4. `scratch-mainnet-state.json` holds a REAL mnemonic + the wallet's
+   ~959M shielded credits — gitignored, never commit, keep safe.
+5. Deploys are git-triggered and healthy since F33; verify by wasm sha256
+   (`4c50b471…`) + `/shielded` 200.
 
-## 9. If you only remember five things
-
-1. Read `AGENTS.md` first; it is the truth and has the F1–F31 changelog.
-2. Verify SEQUENTIALLY: `tsc` (0) → `eslint` (0/1 warning) → `test:run` (203+)
-   → `build` (35/35) → `tsc -p tsconfig.e2e-check.json` (0).
-3. `tsc --noEmit` does NOT see `test/e2e/*.mts` — use `tsconfig.e2e-check.json`.
-4. The shielded stage-5 test is RESUMABLE; its state file contains a real
-   testnet WIF — guard it, don't commit it.
-5. After F32, redeploy: the live `evonext.app` was last confirmed serving a
-   PRE-upgrade wasm build. The Cloudflare Pages project must use
-   **framework preset: None, build `npm run build`, output dir `out`** (the
-   `next-on-pages` adapter is incompatible with Next 16).
-
----
-
-*Handoff prepared against commit `6aeea79` on 2026-10-06 with all five
-verification gates run fresh (tsc 0, eslint 0/1, 203/203 tests, e2e tsc 0,
-eslint on changed files 0).*
+*Prepared 2026-11-13 against `cd1df66` with all gates green.*

@@ -1576,6 +1576,28 @@ token + the Pages project name from the user. NOTE: `git ls-files` shows
 pnpm-lock.yaml IS committed (F31b's 'no lockfile' note was wrong on the
 filename).
 
+## F37b — /shielded pool card polish: 4-decimal truncation + USD value
+(2026-11-13, commit `cd1df66`)
+
+User request: truncate the pool card to 4 decimals max (855.98797113858 →
+855.9879) and add the USD value.
+
+(a) `app/shielded/page.tsx`: new `dashOfMax4` — TRUNCATES (never rounds) to
+at most 4 decimals, trailing zeros trimmed (856.84632481858 → 856.8463;
+812 → 812); the full-precision credits line stays below the DASH value for
+verification. USD line uses the SAME feed the wallet page already uses
+(`https://dashswap.xyz/v1/ticker/DASH` → quote.USD.price, CORS *,
+live-verified ~$40.93–41.31 during checks), cached in localStorage
+(`evonext_dash_usd`) with a 10-min TTL so a page view never hammers the
+API; formatted via Intl.NumberFormat USD (≈ $35,036.21 observed live).
+Price fetch is mount-once (network-independent). The 'Find my notes' scan
+result keeps the full-precision `dashOf`.
+
+(b) Verified: tsc 0, eslint clean, 213/213, playwright 2/2, evorunner build
+green, and LIVE-VERIFIED in a real browser against production: card renders
+'Pool balance 856.8463 DASH ≈ $35,036.21 USD' + the credits line (the pool
+grows with third-party activity — 855.98 → 856.85 DASH during this session).
+
 ## F37 — /shielded LIVE ON MAINNET in production + Shielded Pool moved out
 of the main menu (2026-11-12, commit `e6bb241`)
 
