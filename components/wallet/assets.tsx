@@ -34,8 +34,9 @@ import {
     storeAsset,
     storeIdentityIdx,
 } from '@/lib/secure-storage'
-import { getWasmSdk } from '@/lib/services/wasm-sdk-service'
+import { wasmSdkService, getWasmSdk } from '@/lib/services/wasm-sdk-service'
 import { shieldedEngine, persistedShieldedBalance } from '@/lib/shielded/engine-client'
+import { fetchPlatformAddressBalance } from '@/lib/platform-address'
 
 interface WalletAssetProps {
     isFullScreen: boolean;
@@ -64,6 +65,64 @@ export function WalletAssets({ isFullScreen, onOpenShielded }: WalletAssetProps)
      * row first shows the PERSISTED balance instantly, then the scan
      * refines it. Skipped without a session phrase. */
     const [shieldedCredits, setShieldedCredits] = useState<bigint | null>(null)
+
+    /* The Transparent row's balance — the REAL DIP-17 Platform-address
+     * pool (L2), NEVER the identity balance (owner directive: the identity
+     * balance lives under the dashboard card; no Core (L1) balance is ever
+     * displayed). Bounded + retried like the shielded scan (the wasm
+     * request-timeout can leave a query pending FOREVER — F30). */
+    const [platformCredits, setPlatformCredits] = useState<bigint | null>(null)
+
+    useEffect(() => {
+        if (typeof user !== 'undefined' && user !== null) {
+            let cancelled = false
+            const withTimeout = <T,>(p: Promise<T>, ms: number, what: string): Promise<T> =>
+                Promise.race([
+                    p,
+                    new Promise<T>((_, reject) => setTimeout(() => reject(new Error(`${what} timed out after ${ms / 1000}s`)), ms)),
+                ])
+            const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+
+            ;(async () => {
+                try {
+                    const sdkNetwork = network === 'mainnet' ? 'mainnet' : 'testnet'
+                    /* The main-thread SDK service must be live for the
+                     * token + platform-address queries — NOTHING else
+                     * initializes it on this page since the shielded scan
+                     * moved into the worker (F44). initialize() no-ops on
+                     * a matching config; re-inits on a network mismatch
+                     * (F37 gotcha). */
+                    if (!wasmSdkService.isReady() || wasmSdkService.initializedNetwork() !== sdkNetwork) {
+                        await wasmSdkService.initialize({
+                            network: sdkNetwork,
+                            contractId: sdkNetwork === 'mainnet'
+                                ? EVONEXT_CONTRACT_ID_MAINNET
+                                : EVONEXT_CONTRACT_ID_TESTNET,
+                        })
+                    }
+                    for (let attempt = 0; attempt < 3 && !cancelled; attempt++) {
+                        try {
+                            const sdk = await getWasmSdk()
+                            const credits = await withTimeout(
+                                fetchPlatformAddressBalance(sdk, sdkNetwork),
+                                90000,
+                                `platform-address balance (attempt ${attempt + 1})`)
+                            if (!cancelled) setPlatformCredits(credits)
+                            return
+                        } catch (err: any) {
+                            if (cancelled) return
+                            console.error(`platform-address scan attempt ${attempt + 1} failed:`, err?.message)
+                            await sleep(5000)
+                        }
+                    }
+                } catch (err: any) {
+                    /* The row simply shows zero — never block the list. */
+                    console.error('platform-address balance failed:', err?.message)
+                }
+            })()
+            return () => { cancelled = true }
+        }
+    }, [network, user])
 
     useEffect(() => {
         if (typeof user !== 'undefined' && user !== null) {
@@ -124,12 +183,11 @@ export function WalletAssets({ isFullScreen, onOpenShielded }: WalletAssetProps)
         let decimalValue
         let bigIntValue
 
-        /* Handle UI (value) formatting. */
-        if (_token.id === '0') {
-            decimalValue = _token.duffs! * BigInt(1e4)
-        } else {
-            decimalValue = _token.amount! * BigInt(1e4)
-        }
+        /* Handle UI (value) formatting. The Transparent ('0') row carries
+         * its balance in `amount` (credits) like every other row — the
+         * former duffs/identity-balance branch is gone (owner directive:
+         * Transparent = the Platform-address pool balance). */
+        decimalValue = BigInt(_token.amount ?? 0) * BigInt(1e4)
 
         /* Handle UI (value) formatting. */
         if (_token.decimal_places > 0) {
@@ -249,16 +307,19 @@ export function WalletAssets({ isFullScreen, onOpenShielded }: WalletAssetProps)
                 /* Build AVAILABLE (Platform) assets collection — the
                  * mobile-parity balance model: Transparent (identity
                  * credits) + Shielded (the Orchard pool), then tokens. */
+                /* The '0' row shows the DIP-17 Platform-address pool
+                 * balance (the REAL Transparent figure — NOT the identity
+                 * balance, which lives under the dashboard card). */
                 const assets: IToken[] = [{
                     id: '0',
                     name: 'Transparent',
                     ticker: 'DASH',
                     token_id_hex: dusdContractId,
                     iconUrl: '/icons/dash.svg',
-                    duffs: BigInt(user.balance),
+                    amount: platformCredits ?? 0n,
                     decimal_places: DASH_DECIMALS,
                     fiat: {
-                        USD: dashUsdValue * (user.balance / (10 ** DASH_DECIMALS)),
+                        USD: dashUsdValue * (Number(platformCredits ?? 0n) / (10 ** DASH_DECIMALS)),
                     },
                 }]
 
@@ -321,6 +382,7 @@ export function WalletAssets({ isFullScreen, onOpenShielded }: WalletAssetProps)
         network,
         user,
         shieldedCredits,
+        platformCredits,
     ])
 
     return (

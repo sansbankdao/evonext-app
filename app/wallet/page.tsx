@@ -13,6 +13,8 @@ import { motion } from 'framer-motion'
 import dataContract from '@/contracts/evonext-contract.json'
 import toast from 'react-hot-toast'
 import { showErrorToast } from '@/lib/toast-error'
+import * as coreChain from '../../lib/core-chain'
+import * as walletManager from '../../lib/wallet-manager'
 // @ts-ignore
 import numeral from 'numeral'
 
@@ -35,6 +37,9 @@ export default function WalletPage() {
 
     const [displayBalance, setDisplayBalance] = useState(0)
     const [displayBalanceUsd, setDisplayBalanceUsd] = useState(0)
+    /* The DASH/USD price (for recomputing the identity-balance USD after
+     * a withdraw without re-fetching). */
+    const [dashPrice, setDashPrice] = useState(0)
     const [tokensBalanceUsd, setTokensBalanceUsd] = useState(0)
     const [tokens, setTokens] = useState({})
 
@@ -51,6 +56,80 @@ export default function WalletPage() {
             ticker: 'Transparent',
         }
     })
+
+    /* WITHDRAW identity balance back to Core (L1) — the F25-proven
+     * wallet-manager.withdrawToCore path (identityCreditWithdrawal +
+     * system-contract withdrawal doc; the L1 payout lands at the
+     * destination within minutes). */
+    const [withdrawAmount, setWithdrawAmount] = useState('')
+    const [withdrawTo, setWithdrawTo] = useState('')
+    const [withdrawing, setWithdrawing] = useState(false)
+    /* Live identity balance (credits) — seeded from the session, updated
+     * from the withdraw result. */
+    const [identityCredits, setIdentityCredits] = useState<bigint | null>(null)
+
+    /* Prefill the withdraw destination with the user's OWN funding address
+     * (their mnemonic-derived L1 address). */
+    useEffect(() => {
+        if (typeof user !== 'undefined' && user !== null && !withdrawTo) {
+            try {
+                const identityIdx = Number(localStorage.getItem('identity_idx') || 0)
+                setWithdrawTo(coreChain.deriveFundingKey(
+                    network === 'mainnet' ? 'mainnet' : 'testnet', identityIdx).address)
+            } catch { /* no session phrase — leave blank */ }
+            setIdentityCredits(BigInt((user as any)?.balance ?? 0))
+        }
+    }, [user, network, withdrawTo])
+
+    /** Decimal-string DASH -> credits (exact, no float math). */
+    const dashToCreditsExact = (input: string): bigint | null => {
+        const trimmed = input.trim()
+        if (!/^\d+(\.\d{0,11})?$/.test(trimmed)) return null
+        const [whole, frac = ''] = trimmed.split('.')
+        const fracPadded = frac.padEnd(11, '0').slice(0, 11)
+        return BigInt(whole + fracPadded)
+    }
+
+    const handleWithdrawToCore = async () => {
+        const amount = dashToCreditsExact(withdrawAmount)
+        if (!amount || amount <= 0n) {
+            return showErrorToast('Please enter a valid amount to withdraw.')
+        }
+        if (!identityCredits || amount > identityCredits) {
+            return showErrorToast('The amount exceeds your identity balance.')
+        }
+        if (typeof user === 'undefined' || user === null || !user.identityId) {
+            return showErrorToast('Your session is still loading — try again in a moment.')
+        }
+        const destination = withdrawTo.trim()
+        if (destination.length < 26) {
+            return showErrorToast('Please enter a valid Dash (L1) address.')
+        }
+
+        setWithdrawing(true)
+        try {
+            const identityIdx = Number(localStorage.getItem('identity_idx') || 0)
+            const result: any = await walletManager.withdrawToCore(
+                network === 'mainnet' ? 'mainnet' : 'testnet',
+                user.identityId,
+                identityIdx,
+                amount,
+                destination,
+                1,
+            )
+            if (result?.remainingBalance !== undefined) {
+                setIdentityCredits(BigInt(result.remainingBalance))
+            }
+            setWithdrawAmount('')
+            toast.success(
+                'Withdrawal submitted — the Core (L1) payout lands at ' +
+                `${destination.slice(0, 12)}… within minutes.`)
+        } catch (error: any) {
+            showErrorToast(error?.message || 'The withdrawal failed — no funds were moved.')
+        } finally {
+            setWithdrawing(false)
+        }
+    }
     // const contractString = JSON.stringify(dataContract, null, 2)
 
     // const handleCopy = async () => {
@@ -85,6 +164,7 @@ export default function WalletPage() {
             const response = await fetch(ENDPOINT)
             const ticker = await response.json()
             const dashUsdValue = ticker.quote.USD.price
+            setDashPrice(dashUsdValue)
 
             /* Validate user. */
             if (typeof user !== 'undefined' && user !== null) {
@@ -140,6 +220,29 @@ export default function WalletPage() {
                             {user?.identityId && <h3 className="text-xs tracking-tight text-sky-600 font-medium opacity-60 group-hover:opacity-100 group-hover:scale-105 duration-300 ease-in-out">
                                 {user?.identityId}
                             </h3>}
+
+                            {/* The IDENTITY balance lives here — under the
+                                username + address (owner directive). The
+                                Transparent asset row shows the Platform-
+                                address pool balance instead. */}
+                            <div className="mt-2 pt-2 border-t border-sky-200">
+                                <h3 className="text-2xs tracking-widest text-sky-500 font-medium uppercase">
+                                    Identity balance
+                                </h3>
+
+                                <h2 className="text-xl text-gray-600 font-medium">
+                                    {identityCredits !== null
+                                        ? numeral(Number(identityCredits) / 10 ** 11).format('0,0.0000[0000]')
+                                        : displayBalance}
+                                    <small className="text-sky-400"> DASH</small>
+                                </h2>
+
+                                <h3 className="text-sm text-gray-500 font-medium">
+                                    {identityCredits !== null
+                                        ? numeral(Number(identityCredits) / 10 ** 11 * dashPrice).format('$0,0.00[00]')
+                                        : displayBalanceUsd}
+                                </h3>
+                            </div>
                         </section>
 
                         <Image
@@ -149,20 +252,6 @@ export default function WalletPage() {
                             width={0}
                             height={0}
                         />
-                    </div>
-
-                    <div className="flex flex-col items-end">
-                        <h3 className="text-xs tracking-widest text-sky-700 font-medium uppercase">
-                            Spendable {Identity.asset?.ticker}
-                        </h3>
-
-                        <h2 className="text-3xl text-gray-600 font-medium">
-                            {displayBalance}
-                        </h2>
-
-                        <h3 className="text-xl text-gray-500 font-medium">
-                            {displayBalanceUsd}
-                        </h3>
                     </div>
 
                     <section className="{[ isShowingAssets ? 'visible' : 'hidden' ]}">
@@ -195,6 +284,67 @@ export default function WalletPage() {
                         </div>
                     </section>
                 </button>
+
+                {/* WITHDRAW identity balance back to Core (L1). A sibling
+                    card (inputs cannot nest inside the dashboard button). */}
+                <div className={`block ${showShielded ? 'hidden' : ''}`}>
+                    <div className="rounded-2xl border border-sky-200 bg-gradient-to-br from-white via-sky-50/80 to-sky-100 shadow-sm p-4">
+                        <div className="flex items-center justify-between mb-2">
+                            <h3 className="text-sm font-semibold text-sky-900 uppercase tracking-wide">
+                                Withdraw to Core
+                            </h3>
+                            {identityCredits !== null && (
+                                <span className="text-2xs text-sky-500">
+                                    Available: {numeral(Number(identityCredits) / 10 ** 11).format('0,0.0000[0000]')} DASH
+                                </span>
+                            )}
+                        </div>
+
+                        <p className="text-2xs text-gray-500 mb-3">
+                            Moves identity credits back to the Dash Core (L1) network.
+                            The consensus fee is deducted automatically; the payout
+                            lands at the destination within minutes.
+                        </p>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                            <div>
+                                <label className="block text-2xs font-medium text-gray-600 mb-1">
+                                    Amount (DASH)
+                                </label>
+                                <input
+                                    type="text"
+                                    inputMode="decimal"
+                                    value={withdrawAmount}
+                                    onChange={(e) => setWithdrawAmount(e.target.value)}
+                                    placeholder="0.001"
+                                    autoComplete="off"
+                                    className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 focus:border-sky-400 focus:outline-none"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-2xs font-medium text-gray-600 mb-1">
+                                    Core (L1) destination address
+                                </label>
+                                <input
+                                    type="text"
+                                    value={withdrawTo}
+                                    onChange={(e) => setWithdrawTo(e.target.value)}
+                                    placeholder="y…"
+                                    autoComplete="off"
+                                    className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs text-gray-700 font-mono break-all focus:border-sky-400 focus:outline-none"
+                                />
+                            </div>
+                        </div>
+
+                        <button
+                            onClick={handleWithdrawToCore}
+                            disabled={withdrawing || !withdrawAmount || !withdrawTo}
+                            className="w-full rounded-lg bg-sky-600 hover:bg-sky-700 disabled:opacity-50 text-white text-sm font-medium py-2 transition-colors"
+                        >
+                            {withdrawing ? 'Submitting withdrawal…' : 'Withdraw to Core'}
+                        </button>
+                    </div>
+                </div>
 
                 <div className={`block ${showShielded ? 'hidden' : ''}`}>
                     <nav className="isolate grid grid-cols-4 divide-x divide-gray-200 rounded-x-lg rounded-b-lg shadow" aria-label="Tabs">

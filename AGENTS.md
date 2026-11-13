@@ -1489,6 +1489,66 @@ history of this file (see log below for commit hashes) — keep only load-bearin
 
 ## Working Rules For This Repo
 
+## F46 — Balance model corrected: Transparent = the DIP-17 Platform-address
+## pool (NOT the identity balance); identity balance + WITHDRAW-TO-CORE on
+## the dashboard; testnet withdraw LIVE-VERIFIED (2026-11-14)
+
+Owner directive: Transparent must show the PLATFORM ADDRESS balance — at
+NO point do we display a Dash Core (L1) balance (Core DASH is only an
+on-ramp swapped to Platform credits); the IDENTITY balance belongs under
+the username+address on the dashboard card; and the wallet must be able
+to WITHDRAW the identity balance back to Core.
+
+(a) **`lib/platform-address.ts`** (NEW): the DIP-17 Platform payment
+address — derivation `m/9'/coin'/17'/0'/0'/idx` (coin 5/1, leaf
+NON-hardened), hash160(compressed pubkey) → bech32m payload `0xb0` with
+HRP dash/tdash (1:1 parity with evonext-mobile receiveAddresses.ts +
+bech32m.ts, verified against rs-dpp platform_address.rs), and
+`fetchPlatformAddressBalance(sdk, network, poolSize=20)` summing the
+pool via `sdk.getAddressesInfos` (balance = CREDITS). dashcore-lib is
+accessed through the untyped namespace (`const d: any = dashcore`) —
+same as lib/core-chain.ts — its shipped typings don't match the runtime.
+
+(b) **assets.tsx**: the '0' row is constructed DIRECTLY from
+`platformCredits` (a bounded+retried effect: main-thread
+`wasmSdkService.initialize` (the F37 guard — NOTHING else initializes
+the main-thread SDK on /wallet since the shielded scan moved into the
+worker, F44) + getWasmSdk + fetchPlatformAddressBalance, 3×90s caps);
+`displayDecimalAmount` lost its id-'0' duffs branch (the row now uses
+credits-based `amount` like every row; `BigInt(_token.amount ?? 0)` —
+the raw multiply crashed the /wallet SSR prerender on DEFAULT_ASSET's
+numeric amount). The identity balance is OFF the row.
+
+(c) **Dashboard card**: the IDENTITY balance (DASH + USD, live-updated
+after withdrawals) moved UNDERNEATH the username + address; the old
+'Spendable' right-column block removed.
+
+(d) **WITHDRAW TO CORE panel** (a sibling card — inputs cannot nest in
+the dashboard <button>): amount input + L1 destination prefilled with
+the session's own funding address (core-chain.deriveFundingKey) +
+`wallet-manager.withdrawToCore(...)` (the F25-proven
+identityCreditWithdrawal path; coreFeePerByte 1) → toast + the identity
+balance display updates from the result's remainingBalance.
+
+(e) **TESTNET WITHDRAW LIVE-VERIFIED** driving the app's REAL
+withdrawToCore from Node (esbuild bundle + initSync + a localStorage
+shim + wasmSdkService.initialize — getTransferKey reads the main-thread
+service, so it MUST be initialized; this Node requirement surfaced the
+(b) gap): identity EcbXLyhWeMB3BLmpVk1sWgtwQjUzaFASwhL3ShxXqdVa (F39),
+100,000,000 credits → funding address ydSpCGhjxCH77HHnjq5SdQ58fSTGNQ5WC1;
+result remainingBalance 2,122,403,860 (chain-verified drop 303,980,580
+= 100M + 203,980,580 consensus fee); **L1 payout tx 08c837aab1ee16f1b8bb6
+3daf272fde01b2cd0765f6e87507026b1c83c92cdb8 = EXACTLY 99,810 sats
+(100,000 duffs − 190-duff unlock fee @ 1 sat/B — the F32 math)**:
+https://insight.testnet.networks.dash.org/insight/tx/08c837aab1ee16f1b8bb6
+3daf272fde01b2cd0765f6e87507026b1c83c92cdb8. (The withdrawal DOC id was
+not captured — the script's raw getDocuments positional call shape is
+wrong (F39 gotcha: object options form); the payout + balance drop are
+the definitive evidence, matching the F32 verifier standard.)
+
+Gates: tsc 0, eslint 0 errors/1 known warning, 214/214, playwright 2/2,
+evorunner build green (exit-code-checked).
+
 ## F45 — Shielded row ALWAYS rendered (0 before the scan) + the WALLET and
 ## HOME pages got the desktop Sidebar shell (2026-11-14)
 
