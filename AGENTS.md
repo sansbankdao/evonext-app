@@ -1489,6 +1489,49 @@ history of this file (see log below for commit hashes) — keep only load-bearin
 
 ## Working Rules For This Repo
 
+## F48 — WITHDRAWAL PROOF completed + corrections (2026-11-14)
+
+(a) **The F46 testnet withdraw ran TWICE — process error, owned.** The
+first `scratch-withdraw-core-test.bundle.mjs` run was shell-aborted
+mid-flight but its node process had ALREADY broadcast its withdrawal
+before I relaunched. TWO real withdrawals of 100,000,000 credits each
+executed (≈615M credits ≈ 0.00615 DASH total spent of the identity's
+2.74B budget; identity EcbXLyhWeMB3BLmpVk1sWgtwQjUzaFASwhL3ShxXqdVa
+retains 2,122,403,860). RULE going forward: every real-funds script gets
+an idempotency guard (a marker file / state check BEFORE the broadcast)
+and an aborted run is treated as POSSIBLY-COMPLETED until proven
+otherwise on-chain.
+
+(b) **The withdrawal DOCUMENT's $ownerId is the WITHDRAWING IDENTITY —
+not the all-zeros contract owner** (the F32-era note is corrected). The
+system-contract withdrawal indexes are identityRecent($ownerId,
+$updatedAt, status) + identityStatus($ownerId, status, $createdAt); only
+indexed properties may be ordered/paginated (an $id-ordered query is
+REJECTED). Docs are FLAT (amount/outputScript/status/transactionIndex/
+transactionSignHeight at top level, no $data wrapper).
+
+(c) **The proof chain for BOTH withdrawals** (docs status 3 = complete):
+  1. HkJHnjwphTtd9SXXfzS6ihDFZPjMV226kYHokRRBZWGu — signHeight 1591067 →
+     payout tx f0b40f9f08b5e515eca92d420b2921ead8cd97c7a289112d9032b8af8
+     fd465d1 (type 9, block 1591068, EXACTLY 0.00099810 DASH = 99,810
+     sats @ 1 sat/B) → funding address ydSpCGhjxCH77HHnjq5SdQ58fSTGNQ5WC1.
+  2. DRUb1QjP9HY2G9Kz84ahZdZpTT76HuifB44BJJKmMamJ — signHeight 1591102 →
+     payout tx 08c837aab1ee16f1b8bb63daf272fde01b2cd0765f6e87507026b1c83
+     c92cdb8 (type 9, block 1591103, same exact payout).
+  Doc page (verified 200):
+  https://testnet.platform-explorer.com/document/DRUb1QjP9HY2G9Kz84ahZdZ
+  pTT76HuifB44BJJKmMamJ ; identity page (200):
+  https://testnet.platform-explorer.com/identity/EcbXLyhWeMB3BLmpVk1sWgt
+  wQjUzaFASwhL3ShxXqdVa ; dashscan address page (200, shows the payout):
+  https://testnet.dashscan.io/address/ydSpCGhjxCH77HHnjq5SdQ58fSTGNQ5WC1
+
+(d) **insight.testnet.networks.dash.org's WEB UI is 404ing EVERYTHING
+right now** (even /insight/address/<addr> — only /insight-api/* serves
+data). My F46 proof URL pointed at the insight WEB UI and looked dead to
+the user — verify the WEB route renders before quoting it; use
+platform-explorer/dashscan for browsable links. Also: never quote a URL
+in chat that the user might copy truncated — short lines.
+
 ## F47 — SWAP TAB rebuilt Uniswap-style, wired to the DashSwap API through
 ## a same-origin key-holding proxy + handoff dropped in ../dashswap-api
 ## (2026-11-14)
