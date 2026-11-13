@@ -53,6 +53,15 @@ const dashOf = (credits: bigint) => {
     const frac = (credits % CREDITS_PER_DASH).toString().padStart(11, '0').replace(/0+$/, '')
     return frac ? `${whole}.${frac}` : whole.toString()
 }
+/* Pool-card display: TRUNCATE (never round) to at most 4 decimals
+ * (855.98797113858 -> 855.9879; 812 -> 812). */
+const dashOfMax4 = (credits: bigint) => {
+    const whole = credits / CREDITS_PER_DASH
+    const frac = (credits % CREDITS_PER_DASH).toString().padStart(11, '0').slice(0, 4).replace(/0+$/, '')
+    return frac ? `${whole}.${frac}` : `${whole}`
+}
+const usdFormat = (v: number) =>
+    new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(v)
 
 export default function ShieldedPoolPage() {
     const { network } = useNetwork()
@@ -65,7 +74,34 @@ export default function ShieldedPoolPage() {
     const [page, setPage] = useState(0)
     const [scanning, setScanning] = useState(false)
     const [scanResult, setScanResult] = useState<string | null>(null)
+    const [dashUsd, setDashUsd] = useState<number | null>(null)
     const cancelledRef = useRef(false)
+
+    /* DASH/USD price for the pool card — same feed the wallet page uses
+     * (dashswap.xyz, CORS *), cached in localStorage for 10 min so a page
+     * view never hammers the API. Price is network-independent (mount-once). */
+    useEffect(() => {
+        let cancelled = false
+        const KEY = 'evonext_dash_usd'
+        const TTL_MS = 10 * 60 * 1000
+        try {
+            const cached = JSON.parse(localStorage.getItem(KEY) ?? 'null')
+            if (cached && typeof cached.price === 'number' && Date.now() - cached.at < TTL_MS) {
+                setDashUsd(cached.price)
+            }
+        } catch { /* ignore malformed cache */ }
+        fetch('https://dashswap.xyz/v1/ticker/DASH')
+            .then((r) => r.json())
+            .then((t) => {
+                const p = Number(t?.quote?.USD?.price)
+                if (!cancelled && Number.isFinite(p) && p > 0) {
+                    setDashUsd(p)
+                    try { localStorage.setItem(KEY, JSON.stringify({ price: p, at: Date.now() })) } catch { /* ignore */ }
+                }
+            })
+            .catch(() => { /* keep cached value / null */ })
+        return () => { cancelled = true }
+    }, [])
 
     const isMainnet = network === 'mainnet'
     /* ZIP-32 coin types (rs-platform-wallet keys.rs): 5 = mainnet, 1 = testnet. */
@@ -202,8 +238,13 @@ export default function ShieldedPoolPage() {
                         <div className="rounded-2xl border border-gray-200 dark:border-gray-800 p-4">
                             <p className="text-2xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Pool balance</p>
                             <p className="text-lg font-bold mt-1">
-                                {poolBalance !== null ? `${dashOf(poolBalance)} DASH` : '—'}
+                                {poolBalance !== null ? `${dashOfMax4(poolBalance)} DASH` : '—'}
                             </p>
+                            {poolBalance !== null && dashUsd !== null && (
+                                <p className="text-2xs text-gray-500 dark:text-gray-400 mt-0.5">
+                                    ≈ {usdFormat(Number(poolBalance) / 1e11 * dashUsd)} USD
+                                </p>
+                            )}
                             <p className="text-2xs text-gray-400 mt-1 break-all">
                                 {poolBalance !== null ? `${poolBalance.toString()} credits` : ''}
                             </p>
