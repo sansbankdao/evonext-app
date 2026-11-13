@@ -19,10 +19,19 @@ const MIN_INDEX_SEARCH = 3
 /**
  * Get Key Type
  *
- * FIXME -- ENUMERATE KEY TYPE
+ * Maps the DPP numeric key type to its name (KeyType enum —
+ * lib/dash-wasm/wasm_sdk.d.ts:11310: ECDSA_SECP256K1 = 0, BLS12_381 = 1,
+ * ECDSA_HASH160 = 2, BIP13_SCRIPT_HASH = 3, EDDSA_25519_HASH160 = 4).
  */
 const getKeyType = (_type: number | undefined) => {
-    return 'FIXME -- ENUMERATE KEY TYPE'
+    switch (_type) {
+    case 0: return 'ECDSA_SECP256K1'
+    case 1: return 'BLS12_381'
+    case 2: return 'ECDSA_HASH160'
+    case 3: return 'BIP13_SCRIPT_HASH'
+    case 4: return 'EDDSA_25519_HASH160'
+    default: return 'UNKNOWN'
+    }
 }
 
 const decodeBase64ToHex = (_base64String: string) => {

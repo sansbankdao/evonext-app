@@ -41,10 +41,8 @@ class LikeService extends BaseDocumentService<LikeDocument> {
 
             // Check if already liked
             const existing = await this.getLike(postId, ownerId)
-console.log('EXISTING LIKE', existing)
 
             if (existing) {
-                console.log('Post already liked')
                 return true
             }
 
@@ -77,7 +75,6 @@ console.log('EXISTING LIKE', existing)
                 return false
             }
 
-            console.log(`Liking ${this.documentType} document:`, postId)
 
             // Use state transition service for creation
             const result = await stateTransitionService.createDocument(
@@ -105,10 +102,8 @@ console.log('EXISTING LIKE', existing)
             const sdk = await getWasmSdk()
 
             const like = await this.getLike(postId, ownerId)
-console.log('EXISTING LIKE', like)
 
             if (!like) {
-                console.log('Post not liked')
                 return true;
             }
 
@@ -178,7 +173,6 @@ console.log('EXISTING LIKE', like)
                 null, // startAfter
                 null  // startAt
             )
-console.log('GET LIKE (response)', response)
             // Convert response
             let documents
 
@@ -207,7 +201,6 @@ console.log('GET LIKE (response)', response)
         options: QueryOptions = {}
     ): Promise<LikeDocument[]> {
         try {
-            console.log('Getting likes for post:', postId)
 
             // Import necessary modules
             const { getDashPlatformClient } = await import('../dash-platform-client')
@@ -228,7 +221,6 @@ console.log('GET LIKE (response)', response)
             const where = [['postId', '==', postId]]
             const orderBy = [['postId', 'asc'], ['$ownerId', 'asc']]
 
-            console.log('Querying likes for post:', postId)
 
             // Query directly using get_documents
             const response = await get_documents(
@@ -255,7 +247,6 @@ console.log('GET LIKE (response)', response)
                 documents = []
             }
 
-            console.log(`Found ${documents.length} likes for post ${postId}`)
 
             // Transform documents
             return documents.map((doc: any) => this.transformDocument(doc))

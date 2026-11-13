@@ -10,30 +10,8 @@ import { useNetwork } from '@/contexts/network-context'
 import toast from 'react-hot-toast'
 import { showErrorToast } from '@/lib/toast-error'
 import { Loader2 } from 'lucide-react'
-import {
-    EVONEXT_CONTRACT_ID_MAINNET,
-    EVONEXT_CONTRACT_ID_TESTNET,
-} from '@/lib/constants'
-
-/**
- * Get Contract ID
- *
- * @param _network
- * @returns
- */
-const getContractId = (_network: string) => {
-    /* Initialize locals. */
-    let contractId
-
-    /* Handle network. */
-    if (_network === 'mainnet') {
-        contractId = EVONEXT_CONTRACT_ID_MAINNET
-    } else {
-        contractId = EVONEXT_CONTRACT_ID_TESTNET
-    }
-
-    return contractId
-}
+// Shared contract-id resolution (de-duplicated from the former local copy).
+import { getContractId } from '@/lib/network'
 
 function CreateProfilePage() {
     const router = useRouter()
@@ -114,7 +92,6 @@ function CreateProfilePage() {
                 throw new Error('User not authenticated')
             }
 
-            console.log('Creating profile with data:', formData)
 
             // Create the profile
             const ps = new ProfileService(getContractId(network!))
@@ -208,9 +185,6 @@ function CreateProfilePage() {
                                     className="w-full mb-2"
                                 />
 
-                                <p className="text-xs text-yellow-700 dark:text-yellow-300">
-                                    Default test key: XJ1CkT9xEz4Q471Rs8efttjo7kx7MfAz46Pn9GQWQJFK1oKkW84K
-                                </p>
                             </div>
                         )}
 

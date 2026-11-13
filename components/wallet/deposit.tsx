@@ -261,7 +261,6 @@ export function WalletDeposit({ isFullScreen }: WalletDepositProps) {
     }
 
     const clipboardHandler = () => {
-        console.log('HANDLE CLIPBOARD')
     }
 
     return (

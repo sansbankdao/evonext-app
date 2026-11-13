@@ -13,6 +13,9 @@ const eslintConfig = defineConfig([
             "out/**",
             "test-results/**",
             "playwright-report/**",
+            // Generated esbuild bundle artifacts (scratch stage harnesses) —
+            // build output, not human-maintained code.
+            "scratch-*.bundle.mjs",
             // Generated wasm-bindgen output — not human-maintained code.
             "lib/dash-wasm/**",
         ],

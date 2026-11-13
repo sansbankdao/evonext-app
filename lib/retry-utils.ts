@@ -91,10 +91,8 @@ export async function retryAsync<T>(
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
         try {
-            console.log(`Retry attempt ${attempt}/${maxAttempts}`)
 
             const result = await operation()
-            console.log(`Operation succeeded on attempt ${attempt}`)
 
             return {
                 success: true,
@@ -111,13 +109,11 @@ export async function retryAsync<T>(
 
             // Don't retry if this is the last attempt or if error is not retryable
             if (attempt === maxAttempts || !retryCondition(lastError)) {
-                console.log(attempt === maxAttempts ? 'Max attempts reached' : 'Error not retryable')
                 break
             }
 
             // Calculate delay for next attempt
             const delay = calculateDelay(attempt, initialDelayMs, maxDelayMs, backoffMultiplier)
-            console.log(`Waiting ${Math.round(delay)}ms before retry...`)
 
             await sleep(delay)
         }

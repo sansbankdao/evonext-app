@@ -21,7 +21,6 @@ export function WalletAssistant({ isFullScreen }: WalletAssistantProps) {
     const router = useRouter()
 
     const search = async () => {
-        console.log('START SEARCH')
     }
 
     const Identity = {

@@ -36,7 +36,6 @@ class RemixService extends BaseDocumentService<RemixDocument> {
             const existing = await this.getRemix(postId, ownerId);
 
             if (existing) {
-                console.log('Post already remixed');
                 return true;
             }
 
@@ -63,7 +62,6 @@ class RemixService extends BaseDocumentService<RemixDocument> {
             const remix = await this.getRemix(postId, ownerId);
 
             if (!remix) {
-                console.log('Post not remixed');
                 return true;
             }
 

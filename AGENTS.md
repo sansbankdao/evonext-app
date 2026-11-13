@@ -1489,6 +1489,116 @@ history of this file (see log below for commit hashes) — keep only load-bearin
 
 ## Working Rules For This Repo
 
+## F39 — Identity-flow cleanup batch + Yappr-profile live verification (2026-11-13)
+
+User-directed 7-item batch on the identity-creation flow (review findings from F38):
+
+(a) **ALL `alert()` → toast system**: 3 in `components/id/registrar-modal.tsx`
+(success → `toast.success`, failure paths → `showErrorToast`) + 5 in
+`components/wallet/send.tsx` (validation + withdrawal failure →
+`showErrorToast`; import added). Copy preserved 1:1.
+
+(b) **ALL live `console.log` REMOVED repo-wide**: 330 scripted single-line
+removals (`scratch-strip-console-logs.mjs`, string-literal-aware) + 6
+multi-line call sites removed by hand (username-modal, lib/dpns-service ×3,
+lib/services/dpns-service, profile-service) across 44 files in
+app/components/lib/contexts. `console.warn/error` KEPT (diagnostics).
+Commented-out logs left inert. `lib/dash-wasm/**` (vendored) untouched.
+
+(c) **De-duplication**: NEW `lib/session-keys.ts`
+(`getSessionCredentials(network)` — resolves regIdentities[0] + the
+AUTH-CRITICAL|HIGH signing key + WIF), replacing the identical inline blocks
+in `app/connect/page.tsx` handleMnemonic AND the registrar-modal success
+path (each caller keeps `storeIdentityIdx` + `login`). Also: 2 call sites
+were passing the NETWORK STRING as the ProfileService contractId
+(`registrar-modal.tsx`, `username-modal.tsx` — fixed to
+`getContractId(network)` from the shared `lib/network.ts`); the local
+`getContractId` copy in `app/profile/create/page.tsx` replaced by the
+shared import.
+
+(d) **Connect-page verbiage**: the "Requirements" box (which described only
+the WIF login path) replaced with "How sign-in works" (recovery phrase or
+passkey → identity found automatically → new identity created in ~2 min).
+
+(e) **`getKeyType()` FIXED**: was the literal string 'FIXME -- ENUMERATE KEY
+TYPE'; now maps the DPP numeric key type (wasm d.ts:11310) →
+ECDSA_SECP256K1/BLS12_381/ECDSA_HASH160/BIP13_SCRIPT_HASH/EDDSA_25519_HASH160,
+default UNKNOWN.
+
+(f) **Dead test key removed from the UI**: profile/create no longer displays
+a hardcoded "Default test key: XJ1CkT9xEz4Q…" WIF hint.
+
+(g) **TASK 6 + 7 LIVE-VERIFIED post-refactor** (build on evorunner — Node
+22.23.2 installed at ~/.local/node22 because evorunner's system node had
+regressed to v20.20.2 which pnpm 11.21 rejects; sansbank VM DOWN, port
+2223 refused): rsync → pnpm build green (32 routes, wasm stripped) → out/
+rsynced back. Browser e2e (`scratch-identity-e2e-browser2.mjs`): fresh
+mnemonic (funding `ydSpCGhjxCH77HHnjq5SdQ58fSTGNQ5WC1`, faucet 1 tDASH) →
+username `evonextf39nov13identity` → **identity
+`EcbXLyhWeMB3BLmpVk1sWgtwQjUzaFASwhL3ShxXqdVa` created + auto-login
+through the REFACTORED session-keys path** → landed on /profile/create →
+profile form (displayName/bio/location/website) → "Profile created
+successfully!" toast → redirect to home → **ZERO page errors**. On-chain
+(`scratch-identity-e2e-verify2.mjs`): `dpnsResolveName` = the identity id;
+identity 5 keys / 2,741,841,180 credits; **Yappr profile document
+`oDJPK3D4UGL7hnppKGhvc1aJ7to1sAw5JrndmhbewMr` ON-CHAIN** ($ownerId matches,
+all 4 fields, $revision 1 — first LIVE-VERIFIED profile creation on the
+Yappr contract EWR695…; F26e/F26f verified the RETIRED 465jd contract only).
+NOTE for future Node probes: raw `sdk.getDocuments(...)` takes the OBJECT
+options form ({dataContractId, documentTypeName, where: [[field,op,value]],
+limit}) — the positional string-args form throws WasmSdkError; the compat
+`get_documents(sdk, contractId, type, where, orderBy, limit, startAfter,
+startAt)` wrapper is the proven path.
+Gates: tsc 0, eslint 0 errors/1 known warning, 213/213, e2e-tsc 0,
+playwright 2/2. eslint.config.mjs ignores gained `scratch-*.bundle.mjs`
+(generated esbuild artifacts were tripping react/display-name). Prior
+state archived: `scratch-identity-state-f38.json` (F38 identity
+FaqnHo1ryh4…); F39 identity state in `scratch-identity-state.json` —
+BOTH gitignored; both identities available as test funds for the wallet
+integration (F40).
+
+## F38 — Identity-creation UI/UX RE-VERIFIED LIVE in-browser on testnet (2026-11-13)
+
+User directive: review the Identity creation UI/UX and PROVE it works by creating a new
+TESTNET identity. Done — the FULL production UI flow (no shortcuts) executed in a real
+(headless Chrome) browser against the F37b static export (`out/` served by
+`test/static-server.mjs`, localhost → testnet):
+
+- Fresh 12-word mnemonic generated in Node (`scratch-identity-e2e-prep.mjs`,
+  @scure/bip39); funding address derived by an EXACT mirror of
+  `lib/core-chain.ts deriveFundingKey()` (`m/44'/5'/0'/0/0` testnet) =
+  `yUVAaaYuW2dzMyHmgPEsrtUZVGFNPzHLUX`; funded 1.0 tDASH via the thepasta
+  faucet (CAP v1 client re-verified live; tx `1aa6e55f017672f960303f15f7ad74d
+  097cd59824a82d1fcfe9f9a4fc9761ee8`).
+- Browser (`scratch-identity-e2e-browser.mjs`, Playwright channel 'chrome'):
+  /connect → typed the 12 words → Sign In → `getIdentities` = null (page logged
+  master pubkey `02dc4a13…` — byte-identical to the Node-side wallet-manager
+  mirror) → confirm() dialog accepted → **RegistrarModal opened** → username
+  `evonexte2enov13identity` (22 chars, UNcontested) → available → Continue →
+  **funding panel**: page address == Node-derived address (PARITY), required
+  0.06005 DASH → deposit detected on the FIRST 5s poll → automatic chain:
+  asset lock broadcast `68555b4b2d18f6babca86a2ad66dec87125565a046774189fccb
+  940bc2694a92` → confirmed in block 1590610 → chainlock wait (Platform
+  1590609 → 1590610, 8×15s) → **identity CREATED** `FaqnHo1ryh4ohRzYkC6Hxs1Xv6
+  ieZcBVjvZgJ7JUdfi8` (5 keys) → DPNS registered → congrats alert → AUTO-LOGIN
+  → navigated to /profile/create with session identityId + balance
+  2,775,852,880 credits + dpnsUsername. Total wall ~5 min.
+- Independent on-chain verification (`scratch-identity-e2e-verify.mjs`, Node +
+  vendored wasm via `WasmTrustedContext.prefetchTestnet()` STATIC +
+  `WasmSdkBuilder.testnet().withTrustedContext(ctx).build()`): lock tx type 8,
+  vout0 0.03 script `6a00`, vout1 0.03 credit output back to the funding
+  address (v23 format per invariant 9); identity on-chain with the 5 expected
+  keys (MASTER/CRITICAL/HIGH AUTH ECDSA_HASH160, CRITICAL TRANSFER,
+  MEDIUM ENCRYPTION ECDSA_SECP256K1) and balance 2,775,852,880 credits;
+  `sdk.dpnsResolveName('evonexte2enov13identity.dash')` = the identity id.
+- State (mnemonic + funding WIF, gitignored `/scratch-identity-state.json`):
+  this identity has ~0.0278 DASH in credits + ~0.94 DASH spendable change at
+  the funding address — kept as the LIVE testnet identity for the in-app
+  shielded-wallet integration (F39). Harnesses `scratch-identity-e2e-*.mjs`
+  are untracked (no secrets inside the .mjs files; the state file is
+  gitignored). No repo code changed in this task (the UI worked as built);
+  `.gitignore` gained the state-file line.
+
 ## F32 — testnet UNSHIELD (ShieldedWithdrawal) LIVE-VERIFIED + resumable
 stage-5 verifier (2026-10-06)
 

@@ -66,7 +66,6 @@ export function ComposeModal() {
             const { getDashPlatformClient } = await import('@/lib/dash-platform-client')
             const { retryPostCreation, isNetworkError } = await import('@/lib/retry-utils')
 
-            console.log('Creating post with Dash SDK...')
 
             // Use retry logic for post creation
             const result = await retryPostCreation(async () => {

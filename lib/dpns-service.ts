@@ -95,7 +95,6 @@ export class DPNSService {
 
             // TODO: Implement DPNS registration using WASM SDK
             // This would involve creating a DPNS document and broadcasting it
-            console.log('Registering DPNS username:', username, 'for identity:', identityId)
 
             // For now, throw error since it's not implemented
             throw new Error('DPNS registration not yet implemented in WASM SDK')
@@ -117,11 +116,9 @@ export class DPNSService {
             const cached = this.getCached<string>(cacheKey)
 
             if (cached !== null) {
-                console.log('✅ Returning cached DPNS username for identity:', identityId)
                 return cached
             }
 
-            console.log('🔍 Looking up DPNS username for identity:', identityId)
 
             // Get the SDK instance from the client
             await this.dashClient.ensureInitialized()
@@ -132,10 +129,8 @@ export class DPNSService {
                 return null
             }
 
-            console.log('✅ SDK initialized, starting DPNS query')
 
             // First, let's try to query all domains to see what's available
-            console.log('📋 Querying all domains first...')
 
             try {
                 const allDomainsResponse = await get_documents(
@@ -149,7 +144,6 @@ export class DPNSService {
                     null  // startAt
                 )
 
-                console.log('🗂️ All domains response:', allDomainsResponse)
 
                 let allDomains
 
@@ -159,28 +153,18 @@ export class DPNSService {
                     allDomains = allDomainsResponse
                 }
 
-                console.log('🗂️ All domains processed:', allDomains)
 
                 if (allDomains && allDomains.length > 0) {
-                    console.log('🔍 Found domains, checking structure:', allDomains[0])
 
                     // Check if any of these domains belong to our identity
                     const myDomain = allDomains.find((domain: any) => {
                         const domainIdentityId = domain.records?.dashUniqueIdentityId || domain.dashUniqueIdentityId
-
-                        console.log('🔍 Checking domain:', {
-                            label: domain.label || domain.normalizedLabel,
-                            identityId: domainIdentityId,
-                            targetIdentityId: identityId,
-                            matches: domainIdentityId === identityId
-                        })
 
                         return domainIdentityId === identityId
                     })
 
                     if (myDomain) {
                         const username = myDomain.label || myDomain.normalizedLabel
-                        console.log('✅ Found DPNS username:', username)
 
                         return username
                     }
@@ -194,13 +178,6 @@ export class DPNSService {
                 ['records.dashUniqueIdentityId', '==', identityId]
             ])
 
-            console.log('🎯 Querying DPNS with specific identity:', {
-                contractId: DPNS_CONTRACT_ID,
-                documentType: 'domain',
-                whereClause,
-                identityId
-            })
-
             const domainsResponse = await get_documents(
                 sdk,
                 DPNS_CONTRACT_ID,
@@ -212,7 +189,6 @@ export class DPNSService {
                 null  // startAt
             )
 
-            console.log('🎯 DPNS specific domains response:', domainsResponse)
 
             // Convert response if needed
             let domains
@@ -223,20 +199,17 @@ export class DPNSService {
                 domains = domainsResponse
             }
 
-            console.log('🎯 Processed specific domains:', domains)
 
             if (domains && domains.length > 0) {
                 const domain = domains[0]
                 // Extract the username from the domain data
                 const username = domain.label || domain.normalizedLabel
-                console.log('✅ Found DPNS username:', username)
                 // Cache the result
                 this.setCache(cacheKey, username)
 
                 return username
             }
 
-            console.log('❌ No DPNS username found for identity:', identityId)
             // Cache the null result to avoid repeated lookups
 
             this.setCache(cacheKey, null)
@@ -270,11 +243,9 @@ export class DPNSService {
             const cached = this.getCached<string>(cacheKey)
 
             if (cached !== null) {
-                console.log('✅ Returning cached identity for username:', username)
                 return cached
             }
 
-            console.log('Resolving DPNS username:', username)
 
             // Get the SDK instance from the client
             await this.dashClient.ensureInitialized()
@@ -292,12 +263,6 @@ export class DPNSService {
                 ['normalizedParentDomainName', '==', 'dash']
             ])
 
-            console.log('Resolving DPNS with:', {
-                contractId: DPNS_CONTRACT_ID,
-                documentType: 'domain',
-                whereClause
-            })
-
             const domainsResponse = await get_documents(
                 sdk,
                 DPNS_CONTRACT_ID,
@@ -309,7 +274,6 @@ export class DPNSService {
                 null  // startAt
             )
 
-            console.log('DPNS resolution response:', domainsResponse)
 
             // Convert response if needed
             let domains
@@ -320,20 +284,17 @@ export class DPNSService {
                 domains = domainsResponse
             }
 
-            console.log('Processed domains:', domains)
 
             if (domains && domains.length > 0) {
                 const domain = domains[0]
                 // Extract the identity ID from the domain records
                 const identityId = domain.records?.dashUniqueIdentityId
-                console.log('Resolved username to identity:', identityId)
                 // Cache the result
                 this.setCache(cacheKey, identityId)
 
                 return identityId
             }
 
-            console.log('No identity found for username:', username)
             // Cache the null result
             this.setCache(cacheKey, null)
 

@@ -59,7 +59,6 @@ function FollowingPage() {
         setError(null)
 
         try {
-            console.log('Following: Loading following list...')
 
             if (!user?.identityId) {
                 setData([])
@@ -75,7 +74,6 @@ function FollowingPage() {
                 const cached = cacheManager.get<FollowingUser[]>('following', cacheKey)
 
                 if (cached) {
-                    console.log('Following: Using cached data')
                     setData(cached)
                     setLoading(false)
 
@@ -86,7 +84,6 @@ function FollowingPage() {
             // Use followService to get following list
             const follows = await followService.getFollowing(user.identityId, { limit: 50 })
 
-            console.log('Following: Raw follows from platform:', follows)
 
             // Get unique identity IDs from follows
             const identityIds = follows
@@ -168,7 +165,6 @@ function FollowingPage() {
             cacheManager.set('following', cacheKey, followingUsers)
 
             setData(followingUsers)
-            console.log(`Following: Successfully loaded ${followingUsers.length} following`)
         } catch (error) {
             console.error('Following: Failed to load following list:', error)
             const errorMessage = error instanceof Error ? error.message : 'Unknown error'
@@ -194,7 +190,6 @@ function FollowingPage() {
     ])
 
     const handleUnfollow = async (userId: string) => {
-        console.log('Unfollowing user:', userId)
         // TODO: Implement unfollow functionality
     }
 
@@ -207,7 +202,6 @@ function FollowingPage() {
         setFollowingInProgress(prev => new Set(prev).add(userId))
 
         try {
-            console.log('Following user:', userId)
 
             // Create follow document
             const result = await followService.followUser(user.identityId, userId)
@@ -250,13 +244,11 @@ function FollowingPage() {
         try {
             // Convert search query to homograph-safe characters
             const homographSafeQuery = dpns_convert_to_homograph_safe(searchQuery.trim())
-            console.log('Searching for DPNS names starting with:', searchQuery, '-> homograph-safe:', homographSafeQuery)
 
             // Search for usernames with details
             const searchResults = await dpnsService.searchUsernamesWithDetails(homographSafeQuery, 20)
 
             if (searchResults.length > 0) {
-                console.log('Found DPNS search results:', searchResults)
 
                 // Get all unique identity IDs from search results
                 const uniqueIdentityIds = Array.from(new Set(searchResults.map(r => r.ownerId).filter(id => id)))
@@ -270,7 +262,6 @@ function FollowingPage() {
                         // Query profiles where $ownerId is in the array of unique identity IDs
 
                         profiles = await profileService.getProfilesByIdentityIds(uniqueIdentityIds)
-                        console.log('Found EvoNext profiles:', profiles)
                     } catch (error) {
                         console.error('Error fetching profiles:', error)
                     }

@@ -31,26 +31,21 @@ class StateTransitionService {
 
         // If not in memory, try biometric storage
         if (!privateKey) {
-            console.log('Private key not in session storage, attempting biometric retrieval...')
 
             try {
                 const { biometricStorage, getPrivateKeyWithBiometric } = await import('../biometric-storage')
 
                 // Check if biometric is available
                 const isAvailable = await biometricStorage.isAvailable();
-                console.log('Biometric available:', isAvailable);
 
                 // Try to get the key
                 privateKey = await getPrivateKeyWithBiometric(identityId);
-                console.log('Biometric retrieval result:', privateKey ? 'Success' : 'Failed');
 
                 if (privateKey) {
-                    console.log('Retrieved private key with biometric authentication');
                     // Also store in memory for this session to avoid repeated biometric prompts
                     const { storePrivateKey } = await import('../secure-storage');
                     storePrivateKey(identityId, privateKey, 3600000); // 1 hour TTL
                 } else {
-                    console.log('No private key found in biometric storage for identity:', identityId);
                 }
             } catch (e) {
                 console.error('Biometric retrieval error:', e);
@@ -157,9 +152,6 @@ class StateTransitionService {
             const privateKey = await this.getPrivateKey(ownerId)
             const entropy = this.generateEntropyBytes()
 
-            console.log(`Creating ${documentType} document with data:`, documentData)
-            console.log(`Contract ID: ${contractId}`)
-            console.log(`Owner ID: ${ownerId}`)
 
             // 4.1.1 API: the transition is assembled from a Document instance,
             // the owner's identity key and an IdentitySigner holding the WIF.
@@ -189,7 +181,6 @@ class StateTransitionService {
             // The new API returns void; the created document is reconstructed
             // from the Document instance (its ID/entropy were generated locally).
             const createdDocument = document.toJSON(PlatformVersion.current())
-            console.log('Document creation result:', createdDocument)
 
             // The result contains the document and transition info
             return {
@@ -223,8 +214,6 @@ class StateTransitionService {
             const sdk = await getWasmSdk()
             const privateKey = await this.getPrivateKey(ownerId)
 
-            console.log(`Updating ${documentType} document ${documentId}...`)
-            console.log('REVISION IS', revision)
 
             // 4.1.1 API: the replace transition takes a Document instance whose
             // revision is the CURRENT revision + 1, the owner's identity key
@@ -286,7 +275,6 @@ class StateTransitionService {
             const sdk = await getWasmSdk()
             const privateKey = await this.getPrivateKey(ownerId)
 
-            console.log(`Deleting ${documentType} document ${documentId}...`);
 
             // 4.1.1 API: the delete transition takes identifiers plus the
             // owner's identity key and an IdentitySigner holding the WIF.
@@ -353,7 +341,6 @@ class StateTransitionService {
         try {
             const sdk = await getWasmSdk();
 
-            console.log(`Waiting for transaction confirmation: ${transactionHash}`);
 
             // Try wait_for_state_transition_result once with a short timeout
             try {
@@ -369,19 +356,15 @@ class StateTransitionService {
                 ])
 
                 if (result) {
-                    console.log('Transaction confirmed via wait_for_state_transition_result:', result)
                     return { success: true, result }
                 }
             } catch (waitError) {
                 // This is expected to timeout frequently due to DAPI gateway issues
-                console.log('wait_for_state_transition_result timed out (expected):', waitError);
             }
 
             // Since wait_for_state_transition_result often times out even for successful transactions,
             // we'll assume success if the transaction was broadcast successfully
             // This is a workaround for the known DAPI gateway timeout issue
-            console.log('Transaction broadcast successfully. Assuming confirmation due to known DAPI timeout issue.');
-            console.log('Note: The transaction is likely confirmed on the network despite the timeout.');
 
             return {
                 success: true,
@@ -417,11 +400,9 @@ class StateTransitionService {
         if (!result.success || !waitForConfirmation || !result.transactionHash) {
             return result;
         }
-        console.log('Waiting for transaction confirmation...');
 
         const confirmation = await this.waitForConfirmation(result.transactionHash, {
             onProgress: (attempt, elapsed) => {
-                console.log(`Confirmation attempt ${attempt}, elapsed: ${Math.round(elapsed / 1000)}s`);
             }
         })
 

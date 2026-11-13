@@ -128,15 +128,11 @@ export default function ShieldedPoolPage() {
                 const sdk = await getWasmSdk()
 
                 setStatus('Reading pool state…')
-                console.log('[shielded] pool state query start', Date.now())
                 const balance = await withTimeout(sdk.getShieldedPoolState(), 30000, 'pool state query')
-                console.log('[shielded] pool state query done', Date.now())
                 if (cancelledRef.current) return
                 setPoolBalance(BigInt(balance as any))
 
-                console.log('[shielded] anchor query start', Date.now())
                 const recentAnchor = await withTimeout(sdk.getMostRecentShieldedAnchor(), 30000, 'anchor query')
-                console.log('[shielded] anchor query done', Date.now())
                 if (cancelledRef.current) return
                 setAnchor(hexOf(recentAnchor as any))
 

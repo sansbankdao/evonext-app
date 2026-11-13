@@ -71,7 +71,6 @@ export abstract class BaseDocumentService<T> {
                 query.startAt = options.startAt
             }
 
-            console.log(`Querying ${this.documentType} documents:`, query);
 
             const response = await get_documents(
                 sdk,
@@ -92,16 +91,11 @@ export abstract class BaseDocumentService<T> {
                 result = response.toJSON()
             }
 
-            console.log(`${this.documentType} query result:`, result);
-            console.log(`${this.documentType} result type:`, typeof result);
-            console.log(`${this.documentType} result keys:`, result ? Object.keys(result) : 'null');
 
             // Check if result is an array (direct documents response)
             if (Array.isArray(result)) {
-                console.log(`${this.documentType} result is array, transforming...`);
 
                 const documents = result.map((doc: any) => {
-                    console.log(`Transforming ${this.documentType} document:`, doc);
                     return this.transformDocument(doc)
                 })
 
@@ -114,7 +108,6 @@ export abstract class BaseDocumentService<T> {
 
             // Otherwise expect object with documents property
             const documents = result?.documents?.map((doc: any) => {
-                console.log(`Transforming ${this.documentType} document:`, doc);
                 return this.transformDocument(doc)
             }) || []
 
@@ -178,7 +171,6 @@ export abstract class BaseDocumentService<T> {
         try {
             const sdk = await getWasmSdk()
 
-            console.log(`Creating ${this.documentType} document:`, data)
 
             // Use state transition service for document creation
             const result = await stateTransitionService.createDocument(
@@ -209,7 +201,6 @@ export abstract class BaseDocumentService<T> {
         try {
             const sdk = await getWasmSdk()
 
-            console.log(`Updating ${this.documentType} document ${documentId}:`, data)
 
             // Get current document to find revision
             const currentDoc = await this.get(documentId)
@@ -252,7 +243,6 @@ export abstract class BaseDocumentService<T> {
         try {
             const sdk = await getWasmSdk()
 
-            console.log(`Deleting ${this.documentType} document ${documentId}`);
 
             // Use state transition service for document deletion
             const result = await stateTransitionService.deleteDocument(

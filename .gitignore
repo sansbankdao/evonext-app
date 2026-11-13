@@ -79,3 +79,4 @@ lib/wasm-sdk/
 
 # MAINNET e2e state — real-funds mnemonic/WIF; NEVER commit
 /scratch-mainnet-state.json
+/scratch-identity-state.json

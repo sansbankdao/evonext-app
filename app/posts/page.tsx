@@ -60,7 +60,6 @@ function FeedPage() {
     const loadPosts = useCallback(async (forceRefresh: boolean = false) => {
         // Use the setter functions directly, not the whole postsState object
         const { setLoading, setError, setData } = postsState
-console.log('***LOADING POSTS-1')
         // NOTE the order: setError() forces loading:false in useAsyncState,
         // so clearing the error must happen BEFORE setLoading(true) — the
         // other way around cancelled the loading state and showed the empty
@@ -68,27 +67,22 @@ console.log('***LOADING POSTS-1')
         setError(null)
         setLoading(true)
         try {
-            console.log('Feed: Loading posts from Dash Platform...')
             const dashClient = getDashPlatformClient(getContractId(network!))
 
             // Cache key based on active tab and user
             const cacheKey = activeTab === 'your-posts' && user?.identityId
                 ? `feed_your_posts_${user.identityId}`
                 : `feed_${activeTab}`
-console.log('***LOADING POSTS-2', forceRefresh)
             // Check cache first unless force refresh
             if (!forceRefresh) {
                 const cached = cacheManager.get<any[]>('feed', cacheKey)
-console.log('***CACHED', cached)
                 if (cached) {
-                    console.log('Feed: Using cached data')
                     setData(cached)
                     setLoading(false)
 
                     return
                 }
             }
-console.log('***LOADING POSTS-3')
             // Query posts from the platform
             const queryOptions: any = {
                 limit: 20,
@@ -98,15 +92,11 @@ console.log('***LOADING POSTS-3')
             // Only filter by user for "Your Posts" tab
             if (activeTab === 'your-posts' && user?.identityId) {
                 queryOptions.authorId = user.identityId
-                console.log('Feed: Filtering posts by user:', user.identityId)
             } else {
                 // For "For You" and "Trending", get all posts
-                console.log('Feed: Loading all posts for:', activeTab)
             }
-console.log('***LOADING POSTS-4')
 
             const posts = await dashClient.queryPosts(queryOptions)
-            console.log('Feed: Raw posts from platform:', posts)
 
             // Transform posts to match our UI format
             const transformedPosts = await Promise.all(posts.map(async (doc: any) => {
@@ -144,7 +134,6 @@ console.log('***LOADING POSTS-4')
                 }
             }))
 
-            console.log('Feed: Transformed posts:', transformedPosts)
 
             // Sort posts by createdAt to ensure newest first
             const sortedPosts = transformedPosts.sort((a, b) => {
@@ -153,7 +142,6 @@ console.log('***LOADING POSTS-4')
 
                 return dateB - dateA // Newest first
             })
-console.log('SORTED POSTS', sortedPosts)
             // Fetch the real like/reply/remix counts for everything on screen.
             // One batched query per document type ('in' over the post IDs);
             // a failed count query leaves the counters at 0.
@@ -190,7 +178,6 @@ console.log('SORTED POSTS', sortedPosts)
 
             // If no posts found, show helpful message but don't error
             if (sortedPosts.length === 0) {
-                console.log('Feed: No posts found on platform')
                 // setData([])
             } else {
                 // Cache the results
@@ -201,7 +188,6 @@ console.log('SORTED POSTS', sortedPosts)
                 cacheManager.set('feed', cacheKey, namedPosts)
 
                 setData(namedPosts)
-                console.log(`Feed: Successfully loaded ${namedPosts.length} posts (newest first)`)
             }
         } catch (error) {
             console.error('Feed: Failed to load posts from platform:', error)
@@ -212,7 +198,6 @@ console.log('SORTED POSTS', sortedPosts)
             // genuinely succeeded with zero posts. The LoadingState below
             // keeps existing posts visible when data is already present.
             const errorMessage = (error as any)?.message || 'Unknown error'
-            console.log('Feed: Load failed:', errorMessage)
 
             setError(errorMessage)
         } finally {
@@ -239,7 +224,6 @@ console.log('SORTED POSTS', sortedPosts)
 
         // Listen for new posts created
         const handlePostCreated = () => {
-console.log('***LOADING POSTS-CREATE-REMOVE')
             // loadPosts(true) // Force refresh when new post is created
         }
 

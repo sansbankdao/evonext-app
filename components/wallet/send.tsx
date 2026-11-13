@@ -9,6 +9,7 @@ import { BoltIcon, UserIcon } from '@heroicons/react/24/outline'
 // import { Button } from '@/components/ui/button'
 import { Loader2 } from 'lucide-react'
 import bs58 from 'bs58'
+import { showErrorToast } from '@/lib/toast-error'
 
 import { getIdentityIdx } from '@/lib/secure-storage'
 
@@ -109,7 +110,6 @@ export function WalletSend({ isFullScreen }: IWalletSendProps) {
     }, [])
 
     const openScanner = () => {
-        console.log('OPEN SCANNER')
     }
 
     const reciverBalance = {
@@ -155,7 +155,7 @@ export function WalletSend({ isFullScreen }: IWalletSendProps) {
 
         /* Validate receiver. */
         if (typeof receiver === null) {
-            return alert('Please enter an IDENTITY ADDRESS.')
+            return showErrorToast('Please enter an IDENTITY ADDRESS.')
         }
 
         // When you need the numeric value for calculations, parse the string.
@@ -164,7 +164,7 @@ export function WalletSend({ isFullScreen }: IWalletSendProps) {
 
         /* Validate duffs. */
         if (numericAmount === null || numericAmount === 0) {
-            return alert('Please enter an AMOUNT to send.')
+            return showErrorToast('Please enter an AMOUNT to send.')
         }
 
         /* Request (active) asset. */
@@ -195,9 +195,7 @@ export function WalletSend({ isFullScreen }: IWalletSendProps) {
             const ENDPOINT = 'https://dashswap.xyz/v1/ticker/DASH'
             const response = await fetch(ENDPOINT)
             const ticker = await response.json()
-console.log('TICKER', ticker)
             const dashUsdValue = ticker.quote.USD.price
-console.log('DASH/USD', dashUsdValue)
 
             /* Calculate USD value. */
             assetUsdValue = numericAmount * dashUsdValue
@@ -205,7 +203,6 @@ console.log('DASH/USD', dashUsdValue)
 
         /* Confirm user request. */
         if (confirm(`Are you sure you want to send ${numeral(numericAmount).format('0,0.00[0000]')} ${asset.ticker} (valued @ ${numeral(assetUsdValue).format('0,0.00[0000]')} USD) to ${receiver}?`)) {
-            console.log(`Starting transfer of ${numeral(numericAmount).format('0,0.00[0000]')} ${asset.ticker} to ${receiver}...`)
 
             /* Set flag. */
             setIsSubmitting(true)
@@ -231,7 +228,6 @@ console.log('DASH/USD', dashUsdValue)
             } else {
                 safeReceiver = receiver
             }
-console.log('SAVE RECEIVER', safeReceiver)
 
             /* Validate asset. */
             if (asset.id === '0') {
@@ -246,7 +242,6 @@ console.log('SAVE RECEIVER', safeReceiver)
                     console.error(err)
                     setErrorMsgs(err?.message)
                 })
-console.log('SEND (CREDIT response)', typeof response, response)
             } else {
                 /* Request a credit transfer. */
                 response = await sendToken(
@@ -260,7 +255,6 @@ console.log('SEND (CREDIT response)', typeof response, response)
                     console.error(err)
                     setErrorMsgs(err?.message)
                 })
-console.log('SEND (TOKEN response)', response)
             }
 
             /* Set flag. */
@@ -679,13 +673,13 @@ console.log('SEND (TOKEN response)', response)
 
                                 /* Validate destination. */
                                 if (!isCoreAddress(coreAddress)) {
-                                    return alert('Please enter a valid Dash (L1) address.')
+                                    return showErrorToast('Please enter a valid Dash (L1) address.')
                                 }
 
                                 /* Validate amount. */
                                 const numeric = parseFloat(withdrawAmount) || 0
                                 if (numeric <= 0) {
-                                    return alert('Please enter an AMOUNT to withdraw.')
+                                    return showErrorToast('Please enter an AMOUNT to withdraw.')
                                 }
 
                                 /* Confirm the withdrawal. */
@@ -709,7 +703,6 @@ console.log('SEND (TOKEN response)', response)
                                         coreAddress,
                                         1,
                                     )
-console.log('WITHDRAW (response)', response)
 
                                     /* Set note. */
                                     setWithdrawNote(
@@ -717,7 +710,7 @@ console.log('WITHDRAW (response)', response)
                                     )
                                 } catch (err: any) {
 console.error('WITHDRAW FAILED', err)
-                                    alert(`Withdrawal failed: ${err?.message || 'unknown error'}`)
+                                    showErrorToast(`Withdrawal failed: ${err?.message || 'unknown error'}`)
                                 } finally {
                                     /* Reset flag. */
                                     setIsWithdrawing(false)

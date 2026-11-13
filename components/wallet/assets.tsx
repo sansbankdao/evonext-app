@@ -125,7 +125,6 @@ export function WalletAssets({ isFullScreen }: WalletAssetProps) {
         const asset = assets.find(_asset => {
             return _asset.id === _tokenid
         })
-console.log('ACTIVE ASSET', asset)
         /* Validate asset. */
         if (typeof asset !== 'undefined' && asset !== null) {
             /* Set (local) asset. */
@@ -180,7 +179,6 @@ console.log('ACTIVE ASSET', asset)
                 if (typeof response !== 'undefined' && response !== null && response.data.length > 0) {
                     /* Set DUSD balance. */
                     dusdBalance = BigInt(response.data[0].balance)
-console.log('DUSD BALANCE', dusdBalance)
 
                     /* Save DUSD balance. */
                     setDisplayDusdBalance(dusdBalance)
@@ -195,7 +193,6 @@ console.log('DUSD BALANCE', dusdBalance)
                 if (typeof response !== 'undefined' && response !== null && response.data.length > 0) {
                     /* Set SANS balance. */
                     sansBalance = BigInt(response.data[0].balance)
-console.log('SANS BALANCE', sansBalance)
 
                     /* Save SANS balance. */
                     setDisplaySansBalance(sansBalance)
@@ -205,9 +202,7 @@ console.log('SANS BALANCE', sansBalance)
                 const ENDPOINT = 'https://dashswap.xyz/v1/ticker/DASH'
                 response = await fetch(ENDPOINT)
                 const ticker = await response.json()
-console.log('TICKER', ticker)
                 const dashUsdValue = ticker.quote.USD.price
-console.log('DASH/USD', dashUsdValue)
 
                 /* Build AVAILABLE (Platform) assets collection. */
                 const assets: IToken[] = [{

@@ -7,8 +7,6 @@ import { Button } from '@/components/ui/button'
 import { RegistrarModal } from '@/components/id/registrar-modal'
 import { useRouter } from 'next/navigation'
 import { showErrorToast } from '@/lib/toast-error'
-import { getIdentities } from '@/lib/identity-manager'
-import { getPrivateKeys, getPublicKeys } from '@/lib/wallet-manager'
 import { validate_mnemonic } from '@/lib/dash-wasm/compat'
 
 export default function LoginPage() {
@@ -77,65 +75,23 @@ export default function LoginPage() {
         }
 
         /* Initialize secure storage. */
-        const { getIdentityIdx, storeIdentityIdx, storeMnemonic } = await import('@/lib/secure-storage')
+        const { storeIdentityIdx, storeMnemonic } = await import('@/lib/secure-storage')
 
         /* Save mnemonic (to secure storage). */
         storeMnemonic(mnemonic)
 
-        /* Request Identity index. */
-        // const identityIdx = getIdentityIdx()
-
-        /* Request ALL (registered) Identities. */
-        const regIdentities = await getIdentities(currentNetwork)
-console.log('CONNECT (regIdentities)', regIdentities)
-
-        let identityId
-        let identityIdx
-        let regPubKeys
-
-        if (typeof regIdentities !== 'undefined' && regIdentities !== null && regIdentities.length > 0) {
-            /* Set identity ID. */
-            identityId = regIdentities[0].id
-console.log('CONNECT (identityId)', identityId)
-
-            /* Set identity index. */
-            identityIdx = regIdentities[0].idx || 0
-console.log('CONNECT (identityIdx)', identityIdx)
-
-            /* Set registered public keys. */
-            regPubKeys = regIdentities[0].publicKeys
-console.log('CONNECT (regPubKeys)', regPubKeys)
-        } else {
-            /* Set identity index. */
-            identityIdx = 0
-console.log('CONNECT (identityIdx)', identityIdx)
-        }
+        /* Resolve the registered identity + signing credentials
+         * (shared helper — see lib/session-keys.ts). */
+        const { getSessionCredentials } = await import('@/lib/session-keys')
+        const credentials = await getSessionCredentials(currentNetwork)
 
 // STORE THE IDENTITY INDEX
-storeIdentityIdx(identityIdx!)
+storeIdentityIdx(credentials?.identityIdx ?? 0)
 
-        /* Validate Identity ID and public keys. */
-        if (typeof identityId !== 'undefined' && typeof regPubKeys !== 'undefined') {
-
-/* Request public keys. */
-const publicKeys = getPublicKeys(currentNetwork, identityIdx!)
-
-            const signingPublicKey = regPubKeys.find((_pubkey: any) => {
-                return _pubkey.purpose === 0 && (_pubkey.securityLevel === 1 || _pubkey.securityLevel === 2)
-            })
-console.log('CONNECT (signingPublicKey)', signingPublicKey)
-
-            const signingPrivateKey = publicKeys.find(_pubkey => {
-                return _pubkey.id === signingPublicKey!.id
-            })
-console.log('CONNECT (signingPrivateKey)', signingPrivateKey)
-
-            /* Set seed private key (WIF). */
-            const seedPrivateKey = signingPrivateKey!.privateKeyWif
-console.log('CONNECT (seedPrivateKey WIF)', seedPrivateKey)
-
+        /* Validate Identity ID and signing credentials. */
+        if (credentials) {
             try {
-                await login(identityId, seedPrivateKey)
+                await login(credentials.identityId, credentials.wif)
                 // Navigation handled by auth context
             } catch (err) {
                 setError(err instanceof Error ? err.message : 'Failed to login')
@@ -144,14 +100,6 @@ console.log('CONNECT (seedPrivateKey WIF)', seedPrivateKey)
                 setIsResuming(false)
             }
         } else {
-console.log('BEGIN NO IDENTITY FOUND', currentNetwork, identityIdx)
-// BEGIN NO IDENTITY FOUND
-/* Request private keys. */
-const privateKeys = getPrivateKeys(currentNetwork, identityIdx!)
-
-            const publicKey = privateKeys.masterKey.public_key
-console.log('CONNECT (publicKey)', publicKey)
-
             /* Present user with NEW Identity + Username registration. */
             if (_skipCreateConfirm || confirm(`OH NO!\n\nWe COULD NOT find an Identity for you on the Dash Platform. Would you like to create a NEW Identity and register a NEW Username now?\n\nIt should ONLY take about 2 minutes..\nDon't MISS OUT, let's GO!`)) {
                 setIsModalOpen(true)
@@ -491,13 +439,13 @@ console.log('CONNECT (publicKey)', publicKey)
                     <div className="mt-8 space-y-4 text-sm text-gray-600 dark:text-gray-400">
                         <div className="bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-lg p-4 space-y-2">
                             <h3 className="font-medium text-gray-900 dark:text-gray-100">
-                                Requirements:
+                                How sign-in works:
                             </h3>
 
                             <ul className="list-disc list-inside space-y-1">
-                                <li>A Dash Platform identity</li>
-                                <li>At least one high security key</li>
-                                <li>Private key in WIF format</li>
+                                <li>Sign in with your 12 or 24 word recovery phrase — or use a passkey</li>
+                                <li>We find your Dash Platform Identity automatically</li>
+                                <li>No Identity yet? A new one is created for you (about 2 minutes)</li>
                             </ul>
                         </div>
 

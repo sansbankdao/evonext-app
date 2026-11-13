@@ -180,7 +180,6 @@ export const getFundingUtxos = async (
     const spendable: any[] = []
     for (const utxo of utxos) {
         if (utxo.vout === 1 && await getTxType(_network, utxo.txid) === d.Transaction.TYPES.TRANSACTION_ASSET_LOCK) {
-console.log('SKIP (unspendable asset-lock credit output)', utxo.txid)
             continue
         }
         spendable.push(utxo)

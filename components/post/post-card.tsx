@@ -55,7 +55,6 @@ export function PostCard({ post, hideAvatar = false, isOwnPost = false }: PostCa
     const avatarConfig = parseAvatarConfig(post.author.avatarData) || { style: DEFAULT_AVATAR_STYLE, seed: post.author.username }
 
     const handleLike = async (e: React.MouseEvent) => {
-console.log('HANDLE LIKE')
         /* Stop propagation. */
         e.stopPropagation()
 
@@ -112,7 +111,6 @@ console.log('HANDLE LIKE')
     }
 
     const handleRepost = (e: React.MouseEvent) => {
-console.log('HANDLE REPOST')
         /* Stop propagation. */
         e.stopPropagation()
 
@@ -127,7 +125,6 @@ console.log('HANDLE REPOST')
     // }
 
     const handleReply = (e: React.MouseEvent) => {
-console.log('HANDLE REPLY')
         /* Stop propagation. */
         e.stopPropagation()
 
@@ -136,7 +133,6 @@ console.log('HANDLE REPLY')
     }
 
     const handleShare = (e: React.MouseEvent) => {
-console.log('HANDLE SHARE')
         /* Stop propagation. */
         e.stopPropagation()
 

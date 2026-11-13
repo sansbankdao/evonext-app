@@ -11,9 +11,7 @@ export default function TestSdkPage() {
     useEffect(() => {
         const testSdk = async () => {
             try {
-                console.log('Test SDK Page: Starting test...')
                 const sdk = await wasmSdkService.getSdk()
-                console.log('Test SDK Page: Got SDK instance:', sdk)
                 setTestResult('SDK is working!')
             } catch (err) {
                 console.error('Test SDK Page: Error:', err)

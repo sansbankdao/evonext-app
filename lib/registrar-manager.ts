@@ -109,7 +109,6 @@ export const registerIdentityAndUsername = async (
     if (pendingTxid) {
         progress('Resuming your pending asset lock...')
         txid = pendingTxid
-console.log('REGISTRAR (resuming pending lock)', txid)
     } else {
         /* Auto-resume an UNUSED lock: a previous attempt may have broadcast
          * the lock but died before identity creation. Its credit output is
@@ -121,7 +120,6 @@ console.log('REGISTRAR (resuming pending lock)', txid)
         if (unusedLockTxid) {
             progress('Resuming your pending asset lock...')
             txid = unusedLockTxid
-console.log('REGISTRAR (resuming unused lock)', txid)
 
             /* Persist for consistency (cleared after confirmation). */
             if (typeof window !== 'undefined') {
@@ -149,7 +147,6 @@ console.log('REGISTRAR (resuming unused lock)', txid)
             progress('Broadcasting to the Dash network...')
             txid = await broadcastTransaction(
                 _currentNetwork, assetLock.hex)
-console.log('REGISTRAR (asset lock broadcast)', txid)
 
             /* Persist for resume (cleared after confirmation). */
             if (typeof window !== 'undefined') {
@@ -164,7 +161,6 @@ console.log('REGISTRAR (asset lock broadcast)', txid)
         _currentNetwork, txid, undefined, undefined,
         (attempt, maxAttempts) => progress(
             `Waiting for confirmation… (${attempt}/${maxAttempts}) tx ${txid.slice(0, 16)}…`))
-console.log('REGISTRAR (confirmed in block)', blockheight)
 
     /* Clear the pending lock (confirmed). */
     if (typeof window !== 'undefined') {
@@ -185,7 +181,6 @@ console.log('REGISTRAR (confirmed in block)', blockheight)
     const creationIdentity = String(
         wasm.AssetLockProof.createChainAssetLockProof(blockheight, outPoint)
             .createIdentityId())
-console.log('REGISTRAR (identity from proof)', creationIdentity)
 
     /* Platform validates a chain proof against ITS OWN core-chain-locked
      * height, which LAGS the insight tip while testnet chainlocks stall
@@ -204,7 +199,6 @@ console.log('REGISTRAR (identity from proof)', creationIdentity)
 
     while (platformStatus.coreChainLockedHeight < blockheight) {
         progress('Waiting for the lock to be chainlocked...')
-console.log('WAIT (chainlock)', platformStatus.coreChainLockedHeight, 'of', blockheight)
         await new Promise(resolve => setTimeout(resolve, 15000))
         platformStatus = await getPlatformStatus(sdk, creationIdentity)
     }
@@ -241,7 +235,6 @@ console.log('WAIT (chainlock)', platformStatus.coreChainLockedHeight, 'of', bloc
             data,
         }))
     }
-console.log('REGISTRAR (identity keys added)', identity.publicKeys.length)
 
     /* Build the signer with ALL identity private keys. */
     const signer = new wasm.IdentitySigner()
@@ -269,14 +262,12 @@ console.error('REGISTRAR (identity create failed)', error)
         throw new Error(
             `identity create failed: ${error?.message || String(error)}`)
     }
-console.log('REGISTRAR (identity created)', creationIdentity)
 
     /* Set (actual) key to AUTH (CRITICAL) key. */
     const actualPrivateKey = privateKeys.authCritical.private_key_wif
 
     /* Set master/primary public key. */
     const masterPublicKey = privateKeys.masterKey.public_key
-console.log('REGISTRAR (master public key)', masterPublicKey)
 
     /* Request username registration. */
     progress('Registering your username...')
@@ -302,7 +293,6 @@ console.error('REGISTRAR (username registration failed)', error)
         throw new Error(
             `username registration failed: ${error?.message || String(error)} — NOTE: your identity WAS created on-chain; refresh and log in, then register the username from your profile`)
     }
-console.log('REGISTRAR (username result)', usernameResult)
 
     /* Return (registration) result. */
     return {

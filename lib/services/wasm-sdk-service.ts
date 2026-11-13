@@ -75,14 +75,11 @@ class WasmSdkService {
 
         WasmSdkService.wasmInitPromise = (async () => {
             try {
-                console.log('WasmSdkService: Initializing WASM module...')
                 // Use the same pattern as the working index.html - just call init() without parameters
                 // The init() function will automatically fetch and load the WASM file
                 await init()
-                console.log('WasmSdkService: WASM initialized successfully')
 
                 WasmSdkService.wasmModuleInitialized = true
-                console.log('WasmSdkService: WASM module loaded successfully')
             } catch (error) {
                 // Reset on error so retry is possible
                 WasmSdkService.wasmInitPromise = null
@@ -107,7 +104,6 @@ class WasmSdkService {
         }
 
         try {
-            console.log('WasmSdkService: Adding EvoNext contract to trusted context...')
 
             const contractId = this.config.contractId
 
@@ -119,14 +115,9 @@ class WasmSdkService {
                 // the contract is not on the network.
                 const contract = await this.sdk.getDataContract(contractId)
                 if (contract) {
-                    console.log('WasmSdkService: EvoNext contract found on network and cached in trusted context');
                 } else {
-                    console.log('WasmSdkService: Contract not found on network (expected for local development)');
-                    console.log('WasmSdkService: Local contract operations will be handled gracefully');
                 }
             } catch (error) {
-                console.log('WasmSdkService: Contract not found on network (expected for local development)');
-                console.log('WasmSdkService: Local contract operations will be handled gracefully');
 
                 // The contract is not on the network, which is expected for local development.
                 // The WASM SDK will attempt to fetch it on first document operation and fail.
@@ -147,82 +138,65 @@ class WasmSdkService {
             // Now create the SDK instance for this service
             // Prefetch trusted quorums and create SDK builder based on network
             if (this.config!.network === 'testnet') {
-                console.log('WasmSdkService: Prefetching testnet trusted context (quorums + masternode addresses)...');
 
                 // v4.1.1 API: the trusted context fetches quorum keys AND discovers
                 // live masternode addresses at runtime, replacing the removed
                 // hard-coded address list of older SDK builds.
                 const context = await WasmTrustedContext.prefetchTestnet();
-                console.log('WasmSdkService: Building testnet SDK in trusted mode...');
 
                 // Create builder - returns a builder preconfigured for the network
-                console.log('WasmSdkService: Creating testnet builder...');
                 let builder;
 
                 try {
                     builder = WasmSdkBuilder.testnet().withTrustedContext(context);
-                    console.log('WasmSdkService: Builder created successfully');
                 } catch (error) {
                     console.error('WasmSdkService: Failed to create testnet builder:', error);
                     throw error;
                 }
 
                 // Set request timeout to 8 seconds (8000ms)
-                console.log('WasmSdkService: Setting request timeout to 8 seconds...');
 
                 try {
                     builder = builder.withSettings(undefined, 8000, undefined, undefined);
-                    console.log('WasmSdkService: Settings applied successfully');
                 } catch (error) {
                     console.error('WasmSdkService: Failed to apply settings:', error);
                     throw error;
                 }
 
-                console.log('WasmSdkService: Building SDK...');
 
                 try {
                     this.sdk = builder.build();
-                    console.log('WasmSdkService: SDK built successfully');
                 } catch (error) {
                     console.error('WasmSdkService: Failed to build SDK:', error);
                     throw error;
                 }
-                console.log('WasmSdkService: Testnet SDK built successfully with 8s timeout');
             } else {
-                console.log('WasmSdkService: Prefetching mainnet trusted context (quorums + masternode addresses)...');
 
                 const context = await WasmTrustedContext.prefetchMainnet();
-                console.log('Building mainnet SDK in trusted mode...');
 
                 // Create builder - returns a builder preconfigured for the network
-                console.log('WasmSdkService: Creating mainnet builder...');
 
                 let builder;
 
                 try {
                     builder = WasmSdkBuilder.mainnet().withTrustedContext(context);
-                    console.log('WasmSdkService: Builder created successfully');
                 } catch (error) {
                     console.error('WasmSdkService: Failed to create mainnet builder:', error);
                     throw error;
                 }
 
                 // Set request timeout to 8 seconds (8000ms)
-                console.log('WasmSdkService: Setting request timeout to 8 seconds...');
 
                 try {
                     builder = builder.withSettings(undefined, 8000, undefined, undefined);
-                    console.log('WasmSdkService: Settings applied successfully');
                 } catch (error) {
                     console.error('WasmSdkService: Failed to apply settings:', error);
                     throw error;
                 }
 
-                console.log('WasmSdkService: Building SDK...');
 
                 try {
                     this.sdk = builder.build();
-                    console.log('WasmSdkService: SDK built successfully');
                 } catch (error) {
                     console.error('WasmSdkService: Failed to build SDK:', error);
                     throw error;
@@ -230,7 +204,6 @@ class WasmSdkService {
             }
 
             this._isInitialized = true;
-            console.log('WasmSdkService: WASM SDK initialized successfully, _isInitialized = true');
 
             // Preload the yappr contract into the trusted context
             await this._preloadEvoNextContract();

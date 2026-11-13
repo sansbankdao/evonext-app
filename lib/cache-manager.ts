@@ -244,7 +244,6 @@ export class CacheManager {
             })
         }
 
-        console.log(`Cache cleanup: removed ${cleaned} expired entries`)
 
         return cleaned
     }

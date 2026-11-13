@@ -134,12 +134,10 @@ export const getAuthKey = async (
 
     /* Request private keys. */
     const generatedkeys = getPrivateKeys(network, _identityIdx)
-console.log('GENERATED KEYS', generatedkeys)
 
 // FIXME -- ONLY SEARCH IF (STANDARD) KEYS DO NOT WORK
     const response = await getIdentities(network)
     const registeredKeys = response![0].publicKeys
-console.log('REGISTERED KEYS', registeredKeys)
 // FIXME WE WANT TO SUPPORT ALTERNATIVE KEY CONFIGURATIONS
 
 /*
@@ -168,12 +166,10 @@ SECURITY LEVELS
 const signingPublicKey = regPubKeys.find((_pubkey: any) => {
     return _pubkey.purpose === 0 && (_pubkey.securityLevel === 1 || _pubkey.securityLevel === 2)
 })
-console.log('SIGNING (public) KEY', signingPublicKey)
 
 const signingPrivateKey = publicKeys.find(_pubkey => {
     return _pubkey.id === signingPublicKey.id
 })
-console.log('SIGNING (private) KEY', signingPrivateKey)
 
 const seedPrivateKey = signingPrivateKey!.privateKeyWif
 
@@ -193,12 +189,10 @@ export const getTransferKey = async (
 
     /* Request private keys. */
     const generatedkeys = getPrivateKeys(network, _identityIdx)
-console.log('GENERATED KEYS', generatedkeys)
 
 // FIXME -- ONLY SEARCH IF (STANDARD) KEYS DO NOT WORK
     const response = await getIdentities(network)
     const registeredKeys = response![0].publicKeys
-console.log('REGISTERED KEYS', registeredKeys)
 // FIXME WE WANT TO SUPPORT ALTERNATIVE KEY CONFIGURATIONS
 
 /*
@@ -227,12 +221,10 @@ SECURITY LEVELS
 const signingPublicKey = regPubKeys.find((_pubkey: any) => {
     return _pubkey.purpose === 0 && (_pubkey.securityLevel === 1 || _pubkey.securityLevel === 2)
 })
-console.log('SIGNING (public) KEY', signingPublicKey)
 
 const signingPrivateKey = publicKeys.find(_pubkey => {
     return _pubkey.id === signingPublicKey.id
 })
-console.log('SIGNING (private) KEY', signingPrivateKey)
 
 const seedPrivateKey = signingPrivateKey!.privateKeyWif
 
@@ -253,13 +245,11 @@ export const getTokenBalance = async (
     /* Request TOKEN balance. */
     const response = await get_identities_token_balances_with_proof_info(
         sdk, identityIds, _tokenId)
-console.log('getTokenBalance (response)', response)
 
     /* Validate response. */
     if (typeof response !== 'undefined' && response !== null && response.data.length > 0) {
         /* Set TOKEN balance. */
         const balance = BigInt(response.data[0].balance)
-console.log('getTokenBalance (balance)', balance)
 
         /* Return TOKEN balance. */
         return balance
@@ -292,7 +282,6 @@ export const sendCredit = async (
 
     /* Request transfer (WIF) key. */
     const transferWif = await getTransferKey(_network, _identityIdx)
-console.log('GET TRANSFER KEY', transferWif)
     /* Handle network. */
     if (_network === 'mainnet') {
         /* Initialize SDK. */
@@ -305,7 +294,6 @@ console.log('GET TRANSFER KEY', transferWif)
         const context = await WasmTrustedContext.prefetchTestnet()
         sdk = await WasmSdkBuilder.testnet().withTrustedContext(context).build()
     }
-console.log('IDENTITY ID', _identityId)
     /* 4.1.1 API: the transfer needs the sender's current identity nonce. The
      * TS interface for the method expects { amount, senderId, recipientId,
      * nonce } while the API docs describe an { identity, signer } shape — the
@@ -328,7 +316,6 @@ console.log('IDENTITY ID', _identityId)
         identity,
         signer,
     })
-console.log('WALLET MANGAER (tx result)', txResult)
 
     /* Return transaction (result) ID. */
     return { txid: (txResult as any)?.txid || 'UNKNOWN TXID' }
@@ -356,7 +343,6 @@ export const withdrawToCore = async (
 
     /* Request transfer (WIF) key. */
     const transferWif = await getTransferKey(_network, _identityIdx)
-console.log('WITHDRAW (transfer WIF)', transferWif)
 
     /* Handle network. */
     if (_network === 'mainnet') {
@@ -370,7 +356,6 @@ console.log('WITHDRAW (transfer WIF)', transferWif)
         const context = await WasmTrustedContext.prefetchTestnet()
         sdk = await WasmSdkBuilder.testnet().withTrustedContext(context).build()
     }
-console.log('WITHDRAW (identity ID)', _identityId)
 
     /* Request identity. */
     const identity = await sdk.getIdentity(_identityId)
@@ -393,7 +378,6 @@ console.log('WITHDRAW (identity ID)', _identityId)
         coreFeePerByte: Math.trunc(_coreFeePerByte),
         signer,
     })
-console.log('WITHDRAW (remaining balance)', remaining)
 
     /* Return result. */
     return {
@@ -424,8 +408,6 @@ export const sendToken = async (
 
     /* Set transfer amount. */
     // const amount = BigInt(_satoshis)
-console.log('TOKEN ID', _tokenId)
-console.log('IDENTITY ID', _identityId)
     /* Initialize token base transition. */
     const tokenBaseTransition = await sdk.tokens
         .createBaseTransition(_tokenId, _identityId)
@@ -444,15 +426,12 @@ console.log('IDENTITY ID', _identityId)
 
     /* Request transfer (WIF) key. */
     const authWif = await getAuthKey(_network, _identityIdx)
-console.log('authWif', authWif)
 
     /* Request transfer (WIF) key. */
     const transferWif = await getTransferKey(_network, _identityIdx)
-console.log('transferWif', transferWif)
     /* Set private (transfer) key. */
     const privKey = PrivateKeyWASM.fromWIF(transferWif)
     // const privKey = PrivateKeyWASM.fromHex(transferWif, 'testnet')
-console.log('privKey', privKey)
     /* Set identity. */
     const identity = await sdk.identities.getIdentityByIdentifier(_identityId)
 

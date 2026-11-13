@@ -14,7 +14,7 @@ import { CheckCircle2, XCircle, Loader2, RefreshCw, X, Edit2 } from 'lucide-reac
 import { motion, AnimatePresence } from 'framer-motion'
 // @ts-ignore
 import { QRCodeSVG } from 'qrcode.react'
-import { getIdentities } from '@/lib/identity-manager'
+import { getContractId } from '@/lib/network'
 import {
     getFundingInfo,
     registerIdentityAndUsername,
@@ -28,7 +28,6 @@ import {
     waitForConfirmation,
 } from '@/lib/core-chain'
 import { storeIdentityIdx } from '@/lib/secure-storage'
-import { getPrivateKeys, getPublicKeys } from '@/lib/wallet-manager'
 import { dpns_is_contested_username } from '@/lib/dash-wasm/compat'
 
 /* Initialize constants. */
@@ -87,7 +86,6 @@ export function RegistrarModal({
 
     /* Debug SDK state */
     useEffect(() => {
-        console.log('RegistrarModal: SDK ready state:', isSdkReady, 'SDK error:', sdkError)
     }, [
         isSdkReady,
         sdkError,
@@ -167,7 +165,6 @@ console.warn('BALANCE (poll error)', error)
             setDepositedSatoshis(available)
 
             if (available < required) {
-console.log('TOP-UP (waiting for deposit)', available, 'of', required)
                 return
             }
 
@@ -311,7 +308,6 @@ console.error('TOP-UP FAILED', error)
         const identityId = found?.identityId
         if (!identityId) throw new Error('identity not found on-chain')
         setIdentityIdForBalance(identityId)
-console.log('TOP-UP (identity)', identityId)
 
         /* Build the top-up lock from spendable change. */
         const funding = deriveFundingKey(currentNetwork, IDENTITY_INDEX)
@@ -320,7 +316,6 @@ console.log('TOP-UP (identity)', identityId)
             currentNetwork, funding.privateKeyWif, utxos, _topUpSatoshis)
         const topUpTxid = await broadcastTransaction(
             currentNetwork, lockTx.toString())
-console.log('TOP-UP (lock broadcast)', topUpTxid)
 
         /* Wait for the top-up lock to confirm + chainlock. */
         setProgressMessage('Waiting for the top-up to confirm...')
@@ -351,7 +346,6 @@ console.log('TOP-UP (lock broadcast)', topUpTxid)
         const newBalance = await sdk.identityTopUp({
             identity, assetLockProof: proof, assetLockPrivateKey,
         })
-console.log('TOP-UP (new balance)', newBalance)
         setIdentityCredits(Number(newBalance))
         setNeedsTopUp(false)
 
@@ -369,7 +363,6 @@ console.log('TOP-UP (new balance)', newBalance)
 
         /* Set network. */
         const currentNetwork = (network === 'mainnet' ? 'mainnet' : 'testnet') as 'mainnet' | 'testnet'
-console.log('REGISTRAR (currentNetwork)', currentNetwork)
 
         /* Request funding info (address derived from the user's OWN mnemonic).
          * The username decides the lock size (contested => 0.2 DASH). */
@@ -387,15 +380,12 @@ console.log('REGISTRAR (currentNetwork)', currentNetwork)
         setFundingAddress(funding.address)
         setRequiredSatoshis(funding.requiredSatoshis)
         setDepositedSatoshis(0)
-console.log('REGISTRAR (funding address)', funding.address)
-console.log('REGISTRAR (required deposit)', funding.requiredDash, 'DASH')
 
         /* Initialize payment monitoring handler. */
         paymentAttemptsRef.current = 0
 
         /* Manage (deposit) detection. */
         paymentIntervalRef.current = setInterval(async () => {
-console.log('WAITING (up to 15 minutes) FOR DEPOSIT...')
 
             /* Request funding UTXOs. */
             const utxos = await getFundingUtxos(currentNetwork, funding.address)
@@ -420,7 +410,6 @@ console.log('WAITING (up to 15 minutes) FOR DEPOSIT...')
 
                 /* Require the FULL deposit before proceeding. */
                 if (!hasPendingLock && funded < funding.requiredSatoshis) {
-console.log('PARTIAL DEPOSIT', funded, 'of', funding.requiredSatoshis)
                     return
                 }
 
@@ -435,56 +424,30 @@ console.log('PARTIAL DEPOSIT', funded, 'of', funding.requiredSatoshis)
                     const regResult = await registerIdentityAndUsername(
                         currentNetwork, IDENTITY_INDEX, username,
                         (message: string) => setProgressMessage(message))
-console.log('REGISTRATION RESULT', regResult)
 
                     /* Set submission flag. */
                     setIsSubmitting(false)
 
                     /* Validate registration response. */
                     if (typeof regResult === 'undefined' || regResult === null) {
-                        alert(`Oops! Something went wrong, but NO worries. Please contact support (AKA Shomari) for assistance.`)
+                        showErrorToast(`Oops! Something went wrong, but NO worries. Please contact support (AKA Shomari) for assistance.`)
                     } else {
-                        alert(`Congratulations!\n\nYou're all set.\nEnjoy your NEW Identity!`)
+                        toast.success(`Congratulations! You're all set. Enjoy your NEW Identity!`)
 
-                        /* Request public keys. */
-                        const publicKeys = getPublicKeys(currentNetwork, IDENTITY_INDEX)
+                        /* Resolve the freshly-registered identity + signing
+                         * credentials (shared helper — see lib/session-keys.ts). */
+                        const { getSessionCredentials } = await import('@/lib/session-keys')
+                        const credentials = await getSessionCredentials(currentNetwork)
 
-                        /* Request ALL (registered) Identities. */
-                        const regIdentities = await getIdentities(currentNetwork)
-console.log('CONNECT (regIdentities)', regIdentities)
-
-                        const identityId = regIdentities![0].id
-console.log('CONNECT (identityId)', identityId)
-
-                        const identityIdx = regIdentities![0].idx || 0
-console.log('CONNECT (identityIdx)', identityIdx)
-
-                        const regPubKeys = regIdentities![0].publicKeys
-console.log('CONNECT (regPubKeys)', regPubKeys)
-
-                        /* Validate Identity ID and public keys. */
-                        if (identityId && regPubKeys) {
+                        /* Validate Identity ID and signing credentials. */
+                        if (credentials) {
 // STORE THE IDENTITY INDEX
-storeIdentityIdx(identityIdx)
+storeIdentityIdx(credentials.identityIdx)
 
-                            const signingPublicKey = regPubKeys.find((_pubkey: any) => {
-                                return _pubkey.purpose === 0 && (_pubkey.securityLevel === 1 || _pubkey.securityLevel === 2)
-                            })
-console.log('CONNECT (signingPublicKey)', signingPublicKey)
-
-                            const signingPrivateKey = publicKeys.find(_pubkey => {
-                                return _pubkey.id === signingPublicKey!.id
-                            })
-console.log('CONNECT (signingPrivateKey)', signingPrivateKey)
-
-                            /* Set seed private key (WIF). */
-                            const seedPrivateKey = signingPrivateKey!.privateKeyWif
-console.log('CONNECT (seedPrivateKey WIF)', seedPrivateKey)
-
-                            await login(identityId, seedPrivateKey)
+                            await login(credentials.identityId, credentials.wif)
                             // Navigation handled by auth context
                         } else {
-                            alert(`Oops! Auto-login failed. Please login manually to continue.`)
+                            showErrorToast(`Oops! Auto-login failed. Please login manually to continue.`)
                         }
                     }
                 } catch (err) {
@@ -527,7 +490,6 @@ console.warn('BALANCE (discover identity)', error)
                     clearInterval(paymentIntervalRef.current)
                     paymentIntervalRef.current = null
                 }
-console.log('TIMER STOPPED (after 15 minutes)')
 
                 /* Set submission flag. */
                 setIsSubmitting(false)
@@ -626,7 +588,7 @@ console.log('TIMER STOPPED (after 15 minutes)')
 
                 // Redirect to home or profile creation
                 const { ProfileService } = await import('@/lib/services/profile-service')
-                const ps = new ProfileService(network!)
+                const ps = new ProfileService(getContractId(network!))
                 const profile = await ps.getProfile(currentIdentityId, existingRegistrar)
 
                 if (profile) {

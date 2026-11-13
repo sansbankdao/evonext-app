@@ -50,7 +50,6 @@ class DpnsService {
      */
     async getAllUsernames(identityId: string): Promise<string[]> {
         try {
-            console.log(`DPNS: Fetching all usernames for identity: ${identityId}`)
 
             const sdk = await getWasmSdk()
 
@@ -59,7 +58,6 @@ class DpnsService {
                 const { get_dpns_usernames } = await import('../dash-wasm/compat');
                 const response = await get_dpns_usernames(sdk, identityId, 20); // Get up to 20 usernames
 
-                console.log('DPNS: Usernames response:', response);
 
                 // Parse the response
                 let usernames: string[] = [];
@@ -79,7 +77,6 @@ class DpnsService {
                 }
 
                 if (usernames.length > 0) {
-                    console.log(`DPNS: Found ${usernames.length} usernames for identity ${identityId}`);
                     return usernames;
                 }
             } catch (error) {
@@ -104,12 +101,10 @@ class DpnsService {
                 const usernames = response.documents.map((doc: DpnsDocument) =>
                     `${doc.label}.${doc.normalizedParentDomainName}`)
 
-                console.log(`DPNS: Found ${usernames.length} usernames for identity ${identityId} via document query`);
 
                 return usernames
             }
 
-            console.log(`DPNS: No usernames found for identity ${identityId}`);
 
             return []
         } catch (error) {
@@ -184,17 +179,14 @@ class DpnsService {
             const cached = this.reverseCache.get(identityId);
 
             if (cached && Date.now() - cached.timestamp < this.CACHE_TTL) {
-                console.log(`DPNS: Returning cached username for ${identityId}: ${cached.value}`);
                 return cached.value;
             }
 
-            console.log(`DPNS: Fetching username for identity: ${identityId}`);
 
             // Get all usernames for this identity
             const allUsernames = await this.getAllUsernames(identityId);
 
             if (allUsernames.length === 0) {
-                console.log(`DPNS: No username found for identity ${identityId}`);
                 return null;
             }
 
@@ -202,7 +194,6 @@ class DpnsService {
             const sortedUsernames = this.sortUsernamesByContested(allUsernames);
             const bestUsername = sortedUsernames[0];
 
-            console.log(`DPNS: Found best username ${bestUsername} for identity ${identityId} (from ${allUsernames.length} total)`);
             this._cacheEntry(bestUsername, identityId);
 
             return bestUsername;
@@ -223,11 +214,9 @@ class DpnsService {
             const cached = this.cache.get(normalizedUsername);
 
             if (cached && Date.now() - cached.timestamp < this.CACHE_TTL) {
-                console.log(`DPNS: Returning cached identity for ${normalizedUsername}: ${cached.value}`);
                 return cached.value;
             }
 
-            console.log(`DPNS: Resolving identity for username: ${normalizedUsername}`);
 
             const sdk = await getWasmSdk();
 
@@ -236,7 +225,6 @@ class DpnsService {
                 const result = await dpns_resolve_name(sdk, normalizedUsername);
 
                 if (result && result.identity_id) {
-                    console.log(`DPNS: Found identity ${result.identity_id} for username ${normalizedUsername} via native resolver`);
                     this._cacheEntry(normalizedUsername, result.identity_id);
 
                     return result.identity_id;
@@ -269,14 +257,12 @@ class DpnsService {
                 const identityId = dpnsDoc.records.identity || dpnsDoc.records.dashUniqueIdentityId || dpnsDoc.records.dashAliasIdentityId;
 
                 if (identityId) {
-                    console.log(`DPNS: Found identity ${identityId} for username ${normalizedUsername} via document query`);
                     this._cacheEntry(normalizedUsername, identityId);
 
                     return identityId;
                 }
             }
 
-            console.log(`DPNS: No identity found for username ${normalizedUsername}`);
             return null;
         } catch (error) {
             console.error('DPNS: Error resolving identity:', error);
@@ -295,7 +281,6 @@ class DpnsService {
             try {
                 const sdk = await getWasmSdk();
                 const isAvailable = await dpns_is_name_available(sdk, normalizedUsername);
-                console.log(`DPNS: Username ${normalizedUsername} availability (native): ${isAvailable}`);
 
                 return isAvailable;
             } catch (error) {
@@ -305,7 +290,6 @@ class DpnsService {
             // Fallback: Check by trying to resolve identity
             const identity = await this.resolveIdentity(normalizedUsername);
             const isAvailable = identity === null;
-            console.log(`DPNS: Username ${normalizedUsername} availability (fallback): ${isAvailable}`);
 
             return isAvailable;
         } catch (error) {
@@ -326,7 +310,6 @@ class DpnsService {
             const searchPrefix = prefix.toLowerCase().replace(/\.dash$/, '');
 
             // Search DPNS names by prefix
-            console.log(`DPNS: Searching usernames with prefix: ${searchPrefix}`);
 
             // Build where clause for starts-with query on normalizedLabel
             const where = [
@@ -349,7 +332,6 @@ class DpnsService {
 
             // The response is an array of documents
             if (documents && Array.isArray(documents)) {
-                console.log(`DPNS: Found ${documents.length} documents`);
 
                 // Map documents to results with owner IDs
                 const results = documents.map((doc: any) => {
@@ -386,9 +368,6 @@ class DpnsService {
             const searchPrefix = prefix.toLowerCase().replace(/\.dash$/, '');
 
             // Search DPNS names by prefix
-            console.log(`DPNS: Searching usernames with prefix: ${searchPrefix}`);
-            console.log(`DPNS: Using contract ID: ${DPNS_CONTRACT_ID}`);
-            console.log(`DPNS: Document type: ${DPNS_DOCUMENT_TYPE}`);
 
             // Build where clause for starts-with query on normalizedLabel
             const where = [
@@ -398,8 +377,6 @@ class DpnsService {
 
             const orderBy = [['normalizedLabel', 'asc']];
 
-            console.log('DPNS: Query where clause:', JSON.stringify(where));
-            console.log('DPNS: Query orderBy:', JSON.stringify(orderBy));
 
             const documents = await get_documents(
                 sdk,
@@ -412,29 +389,17 @@ class DpnsService {
                 null
             )
 
-            console.log('DPNS: Search response:', documents);
-            console.log('DPNS: Response type:', typeof documents);
-            console.log('DPNS: Is array?:', Array.isArray(documents));
 
             // The response is an array of documents
             if (documents && Array.isArray(documents)) {
-                console.log(`DPNS: Found ${documents.length} documents`);
 
                 // Map documents to usernames
                 const usernames = documents.map((doc: any) => {
-                    console.log('DPNS: Processing document:', doc);
 
                     // Access the data field which contains the DPNS document fields
                     const data = doc.data || doc;
                     const label = data.label || data.normalizedLabel || 'unknown';
                     const parentDomain = data.normalizedParentDomainName || 'dash';
-
-                    console.log('DPNS: Document fields:', {
-                        label: data.label,
-                        normalizedLabel: data.normalizedLabel,
-                        parentDomain: data.normalizedParentDomainName,
-                        ownerId: doc.ownerId || doc.$ownerId
-                    })
 
                     return `${label}.${parentDomain}`;
                 })
@@ -442,7 +407,6 @@ class DpnsService {
                 return usernames
             }
 
-            console.log('DPNS: No documents found in response');
             return [];
         } catch (error) {
             console.error('DPNS: Error searching usernames:', error);
@@ -480,7 +444,6 @@ class DpnsService {
             }
 
             // Register the name
-            console.log(`Registering DPNS name: ${label}`);
             const result = await dpns_register_name(
                 sdk,
                 label,

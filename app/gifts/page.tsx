@@ -46,7 +46,6 @@ export default function GiftsPage() {
             setWalletResult(result)
 
             // 3. Feedback
-            console.log('Wallet Entropy (Hex):', bufferToHex(result.entropy))
             toast.success('Wallet Created via Passkey!', {
                 duration: 3000,
                 style: {
@@ -73,7 +72,6 @@ export default function GiftsPage() {
             setWalletResult(result)
 
             // 3. Feedback
-            console.log('Wallet Entropy (Hex):', bufferToHex(result.entropy))
             toast.success('Wallet Signed In via Passkey!', {
                 duration: 3000,
                 style: {

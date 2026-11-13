@@ -143,7 +143,6 @@ function ProfilePage() {
                 setIsLoadingPosts(true)
 
                 const { getDashPlatformClient } = await import('@/lib/dash-platform-client')
-console.log('PROFILE CONTRACT ID', getContractId(network!))
 
                 const dashClient = getDashPlatformClient(getContractId(network!))
 

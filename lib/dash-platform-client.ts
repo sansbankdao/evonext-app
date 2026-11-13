@@ -58,7 +58,6 @@ export class DashPlatformClient {
     private pendingQueries: Map<string, Promise<any[]>> = new Map() // Prevent duplicate queries
 
     constructor(_contractId: string) {
-console.log('DPC CONSTRUCTING (contract ID)', _contractId)
         // SDK will be initialized on first use
         this.contractId = _contractId
     }
@@ -82,8 +81,6 @@ console.log('DPC CONSTRUCTING (contract ID)', _contractId)
         try {
             // Use the centralized WASM service
             const localNetwork = (getNetwork() as 'mainnet' | 'testnet')  || 'testnet'
-console.log('CONTRACT ID', this.contractId)
-            console.log('DashPlatformClient: Initializing via WasmSdkService for network:', getNetwork())
 
             // Initialize the WASM SDK service if not already done
             await wasmSdkService.initialize({
@@ -94,7 +91,6 @@ console.log('CONTRACT ID', this.contractId)
             // Get the SDK instance
             this.sdk = await wasmSdkService.getSdk()
 
-            console.log('DashPlatformClient: WASM SDK initialized successfully via service')
         } catch (error) {
             console.error('DashPlatformClient: Failed to initialize WASM SDK:', error)
             throw error
@@ -109,7 +105,6 @@ console.log('CONTRACT ID', this.contractId)
      */
     setIdentity(identityId: string) {
         this.identityId = identityId
-        console.log('DashPlatformClient: Identity set to:', identityId)
     }
 
     /**
@@ -140,7 +135,6 @@ console.log('CONTRACT ID', this.contractId)
                         if (identityId) {
                             // Set it for future use
                             this.identityId = identityId
-                            console.log('DashPlatformClient: Identity restored from session:', identityId)
                         }
                     } catch (e) {
                         console.error('Failed to parse session data:', e)
@@ -156,7 +150,6 @@ console.log('CONTRACT ID', this.contractId)
         try {
             await this.ensureInitialized()
 
-            console.log('Creating post for identity:', identityId)
 
             // Get the private key from secure storage (with biometric fallback)
             const { getPrivateKey } = await import('./secure-storage')
@@ -171,12 +164,10 @@ console.log('CONTRACT ID', this.contractId)
                     const { hasVault, unlockVault } = await import('./passkey-vault')
 
                     if (hasVault(identityId)) {
-                        console.log('Private key not in memory, attempting passkey vault unlock...')
 
                         privateKeyWIF = await unlockVault(identityId)
 
                         if (privateKeyWIF) {
-                            console.log('Retrieved private key via passkey vault')
                             // Cache in memory for this session to avoid repeated prompts
                             const { storePrivateKey } = await import('./secure-storage')
 
@@ -184,28 +175,24 @@ console.log('CONTRACT ID', this.contractId)
                         }
                     }
                 } catch (e) {
-                    console.log('Passkey vault unlock failed:', e)
                 }
             }
 
             // If not in memory, try biometric storage
             if (!privateKeyWIF) {
                 try {
-                    console.log('Private key not in memory, attempting biometric retrieval...')
 
                     const { getPrivateKeyWithBiometric } = await import('./biometric-storage')
 
                     privateKeyWIF = await getPrivateKeyWithBiometric(identityId)
 
                     if (privateKeyWIF) {
-                        console.log('Retrieved private key with biometric authentication')
                         // Also store in memory for this session to avoid repeated biometric prompts
                         const { storePrivateKey } = await import('./secure-storage')
 
                         storePrivateKey(identityId, privateKeyWIF, 3600000) // 1 hour TTL
                     }
                 } catch (e) {
-                    console.log('Biometric retrieval failed:', e)
                 }
             }
 
@@ -269,7 +256,6 @@ console.log('CONTRACT ID', this.contractId)
                 postData.sensitive = false
             }
 
-            console.log('Creating post with data:', postData)
 
             // Create the document through the state transition service, which
             // assembles the 4.1.1 transition (Document instance + owner
@@ -290,7 +276,6 @@ console.log('CONTRACT ID', this.contractId)
                 throw new Error(result.error || 'Post creation failed')
             }
 
-            console.log('Post created successfully!')
 
             // Invalidate posts cache since we created a new post
             this.postsCache.clear()
@@ -319,7 +304,6 @@ console.log('CONTRACT ID', this.contractId)
         try {
             await this.ensureInitialized()
 
-            console.log('Fetching profile for identity:', identityId)
 
             // Query profile document for this identity
             const query = {
@@ -340,7 +324,6 @@ console.log('CONTRACT ID', this.contractId)
                 null
             )
 
-            console.log('Profile query response:', profileResponse)
 
             // Convert response if needed
             let profiles
@@ -351,7 +334,6 @@ console.log('CONTRACT ID', this.contractId)
                 profiles = profileResponse
             }
 
-            console.log('Profiles found:', profiles)
 
             if (profiles && profiles.length > 0) {
                 return profiles[0]
@@ -387,7 +369,6 @@ console.log('CONTRACT ID', this.contractId)
 
             // Check if there's already a pending query for this exact request
             if (!options?.forceRefresh && this.pendingQueries.has(cacheKey)) {
-                console.log('DashPlatformClient: Returning pending query result')
                 return await this.pendingQueries.get(cacheKey)!
             }
 
@@ -396,14 +377,12 @@ console.log('CONTRACT ID', this.contractId)
                 const cached = this.postsCache.get(cacheKey)
 
                 if (cached && Date.now() - cached.timestamp < this.CACHE_TTL) {
-                    console.log('DashPlatformClient: Returning cached posts')
                     return cached.posts
                 }
             }
 
             await this.ensureInitialized()
 
-            console.log('DashPlatformClient: Querying posts from contract:', this.contractId)
 
             // Create the query promise and store it to prevent duplicates
             const queryPromise = this._executePostsQuery(options, cacheKey)
@@ -468,7 +447,6 @@ console.log('CONTRACT ID', this.contractId)
                     null // startAt
                 )
 
-                console.log('DashPlatformClient: Posts query response received')
 
                 // Convert response if needed
                 let posts
@@ -481,7 +459,6 @@ console.log('CONTRACT ID', this.contractId)
                     posts = postsResponse || []
                 }
 
-                console.log(`DashPlatformClient: Found ${posts.length} posts`)
 
                 // Cache the results
                 this.postsCache.set(cacheKey, {
@@ -491,13 +468,11 @@ console.log('CONTRACT ID', this.contractId)
 
                 return posts
             } catch (queryError) {
-                console.log('DashPlatformClient: Document query failed, this may be expected for new contracts:', queryError)
 
                 // For contract-related errors, return empty array instead of throwing
                 const errorMessage = queryError instanceof Error ? queryError.message : String(queryError)
                 if (errorMessage.includes('contract') || errorMessage.includes('Contract') ||
                     errorMessage.includes('not found') || errorMessage.includes('Not found')) {
-                    console.log('DashPlatformClient: Contract-related error, returning empty posts array')
 
                     return []
                 }
@@ -791,7 +766,6 @@ console.log('CONTRACT ID', this.contractId)
     clearPostsCache() {
         this.postsCache.clear()
         this.pendingQueries.clear()
-        console.log('DashPlatformClient: Posts cache and pending queries cleared')
     }
 
     /**

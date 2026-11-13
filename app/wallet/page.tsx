@@ -81,11 +81,8 @@ export default function WalletPage() {
             const ENDPOINT = 'https://dashswap.xyz/v1/ticker/DASH'
             const response = await fetch(ENDPOINT)
             const ticker = await response.json()
-console.log('TICKER', ticker)
             const dashUsdValue = ticker.quote.USD.price
-console.log('DASH/USD', dashUsdValue)
 
-console.log('USER', user)
             /* Validate user. */
             if (typeof user !== 'undefined' && user !== null) {
                 const identityId = user.identityId

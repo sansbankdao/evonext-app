@@ -36,7 +36,6 @@ export class DashPlatformClient {
         profile: ProfileDocument
     ): Promise<void> {
         // Implementation would use Dash SDK to create/update profile document
-        console.log('Creating/updating profile for identity:', identityId)
     }
 
     /**
@@ -48,7 +47,6 @@ export class DashPlatformClient {
         avatar: AvatarDocument
     ): Promise<Uint8Array> {
         // Implementation would use Dash SDK to create/update avatar document
-        console.log('Creating/updating avatar for identity:', identityId)
         // Return mock document ID for now
         return new Uint8Array(32).fill(0)
     }
@@ -59,7 +57,6 @@ export class DashPlatformClient {
      */
     async getProfile(identityId: string): Promise<ProfileDocument | null> {
         // Query would use the owner index
-        console.log('Fetching profile for identity:', identityId)
         return null
     }
 
@@ -68,7 +65,6 @@ export class DashPlatformClient {
      */
     async getAvatar(avatarId: Uint8Array): Promise<AvatarDocument | null> {
         // Fetch avatar document by ID
-        console.log('Fetching avatar document')
         return null
     }
 
@@ -77,7 +73,6 @@ export class DashPlatformClient {
      */
     async getUsernameFromDPNS(identityId: string): Promise<string | null> {
         // Query DPNS contract for username
-        console.log('Fetching username from DPNS for identity:', identityId)
         return null
     }
 

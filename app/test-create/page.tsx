@@ -37,7 +37,6 @@ export default function TestCreatePage() {
             )
 
             setStatus('Post created successfully!')
-            console.log('Created post:', post)
         } catch (err) {
             console.error('Error creating post:', err)
             setError(err instanceof Error ? err.message : 'Unknown error')
@@ -59,7 +58,6 @@ export default function TestCreatePage() {
             )
 
             setStatus('Post liked successfully!')
-            console.log('Liked post:', post)
         } catch (err) {
             console.error('Error creating post:', err)
             setError(err instanceof Error ? err.message : 'Unknown error')
@@ -90,7 +88,6 @@ export default function TestCreatePage() {
             )
 
             setStatus('Profile created successfully!')
-            console.log('Created profile:', profile)
         } catch (err) {
             console.error('Error creating profile:', err)
             setError(err instanceof Error ? err.message : 'Unknown error')

@@ -48,7 +48,6 @@ export function SdkProvider({ children }: { children: React.ReactNode }) {
 
         const initializeSdk = async () => {
             try {
-                console.log('SdkProvider: Starting WASM SDK initialization for testnet...')
 
                 /* Initialize locals. */
 
@@ -60,7 +59,6 @@ export function SdkProvider({ children }: { children: React.ReactNode }) {
                 })
 
                 setIsReady(true)
-                console.log('SdkProvider: WASM SDK initialized successfully, isReady = true')
             } catch (err) {
                 console.error('SdkProvider: Failed to initialize WASM SDK:', err)
                 setError(err instanceof Error ? err.message : 'Failed to initialize SDK')
@@ -71,10 +69,8 @@ export function SdkProvider({ children }: { children: React.ReactNode }) {
 
         // Only initialize in browser
         if (typeof window !== 'undefined') {
-            console.log('SdkProvider: Running in browser, starting initialization...')
             initializeSdk()
         } else {
-            console.log('SdkProvider: Not in browser, skipping initialization')
         }
     }, [])
 

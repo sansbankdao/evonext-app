@@ -36,7 +36,6 @@ class BookmarkService extends BaseDocumentService<BookmarkDocument> {
             const existing = await this.getBookmark(postId, ownerId)
 
             if (existing) {
-                console.log('Post already bookmarked')
                 return true
             }
 
@@ -65,7 +64,6 @@ class BookmarkService extends BaseDocumentService<BookmarkDocument> {
             const bookmark = await this.getBookmark(postId, ownerId)
 
             if (!bookmark) {
-                console.log('Post not bookmarked')
                 return true
             }
 

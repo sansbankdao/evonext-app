@@ -19,7 +19,6 @@ class FollowService extends BaseDocumentService<FollowDocument> {
      * Transform document
      */
     protected transformDocument(doc: any): FollowDocument {
-        console.log('Transforming follow document:', doc);
 
         // Handle both direct properties and nested data structure
         const id = doc.$id || doc.id;
@@ -60,7 +59,6 @@ class FollowService extends BaseDocumentService<FollowDocument> {
             const existing = await this.getFollow(targetUserId, followerUserId);
 
             if (existing) {
-                console.log('Already following user');
                 return { success: true };
             }
 
@@ -98,7 +96,6 @@ class FollowService extends BaseDocumentService<FollowDocument> {
             const follow = await this.getFollow(targetUserId, followerUserId);
 
             if (!follow) {
-                console.log('Not following user');
                 return { success: true };
             }
 

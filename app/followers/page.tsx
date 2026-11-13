@@ -46,7 +46,6 @@ function FollowersPage() {
         setError(null)
 
         try {
-            console.log('Followers: Loading followers list...')
 
             if (!user?.identityId) {
                 setData([])
@@ -62,7 +61,6 @@ function FollowersPage() {
                 const cached = cacheManager.get<Follower[]>('followers', cacheKey)
 
                 if (cached) {
-                    console.log('Followers: Using cached data')
                     setData(cached)
                     setLoading(false)
 
@@ -74,7 +72,6 @@ function FollowersPage() {
             const follows = await followService
                 .getFollowers(user.identityId, { limit: 50 })
 
-            console.log('Followers: Raw follows from platform:', follows)
 
             // Get unique identity IDs from followers
             const identityIds = follows
@@ -165,7 +162,6 @@ function FollowersPage() {
             cacheManager.set('followers', cacheKey, followers)
 
             setData(followers)
-            console.log(`Followers: Successfully loaded ${followers.length} followers`)
         } catch (error) {
             console.error('Followers: Failed to load followers list:', error)
             const errorMessage = error instanceof Error ? error.message : 'Unknown error'
@@ -191,12 +187,10 @@ function FollowersPage() {
     ])
 
     const handleFollow = async (userId: string) => {
-        console.log('Following user:', userId)
         // TODO: Implement follow functionality
     }
 
     const handleUnfollow = async (userId: string) => {
-        console.log('Unfollowing user:', userId)
         // TODO: Implement unfollow functionality
     }
 

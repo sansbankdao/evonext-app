@@ -42,10 +42,8 @@ export function NetworkProvider({ children }: { children: React.ReactNode }) {
 
         // Only initialize in browser
         if (typeof window !== 'undefined') {
-            console.log('NetworkProvider: Running in browser, starting initialization...')
             initializeNetwork()
         } else {
-            console.log('NetworkProvider: Not in browser, skipping initialization')
         }
     }, [])
 

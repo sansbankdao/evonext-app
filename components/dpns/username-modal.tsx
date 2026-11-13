@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useAuth } from '@/contexts/auth-context'
 import { useNetwork } from '@/contexts/network-context'
+import { getContractId } from '@/lib/network'
 import { useSdk } from '@/contexts/sdk-context'
 import { dpnsService } from '@/lib/services/dpns-service'
 import toast from 'react-hot-toast'
@@ -68,7 +69,6 @@ export function UsernameModal({
 
     // Debug SDK state
     useEffect(() => {
-        console.log('UsernameModal: SDK ready state:', isSdkReady, 'SDK error:', sdkError)
     }, [
         isSdkReady,
         sdkError,
@@ -128,7 +128,6 @@ console.warn('BALANCE (poll error)', error)
             setDepositedSatoshis(available)
 
             if (available < TOP_UP_REQUIRED) {
-console.log('TOP-UP (waiting for deposit)', available, 'of', TOP_UP_REQUIRED)
                 return
             }
 
@@ -180,7 +179,6 @@ console.error('TOP-UP FAILED', error)
             currentNetwork, funding.privateKeyWif, utxos, TOP_UP_SATOSHIS)
         const topUpTxid = await broadcastTransaction(
             currentNetwork, lockTx.toString())
-console.log('TOP-UP (lock broadcast)', topUpTxid)
 
         /* Wait for the top-up lock to confirm + chainlock. */
         setTopUpProgress('Waiting for the top-up to confirm...')
@@ -211,7 +209,6 @@ console.log('TOP-UP (lock broadcast)', topUpTxid)
         const newBalance = await sdk.identityTopUp({
             identity, assetLockProof: proof, assetLockPrivateKey,
         })
-console.log('TOP-UP (new balance)', newBalance)
         setIdentityCredits(Number(newBalance))
         setNeedsTopUp(false)
         setTopUpProgress(null)
@@ -322,7 +319,6 @@ console.log('TOP-UP (new balance)', newBalance)
             const { identityService } = await import('@/lib/services/identity-service')
 
             const identity = await identityService.getIdentity(currentIdentityId)
-console.log('USERNAME MODAL (identity)', identity)
 
             if (!identity) {
                 throw new Error('Identity not found')
@@ -330,34 +326,22 @@ console.log('USERNAME MODAL (identity)', identity)
 
             // Find a suitable key (CRITICAL or HIGH security level)
             // Security levels: MASTER=0, CRITICAL=1, HIGH=2, MEDIUM=3
-            console.log('Identity publicKeys:', JSON.stringify(identity.publicKeys, null, 2))
 
             const suitableKey = identity.publicKeys.find((key: any) => {
                 // Check if key has the expected structure
                 const keySecurityLevel = key.securityLevel
                 const keyDisabledAt = key.disabledAt
 
-                console.log(`Key ${key.id}: securityLevel=${keySecurityLevel}, disabledAt=${keyDisabledAt}`)
 
                 // Only accept CRITICAL (1) or HIGH (2) security levels
                 return !keyDisabledAt && (keySecurityLevel === 1 || keySecurityLevel === 2)
             })
 
             if (!suitableKey) {
-                // Log available keys for debugging
-                console.log('Available keys:', identity.publicKeys.map((k: any) => ({
-                    id: k.id,
-                    securityLevel: k.securityLevel,
-                    disabledAt: k.disabledAt,
-                    type: k.type,
-                    purpose: k.purpose
-                })))
-
                 throw new Error('No suitable keys found. DPNS requires CRITICAL (security level 1) or HIGH (security level 2) key.')
             }
 
             const keySecurityLevel = suitableKey.security_level ?? suitableKey.securityLevel
-            console.log(`Using key ${suitableKey.id} with security level ${keySecurityLevel === 1 ? 'CRITICAL' : 'HIGH'} (${keySecurityLevel})`)
 
             // Register the username
             await dpnsService.registerUsername(
@@ -487,7 +471,7 @@ console.log('USERNAME MODAL (identity)', identity)
 
                 // Redirect to home or profile creation
                 const { ProfileService } = await import('@/lib/services/profile-service')
-                const ps = new ProfileService(network!)
+                const ps = new ProfileService(getContractId(network!))
                 const profile = await ps.getProfile(currentIdentityId, existingUsername)
 
                 if (profile) {

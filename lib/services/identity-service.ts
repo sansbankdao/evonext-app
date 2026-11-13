@@ -48,7 +48,6 @@ class IdentityService {
             // Fetch identity — proxy first (fast, cached), WASM SDK fallback.
             // Both are normalized to a `.toJSON()`-shaped object so the rest
             // of this method is unchanged.
-            console.log(`Fetching identity: ${identityId}`)
             const identityResponse = await fetchIdentityViaProxy(
                 identityId,
                 proxyNetwork(),
@@ -58,7 +57,6 @@ class IdentityService {
                 /* Proxy returned a plain object — normalize. */
                 identityResponse.toJSON = () => identityResponse
             }
-console.log('IDENTITY SERVICE (identityResponse)', identityResponse)
             if (!identityResponse) {
                 console.warn(`Identity not found: ${identityId}`)
                 return null
@@ -67,8 +65,6 @@ console.log('IDENTITY SERVICE (identityResponse)', identityResponse)
             // identity_fetch returns an object with a toJSON method
             const identity = identityResponse.toJSON()
 
-            console.log('Raw identity response:', JSON.stringify(identity, null, 2))
-            console.log('Public keys from identity:', identity.publicKeys)
 
             const identityInfo: IdentityInfo = {
                 id: identity.id || identityId,
@@ -105,7 +101,6 @@ console.log('IDENTITY SERVICE (identityResponse)', identityResponse)
             const sdk = await getWasmSdk()
 
             // Fetch balance
-            console.log(`Fetching balance for: ${identityId}`)
             const balanceResponse = await get_identity_balance(sdk, identityId)
 
             // get_identity_balance returns an object directly

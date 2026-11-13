@@ -43,7 +43,6 @@ export class ProfileService extends BaseDocumentService<IUser> {  // CHANGE: Exp
     private readonly USERNAME_CACHE = 'usernames'
     private readonly PROFILE_CACHE = 'profiles'
     constructor(_contractId: string) {
-        console.log('CONTRUCT PROFILE SERVICE (contractId)', _contractId)
         super(_contractId, 'profile')
     }
     private cachedUsername?: string;
@@ -74,16 +73,6 @@ export class ProfileService extends BaseDocumentService<IUser> {  // CHANGE: Exp
             } else if (options.startAt) {
                 query.startAt = options.startAt;
             }
-            console.log(`Querying ${this.documentType} documents:`, query)
-            console.log('DEFAUT PROFILE', {
-                contractId: this.contractId,
-                documentType: this.documentType,
-                'query.where': query.where || null,
-                'query.orderBy': query.orderBy || null,
-                'query.limit': query.limit || 25,
-                'query.startAfter': query.startAfter || null,
-                'query.startAt': query.startAt || null,
-            })
             const response = await get_documents(
                 sdk,
                 this.contractId,
@@ -100,7 +89,6 @@ export class ProfileService extends BaseDocumentService<IUser> {  // CHANGE: Exp
             if (response && typeof response.toJSON === 'function') {
                 result = response.toJSON()
             }
-            console.log(`${this.documentType} query result:`, result)
             // Check if result is an array (direct documents response)
             if (Array.isArray(result)) {
                 const documents = result.map((doc: any) => {
@@ -133,7 +121,6 @@ export class ProfileService extends BaseDocumentService<IUser> {  // CHANGE: Exp
         doc: ProfileDocument,
         options?: { cachedUsername?: string },
     ): IUser {
-        console.log('ProfileService: transformDocument input:', doc)
         // Handle both $ prefixed and non-prefixed properties
         const ownerId = doc.$ownerId || doc.ownerId || ''
         const createdAt = doc.$createdAt || doc.createdAt || 0
@@ -203,11 +190,9 @@ export class ProfileService extends BaseDocumentService<IUser> {  // CHANGE: Exp
         cachedUsername?: string,
     ): Promise<IUser | null> {
         try {
-            console.log('ProfileService: Getting profile for owner ID:', ownerId);
             // Check cache first
             const cached = cacheManager.get<IUser>(this.PROFILE_CACHE, ownerId);
             if (cached) {
-                console.log('ProfileService: Returning cached profile for:', ownerId);
                 // Update username if provided
                 if (cachedUsername && cached.username !== cachedUsername) {
                     cached.username = cachedUsername;
@@ -221,11 +206,8 @@ export class ProfileService extends BaseDocumentService<IUser> {  // CHANGE: Exp
                 where: [['$ownerId', '==', ownerId]],
                 limit: 1
             });
-            console.log('ProfileService: Query result:', result);
-            console.log('ProfileService: Documents found:', result.documents.length);
             if (result.documents.length > 0) {
                 const profile = result.documents[0];
-                console.log('ProfileService: Returning profile:', profile);
                 // Cache the result with profile and user tags
                 cacheManager.set(this.PROFILE_CACHE, ownerId, profile, {
                     ttl: 300000, // 5 minutes
@@ -233,7 +215,6 @@ export class ProfileService extends BaseDocumentService<IUser> {  // CHANGE: Exp
                 });
                 return profile
             }
-            console.log('ProfileService: No profile found for owner ID:', ownerId);
             return null;
         } catch (error) {
             console.error('ProfileService: Error getting profile:', error);
@@ -288,7 +269,6 @@ export class ProfileService extends BaseDocumentService<IUser> {  // CHANGE: Exp
         try {
             // Get existing profile
             const profile = await this.getProfile(ownerId)
-            console.log('GET PROFILE', profile)
             if (!profile) {
                 throw new Error('Profile not found')
             }
@@ -555,7 +535,6 @@ export class ProfileService extends BaseDocumentService<IUser> {  // CHANGE: Exp
             if (identityIds.length === 0) {
                 return [];
             }
-            console.log('ProfileService: Getting profiles for identity IDs:', identityIds);
             const sdk = await getWasmSdk();
             // Query profiles where $ownerId is in the array
             // Need to add orderBy for 'in' queries
@@ -573,10 +552,8 @@ export class ProfileService extends BaseDocumentService<IUser> {  // CHANGE: Exp
             )
             // Handle response format
             if (Array.isArray(response)) {
-                console.log(`ProfileService: Found ${response.length} profiles`);
                 return response;
             } else if (response && response.documents) {
-                console.log(`ProfileService: Found ${response.documents.length} profiles`);
                 return response.documents;
             }
             return [];

@@ -389,7 +389,6 @@ export async function storePrivateKeyWithBiometric(
         const available = await biometricStorage.isAvailable()
 
         if (!available) {
-            console.log('Biometric authentication not available')
             return false
         }
 
@@ -410,28 +409,21 @@ export async function getPrivateKeyWithBiometric(
     identityId: string
 ): Promise<string | null> {
     try {
-        console.log(`Attempting to retrieve private key for identity: ${identityId}`)
-        console.log(`Storage key: pk_${identityId}`)
 
         const data = await biometricStorage.retrieve(`pk_${identityId}`)
-        console.log('Retrieved data:', data ? 'Found' : 'Not found')
 
         if (!data) {
             // Check if it exists in localStorage
             const storageKey = `evonext_bio_pk_${identityId}`
             const exists = localStorage.getItem(storageKey)
-            console.log(`Checking localStorage key ${storageKey}:`, exists ? 'Exists' : 'Not found')
 
             return null
         }
 
         const parsed = JSON.parse(data)
-        console.log('Parsed data expires at:', new Date(parsed.expiresAt))
-        console.log('Current time:', new Date())
 
         // Check expiration
         if (parsed.expiresAt && Date.now() > parsed.expiresAt) {
-            console.log('Private key has expired, removing...')
             biometricStorage.remove(`pk_${identityId}`)
 
             return null

@@ -54,7 +54,6 @@ export default function ExplorePage() {
                 setIsLoading(true)
 
                 const { getDashPlatformClient } = await import('@/lib/dash-platform-client')
-console.log('EXPLORE CONTRACT ID', getContractId(network!))
                 const dashClient = getDashPlatformClient(contractId)
 
                 // Load recent posts (as trending)

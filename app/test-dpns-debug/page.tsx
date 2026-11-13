@@ -35,8 +35,6 @@ export default function TestDpnsDebugPage() {
 
             const sdk = await wasmSdkService.getSdk()
 
-            console.log(`Testing query: ${description}`)
-            console.log('Where clause:', whereClause)
 
             const response = await get_documents(
                 sdk,
@@ -50,7 +48,6 @@ export default function TestDpnsDebugPage() {
             )
 
             setResult(response)
-            console.log('Response:', response)
         } catch (err: any) {
             console.error('Query error:', err)
             setError(err.message || err.toString())

@@ -142,14 +142,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
                         /* Set identity to saved user ID. */
                         dashClient.setIdentity(savedUser.identityId)
-                        console.log('Auth: DashPlatformClient identity restored from session')
                     } catch (err) {
                         console.error('Auth: Failed to set DashPlatformClient identity:', err)
                     }
 
                     // If user doesn't have DPNS username, fetch it in background
                     if (savedUser && !savedUser.dpnsUsername) {
-                        console.log('Auth: Fetching DPNS username in background...')
 
                         /* Import DPNS service. */
                         // Don't await - let it happen in background
@@ -162,7 +160,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
                                     /* Validate DPNS username. */
                                     if (dpnsUsername) {
-                                        console.log('Auth: Found DPNS username:', dpnsUsername)
 
                                         /* Save username to state. */
                                         setUser(prev => prev ? { ...prev, dpnsUsername } : prev)
@@ -237,9 +234,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 contractId,
             })
 
-            console.log('Fetching identity with WASM SDK...')
             const identityData = await identityService.getIdentity(identityId)
-console.log('AUTH CONTEXT (identityData)', identityData)
 
             /* Validate identity data. */
             if (!identityData) {
@@ -282,10 +277,8 @@ console.log('AUTH CONTEXT (identityData)', identityData)
                 const stored = await storePrivateKeyWithBiometric(identityId, privateKey)
 
                 if (stored) {
-                    console.log('Private key stored with biometric protection')
                 }
             } catch (e) {
-                console.log('Biometric storage not available:', e)
             }
 
             setUser(authUser)
@@ -301,10 +294,8 @@ console.log('AUTH CONTEXT (identityData)', identityData)
             }
 
             // First check if user has DPNS username (unless skipped)
-            console.log('Checking for DPNS username...')
 
             if (!authUser.dpnsUsername && !skipUsernameCheck) {
-                console.log('No DPNS username found, opening username modal...')
                 // Import and use the username modal store
                 const { useUsernameModal } = await import('@/hooks/use-username-modal')
                 useUsernameModal.getState().open(identityId)
@@ -313,16 +304,13 @@ console.log('AUTH CONTEXT (identityData)', identityData)
             }
 
             // Then check if user has a profile
-            console.log('Checking for user profile...')
             const { ProfileService } = await import('@/lib/services/profile-service')
             const ps = new ProfileService(getContractId(network!))
             const profile = await ps.getProfile(identityId, authUser.dpnsUsername)
 
             if (profile) {
-                console.log('Profile found, redirecting to home...')
                 router.push('/')
             } else {
-                console.log('No profile found, redirecting to profile creation...')
                 router.push('/profile/create')
             }
         } catch (err) {
@@ -421,7 +409,6 @@ export function withAuth<P extends object>(
         const router = useRouter()
 
         useEffect(() => {
-            console.log('withAuth check - user:', user)
 
             if (isRestoringSession) {
                 // The saved session is still being restored - wait for it
@@ -431,11 +418,9 @@ export function withAuth<P extends object>(
 
             if (!user) {
                 if (options?.optional) {
-                    console.log('No user found, but auth is optional - continuing...')
                     return
                 }
 
-                console.log('No user found, redirecting to login...')
                 router.push('/connect')
 
                 return
@@ -445,7 +430,6 @@ export function withAuth<P extends object>(
             const skipDPNS = sessionStorage.getItem('evonext_skip_dpns') === 'true'
 
             if (!options?.allowWithoutDPNS && !user.dpnsUsername && !skipDPNS) {
-                console.log('No DPNS username found, redirecting to DPNS registration...')
                 router.push('/claim')
 
                 return
