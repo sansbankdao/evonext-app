@@ -1489,6 +1489,83 @@ history of this file (see log below for commit hashes) — keep only load-bearin
 
 ## Working Rules For This Repo
 
+## F41 — SHIELDED TRANSACTION HISTORY (ZIP-144 OVK sender recovery) +
+## MAINNET send/receive LIVE-VERIFIED against PRODUCTION (2026-11-13)
+
+User directive: mainnet shielded send/receive + transaction history.
+
+(a) **ZIP-144 sender recovery** — `lib/shielded/note.ts` gained
+`tryRecoverOutgoingNoteWire(ovk, cvNet, cmx, encryptedNote, rho)`
+(ock = BLAKE2b-256 "Zcash_Orchardock" over ovk‖cv‖cmx‖epk → AEAD-open
+out_ct → pk_d‖esk → shared=[esk]pk_d → KDF → AEAD-open the note ct → FULL
+recipient address + value + memo) + the test-helper inverse
+`encryptOutgoingCiphertext`. GOTCHA: keys.ts `toScalar` expects 64 UNIFORM
+bytes — the recovered esk is a canonical 32-byte Fq (use
+bytes32LEToBigint + FR_MOD check; toScalar threw inside the catch → null).
+
+(b) **Universal sender detection in sync.ts**: every row's out_ciphertext
+is OVK-attempted (cheap — blake2b+AEAD, no curve math); owned notes gain
+`createdByUs` (the OVK opens = our action, EVEN when the paired spend was
+a DUMMY — F31's padding paired the change with a dummy, so rho-membership
+alone mislabeled it); non-owned rows that open under our OVK are recorded
+as `sent` entries {position, recipient, value, memo} (persisted; rewound
+with the tail; deduped by position). ShieldedSync's ctor takes an optional
+6th arg `ovk`; makeShieldedSync passes it.
+
+(c) **History** — `buildShieldedHistory(sync, keys, network)` (wallet.ts):
+'sent' (recovered payments, exact amount+recipient+memo), 'self' (our
+actions' outputs incl. shield deposits to our address), 'received'
+(incoming from others). UI: 'Transaction history' card in the Shielded tab
+(kind icon/badge, ±/~ sign, memo, tree #, SPENT badge).
+
+(d) **Mainnet shield-blockheight fix** (wallet.ts shieldFromBalance):
+mainnet insight /tx lacks `blockheight` (F36 gotcha) — when
+waitForConfirmation returns undefined, the lock height is derived from the
+credit output's utxo `height` (the F36 stage-1 method), 20×15s.
+
+(e) **LIVE VERIFICATIONS**:
+- **testnet history (browser)** (`scratch-history-e2e-browser.mjs`):
+  login → Shielded tab → balance 131,100,000 → history card: sent=2
+  (each `to tdash1zrsu528mm…`, memo 'wallet e2e f40'), self=7,
+  received=0, 5+5 SPENT badges — ZERO page errors. UI GOTCHA FIXED:
+  applySync captured a STALE pre-init `keys` → history silently empty;
+  keysRef mirror added.
+- **testnet history (Node, real chain data)**
+  (`scratch-history-smoke.mts`): the two REAL F40 sends recovered from
+  the tree — exact recipient (F39 d0), 100,000,000 credits each, memo
+  'wallet e2e f40'; classification self=7 / sent=2 / received=0.
+- **unit**: new sync test (real out_ct under our ovk → syncPass → exact
+  sent entry; rewind dedupes) — 214/214.
+- **MAINNET (production https://evonext.app)**
+  (`scratch-mainnet-wallet-e2e.mjs`): the F36 e2e wallet has NO mainnet
+  identity — the Shielded tab keys off the session mnemonic, seeded via
+  addInitScript (localStorage 'mnemonic'; NO LOGIN NEEDED). Verified:
+  mainnet scan = 459,380,000 credits EXACT (2 unspent changes + 2 spent,
+  matching F36); receive parity (page dash1zpp8sjdr… == Node coin-type-5
+  derivation); history 4 self rows; **REAL MAINNET SEND 0.001 DASH →
+  our fresh d1** — toast seen, settled balance 245,240,000 (partial:
+  the poll stopped when the change note was discovered — the d1 payment
+  note is also ours, see below); memo 'mainnet f41 e2e' surfaced in
+  history; ZERO page errors. **Node on-chain proof**
+  (`scratch-mainnet-verify.mts`): tree 5,283; F36 notes decrypt (memos
+  'evonext mainnet shield'/'transfer' intact, spent flags exact); the
+  send's notes BOTH present — 100,000,000 @ d1 (tree #5281, memo
+  'mainnet f41 e2e') + 245,240,000 change @ d0 (tree #5282); settled
+  balance **345,240,000 = 0.0034524 DASH**.
+- **Deploy**: commit `bd0654e` pushed → Pages live (verified OPTIONS
+  /api/prove/pczt → 204 = the F40 Function; new wallet chunk
+  page-3411b1d9738bb830.js; wasm 26,513,399 B unchanged).
+- evorunner gotcha: the corepack pnpm cache was EVICTED mid-session
+  (~/.cache/node/corepack/v1/pnpm/11.21.0/ empty; `which pnpm` = a stale
+  /usr/bin shim) — fixed by clearing the dir + corepack prepare (npm -g
+  install was shadowed by /usr/bin/pnpm).
+
+(f) Mainnet shield (identity→pool) remains UNTESTED on mainnet ONLY
+because the e2e wallet lacks L1 funds (~0.0002 DASH residue vs the
+~305k-sat lock) — the path is code-shared with the testnet-proven flow.
+Gates: tsc 0, eslint 0 errors/1 known warning, 214/214, e2e-tsc 0,
+playwright 2/2.
+
 ## F40 — IN-APP SHIELDED WALLET: balance + receive + send + shield, ALL
 ## LIVE-VERIFIED in-browser on testnet with real funds (2026-11-13)
 
