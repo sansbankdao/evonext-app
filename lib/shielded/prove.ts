@@ -551,6 +551,14 @@ export function buildTransferPczt(options: BuildTransferOptions): TransferBuild 
 
 export const PROVER_BASE_URL = 'https://prover.sansbank.dev';
 
+/** Prover base for the CURRENT runtime: the browser goes through the
+ *  same-origin Pages Function proxy (/api/prove/pczt — functions/api/prove/
+ *  pczt.js) because the prover worker answers NO CORS preflight (verified
+ *  live 2026-11-13: OPTIONS -> 405, no Access-Control-* headers — a browser
+ *  POST dies with net::ERR_FAILED); Node keeps the direct URL. */
+export const proverBaseUrl = (): string =>
+  (typeof window !== 'undefined') ? '/api' : PROVER_BASE_URL;
+
 export interface ProvePcztResult {
   /** The parsed frame with the zkproof trailer filled. */
   frame: PcztFrame;
@@ -575,7 +583,7 @@ export class ProvePcztError extends Error {
 }
 
 /** POST a serialized PCZT frame and parse the proved response. */
-export async function postPcztFrame(frameBytes: Uint8Array, baseUrl: string = PROVER_BASE_URL): Promise<ProvePcztResult> {
+export async function postPcztFrame(frameBytes: Uint8Array, baseUrl: string = proverBaseUrl()): Promise<ProvePcztResult> {
   const response = await fetch(`${baseUrl}/prove/pczt`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/octet-stream' },

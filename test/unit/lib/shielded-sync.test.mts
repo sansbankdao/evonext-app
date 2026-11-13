@@ -140,16 +140,16 @@ describe('shielded sync layer', () => {
   beforeEach(() => {
     source = new MockSource();
     storage = memStorage();
-    sync = new ShieldedSync(source, storage, 'test_shielded', ivk);
+    sync = new ShieldedSync(source, storage, 'test_shielded', ivk, fvk.nk);
   });
 
   it('syncs a sub-chunk pool and decrypts exactly our notes', async () => {
     // 7 foreign + 3 ours (j = 0, 1, 2) + 4 foreign, interleaved.
     for (let i = 0; i < 7; i++) source.wires.push(foreignNote(i));
     const ours = [
-      encryptToUs(0, 1000n, new Uint8Array(32).fill(0xa0)),
-      encryptToUs(1, 2000n, new Uint8Array(32).fill(0xb0), 0x5a),
-      encryptToUs(2, 3000n, new Uint8Array(32).fill(0xc0)),
+      encryptToUs(0, 1000n, new Uint8Array(32).fill(0x0a)),
+      encryptToUs(1, 2000n, new Uint8Array(32).fill(0x0b), 0x5a),
+      encryptToUs(2, 3000n, new Uint8Array(32).fill(0x0c)),
     ];
     source.wires.push(ours[0]);
     source.wires.push(foreignNote(100));
@@ -186,9 +186,9 @@ describe('shielded sync layer', () => {
 
   it('persists state and restores an equivalent sync from storage', async () => {
     for (let i = 0; i < 5; i++) source.wires.push(foreignNote(i));
-    source.wires.push(encryptToUs(0, 777n, new Uint8Array(32).fill(0xd0)));
+    source.wires.push(encryptToUs(0, 777n, new Uint8Array(32).fill(0x0d)));
     await sync.syncPass();
-    const restored = new ShieldedSync(source, storage, 'test_shielded', ivk);
+    const restored = new ShieldedSync(source, storage, 'test_shielded', ivk, fvk.nk);
     expect(restored.size).toBe(6);
     expect(restored.balance()).toBe(777n);
     expect(restored.notes[0].position).toBe(5);
@@ -203,7 +203,7 @@ describe('shielded sync layer', () => {
     // our note at position CHUNK + 1.
     for (let i = 0; i < SHIELDED_CHUNK_SIZE; i++) source.wires.push(foreignNote(i));
     source.wires.push(foreignNote(SHIELDED_CHUNK_SIZE));
-    const rho = new Uint8Array(32).fill(0xe0);
+    const rho = new Uint8Array(32).fill(0x0e);
     source.wires.push(encryptToUs(3, 4242n, rho));
     source.wires.push(foreignNote(SHIELDED_CHUNK_SIZE + 2));
     expect(source.wires.length).toBe(SHIELDED_CHUNK_SIZE + 3);
@@ -235,19 +235,19 @@ describe('shielded sync layer', () => {
     source.wires.push(encryptToUs(1, 200n, new Uint8Array(32).fill(2)));
     await sync.syncPass();
     expect(sync.balance()).toBe(300n);
-    source.spentNullifiers.add(sync.notes[0].nullifier);
+    source.spentNullifiers.add(sync.notes[0].spendNullifier!);
     await sync.refreshSpent();
     expect(sync.notes[0].spent).toBe(true);
     expect(sync.notes[1].spent).toBe(false);
     expect(sync.balance()).toBe(200n);
     // Persistence round-trip keeps the spent flag.
-    const restored = new ShieldedSync(source, storage, 'test_shielded', ivk);
+    const restored = new ShieldedSync(source, storage, 'test_shielded', ivk, fvk.nk);
     expect(restored.balance()).toBe(200n);
   });
 
   it('witnessForSpend returns a path that folds to the recorded anchor', async () => {
     for (let i = 0; i < 9; i++) source.wires.push(foreignNote(i));
-    source.wires.push(encryptToUs(0, 555n, new Uint8Array(32).fill(0xf0)));
+    source.wires.push(encryptToUs(0, 555n, new Uint8Array(32).fill(0x0f)));
     for (let i = 10; i < 15; i++) source.wires.push(foreignNote(i));
     await sync.syncPass();
     const witness = await sync.witnessForSpend(9);
@@ -263,7 +263,7 @@ describe('shielded sync layer', () => {
 
   it('witnessForSpend throws ShieldedNoRecordedAnchorError when the note post-dates every recorded anchor', async () => {
     for (let i = 0; i < 12; i++) source.wires.push(foreignNote(i));
-    source.wires.push(encryptToUs(0, 1n, new Uint8Array(32).fill(0xf1)));
+    source.wires.push(encryptToUs(0, 1n, new Uint8Array(32).fill(0x1f)));
     for (let i = 0; i < 6; i++) source.wires.push(foreignNote(200 + i));
     await sync.syncPass(); // tree = 19 notes; checkpoint at 19
     // Platform prunes: its anchor set now only contains the root at 12
@@ -274,11 +274,11 @@ describe('shielded sync layer', () => {
 
   it('a corrupted storage blob falls back to a fresh state', () => {
     storage.map.set('test_shielded', '{not json');
-    const fresh = new ShieldedSync(source, storage, 'test_shielded', ivk);
+    const fresh = new ShieldedSync(source, storage, 'test_shielded', ivk, fvk.nk);
     expect(fresh.size).toBe(0);
     expect(fresh.balance()).toBe(0n);
     storage.map.set('test_shielded', JSON.stringify({ version: 99 }));
-    const fresh2 = new ShieldedSync(source, storage, 'test_shielded', ivk);
+    const fresh2 = new ShieldedSync(source, storage, 'test_shielded', ivk, fvk.nk);
     expect(fresh2.size).toBe(0);
   });
 });

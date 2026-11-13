@@ -54,6 +54,25 @@ const server = createServer(async (req, res) => {
             }
         }
 
+        // Dev parity for the Pages Function (functions/api/prove/pczt.js):
+        // forward the raw frame to the live prover, stream the response.
+        if (pathname === '/api/prove/pczt') {
+            const chunks = []
+            for await (const c of req) chunks.push(c)
+            const upstream = await fetch('https://prover.sansbank.dev/prove/pczt', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/octet-stream' },
+                body: Buffer.concat(chunks),
+            })
+            res.writeHead(upstream.status, {
+                'Content-Type': upstream.headers.get('content-type') || 'application/json',
+                'Cache-Control': 'no-store',
+            })
+            const buf = Buffer.from(await upstream.arrayBuffer())
+            res.end(buf)
+            return
+        }
+
         const body = await readFile(filePath)
         res.writeHead(200, {
             'Content-Type': MIME[extname(filePath)] || 'application/octet-stream',

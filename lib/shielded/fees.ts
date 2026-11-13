@@ -66,3 +66,33 @@ export function computeShieldedWithdrawalFee(numActions: number): bigint {
   return computeMinimumShieldedFee(numActions)
     + SHIELDED_WITHDRAWAL_DOCUMENT_STORAGE_BYTES * SHIELDED_STORAGE_PER_BYTE_RATE
 }
+
+/* Asset-lock base for the SHIELD-from-asset-lock validator (protocol v14):
+ * the drive-side v1 validation charges a flat 50,000 x CREDITS_PER_DUFF
+ * (= 1000 credits per duff) asset-lock base on top of the pool fee and
+ * checks remaining_credit_value >= shield_amount + pool_fee (AGENTS.md
+ * F31a, from the v14 validation source read). EXACT arithmetic corroborated
+ * live twice: F29 stage-2 testnet + F36 stage-2 mainnet sized 1.2B-credit
+ * locks for 1B shields — 1.2B − 1B − 164,140,000 = the recorded 35,860,000
+ * surplus, both broadcasts ACCEPTED on-chain. */
+const ASSET_LOCK_BASE_CREDITS_PER_DUFF = 50_000n
+const CREDITS_PER_DUFF = 1_000n
+
+/** The pool fee a ShieldFromAssetLock's remaining credit value must cover
+ *  for `numActions` on-wire actions (v14). For 2 actions: 114,140,000 +
+ *  50,000,000 = 164,140,000 credits. */
+export function computeShieldFromAssetLockPoolFee(numActions: number): bigint {
+  return computeMinimumShieldedFee(numActions)
+    + ASSET_LOCK_BASE_CREDITS_PER_DUFF * CREDITS_PER_DUFF
+}
+
+/** Safe lock sizing for a shield of `shieldCredits`: the pool fee + 25%
+ *  headroom so a conservative fee estimate can never brick the flow (an
+ *  oversized lock just donates a small surplus to the fee pools, bounded by
+ *  the 20B-credit implicit cap). Headroom stays FAR under that cap. */
+export function recommendedAssetLockCredits(shieldCredits: bigint): bigint {
+  const fee = computeShieldFromAssetLockPoolFee(2)
+  const withHeadroom = shieldCredits + fee + fee / 4n
+  /* Round up to a whole satoshi (1000 credits) for the L1 lock value. */
+  return ((withHeadroom + 999n) / 1000n) * 1000n
+}

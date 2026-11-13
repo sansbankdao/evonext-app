@@ -1489,6 +1489,95 @@ history of this file (see log below for commit hashes) — keep only load-bearin
 
 ## Working Rules For This Repo
 
+## F40 — IN-APP SHIELDED WALLET: balance + receive + send + shield, ALL
+## LIVE-VERIFIED in-browser on testnet with real funds (2026-11-13)
+
+The handoff's TOP PICK (§8.1) is DONE. The wallet page gained a 6th tab
+"Shielded" (`components/wallet/shielded.tsx`) + a service module
+(`lib/shielded/wallet.ts`) composing the proven stack. THE FULL USER STORY
+RAN IN A REAL BROWSER with REAL testnet funds:
+
+(a) **NEW lib/shielded/wallet.ts**: `deriveShieldedWalletKeys(seed, network)`
+(ZIP-32 coin_type 5/1, account 0), `shieldedAddressAt(keys, idx, network)`
+(bech32m), `makeShieldedSync(sdk, network, mnemonic, storage?)` (proxy-first
+source + ShieldedSync keyed `evonext_shielded_sync_<network>`, passes BOTH
+ivk AND **fvk.nk**), `textMemo` (36B kind-tag + ≤32B UTF-8),
+`selectNotesForSend` (unspent ascending, witnesses each candidate and SKIPS
+ShieldedNoRecordedAnchorError notes, fee = computeMinimumShieldedFee(
+max(spends, outputs, 2)), change → d0), `sendShielded` (decode dash1z →
+buildTransferPczt → postPcztFrame → assembleShieldedTransfer → broadcast;
+returns skip-sig hash), `shieldWithAssetLock` (identifier bs58-decoded →
+0x86 extra data → buildOutputOnlyPczt → prover → assemble), and
+`shieldFromBalance` (core-chain L1 lock → waitForConfirmation → F27i
+chainlock wait → shield; RESUME-SAFE via
+`evonext_shield_pending_lock_<addr>` persisted post-broadcast).
+`fees.ts` gained `computeShieldFromAssetLockPoolFee` (114.14M + 50M
+asset-lock base = **164,140,000** for 2 actions; arithmetic corroborated
+live twice — F29/F36 1.2B locks left exactly the recorded 35,860,000
+surplus) + `recommendedAssetLockCredits` (+25% headroom, rounded to sats).
+
+(b) **REAL BUG FOUND + FIXED in lib/shielded/sync.ts (refreshSpent)**: the
+on-chain nullifier registry holds SPEND nullifiers (Note::nullifier(nk,
+rho, psi, cm)) — the rows' nullifier field is the note's RHO (the creating
+action's spend-side nullifier, published even for dummy spends), so
+querying it reports **isSpent=true for EVERY note** (live probe: rho→true,
+recomputed→false, random→false). Fix: ShieldedSync's ctor gained an
+optional 5th arg `nk`; notes now carry `spendNullifier` (computed at
+decrypt time), refreshSpent queries those and back-fills persisted legacy
+notes. Sync tests updated (constructor takes fvk.nk; the fixture rhos
+0xa0/0xb0/… fills were NON-CANONICAL Fp elements — deriveNullifier
+rightly throws; replaced with 0x0a..0x1f fills; the test now seeds the
+mock registry with the RECOMPUTED nullifier).
+
+(c) **REAL BLOCKER FOUND + FIXED: the prover answers NO CORS preflight**
+(live: OPTIONS /prove/pczt → 405, zero Access-Control-* headers) — every
+browser prover call died net::ERR_FAILED (the prover was only ever
+Node-called). Fix: **`functions/api/prove/pczt.js`** — same-origin Pages
+Function proxying the raw octet-stream frame to the prover (server-to-
+server = no CORS); `lib/shielded/prove.ts` gained `proverBaseUrl()`
+(browser → '/api', Node → direct), `postPcztFrame` default uses it;
+`scripts/strip-wasm-from-out.mjs` adds **'/api/prove/pczt'** to
+`out/_routes.json` (else Pages 404s it); `test/static-server.mjs` proxies
+the same path for dev/Playwright parity. Follow-up (their side): add CORS
+to the wasm-prover worker itself.
+
+(d) **Wallet UI** (`components/wallet/shielded.tsx` + 6th tab on
+`app/wallet/page.tsx`, grid-cols-6, ShieldCheckIcon): balance card (sync
+scan w/ progress + note rows + spent badges), receive card (QRCodeSVG +
+copy + 'New address' index cycler), send form (dash1z/tdash1z + decimal
+amount + 32-char memo), shield form. GOTCHA preserved for future work:
+`buildTransferPczt` BLOCKS the main thread >30s (pure-TS crypto) — phase
+text freezes during build; waits must use locator.waitFor (innerText
+polling starves). Driver waits use waitFor with long deadlines.
+Post-broadcast the nullifier registry/tree updates only with the next
+block → the UI polls `syncPass + refreshSpent` until the balance moves
+(8×15s) — an immediate refresh shows STALE data.
+
+(e) **LIVE E2E (browser, real funds, `scratch-wallet-e2e-browser.mjs`)**:
+login as the F29–F32 e2e wallet ('legal winner…', identity 8Yj6Vu…) →
+Shielded tab: fresh-context rescan re-derived all history (4 SPENT rows
+incl. both send-consumed notes; balance exact) → **RECEIVE PARITY** (page
+d0 address == Node-derived `tdash1zzd44emzz…`) → **SEND #1: 0.001 DASH →
+F39's address** (`tdash1zrsu528mm…`): toast + **ON-CHAIN PROOF — F39's
+scan found the 100,000,000-credit note at tree #6751, memo 'wallet e2e
+f40'** (typed in the browser form) → **SEND #2** (0.001 again): balance →
+exactly 31,100,000 (= 245.24M − 100M − 114.14M fee) → **SHIELD 0.001
+DASH** from the L1 funding balance (lock → confirm → chainlock → prover →
+broadcast): rescan → exactly **131,100,000** (31.1M + 100M). ZERO page
+errors. **Node verification**: F39 holds TWO 100M notes (#6751 + #6753,
+both memos 'wallet e2e f40'); tree 6751 → 6757 across the session.
+`scratch-wallet-smoke.mts` verified the scan reproduces the F32-known
+459,380,000 balance BEFORE any wallet send. F39's balance now ~200M
+shielded credits — REAL cross-identity shielded transfers happened.
+
+(f) Gates: tsc 0, eslint 0 errors/1 known warning, 213/213 (incl. the
+corrected sync tests), e2e-tsc 0, evorunner builds green ×3, playwright
+2/2. Untracked harnesses: scratch-wallet-{smoke,nullifier-probe,f39-
+verify,e2e-browser}.m(t)s (+ .bundle.mjs artifacts, eslint-ignored).
+REMAINING for the wallet: unshield card (pool → L1, F32-proven path),
+worker-offload of the build (main-thread freeze), prover-side CORS,
+history UX (decripts per tx), multi-account.
+
 ## F39 — Identity-flow cleanup batch + Yappr-profile live verification (2026-11-13)
 
 User-directed 7-item batch on the identity-creation flow (review findings from F38):

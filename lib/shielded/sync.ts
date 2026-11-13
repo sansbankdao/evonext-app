@@ -29,7 +29,11 @@
 
 import { hexToBytes, bytesToHex } from '@noble/hashes/utils.js';
 import { OrchardTree, leafFromBytes, leafToBytes } from './tree';
-import { tryDecryptNoteWireWithMemo } from './note';
+import {
+    tryDecryptNoteWireWithMemo, derivePsi, deriveRcm, noteCommitmentPoint, deriveNullifier,
+} from './note';
+import { diversifyHash } from './keys';
+import { PallasPoint, bigintToBytes32LE } from './pasta';
 
 /** On-chain MMR chunk size (rs-drive paths.rs `1 << 11`; rs-platform-wallet
  *  sync.rs:54). Fetch start_index must be a multiple of this. */
@@ -56,7 +60,14 @@ export interface ShieldedSyncSource {
  *  sees a number above 2^53 (the u64/u128 string rule). */
 export interface OwnedShieldedNote {
   position: number;
-  nullifier: string; // hex, 32 bytes — the note's rho AND its on-chain nullifier preimage
+  nullifier: string; // hex, 32 bytes — the ROW's nullifier = the note's rho
+  /** hex, 32 bytes — the note's OWN spend nullifier,
+   *  Note::nullifier(nk, rho, psi, cm) (F40 fix: the row's nullifier is the
+   *  creating action's spend-side nullifier — for SPEND-created notes that
+   *  is the PARENT's revealed nullifier, and dummy spends publish theirs
+   *  too, so querying the rho ALWAYS reports spent=true. The true spend
+   *  nullifier must be recomputed from the note secrets). */
+  spendNullifier?: string;
   value: string; // decimal credits (u64)
   rseed: string; // hex, 32 bytes
   recipient: string; // hex, 43-byte raw Orchard address (diversifier || pk_d)
@@ -104,6 +115,10 @@ export class ShieldedSync {
   private readonly storage: Pick<Storage, 'getItem' | 'setItem'>;
   private readonly storageKey: string;
   private readonly ivk: bigint;
+  /** Nullifier deriving key — REQUIRED for correct spend-status queries
+   *  (refreshSpent): the on-chain nullifier registry holds spend nullifiers
+   *  (Note::nullifier(nk, rho, psi, cm)), NOT the rows' rho values. */
+  private readonly nk: bigint | undefined;
 
   private state: PersistedSyncStateV1;
   private tree: OrchardTree | null = null;
@@ -114,11 +129,13 @@ export class ShieldedSync {
     storage: Pick<Storage, 'getItem' | 'setItem'>,
     storageKey: string,
     ivk: bigint,
+    nk?: bigint,
   ) {
     this.source = source;
     this.storage = storage;
     this.storageKey = storageKey;
     this.ivk = ivk;
+    this.nk = nk;
     this.state = this.load();
   }
 
@@ -226,6 +243,10 @@ export class ShieldedSync {
           this.state.notes.push({
             position: scanned + i,
             nullifier: bytesToHex(wire.nullifier),
+            ...(this.nk !== undefined
+              ? { spendNullifier: bytesToHex(this.spendNullifierFor(
+                bytesToHex(wire.nullifier), hit.note.rseed, hit.address, hit.note.v)) }
+              : {}),
             value: hit.note.v.toString(),
             rseed: bytesToHex(hit.note.rseed),
             recipient: bytesToHex(hit.address),
@@ -279,16 +300,43 @@ export class ShieldedSync {
     return result;
   }
 
-  /** Refresh the spent flag of every owned note via getShieldedNullifiers. */
+  /** Note::nullifier(nk, rho, psi, cm) from a note's stored secrets (the
+   *  rho = the row's nullifier; address = diversifier(11) || pk_d(32); the
+   *  commitment is recomputed exactly as the prover/protocol does). */
+  private spendNullifierFor(rhoHex: string, rseed: Uint8Array, recipient: Uint8Array, value: bigint): Uint8Array {
+    if (this.nk === undefined) {
+      throw new Error('ShieldedSync: spend-status queries require nk (pass the FVK\'s nk)');
+    }
+    const rho = hexToBytes(rhoHex);
+    const psi = derivePsi(rseed, rho);
+    const rcm = deriveRcm(rseed, rho);
+    const cm = noteCommitmentPoint(
+      diversifyHash(recipient.slice(0, 11)),
+      PallasPoint.fromBytes(recipient.slice(11, 43)),
+      value, rho, psi, rcm,
+    );
+    return deriveNullifier(bigintToBytes32LE(this.nk), rho, psi, cm);
+  }
+
+  /** Refresh the spent flag of every owned note via getShieldedNullifiers —
+   *  queried with each note's RECOMPUTED spend nullifier (the on-chain
+   *  registry holds spend nullifiers, not rhos — see OwnedShieldedNote). */
   async refreshSpent(): Promise<void> {
     if (this.state.notes.length === 0) return;
-    const statuses = await this.source.getShieldedNullifiers(
-      this.state.notes.map((n) => hexToBytes(n.nullifier)),
-    );
+    const nullifiers = this.state.notes.map((n) =>
+      hexToBytes(n.spendNullifier ?? bytesToHex(
+        this.spendNullifierFor(n.nullifier, hexToBytes(n.rseed), hexToBytes(n.recipient), BigInt(n.value)))))
+      ;
+    const statuses = await this.source.getShieldedNullifiers(nullifiers);
     const byHex = new Map(statuses.map((s) => [bytesToHex(s.nullifier), s.isSpent]));
-    for (const note of this.state.notes) {
-      const spent = byHex.get(note.nullifier);
-      if (spent !== undefined) note.spent = spent;
+    for (let i = 0; i < this.state.notes.length; i++) {
+      const spent = byHex.get(bytesToHex(nullifiers[i]));
+      if (spent !== undefined) {
+        this.state.notes[i].spent = spent;
+        if (this.nk !== undefined && !this.state.notes[i].spendNullifier) {
+          this.state.notes[i].spendNullifier = bytesToHex(nullifiers[i]);
+        }
+      }
     }
     this.persist();
   }

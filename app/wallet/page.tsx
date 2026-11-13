@@ -6,6 +6,7 @@ import {
     ArrowPathIcon,
     ArrowUpTrayIcon,
     BarsArrowDownIcon,
+    ShieldCheckIcon,
     SparklesIcon,
 } from '@heroicons/react/24/outline'
 import Image from 'next/image'
@@ -28,6 +29,7 @@ import { WalletDeposit } from '@/components/wallet/deposit'
 import { WalletSwap } from '@/components/wallet/swap'
 import { WalletHistory } from '@/components/wallet/history'
 import { WalletSend } from '@/components/wallet/send'
+import { WalletShielded } from '@/components/wallet/shielded'
 
 export default function WalletPage() {
     const { user } = useAuth()
@@ -187,7 +189,7 @@ export default function WalletPage() {
                 </button>
 
                 <div className="block">
-                    <nav className="isolate grid grid-cols-5 divide-x divide-gray-200 rounded-x-lg rounded-b-lg shadow" aria-label="Tabs">
+                    <nav className="isolate grid grid-cols-6 divide-x divide-gray-200 rounded-x-lg rounded-b-lg shadow" aria-label="Tabs">
                         <div onClick={() => setActiveTab('deposit')} className={`cursor-pointer bg-gray-700 rounded-bl-lg group relative min-w-0 flex flex-row justify-center items-center gap-1 overflow-hidden py-2 px-2 text-sm font-medium hover:bg-stone-400 hover:text-gray-600 focus:z-10`} aria-current="page">
                             <ArrowDownTrayIcon className="w-5 h-auto text-slate-100" />
 
@@ -228,7 +230,7 @@ export default function WalletPage() {
                             <span aria-hidden="true" className={`absolute inset-x-0 bottom-0 h-1 ${[ activeTab === 'history' ? 'bg-sky-500' : 'bg-transparent' ]}`}></span>
                         </div>
 
-                        <div onClick={() => setActiveTab('assistant')} className={`cursor-pointer bg-gray-700 rounded-br-lg group relative min-w-0 flex flex-row justify-center items-center gap-1 overflow-hidden py-2 px-2 text-sm font-medium hover:bg-stone-400 hover:text-gray-600 focus:z-10`} aria-current="page">
+                        <div onClick={() => setActiveTab('assistant')} className={`cursor-pointer bg-gray-700 group relative min-w-0 flex flex-row justify-center items-center gap-1 overflow-hidden py-2 px-2 text-sm font-medium hover:bg-stone-400 hover:text-gray-600 focus:z-10`} aria-current="page">
                             <SparklesIcon className="w-5 h-auto text-slate-100" />
 
                             <span className={`text-xs sm:text-sm  ${[ activeTab === 'assistant' ? 'text-slate-100' : 'text-slate-300 group-hover:text-slate-100' ]}`}>
@@ -236,6 +238,16 @@ export default function WalletPage() {
                             </span>
 
                             <span aria-hidden="true" className={`absolute inset-x-0 bottom-0 h-1 ${[ activeTab === 'assistant' ? 'bg-sky-500' : 'bg-transparent' ]}`}></span>
+                        </div>
+
+                        <div onClick={() => setActiveTab('shielded')} className={`cursor-pointer bg-gray-700 rounded-br-lg group relative min-w-0 flex flex-row justify-center items-center gap-1 overflow-hidden py-2 px-2 text-sm font-medium hover:bg-stone-400 hover:text-gray-600 focus:z-10`} aria-current="page">
+                            <ShieldCheckIcon className="w-5 h-auto text-slate-100" />
+
+                            <span className={`text-xs sm:text-sm  ${[ activeTab === 'shielded' ? 'text-slate-100' : 'text-slate-300 group-hover:text-slate-100' ]}`}>
+                                Shielded
+                            </span>
+
+                            <span aria-hidden="true" className={`absolute inset-x-0 bottom-0 h-1 ${[ activeTab === 'shielded' ? 'bg-sky-500' : 'bg-transparent' ]}`}></span>
                         </div>
                     </nav>
                 </div>
@@ -262,6 +274,10 @@ export default function WalletPage() {
                     />}
 
                     {activeTab === 'assistant' && <WalletAssistant
+                        isFullScreen={isFullScreen}
+                    />}
+
+                    {activeTab === 'shielded' && <WalletShielded
                         isFullScreen={isFullScreen}
                     />}
                 </div>
