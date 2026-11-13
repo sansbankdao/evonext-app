@@ -11,8 +11,38 @@ export function Header() {
     const { network } =  useNetwork()
 
     return (
-        <div className="absolute top-0 z-40 w-screen h-14 sm:h-16 lg:h-[72px] bg-evonext-500 text-white px-4 py-2 text-sm">
-            <div className="pr-7 top-2.5 w-full max-w-7xl mx-auto flex items-center justify-between">
+        <div className="absolute top-0 z-40 w-screen h-14 sm:h-16 lg:h-[72px] text-white px-4 py-2 text-sm overflow-hidden shadow-[0_2px_16px_rgba(199,2,132,0.35)]">
+            {/* Layered background: brand gradient + light blooms + a fine
+                diagonal weave + a top sheen — replaces the flat fuchsia. */}
+            <div
+                aria-hidden="true"
+                className="absolute inset-0 bg-[linear-gradient(100deg,#6e0c4a_0%,#a10369_18%,#c70284_38%,#e90ea5_58%,#f838bd_82%,#fc7dd3_100%)]"
+            />
+            <div
+                aria-hidden="true"
+                className="absolute inset-0 bg-[radial-gradient(120%_200%_at_0%_0%,rgba(255,255,255,0.18),transparent_42%)]"
+            />
+            <div
+                aria-hidden="true"
+                className="absolute inset-0 bg-[radial-gradient(90%_170%_at_100%_130%,rgba(88,28,135,0.5),transparent_58%)]"
+            />
+            <div
+                aria-hidden="true"
+                className="absolute inset-0 bg-[radial-gradient(60%_120%_at_72%_-20%,rgba(255,209,238,0.25),transparent_55%)]"
+            />
+            <div
+                aria-hidden="true"
+                className="absolute inset-0 bg-[repeating-linear-gradient(115deg,rgba(255,255,255,0.05)_0px,rgba(255,255,255,0.05)_1px,transparent_1px,transparent_7px)]"
+            />
+            <div
+                aria-hidden="true"
+                className="absolute inset-x-0 top-0 h-px bg-white/25"
+            />
+            <div
+                aria-hidden="true"
+                className="absolute inset-x-0 bottom-0 h-px bg-black/15"
+            />
+            <div className="relative z-10 pr-7 top-2.5 w-full max-w-7xl mx-auto flex items-center justify-between">
                 <Link href="/" className="-mt-2 sm:-mt-2 lg:-mt-1 flex md:flex-col text-sm font-mono tracking-wider items-center">
                     <span className={`px-2 text-4xl sm:text-5xl font-bold inline tracking-wider ${network !== 'mainnet' ? '' : 'pt-3'}`}>
                         ΞvoNext

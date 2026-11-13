@@ -1489,6 +1489,47 @@ history of this file (see log below for commit hashes) — keep only load-bearin
 
 ## Working Rules For This Repo
 
+## F42 — WALLET RESTRUCTURE: Shielded/Transparent line items, tabs trimmed;
+## HEADER gradient makeover (2026-11-14)
+
+User directive (mobile-parity per evonext-mobile's balance model —
+Transparent + Shielded rows, docs/HANDOFF-wallet-balance-model.md):
+
+(a) **`app/wallet/page.tsx`**: the Assistant and Shielded TABS are REMOVED
+(nav = 4 tabs: Deposit/Send/Swap/History; WalletAssistant import removed).
+The dashboard card gained two LINE ITEMS (stopPropagation so the card's
+to-assets click is preserved; the outer card button became a div to avoid
+nested buttons):
+- **Shielded** — the local note-scan balance (persisted, incremental) +
+  USD (dashswap feed, 10-min cache `evonext_dash_usd`); click → opens
+  `WalletShielded` FULL-SCREEN (`showShielded` state hides the dashboard
+  + tabs; the component renders a back header via the new `onBack` prop).
+- **Transparent** — the identity credits balance + USD; click → the Send
+  tab (transparent credits' actions).
+The dashboard scan effect is BOUNDED + RETRIED (3×: syncPass 120s cap,
+refreshSpent 60s cap, 8s backoff) — the wasm request-timeout can leave a
+query pending FOREVER (F30 gotcha) and the dapi-proxy fetch has a 12s cap
+(observed live: the first chunk aborted → the WASM fallback completed the
+scan in ~40-60s; syncPass is resumable so retries just continue).
+
+(b) **`components/ui/header.tsx`** (the flat `bg-evonext-500` #e90ea5
+fuchsia): replaced with a LAYERED background — 100° brand gradient
+(#6e0c4a→#a10369→#c70284→#e90ea5→#f838bd→#fc7dd3), two radial light blooms
+(top-left white sheen, bottom-right violet depth), a top-center fuchsia
+glow, a 1px repeating 115° weave (white 5%), top/bottom hairlines, and a
+fuchsia drop shadow; content lifted to relative z-10. Verified via
+getComputedStyle: all 5 image layers render.
+
+(c) **LIVE-VERIFIED in-browser** (`scratch-dashboard-e2e-browser.mjs`,
+testnet real session): nav = exactly Deposit/Send/Swap/History (no
+Assistant/Shielded tabs); line items render; the Shielded item shows the
+live scan (0.001311 DASH / $0.0525 — GOTCHA: numeral '0,0.0000[0000]'
+trims OPTIONAL trailing zeros, rendering 6 significant decimals — do not
+expect fixed 8); Transparent shows 0.17624083 DASH; Shielded → full-screen
+view (back header + history + balance); Back → dashboard restored; zero
+page errors. Gates: tsc 0, eslint 0 errors/1 known warning, 214/214,
+playwright 2/2, evorunner build green.
+
 ## F41 — SHIELDED TRANSACTION HISTORY (ZIP-144 OVK sender recovery) +
 ## MAINNET send/receive LIVE-VERIFIED against PRODUCTION (2026-11-13)
 

@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { showErrorToast } from '@/lib/toast-error'
 import toast from 'react-hot-toast'
-import { Loader2, Copy, RefreshCw, ShieldCheck, Send, Download, ArrowUpRight, ArrowDownLeft, Repeat2, History } from 'lucide-react'
+import { Loader2, Copy, RefreshCw, ShieldCheck, Send, Download, ArrowUpRight, ArrowDownLeft, Repeat2, History, ArrowLeft } from 'lucide-react'
 // @ts-ignore
 import { QRCodeSVG } from 'qrcode.react'
 
@@ -47,7 +47,12 @@ const creditsToDash = (credits: bigint): string => {
     return frac ? `${whole}.${frac}` : `${whole}`
 }
 
-export function WalletShielded({ isFullScreen }: { isFullScreen?: boolean }) {
+export function WalletShielded({ isFullScreen, onBack }: {
+    isFullScreen?: boolean
+    /* When provided, the component renders a back header (the dashboard
+     * opens it as a full-screen view instead of a tab). */
+    onBack?: () => void
+}) {
     const { user } = useAuth()
     const { network } = useNetwork()
     const isMainnet = network === 'mainnet'
@@ -280,6 +285,19 @@ export function WalletShielded({ isFullScreen }: { isFullScreen?: boolean }) {
 
     return (
         <div className="space-y-4">
+            {onBack && (
+                <div className="flex items-center gap-3 mb-2">
+                    <button
+                        onClick={onBack}
+                        className="flex items-center gap-1.5 text-sm font-medium text-sky-700 hover:text-sky-900 transition-colors"
+                    >
+                        <ArrowLeft className="w-4 h-4" />
+                        Back to wallet
+                    </button>
+                    <h1 className="text-lg font-bold">Shielded Wallet</h1>
+                </div>
+            )}
+
             {/* BALANCE */}
             <div className="rounded-2xl border border-gray-200 dark:border-gray-800 overflow-hidden">
                 <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-800 bg-gradient-to-b from-sky-50 to-white dark:from-sky-950/40 dark:to-transparent">
