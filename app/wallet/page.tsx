@@ -16,7 +16,11 @@ import { showErrorToast } from '@/lib/toast-error'
 // @ts-ignore
 import numeral from 'numeral'
 
-import { getWasmSdk } from '../../lib/services/wasm-sdk-service'
+import { getWasmSdk, wasmSdkService } from '../../lib/services/wasm-sdk-service'
+import { fetchPlatformAddressBalance } from '../../lib/platform-address'
+import { getMnemonic } from '../../lib/secure-storage'
+import { EVONEXT_CONTRACT_ID_TESTNET, EVONEXT_CONTRACT_ID_MAINNET } from '../../lib/constants'
+import { shieldedEngine, persistedShieldedBalance } from '../../lib/shielded/engine-client'
 
 import { useAuth } from '@/contexts/auth-context'
 import { useNetwork } from '@/contexts/network-context'
@@ -35,6 +39,86 @@ export default function WalletPage() {
 
     const [displayBalance, setDisplayBalance] = useState(0)
     const [displayBalanceUsd, setDisplayBalanceUsd] = useState(0)
+    /* The DASH/USD price for the total's USD figure. */
+    const [dashPrice, setDashPrice] = useState(0)
+
+    /* ALL THREE balances (owner directive — the dashboard shows a TOTAL:
+     * identity + Platform Transparent + Platform Shielded). Transparent
+     * comes from the DIP-17 address pool (bounded effect, the same
+     * pattern the Assets row uses); Shielded comes from the shielded
+     * engine worker (instant seed from the persisted scan, then live
+     * updates as the engine scans). No Core (L1) balance — ever. */
+    const [platformCredits, setPlatformCredits] = useState<bigint | null>(null)
+    const [shieldedCredits, setShieldedCredits] = useState<bigint | null>(null)
+
+    useEffect(() => {
+        if (typeof user !== 'undefined' && user !== null) {
+            let cancelled = false
+            const withTimeout = <T,>(p: Promise<T>, ms: number, what: string): Promise<T> =>
+                Promise.race([
+                    p,
+                    new Promise<T>((_, reject) => setTimeout(() => reject(new Error(`${what} timed out after ${ms / 1000}s`)), ms)),
+                ])
+            const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+
+            ;(async () => {
+                try {
+                    /* Shielded: instant seed + live engine updates. */
+                    const sdkNetwork = network === 'mainnet' ? 'mainnet' : 'testnet'
+                    const seeded = persistedShieldedBalance(sdkNetwork)
+                    if (seeded !== null && !cancelled) setShieldedCredits(seeded)
+                    const mnemonic = getMnemonic()
+                    if (mnemonic) {
+                        try {
+                            await shieldedEngine.start({ network: sdkNetwork, mnemonic })
+                            const snap = await shieldedEngine.snapshot()
+                            if (!cancelled) setShieldedCredits(BigInt(snap.balance))
+                        } catch { /* the row shows zero until a scan lands */ }
+                        const off = shieldedEngine.onScanStatus(({ balance }) => {
+                            if (!cancelled) setShieldedCredits(BigInt(balance))
+                        })
+                        return () => { off() }
+                    }
+                } catch (err: any) {
+                    console.error('dashboard shielded balance failed:', err?.message)
+                }
+            })()
+
+            ;(async () => {
+                try {
+                    const sdkNetwork = network === 'mainnet' ? 'mainnet' : 'testnet'
+                    /* The main-thread SDK must be live (the F37 guard). */
+                    if (!wasmSdkService.isReady() || wasmSdkService.initializedNetwork() !== sdkNetwork) {
+                        await wasmSdkService.initialize({
+                            network: sdkNetwork,
+                            contractId: sdkNetwork === 'mainnet'
+                                ? EVONEXT_CONTRACT_ID_MAINNET
+                                : EVONEXT_CONTRACT_ID_TESTNET,
+                        })
+                    }
+                    for (let attempt = 0; attempt < 3 && !cancelled; attempt++) {
+                        try {
+                            const sdk = await getWasmSdk()
+                            const credits = await withTimeout(
+                                fetchPlatformAddressBalance(sdk, sdkNetwork),
+                                90000,
+                                `dashboard platform balance (attempt ${attempt + 1})`)
+                            if (!cancelled) setPlatformCredits(credits)
+                            return
+                        } catch (err: any) {
+                            if (cancelled) return
+                            console.error(`dashboard platform scan attempt ${attempt + 1} failed:`, err?.message)
+                            await sleep(5000)
+                        }
+                    }
+                } catch (err: any) {
+                    console.error('dashboard platform balance failed:', err?.message)
+                }
+            })()
+
+            return () => { cancelled = true }
+        }
+    }, [network, user])
     const [tokensBalanceUsd, setTokensBalanceUsd] = useState(0)
     const [tokens, setTokens] = useState({})
 
@@ -84,6 +168,7 @@ export default function WalletPage() {
             const response = await fetch(ENDPOINT)
             const ticker = await response.json()
             const dashUsdValue = ticker.quote.USD.price
+            setDashPrice(dashUsdValue)
 
             /* Validate user. */
             if (typeof user !== 'undefined' && user !== null) {
@@ -111,6 +196,12 @@ export default function WalletPage() {
         /* Fetch (async) data. */
         fetchData()
     }, [user])
+
+    /* The three balances in DASH (credits -> DASH at 1e11) + the total. */
+    const identityDash = Number(user?.balance ?? 0) / 10 ** 11
+    const platformDash = Number(platformCredits ?? 0n) / 10 ** 11
+    const shieldedDash = Number(shieldedCredits ?? 0n) / 10 ** 11
+    const totalDash = identityDash + platformDash + shieldedDash
 
     return (
         <div className="min-h-screen flex">
@@ -140,24 +231,45 @@ export default function WalletPage() {
                                 {user?.identityId}
                             </h3>}
 
-                            {/* The IDENTITY balance lives here — under the
-                                username + address (owner directive). The
-                                Transparent asset row shows the Platform-
-                                address pool balance instead. Withdrawals
-                                live in the Send tab's Advanced Options. */}
+                            {/* ALL THREE balances under the username +
+                                address: a TOTAL (identity + Platform
+                                Transparent + Platform Shielded) with the
+                                three-way breakdown. Withdrawals live in
+                                the Send tab's Advanced Options. */}
                             <div className="mt-2 pt-2 border-t border-sky-200">
                                 <h3 className="text-2xs tracking-widest text-sky-500 font-medium uppercase">
-                                    Identity balance
+                                    Total balance
                                 </h3>
 
-                                <h2 className="text-xl text-gray-600 font-medium">
-                                    {displayBalance}
+                                <h2 className="text-2xl text-gray-700 font-semibold">
+                                    {numeral(totalDash).format('0,0.0000[0000]')}
                                     <small className="text-sky-400"> DASH</small>
                                 </h2>
 
                                 <h3 className="text-sm text-gray-500 font-medium">
-                                    {displayBalanceUsd}
+                                    {numeral(totalDash * dashPrice).format('$0,0.00[00]')}
                                 </h3>
+
+                                <div className="mt-2 grid grid-cols-3 gap-2">
+                                    <div className="rounded-lg bg-white/70 border border-sky-100 px-2 py-1.5">
+                                        <h3 className="text-2xs tracking-wider text-sky-500 uppercase font-medium">Identity</h3>
+                                        <h3 className="text-xs text-gray-700 font-semibold truncate">
+                                            {numeral(identityDash).format('0,0.0000[0000]')}
+                                        </h3>
+                                    </div>
+                                    <div className="rounded-lg bg-white/70 border border-sky-100 px-2 py-1.5">
+                                        <h3 className="text-2xs tracking-wider text-sky-500 uppercase font-medium">Transparent</h3>
+                                        <h3 className="text-xs text-gray-700 font-semibold truncate">
+                                            {numeral(platformDash).format('0,0.0000[0000]')}
+                                        </h3>
+                                    </div>
+                                    <div className="rounded-lg bg-white/70 border border-sky-100 px-2 py-1.5">
+                                        <h3 className="text-2xs tracking-wider text-sky-500 uppercase font-medium">Shielded</h3>
+                                        <h3 className="text-xs text-gray-700 font-semibold truncate">
+                                            {numeral(shieldedDash).format('0,0.0000[0000]')}
+                                        </h3>
+                                    </div>
+                                </div>
                             </div>
                         </section>
 

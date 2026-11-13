@@ -57,6 +57,10 @@ interface EngineSnapshot {
 /* --- State -------------------------------------------------------------- */
 
 let network: Network = 'testnet'
+/** Guards against a second 'init' while one is still running (the
+ *  client single-flights, but the worker is the last line of defense —
+ *  concurrent initEngine runs break the wasm's closures). */
+let initInFlight = false
 let sdk: any = null
 let keys: ShieldedWalletKeys | null = null
 let sync: ShieldedSync | null = null
@@ -256,9 +260,12 @@ const handleRpc = async (id: number, method: string, params: any): Promise<void>
 ctx.addEventListener('message', (event: MessageEvent) => {
     const data = event.data as any
     if (data?.type === 'init') {
+        if (initInFlight) return
+        initInFlight = true
         initEngine({ network: data.network, mnemonic: data.mnemonic, state: data.state })
             .then(() => post({ type: 'ready' }))
             .catch((error: any) => post({ type: 'initFailed', error: error?.message || String(error) }))
+            .finally(() => { initInFlight = false })
         return
     }
     if (data?.type === 'rpc') {

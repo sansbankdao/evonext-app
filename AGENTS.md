@@ -1489,6 +1489,44 @@ history of this file (see log below for commit hashes) — keep only load-bearin
 
 ## Working Rules For This Repo
 
+## F50 — Dashboard TOTAL balance (all three pools) + Deposit ONE-address
+## makeover + engine-worker single-flight init (2026-11-14)
+
+User: "you have the IDENTITY balance but NO TOTAL balance — take ALL 3
+balances (identity, Platform Transparent, Platform Shielded); do NOT
+show all 3 addresses at once; makeover the UI into something modern."
+
+(a) **Dashboard TOTAL**: the MY IDENTITY DASHBOARD card now shows a big
+**TOTAL BALANCE** (identity + Platform Transparent + Platform Shielded,
+DASH + USD) with a three-tile breakdown (Identity / Transparent /
+Shielded) beneath it. Sources: identity = the session balance;
+Transparent = `fetchPlatformAddressBalance` (bounded 3×90s effect with
+the F37 main-thread init guard); Shielded = instant seed from
+`persistedShieldedBalance` + the engine's `onScanStatus` live updates.
+NOTE: in a FRESH browser the engine re-syncs from scratch (0 owned
+notes until the scan reaches them, ~1–2 min) — the total grows as the
+scan progresses; that is the designed resumable behavior, not a bug.
+
+(b) **Deposit makeover**: the side-by-side tiles are GONE — ONE address
+at a time behind a segmented selector (Transparent | Shielded |
+Identity), modern rounded-2xl card (QR 148 + full mono address + copy
+button + a one-line subtitle per target). The identity id remains the
+target for direct credit transfers.
+
+(c) **ENGINE-WORKER SINGLE-FLIGHT INIT** (a real race fixed): the page,
+Assets row and Deposit tab all call `shieldedEngine.start()` in the
+same tick → three concurrent 'init' messages broke the worker's wasm
+closures ('FnOnce called more than once' / 'closure invoked recursively
+or after being dropped'). `engine-client.start()` now SINGLE-FLIGHTS
+(all same-key callers share one in-flight init; a different key chains
+behind it), and the worker ignores an 'init' while one is running
+(`initInFlight` guard). Zero page errors after.
+
+Gates: tsc 0, eslint 0 errors/1 known warning, 214/214, playwright 2/2,
+evorunner build green. Browser e2e: total 0.17755183 = 0.17624083 +
+0 + 0.001311 EXACT after the scan; segmented switching hides the
+non-selected address; zero page errors.
+
 ## F49 — Withdraw UI consolidated into SEND's Advanced Options; DEPOSIT
 ## gained the Transparent + Shielded receive addresses (2026-11-14)
 

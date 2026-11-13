@@ -252,6 +252,9 @@ export function WalletDeposit({ isFullScreen }: WalletDepositProps) {
      * identity credit transfers. */
     const [platformAddr, setPlatformAddr] = useState('')
     const [shieldedAddr, setShieldedAddr] = useState('')
+    /* ONE address shown at a time (owner directive — never all three at
+     * once): 'transparent' | 'shielded' | 'identity'. */
+    const [receiveTarget, setReceiveTarget] = useState<'transparent' | 'shielded' | 'identity'>('transparent')
 
     useEffect(() => {
         let cancelled = false
@@ -352,51 +355,77 @@ export function WalletDeposit({ isFullScreen }: WalletDepositProps) {
                 </section>
             </Link>
 
-            {/* RECEIVE ON PLATFORM — the two L2 pools (owner directive: the
-                wallet receives into Transparent and Shielded; Core is an
-                on-ramp only). */}
-            <section className="grid grid-cols-1 sm:grid-cols-2 gap-3 my-5">
-                <div className="w-full px-3 py-3 bg-sky-50 border-2 border-sky-200 rounded-lg shadow">
-                    <h2 className="text-xs text-sky-600/80 font-medium text-center uppercase tracking-widest">
-                        Transparent (Platform)
+            {/* RECEIVE — ONE address at a time (owner directive): a
+                segmented selector over Transparent (Platform), Shielded
+                (private) and the identity id (direct credit transfers). */}
+            <section className="my-5 rounded-2xl border border-sky-200 bg-gradient-to-br from-white via-sky-50/80 to-sky-100 shadow-sm p-4">
+                <div className="flex items-center justify-between mb-3">
+                    <h2 className="text-sm font-semibold text-sky-900 uppercase tracking-wide">
+                        Receive
                     </h2>
-
-                    <div className="my-2 flex justify-center">
-                        {platformAddr
-                            ? <QRCodeSVG value={platformAddr} size={128} />
-                            : <span className="text-sm text-gray-400">…</span>}
-                    </div>
-
-                    <button
-                        onClick={() => copyAddress(platformAddr, 'Transparent')}
-                        title="Click to copy"
-                        className="w-full flex items-center gap-1.5 px-2 py-1.5 rounded-md bg-white border border-sky-200 font-mono text-2xs text-sky-800 break-all text-left hover:border-sky-400 transition-colors"
-                    >
-                        <ClipboardDocumentIcon className="w-3.5 h-3.5 shrink-0 text-sky-500" />
-                        <span className="truncate">{platformAddr || '…'}</span>
-                    </button>
                 </div>
 
-                <div className="w-full px-3 py-3 bg-sky-50 border-2 border-sky-200 rounded-lg shadow">
-                    <h2 className="text-xs text-sky-600/80 font-medium text-center uppercase tracking-widest">
-                        Shielded (private)
-                    </h2>
-
-                    <div className="my-2 flex justify-center">
-                        {shieldedAddr
-                            ? <QRCodeSVG value={shieldedAddr} size={128} />
-                            : <span className="text-sm text-gray-400">…</span>}
-                    </div>
-
-                    <button
-                        onClick={() => copyAddress(shieldedAddr, 'Shielded')}
-                        title="Click to copy"
-                        className="w-full flex items-center gap-1.5 px-2 py-1.5 rounded-md bg-white border border-sky-200 font-mono text-2xs text-sky-800 break-all text-left hover:border-sky-400 transition-colors"
-                    >
-                        <ClipboardDocumentIcon className="w-3.5 h-3.5 shrink-0 text-sky-500" />
-                        <span className="truncate">{shieldedAddr || '…'}</span>
-                    </button>
+                {/* Segmented selector. */}
+                <div className="flex rounded-xl bg-sky-100/80 border border-sky-200 p-1 gap-1">
+                    {([
+                        { key: 'transparent', label: 'Transparent' },
+                        { key: 'shielded', label: 'Shielded' },
+                        { key: 'identity', label: 'Identity' },
+                    ] as const).map(({ key, label }) => (
+                        <button
+                            key={key}
+                            onClick={() => setReceiveTarget(key)}
+                            className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${receiveTarget === key ? 'bg-sky-600 text-white shadow-sm' : 'text-sky-700 hover:bg-white/70'}`}
+                        >
+                            {label}
+                        </button>
+                    ))}
                 </div>
+
+                {/* The selected address. */}
+                {(() => {
+                    const value = receiveTarget === 'transparent'
+                        ? platformAddr
+                        : receiveTarget === 'shielded'
+                            ? shieldedAddr
+                            : (user?.identityId || '')
+                    const what = receiveTarget === 'transparent'
+                        ? 'Transparent'
+                        : receiveTarget === 'shielded'
+                            ? 'Shielded'
+                            : 'Identity'
+                    const subtitle = receiveTarget === 'transparent'
+                        ? 'Your DIP-17 Platform payment address — funds land in your Transparent balance.'
+                        : receiveTarget === 'shielded'
+                            ? 'Your Orchard address — only your phrase can see and spend these funds.'
+                            : 'Your identity id — direct Platform credit transfers.'
+                    return (
+                        <div className="mt-4 flex flex-col sm:flex-row items-center gap-4">
+                            <div className="rounded-xl border border-sky-200 bg-white p-2 shadow-sm shrink-0">
+                                {value
+                                    ? <QRCodeSVG value={value} size={148} />
+                                    : <div className="w-[148px] h-[148px] flex items-center justify-center text-sm text-gray-400">…</div>}
+                            </div>
+                            <div className="flex-1 w-full space-y-2">
+                                <p className="text-xs text-gray-500">{subtitle}</p>
+                                <button
+                                    onClick={() => copyAddress(value, what)}
+                                    title="Click to copy"
+                                    className="w-full flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white border border-gray-200 font-mono text-xs text-gray-700 break-all text-left hover:border-sky-400 transition-colors"
+                                >
+                                    <ClipboardDocumentIcon className="w-3.5 h-3.5 shrink-0 text-sky-500" />
+                                    <span className="break-all">{value || '…'}</span>
+                                </button>
+                                <button
+                                    onClick={() => copyAddress(value, what)}
+                                    className="w-full sm:w-auto rounded-lg bg-sky-600 hover:bg-sky-700 text-white text-xs font-medium px-4 py-2 transition-colors"
+                                >
+                                    Copy {what} address
+                                </button>
+                            </div>
+                        </div>
+                    )
+                })()}
             </section>
 
             <section>

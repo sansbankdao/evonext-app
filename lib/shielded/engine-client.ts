@@ -137,11 +137,20 @@ class ShieldedEngineClient {
         return worker
     }
 
-    /** Idempotent per (network, mnemonic). Re-inits the engine when either
-     *  changes (the worker rebuilds sdk/keys/sync from the new state). */
+    /** Idempotent per (network, mnemonic) AND SINGLE-FLIGHT: multiple
+     *  components (the wallet page, the Assets row, the Deposit tab) may
+     *  call start() in the same tick — they ALL share one in-flight init
+     *  (three concurrent 'init' messages break the worker's wasm
+     *  closures: 'FnOnce called more than once'). Re-inits the engine
+     *  when the key CHANGES. */
     start(options: { network: Network; mnemonic: string }): Promise<void> {
         const key = `${options.network}:${options.mnemonic}`
         if (this.startKey === key && this.startPromise) return this.startPromise
+        if (this.startPromise) {
+            /* A start is in flight (possibly for another key) — chain
+             * behind it, then re-evaluate. */
+            return this.startPromise.then(() => this.start(options))
+        }
         const worker = this.ensureWorker()
         this.network = options.network
         let raw: string | null = null
