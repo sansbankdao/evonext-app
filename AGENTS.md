@@ -1489,6 +1489,38 @@ history of this file (see log below for commit hashes) — keep only load-bearin
 
 ## Working Rules For This Repo
 
+## F49 — Withdraw UI consolidated into SEND's Advanced Options; DEPOSIT
+## gained the Transparent + Shielded receive addresses (2026-11-14)
+
+User: "I do not want a withdraw UI — embed the function into Send (there
+is an 'Advanced Options, TBD...' there); eventually we auto-detect the
+Core address. And I need a way to RECEIVE Platform Transparent and
+Shielded — update the Deposit UI."
+
+(a) **The F46 dashboard withdraw panel REMOVED** (the F46 duplicate —
+the F25-proven card was ALREADY in Send → Advanced Options). The
+dashboard keeps only the IDENTITY balance block under the username +
+address (now rendering the session balance directly — the dashPrice
+state + handler + walletManager/coreChain page imports removed). The
+Send tab's F25 card stays as the ONE withdraw path (destination input
+stays manual for now — auto-detection is a later task).
+
+(b) **`components/wallet/deposit.tsx`**: NEW receive-address card — two
+tiles with QRs + copy: **Transparent (Platform)** = the DIP-17 address
+from `derivePlatformReceiveAddress(network, 0)` (LOCAL derivation) and
+**Shielded (private)** = the Orchard address via the ENGINE WORKER's
+'receiveAddress' RPC (`shieldedEngine.start` then bounded 10×3s retry —
+the worker's trusted-context prefetch can take seconds on first load).
+The identity-id card stays (direct identity credit transfers). No Core
+balance is shown anywhere (owner rule).
+
+(c) Browser e2e (`scratch-deposit-e2e.mjs`): dashboard withdraw panel
+GONE, identity balance present; Deposit shows both tiles with real
+tdash1k… (DIP-17) and tdash1z… (Orchard) addresses; Send → Advanced
+Options carries the withdraw card; zero page errors.
+Gates: tsc 0, eslint 0 errors/1 known warning, 214/214, playwright 2/2,
+evorunner build green.
+
 ## F48 — WITHDRAWAL PROOF completed + corrections (2026-11-14)
 
 (a) **The F46 testnet withdraw ran TWICE — process error, owned.** The

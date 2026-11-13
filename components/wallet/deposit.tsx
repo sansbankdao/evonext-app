@@ -4,8 +4,14 @@ import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useAuth } from '@/contexts/auth-context'
-import { BoltIcon, UserIcon } from '@heroicons/react/24/outline'
+import { useNetwork } from '@/contexts/network-context'
+import { BoltIcon, UserIcon, ClipboardDocumentIcon } from '@heroicons/react/24/outline'
 import { QRCodeSVG } from 'qrcode.react'
+import toast from 'react-hot-toast'
+import { showErrorToast } from '@/lib/toast-error'
+import { getMnemonic } from '@/lib/secure-storage'
+import { derivePlatformReceiveAddress } from '@/lib/platform-address'
+import { shieldedEngine } from '@/lib/shielded/engine-client'
 
 import { CurrencyTypeSelector } from './CurrencyTypeSelector'
 
@@ -234,8 +240,58 @@ interface WalletDepositProps {
 
 export function WalletDeposit({ isFullScreen }: WalletDepositProps) {
     const { user } =  useAuth()
+    const { network } = useNetwork()
+    const sdkNetwork = network === 'mainnet' ? 'mainnet' : 'testnet'
     const [depositAmount, setDepositAmount] = useState(0)
     const [isShowingCurrencyOptions, setIsShowingCurrencyOptions] = useState(false)
+
+    /* RECEIVE addresses for the two L2 pools — Transparent (the DIP-17
+     * Platform payment address, dash1k…/tdash1k…) and Shielded (the
+     * Orchard address, dash1z…/tdash1z…, derived in the shielded engine
+     * worker). The identity id above remains the target for direct
+     * identity credit transfers. */
+    const [platformAddr, setPlatformAddr] = useState('')
+    const [shieldedAddr, setShieldedAddr] = useState('')
+
+    useEffect(() => {
+        let cancelled = false
+        ;(async () => {
+            try {
+                const mnemonic = getMnemonic()
+                if (!mnemonic) return
+                /* Transparent: LOCAL derivation (no network I/O). */
+                const platform = derivePlatformReceiveAddress(sdkNetwork, 0)
+                if (!cancelled) setPlatformAddr(platform)
+                /* Shielded: the address derives in the engine worker —
+                 * the worker init (trusted-context prefetch) can take a
+                 * few seconds on first load, so retry until it is ready. */
+                await shieldedEngine.start({ network: sdkNetwork, mnemonic })
+                for (let attempt = 0; attempt < 10 && !cancelled; attempt++) {
+                    try {
+                        const shielded = await shieldedEngine.receiveAddress(0)
+                        if (!cancelled) setShieldedAddr(shielded)
+                        break
+                    } catch {
+                        await new Promise((resolve) => setTimeout(resolve, 3000))
+                    }
+                }
+            } catch (err: any) {
+                /* The tiles simply show '…' — never block the page. */
+                console.error('receive-address init failed:', err?.message)
+            }
+        })()
+        return () => { cancelled = true }
+    }, [sdkNetwork])
+
+    const copyAddress = async (value: string, what: string) => {
+        if (!value) return
+        try {
+            await navigator.clipboard.writeText(value)
+            toast.success(`${what} address copied to clipboard`)
+        } catch {
+            showErrorToast(`Failed to copy the ${what} address`)
+        }
+    }
 
     // useEffect(() => {
     //     setIdentity('NewMoneyHoney69.dash')
@@ -295,6 +351,53 @@ export function WalletDeposit({ isFullScreen }: WalletDepositProps) {
                     </p>
                 </section>
             </Link>
+
+            {/* RECEIVE ON PLATFORM — the two L2 pools (owner directive: the
+                wallet receives into Transparent and Shielded; Core is an
+                on-ramp only). */}
+            <section className="grid grid-cols-1 sm:grid-cols-2 gap-3 my-5">
+                <div className="w-full px-3 py-3 bg-sky-50 border-2 border-sky-200 rounded-lg shadow">
+                    <h2 className="text-xs text-sky-600/80 font-medium text-center uppercase tracking-widest">
+                        Transparent (Platform)
+                    </h2>
+
+                    <div className="my-2 flex justify-center">
+                        {platformAddr
+                            ? <QRCodeSVG value={platformAddr} size={128} />
+                            : <span className="text-sm text-gray-400">…</span>}
+                    </div>
+
+                    <button
+                        onClick={() => copyAddress(platformAddr, 'Transparent')}
+                        title="Click to copy"
+                        className="w-full flex items-center gap-1.5 px-2 py-1.5 rounded-md bg-white border border-sky-200 font-mono text-2xs text-sky-800 break-all text-left hover:border-sky-400 transition-colors"
+                    >
+                        <ClipboardDocumentIcon className="w-3.5 h-3.5 shrink-0 text-sky-500" />
+                        <span className="truncate">{platformAddr || '…'}</span>
+                    </button>
+                </div>
+
+                <div className="w-full px-3 py-3 bg-sky-50 border-2 border-sky-200 rounded-lg shadow">
+                    <h2 className="text-xs text-sky-600/80 font-medium text-center uppercase tracking-widest">
+                        Shielded (private)
+                    </h2>
+
+                    <div className="my-2 flex justify-center">
+                        {shieldedAddr
+                            ? <QRCodeSVG value={shieldedAddr} size={128} />
+                            : <span className="text-sm text-gray-400">…</span>}
+                    </div>
+
+                    <button
+                        onClick={() => copyAddress(shieldedAddr, 'Shielded')}
+                        title="Click to copy"
+                        className="w-full flex items-center gap-1.5 px-2 py-1.5 rounded-md bg-white border border-sky-200 font-mono text-2xs text-sky-800 break-all text-left hover:border-sky-400 transition-colors"
+                    >
+                        <ClipboardDocumentIcon className="w-3.5 h-3.5 shrink-0 text-sky-500" />
+                        <span className="truncate">{shieldedAddr || '…'}</span>
+                    </button>
+                </div>
+            </section>
 
             <section>
                 <label className="block text-lg font-medium leading-6 text-gray-900">
