@@ -1489,6 +1489,89 @@ history of this file (see log below for commit hashes) — keep only load-bearin
 
 ## Working Rules For This Repo
 
+## F51a — MOVE-MATRIX PROBE: every edge is a native protocol v14 transition
+(2026-11-14, probe only — no repo code changed)
+
+Goal: shield/unshield to/from Identity AND Transparent. Findings, all
+source-verified (rs-dpp v5.0.0-rc.8 sparse checkout /tmp/platform-rc8
+re-created; vendored wasm d.ts + runtime-driven in Node):
+
+(a) **THE COMPLETE NATIVE MATRIX** (state_transition_types.rs):
+15 Shield (transparent→pool), 16 ShieldedTransfer (proven F31/F36),
+17 **Unshield (pool→TRANSPARENT ADDRESS)**, 18 ShieldFromAssetLock
+(proven F29/F36), 19 ShieldedWithdrawal (pool→L1, proven F32/F36),
+21 ShieldFromIdentity (identity→pool), 22 IdentityTopUpFromShieldedPool
+(pool→identity), 9 IdentityCreditTransferToAddresses (identity→
+transparent), 11 IdentityTopUpFromAddresses (transparent→identity),
+12 AddressFundsTransfer, 14 AddressCreditWithdrawal (transparent→L1),
+20 IdentityCreateFromShieldedPool. The wasm d.ts exposes classes for
+ALL the ones we need (ShieldFromIdentityTransition L12073,
+UnshieldTransition L13911, IdentityTopUpFromShieldedPoolTransition,
+ShieldTransition L12123, IdentityCreditTransferToAddresses,
+IdentityTopUpFromAddresses). NO L1 round-trips needed.
+
+(b) **RUNTIME-DRIVEN (Node, dummy fields)**: all five construct +
+serialize with the right umbrella byte: 0x15/21, 0x11/17, 0x16/22,
+0x0f/15 (+ getSignableBytes on 21/9 for the identity-signature step).
+Constructor gotchas: addresses must be `new wasm.PlatformAddress(...)`
+INSTANCE objects (bech32m string or 21-BYTE ARRays decode, not hex);
+inputs = `new wasm.PlatformAddressInput(addr, nonce, amount)`;
+outputs = `new wasm.PlatformAddressOutput(addr, amount)`; witnesses =
+`wasm.AddressWitness.p2pkh(65B)`; fee strategy =
+`wasm.FeeStrategyStep.deductFromInput(0)`. postPcztFrame takes SERIALIZED
+bytes (serializePcztFrame(build.frame)) — passing the frame OBJECT sent
+JSON and the prover answered 'wire version must be 1, got 91' (the '{'
+charcode).
+
+(c) **SIGHASH EXTRAS (sighash.rs, v0 layouts)**: Unshield =
+`output_address(21) || unshielding_amount u64 LE` (NO core fee fields);
+ShieldedWithdrawal unchanged; Shield = 0x84 || SHA-256 of input
+addresses in map order; ShieldFromIdentity = 0x85 || identity_id;
+ShieldFromAssetLock = 0x86 || double-SHA outpoint. The client builders
+ALREADY EXIST (lib/shielded/bundle.ts:211-227: shieldExtraSighashData /
+shieldFromIdentityExtraSighashData / unshieldExtraSighashData) and
+buildOutputOnlyPczt takes the extraSighashData option directly.
+
+(d) **FEES (validation v10, rate 27,400 credits/byte = disk 27,000 +
+processing 400)**: base minimum(2) = 114,140,000 (re-confirmed in the
+fork's own test). Unshield(2) = base + 222×rate = **120,222,800**
+(consensus-EXACT, carved from spent notes; net credited to the output
+address). IdentityTopUpFromShieldedPool(2) = base + 8×rate =
+**114,359,200** (consensus-EXACT). ShieldFromIdentity(2) ADMISSION
+FLOOR = base + (2×400+500)×rate = **149,760,000** (identity debited
+amount + metered fee, which MAY BE LOWER — floor is the client
+e estimate). Shield(15) charges only the compute fee 40M+2×22M =
+84,000,000 from the fee strategy + GroveDB-metered note storage
+against the input address balances. Withdrawal doc bytes 4100 ✓ F32.
+
+(e) **SIGNING AUTHORITIES**: ShieldFromIdentity = the identity's
+**TRANSFER key** (builder doc comment; signaturePublicKeyId + signature
+fields on the wasm class; sign getSignableBytes with the transfer WIF —
+invariant 12's n=3 key). Unshield/TopUpFromShieldedPool =
+**binding-sig-only, NO outer signature** (like ShieldedTransfer).
+Shield(15) = each transparent INPUT is signed by ITS OWN address key
+(AddressWitness P2pkh, recoverable 65B ECDSA) — PlatformAddressSigner
+.addKey(privateKey) derives P2PKH(Hash160(compressed)) = exactly the
+lib/platform-address.ts DIP-17 keys, and the high-level
+identityTopUpFromAddresses fetches address nonces automatically.
+
+(f) **PROVER VERIFIED FOR 0x85**: a REAL output-only PCZT built with
+extraSighashData = shieldFromIdentityExtraSighashData(identity id 32B),
+1M-credit output to a random recipient, POSTed raw to
+https://prover.sansbank.dev/prove/pczt → HTTP 200 in 92.8s (cold),
+2 actions, 7,264-byte proof. NO prover changes needed for
+Identity→Shielded. (The /prove/pczt endpoint is sighash-agnostic.)
+
+(g) ShieldedWithdrawal pooling: rs-dpp v14 REFUSES pooling != Never
+(NotImplementedCreditWithdrawalTransitionPoolingError) — there is NO
+pooled-deposit lane; Shielded→Transparent is the Unshield(17)
+transition instead. Withdrawal output_script must be canonical
+P2PKH(25B)/P2SH(23B); core_fee_per_byte must be a non-zero Fibonacci
+number.
+
+Next: F51b implementation — assemble functions for 21/17/22 (+ Shield
+15 later), fees.ts additions, the RECEIVE-tab internal-move UI.
+
 ## F50 — Dashboard TOTAL balance (all three pools) + Deposit ONE-address
 ## makeover + engine-worker single-flight init (2026-11-14)
 
