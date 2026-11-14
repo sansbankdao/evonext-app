@@ -59,3 +59,31 @@
 15. The consensus_error field of the drive-data = [98 8f array(143)] = [1][8][140][the base64 message]
     — the message = 'unable to deserialize StateTransition : UnexpectedVariant { type_name:
     "DataContractConfig", allowed 0..=2, found: 153 }' — 153 = 0x99 = the id's byte 5.
+
+## 🎉 RESOLUTION (the same session, ~06:25 UTC)
+16. **TYPE-11 (Transparent→Identity) EXECUTED**: the reference-form wire with the input
+    = 2,000,000 (the nonce = state+1 = 1) → BROADCAST OK via the direct grpc; the address
+    = 470,869,740 − 2M − the fee, the address's nonce = 1 (the state+1 rule CONFIRMED);
+    the fee = 2,937,460 credits for the 135-byte transition.
+17. **TYPE-15 (Transparent→Shielded) EXECUTED**: the reference-form wire =
+    [0f][00][01 maplen][00][hash20][nonce][fc credits][actions-len][nf32|rk32|cmx32|len+216|cv32|sig64 …]
+    [amount][anchor32][proof-len+proof][binding64][fee 01 00 00 00][witlen][00][41][sig65]
+    — the CACHED proved frame (the proof/binding/sighash = the wire-encoding-independent!),
+    the input = the shield-amount + 84,000,000 (the pool's min fee for 2 actions — the
+    validator's error text: 'total input amount (X) is less than shield amount (X) plus
+    minimum shielded fee (84000000)'), the witness sig = over the NEW signable. BROADCAST OK.
+    The 300M note trial-decrypted via the full ShieldedSync: value 300,000,000,
+    memo 'f51c transparent->shielded'. The address's nonce = 1 → 2 ✓.
+18. **THE MOVE MATRIX IS COMPLETE** — all ten edges live-verified on testnet:
+    9 identity→address (F51a/F51b), 21 identity→shielded (F51b), 17 shielded→transparent
+    (F51b), 22 shielded→identity (F51b), 16 shielded→shielded (F31), 19 shielded-withdrawal
+    (F32), 18 asset-lock-shield (F29), 7 identity→identity (this session), 11 transparent→identity
+    (this session), 15 transparent→shielded (this session).
+19. **THE APP-FLOW RULE (from the failures): the type-11 input = the FULL address balance
+    → rejected; the input = the amount + the fee-margin → accepted. The type-15 input =
+    the shield-amount + 84M → accepted (the input = the shield-amount alone → rejected).
+    The app must compute the input = the transfer-amount + the fee estimate, or use the
+    output field for the change.
+20. REMAINING: (a) port the reference-form building + signing + direct-grpc broadcasting
+    into lib/ (the type-7 exact-hash send, the type-11, the type-15); (b) the fee-estimate
+    helpers; (c) the RECEIVE-tab internal-move UI; (d) the unit tests; (e) AGENTS.md.
