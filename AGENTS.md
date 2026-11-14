@@ -1636,6 +1636,29 @@ new suites (231/231 total, was 214):
 Gates: tsc 0, eslint 0 errors/1 known warning, 231/231 (23 files),
 playwright 2/2.
 
+## F53c — the USER'S tDUSD SEND CONFIRMED ON-CHAIN + the missing
+## confirmation UI fixed (2026-11-14)
+
+The user sent 15 tDUSD to 5apjqb8… — NO error, NO confirmation. Review:
+
+(a) **THE SEND EXECUTED.** The explorer's transition log for the tDUSD
+token shows `2026-11-14T04:11:41 TOKEN_TRANSFER amount 15000000 to
+5apjqb8KhwqMHF…` — the user's exact send. Independent balance
+verification: `get_identities_token_balances_with_proof_info` (the
+PLURAL-identity compat wrapper) returns balance 15000000 for the
+recipient. NOTE the SINGULAR `getIdentityTokenBalances(identityId,
+[tokenId])` returns {} even for holders — the PLURAL query is the
+reliable one (the app's compat wrapper already uses it).
+(b) **The missing confirmation was a REAL UI bug for BOTH paths**: the
+success block is keyed on the `txid` state, and NEITHER the credit nor
+the token branch ever called setTxid. Fixed: both paths now set it; the
+token path additionally returns the TokenTransferResult's post-transfer
+balances (recipientBalance/senderBalance) and the Send tab shows
+'transfer — recipient: X · yours: Y' instead of a bogus explorer link
+(the tokenTransfer op exposes no transition-hash surface).
+
+Gates: tsc 0, eslint 0/1, 231/231, playwright 2/2.
+
 Next: F51b — the type-15 Shield broadcast rejection (three edges
 live-verified; see F51b) + the type-9 getSignableBytes diagnostic.
 

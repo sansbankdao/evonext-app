@@ -458,7 +458,7 @@ export const sendToken = async (
     const signer = new IdentitySigner()
     signer.addKeyFromWif(transferWif)
 
-    await (sdk as any).tokenTransfer({
+    const result = await (sdk as any).tokenTransfer({
         dataContractId,
         tokenPosition,
         amount: BigInt(_atomicUnits),
@@ -468,7 +468,14 @@ export const sendToken = async (
         signer,
     })
 
-    return { txid: 'UNKNOWN TXID' as any }
+    /* The result carries the POST-transfer balances (TokenTransferResult)
+     * — the UI's confirmation shows them (there is no transition-hash
+     * surface on this op). */
+    return {
+        txid: 'UNKNOWN TXID' as any,
+        recipientBalance: result?.recipientBalance !== undefined ? BigInt(result.recipientBalance) : undefined,
+        senderBalance: result?.senderBalance !== undefined ? BigInt(result.senderBalance) : undefined,
+    } as any
 }
 
 export const createDocument = async (

@@ -98,6 +98,8 @@ export function WalletSend({ isFullScreen }: IWalletSendProps) {
     const [identityFirstUse, setIdentityFirstUse] = useState('')
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [txid, setTxid] = useState<string | undefined>()
+    /* The token-send confirmation balances (F53c). */
+    const [tokenNote, setTokenNote] = useState<{ recipient: string; sender?: string } | undefined>()
     const [errorMsgs, setErrorMsgs] = useState()
     const [isShowingVideoPreview, setIsShowingVideoPreview] = useState('hidden')
 
@@ -254,6 +256,24 @@ export function WalletSend({ isFullScreen }: IWalletSendProps) {
                 ).catch(err => {
                     console.error(err)
                     setErrorMsgs(err?.message)
+                })
+            }
+
+            /* Confirmation: the credit path returns a real txid; the token
+             * path returns the post-transfer balances (there is no
+             * transition-hash surface on the tokenTransfer op). Both were
+             * silently dropped before (F53c): the success block is keyed
+             * on `txid`, which was never set. */
+            const txResponse = response as any
+            if (txResponse && txResponse.txid) {
+                setTxid(txResponse.txid)
+            }
+            if (txResponse && txResponse.recipientBalance !== undefined) {
+                setTokenNote({
+                    recipient: numeral(parseFloat(txResponse.recipientBalance.toString()) / (10 ** (asset.id === DUSD_CONTRACT_ID_MAINNET || asset.id === DUSD_CONTRACT_ID_TESTNET ? DUSD_DECIMALS : SANS_DECIMALS))).format('0,0[.]000000'),
+                    sender: txResponse.senderBalance !== undefined
+                        ? numeral(parseFloat(txResponse.senderBalance.toString()) / (10 ** (asset.id === DUSD_CONTRACT_ID_MAINNET || asset.id === DUSD_CONTRACT_ID_TESTNET ? DUSD_DECIMALS : SANS_DECIMALS))).format('0,0[.]000000')
+                        : undefined,
                 })
             }
 
@@ -549,9 +569,13 @@ export function WalletSend({ isFullScreen }: IWalletSendProps) {
                     <div>
                         <h3 className="text-sm text-gray-500 font-medium">Transaction sent successfully!</h3>
 
-                        <Link href={'https://explorer.nexa.org/tx/' + txid} target="_blank" className="text-blue-500 font-medium hover:underline">
-                            Click here to OPEN transaction details
-                        </Link>
+                        {tokenNote
+                            ? <h3 className="text-xs text-gray-500 mt-1">
+                                {asset.ticker} balances after the transfer — recipient: {tokenNote.recipient}{tokenNote.sender ? ` · yours: ${tokenNote.sender}` : ''}
+                            </h3>
+                            : <Link href={'https://explorer.nexa.org/tx/' + txid} target="_blank" className="text-blue-500 font-medium hover:underline">
+                                Click here to OPEN transaction details
+                            </Link>}
                     </div>
                 </section>}
 
