@@ -11,13 +11,20 @@
  *     + the pool's minimum fee 84M; the 300M note trial-decrypted with the
  *     memo intact; the address's nonce 1→2.
  *
- * Validation rules learned from the live rejections:
+ * Validation rules learned from the live rejections (testnet F54 + mainnet
+ * F56):
  *   - the input's nonce = EXACTLY the address's current state nonce + 1;
  *   - the type-11 input must be >= the top-up + the fee (pass the margin or
  *     use `output` for the change — the full-balance/no-headroom input was
  *     rejected by the validator);
  *   - the type-15 input must be >= the shield amount + the pool's minimum fee
- *     (84,000,000 credits for 2 actions at protocol v14).
+ *     (84,000,000 credits for 2 actions at protocol v14), AND the address
+ *     balance must additionally cover the METERED transition fee on top —
+ *     live-measured 36,666,540 (mainnet) / 37,743,480 (testnet) for a 2-action
+ *     shield, with variance run-to-run; a 50M shield with only 3.2M of margin
+ *     over the flat gate was rejected with AddressesNotEnoughFundsError
+ *     (required 141,059,080 vs available 137,843,720). The balance check below
+ *     reserves a 60M safety margin.
  */
 
 import { getWasmSdk } from './services/wasm-sdk-service'
@@ -157,9 +164,12 @@ export async function moveTransparentToShielded(options: {
 
     progress('Reading the address state…')
     const addr = await readTransparentAddress(network, addressIndex)
-    if (addr.balance < amountCredits + poolMinimumFee) {
+    /* The metered transition fee is charged ON TOP of the input (observed
+     * 36.7M-57.1M for a 2-action shield, F56); reserve a 60M margin. */
+    const meteredFeeReserve = 60_000_000n
+    if (addr.balance < amountCredits + poolMinimumFee + meteredFeeReserve) {
         throw new Error(
-            `Transparent balance ${addr.balance} < move amount ${amountCredits} + the pool fee ${poolMinimumFee}`,
+            `Transparent balance ${addr.balance} < move amount ${amountCredits} + the pool fee ${poolMinimumFee} + the fee reserve ${meteredFeeReserve}`,
         )
     }
 

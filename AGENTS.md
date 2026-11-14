@@ -2986,3 +2986,57 @@ collect the SPENDABLE utxos FIRST; auto-resume ONLY when
 the deposit covers it; an "already completely used" failure now clears the
 persisted pending-lock key so retries don't loop. Deployed + the registration
 rerun went straight through.
+
+## F56 — MAINNET MOVE MATRIX: 6/7 remaining lanes LIVE-EXECUTED with the
+fresh identity; type-7 self-transfer PROTOCOL-FORBIDDEN (2026-11-15)
+
+The move matrix was testnet-complete (F51a-c/F54); mainnet had only 18/16/19
+(F36). This session executed the remaining lanes ON MAINNET with the F55
+identity `CZUa7rTx…` (1,275,981,880 credits) + the F36 wallet's 345M pool
+notes, via `scratch-mainnet-matrix.mts` (staged, resumable, file-backed sync
+store `scratch-mainnet-sync-store.json`):
+
+- **Type 9** IdentityCreditTransferToAddresses: 400M → the DIP-17 address
+  `dash1kplq42…` EXACT (fee 9,150,800); the manual noble sig + the wasm
+  broadcast (no inputs map → no re-encode bug).
+- **Type 11** TopUpFromAddresses: executed TWICE cleanly (+104M each, the
+  address fee 2,078,140, the address nonce 0→2) — the first run was the
+  `timeout`-killed stage whose broadcast STILL LANDED (lesson: stages are
+  launched ONLY via nohup); the second via the pool fallback (below).
+- **Type 15** Transparent→Shielded: the 40M note (memo 'mainnet f55 matrix
+  15'); the FIRST attempt (50M) was REJECTED — see the fee discovery below;
+  the input 124M, the metered fee 36,666,540.
+- **Type 21** ShieldFromIdentity: the 200M note (memo 'mainnet f55 matrix
+  21'), debited 321,368,260 = 200M + 121,368,260 metered; nonce 1→2.
+- **Type 17** Unshield pool→address: net 10M EXACT (fee 120,222,800, change
+  9,777,200 back to the pool).
+- **Type 22** TopUpFromPool: net 86M EXACT (fee 114,359,200, change 9,418,000);
+  the identity 753,462,820 → 839,462,820.
+- **Type 7** identity→identity: `Protocol error: Credits transfer recipient
+  must be another identity` — SELF-TRANSFER IS FORBIDDEN. A second mainnet
+  identity = unaffordable (the L1 spendable ≈ 0.0015 DASH; a lock needs a
+  3,005,000-sat deposit). Lane 7 stays testnet-verified (exact hashes); the
+  Send UI should catch the self-transfer error gracefully.
+
+**FEE DISCOVERY (5.0.3 sources, decoded from the opaque error-bin)**: the
+mainnet drive's consensus errors can't be decoded by the rc.8 wasm (the
+StateError variant list is LONGER in 5.0.3 — the indices shifted, the wasm
+threw `UnexpectedVariant Option<u64> found 24`). MANUALLY decoded the
+`dash-serialized-consensus-error-bin` = CBOR `{data:{serializedError:[ints]}}`
+→ the bytes = [ConsensusError 2=StateError][84=AddressesNotEnoughFundsError]
+[{addr: (nonce 3 ✓, available 137,843,720)}, required_balance 141,059,080]:
+the shield gate = the balance ≥ shield amount + 84M pool fee + the METERED
+fee (measured 36,666,540 mainnet / 37,743,480 testnet, VARIES run-to-run; the
+50M attempt was 3,215,360 credits short). `lib/moves-service.ts` now reserves
+a 60M metered-fee margin in the balance check.
+
+**DIRECT GRPC (lib/direct-grpc.ts) hardened**: the mainnet seed hosts answer
+grpc-status 12 (UNIMPLEMENTED) for BroadcastStateTransition — the function now
+falls back to the `dash-platform-sdk` grpc pool (RAW wire bytes, no
+re-encoding — the F54-proven transport) on code 12, and surfaces every error
+header (grpc-message is often EMPTY on drive rejections). The type-11/15
+flows work on BOTH networks through it.
+
+Final wallet state: identity 839,462,820 credits (nonce 2) · address
+37,177,180 (nonce 3) · pool ~455M unspent · total session fee burn ≈ 0.0054
+DASH. Gates: tsc 0, eslint 0, 247/247, playwright 2/2.

@@ -79,6 +79,7 @@ export async function broadcastWireDirect(
                 body: Buffer.from(frame),
                 signal: controller.signal,
             })
+            void host
             clearTimeout(timer)
             const grpcStatus = res.headers.get('grpc-status')
             const grpcMessage = res.headers.get('grpc-message')
@@ -94,8 +95,14 @@ export async function broadcastWireDirect(
                 } catch { consensusText = undefined }
             }
             if (res.ok && (grpcStatus === null || grpcStatus === '0')) return
+            /* Surface EVERY header that can carry the reason — grpc-message is
+             * often EMPTY on drive rejections; the consensus-error bin and the
+             * dash relay headers are the real diagnostic (F55 matrix). */
+            const altMsg = res.headers.get('dash-dapi-error-message')
+                ?? res.headers.get('x-drive-error')
+                ?? consensusText
             throw new DirectGrpcError(
-                grpcMessage ?? `HTTP ${res.status}`,
+                grpcMessage || altMsg || `HTTP ${res.status} [grpc-status=${grpcStatus}]`,
                 grpcStatus ?? String(res.status),
                 consensusText,
             )
@@ -103,11 +110,36 @@ export async function broadcastWireDirect(
             clearTimeout(timer)
             lastErr = e
             if (e instanceof DirectGrpcError) {
-                /* A drive-level rejection is authoritative: don't retry the other hosts. */
-                throw e
+                /* A drive-level rejection is authoritative: don't retry the other hosts.
+                 * EXCEPTION — grpc-status 12 (UNIMPLEMENTED) means THIS transport does
+                 * not serve broadcasts on this host/network (observed on the mainnet
+                 * seed hosts, F55 matrix): fall through to the dash-platform-sdk grpc
+                 * pool, which carries the RAW wire bytes with no re-encoding. */
+                if (e.code !== '12') throw e
+                lastErr = e
+                break
             }
             /* Network/abort error: try the next host. */
         }
     }
-    throw lastErr instanceof Error ? lastErr : new Error('broadcastWireDirect: all DAPI hosts failed')
+
+    /* The pool fallback (UNIMPLEMENTED hosts / every direct host unreachable). */
+    try {
+        const { DashPlatformSDK } = await import('dash-platform-sdk')
+        const { BroadcastStateTransitionRequest } = await import('dash-platform-sdk/proto/generated/platform.js')
+        const jsSdk = new DashPlatformSDK({ network })
+        const client = await (jsSdk as any).grpcPool.getClient()
+        await client.broadcastStateTransition(BroadcastStateTransitionRequest.create({ stateTransition: wire }))
+        return
+    } catch (poolErr: any) {
+        let msg = ''
+        try { msg = poolErr.message } catch { msg = String(poolErr) }
+        throw new DirectGrpcError(
+            `direct grpc + pool fallback both failed: ${msg || String(lastErr)}`,
+            (lastErr as any)?.code ?? 'POOL',
+            (lastErr as any)?.consensusError,
+        )
+    }
 }
+
+
