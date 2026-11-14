@@ -3040,3 +3040,21 @@ flows work on BOTH networks through it.
 Final wallet state: identity 839,462,820 credits (nonce 2) · address
 37,177,180 (nonce 3) · pool ~455M unspent · total session fee burn ≈ 0.0054
 DASH. Gates: tsc 0, eslint 0, 247/247, playwright 2/2.
+
+## F56b — self-transfer guard + the mainnet dashboard Shielded row FIXED
+(2026-11-15, commit `71612de`)
+
+- **Send UI**: sending credits to your OWN identity now toasts (persistent,
+  dismissible) "You can't send to your own identity — use the Move card on
+  the Receive tab" instead of the raw protocol error (self-transfers are
+  protocol-forbidden; between two DIFFERENT identities type 7 is valid).
+- **The mainnet dashboard's Shielded row was DEAD — root cause LIVE-FOUND
+  (Playwright against production, the F36 session seeded)**: the shielded
+  engine worker's 26.5MB wasm fetch through the Pages Function aborted
+  ("WebAssembly compilation aborted: Network error: Response body loading was
+  aborted") and the ONE-SHOT init failure left the row at ZERO forever
+  (assets.tsx's catch gives up with no retry). FIX: `engine-client.start()`
+  now retries the init up to 3× with a 3s/6s backoff before surfacing.
+  LIVE-VERIFIED post-fix: attempt 1 aborted → retried → the engine ready →
+  the mainnet scan ran → the row landed "SHIELDED 0.0025 DASH ≈ $0.09" and
+  climbing (the full sync continues to the ~455M-credit balance).
