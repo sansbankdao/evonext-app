@@ -590,13 +590,25 @@ export class ProvePcztError extends Error {
   }
 }
 
-/** POST a serialized PCZT frame and parse the proved response. */
+/** POST a serialized PCZT frame and parse the proved response. NETWORK
+ *  errors (fetch throws — DNS/TLS/connection resets; live-hit 2026-11-14 on
+ *  Node) are retried up to 3 attempts with a short backoff; HTTP-level
+ *  errors are NOT retried (they are prover verdicts). */
 export async function postPcztFrame(frameBytes: Uint8Array, baseUrl: string = proverBaseUrl()): Promise<ProvePcztResult> {
-  const response = await fetch(`${baseUrl}/prove/pczt`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/octet-stream' },
-    body: frameBytes as unknown as BodyInit,
-  });
+  let response: Response;
+  for (let attempt = 1; ; attempt++) {
+    try {
+      response = await fetch(`${baseUrl}/prove/pczt`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/octet-stream' },
+        body: frameBytes as unknown as BodyInit,
+      });
+      break;
+    } catch (error) {
+      if (attempt >= 3) throw error;
+      await new Promise((r) => setTimeout(r, 2000 * attempt));
+    }
+  }
   if (!response.ok) {
     let message = `prover HTTP ${response.status}`;
     let errorCode: number | undefined;

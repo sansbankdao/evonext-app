@@ -1572,6 +1572,55 @@ number.
 Next: F51b implementation — assemble functions for 21/17/22 (+ Shield
 15 later), fees.ts additions, the RECEIVE-tab internal-move UI.
 
+## F51b — pool-edge moves LIVE-VERIFIED x3 on testnet (2026-11-14)
+
+`lib/shielded/fees.ts` + computeUnshieldFee / computeIdentityTopUpFrom-
+ShieldedPoolFee / computeShieldFromIdentityFeeFloor; `bundle.ts` +
+identityTopUpFromShieldedExtraSighashData (id(32) || required u64 LE);
+`assemble.ts` + assembleShieldFromIdentity / assembleUnshield /
+assembleIdentityTopUpFromShieldedPool; `wallet.ts` + shieldFromIdentity /
+unshieldToAddress / topUpIdentityFromPool (all reusing the proven
+transfer pipeline: selectNotesForSend -> buildTransferPczt -> prover ->
+assemble -> broadcast; the engine gained a 'poolExit' RPC exposing 17/22
+inside the worker). postPcztFrame gained a 3-attempt NETWORK-error retry
+(HTTP verdicts are not retried). LIVE results (legal-winner identity
+8Yj6…, scratch-f51b-move.mts bundle):
+
+- **21 Identity→Shielded** `dd0da155…`: identity debited EXACTLY 500M +
+  121,532,980 METERED fee (the 149,760,000 floor is an admission floor —
+  execution charges less, as the source says); the new 500M note
+  decrypts in the pool (unspent 131.1M -> 631.1M in the fresh scan).
+- **17 Unshield** `f77c6d73…`: fee EXACTLY 157,292,800 (3 actions); the
+  DIP-17 transparent address went 0 -> 473,807,200 — delta EXACT.
+- **22 TopUpFromPool** `f19496ee…`: fee EXACTLY 114,359,200 (2 actions);
+  identity +345,710,800 NET credited EXACTLY; change 39,930,000 stayed
+  in the pool.
+
+Live-hit bugs (all fixed, all worth remembering):
+(a) RAW identity-nonce transitions carry CURRENT + 1 (passing the bare
+getIdentityNonce value = 'invalid identity nonce … nonce already present
+at tip'); the increment lives in assembleShieldFromIdentity.
+(b) The pool-exit selector must receive the NET only — selectNotesForSend
+adds its feeFn itself (double-adding failed the final check).
+(c) THE BIG ONE: the IdentityTopUpFromShieldedPoolTransition's
+topUpAmount field is the GROSS (= the bundle's value balance = net +
+fee); consensus credits topUpAmount - fee. Passing the NET was rejected
+'bundle verification failed: proof, spend auth signatures, or binding
+signature invalid' — the generic failure for a value_sum/topUpAmount
+mismatch. assembleIdentityTopUpFromShieldedPool now ASSERTS
+topUpAmount === valueSumMagnitude.
+(d) The wasm PlatformAddress 21-byte form = TYPE TAG (0 P2pkh / 1 P2sh)
+|| hash160 — NOT the bech32m payload's 0xb0 type byte (decoder: 'allowed
+Range 0..1, found 176'); rs-dpp sighash.rs:300-307 binds the SAME 0/1
+tag || hash. decodePlatformAddressBytes converts.
+(e) Edge-2 prover POSTs flaked with Node 'fetch failed' (undici/DNS);
+--dns-result-order=ipv4first + the postPcztFrame retry carried it.
+
+REMAINING for the full matrix: 15 Shield (transparent→pool — needs the
+address-key witness signing + per-address nonces), 9
+IdentityCreditTransferToAddresses, 11 IdentityTopUpFromAddresses
+(transparent→identity), and the RECEIVE-tab internal-move UI.
+
 ## F50 — Dashboard TOTAL balance (all three pools) + Deposit ONE-address
 ## makeover + engine-worker single-flight init (2026-11-14)
 

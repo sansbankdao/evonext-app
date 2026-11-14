@@ -28,12 +28,34 @@ import {
     type OutputOnlyBuild, type TransferBuild,
 } from './prove'
 import { serializePcztFrame } from './pczt-wire'
-import { assembleShieldedTransfer, assembleShieldFromAssetLock } from './assemble'
+import { assembleShieldedTransfer, assembleShieldFromAssetLock, assembleUnshield, assembleIdentityTopUpFromShieldedPool, assembleShieldFromIdentity } from './assemble'
 import {
     computeMinimumShieldedFee, computeShieldFromAssetLockPoolFee,
-    recommendedAssetLockCredits,
+    recommendedAssetLockCredits, computeUnshieldFee,
+    computeIdentityTopUpFromShieldedPoolFee, computeShieldFromIdentityFeeFloor,
 } from './fees'
-import { shieldFromAssetLockExtraSighashData } from './bundle'
+import { shieldFromAssetLockExtraSighashData, shieldFromIdentityExtraSighashData, unshieldExtraSighashData, identityTopUpFromShieldedExtraSighashData } from './bundle'
+import { decodeOrchardAddress as decodeOrchardAddr, } from './address'
+import { bech32m } from '@scure/base'
+
+/** Decode a transparent platform address (tdash1k/dash1k) to its 21-byte
+ *  PlatformAddress encoding for the Unshield output + sighash extra data:
+ *  TYPE TAG (0 = P2pkh, 1 = P2sh) || 20-byte hash160 — NOT the bech32m
+ *  payload's 0xb0 type byte (live-hit 2026-11-14: the wasm
+ *  PlatformAddress decoder rejects variant 0xb0 = 'allowed: Range { min:
+ *  0, max: 1 }, found: 176'; rs-dpp sighash.rs:300-307 pushes the SAME
+ *  0/1 tag || hash). */
+function decodePlatformAddressBytes(address: string, network: 'mainnet' | 'testnet'): Uint8Array {
+    const decoded = bech32m.decode(address as any)
+    const hrp = network === 'mainnet' ? 'dash' : 'tdash'
+    if (decoded.prefix !== hrp) throw new Error(`Address HRP ${decoded.prefix} does not match network ${network}`)
+    const payload = bech32m.fromWords(decoded.words)
+    if (payload.length !== 21 || payload[0] !== 0xb0) throw new Error('Not a transparent platform address (P2PKH 0xb0 payload)')
+    const out = new Uint8Array(21)
+    out[0] = 0 /* PlatformAddress::P2pkh type tag */
+    out.set(payload.slice(1), 1)
+    return out
+}
 import { ShieldedSync, type OwnedShieldedNote, type ShieldedSyncSource } from './sync'
 import { makeProxyFirstShieldedSource } from '../dapi-proxy'
 
@@ -134,6 +156,13 @@ export interface NoteSelection {
 export async function selectNotesForSend(
     sync: ShieldedSync,
     amountCredits: bigint,
+    /* F51b: the spend-side pool transitions (Unshield, IdentityTopUpFrom-
+     * ShieldedPool) price the fee with THEIR consensus formula instead of
+     * the transfer's computeMinimumShieldedFee. The fee function receives
+     * (spendCount, withChange) and returns the carved fee; the default is
+     * the transfer fee. */
+    feeFn: (spendCount: number, withChange: boolean) => bigint = (spendCount, withChange) =>
+        computeMinimumShieldedFee(Math.max(spendCount, withChange ? 2 : 1, 2)),
 ): Promise<NoteSelection> {
     await sync.refreshSpent()
     const unspent = [...sync.notes]
@@ -145,8 +174,7 @@ export async function selectNotesForSend(
 
     /* The recipient + (optional) change outputs are at most 2; the action
      * count is max(spends, outputs, 2). */
-    const feeFor = (spendCount: number, withChange: boolean) =>
-        computeMinimumShieldedFee(Math.max(spendCount, withChange ? 2 : 1, 2))
+    const feeFor = feeFn
 
     let acc = 0n
     let chosen: OwnedShieldedNote[] = []
@@ -573,5 +601,242 @@ export async function shieldFromBalance(options: {
     }
 }
 
+/* ---------------------------------------------------------------------------
+ * F51b — ShieldFromIdentity (21): the identity's credit balance -> the
+ * shielded pool. Identity-signed with the TRANSFER key (builder doc) —
+ * unlike the asset-lock shield there is NO L1 lock: the identity itself is
+ * debited amount + the metered fee. Fee floor for 2 actions = 149,760,000
+ * (execution may charge less — the floor is for sizing only).
+ * ------------------------------------------------------------------------- */
+
+/** ShieldFromIdentity (21): move `amount` credits from the identity balance
+ *  into a new note at OUR address (recipientIndex). transferWif = the
+ *  identity's TRANSFER key (n=3). `nonce` = the identity's CURRENT nonce
+ *  (chain-read via getIdentityNonce) — the transition carries CURRENT + 1
+ *  (live-verified 2026-11-14: the bare current value is rejected with
+ *  'invalid identity nonce ... we are setting N, error is nonce already
+ *  present at tip'); the increment is applied HERE so callers pass exactly
+ *  what getIdentityNonce returns. */
+export async function shieldFromIdentity(options: {
+    sdk: any
+    keys: ShieldedWalletKeys
+    network: 'mainnet' | 'testnet'
+    identityId: string | Uint8Array
+    amount: bigint
+    nonce: bigint
+    transferWif: string
+    transferKeyId: number
+    recipientIndex?: number
+    memoText?: string
+    onProgress?: (phase: string) => void
+}): Promise<{ transitionHash: string; amount: bigint; feeFloor: bigint }> {
+    const { sdk, keys, network, amount, nonce, transferWif, transferKeyId } = options
+    const progress = options.onProgress ?? (() => { })
+    if (amount <= 0n) throw new Error('Amount must be positive')
+
+    const identityBytes = typeof options.identityId === 'string'
+        ? bs58.decode(options.identityId)
+        : options.identityId
+    if (identityBytes.length !== 32) throw new Error('identityId: expected 32 bytes')
+
+    const recipientIndex = options.recipientIndex ?? 0
+    const recipientBytes = deriveAddressBytes(keys.ivk, diversifierAtIndex(keys.dk, recipientIndex))
+
+    progress('Building the shield transaction…')
+    const build: OutputOnlyBuild = buildOutputOnlyPczt({
+        outputs: [{
+            recipient: recipientBytes,
+            value: amount,
+            memo: textMemo(options.memoText ?? ''),
+            senderOvk: keys.ovk,
+        }],
+        extraSighashData: shieldFromIdentityExtraSighashData(identityBytes),
+    })
+
+    progress('Proving (the zk-SNARK prover can take up to ~2 minutes)…')
+    const proved = await postPcztFrame(serializePcztFrame(build.frame))
+
+    progress('Assembling…')
+    const wasm: any = await import('../dash-wasm/wasm_sdk')
+    const transferPrivateKey = wasm.PrivateKey.fromWIF(transferWif)
+    const assembled = await assembleShieldFromIdentity({
+        identityId: identityBytes,
+        amount,
+        nonce,
+        build,
+        provedFrame: proved.frame,
+        transferPrivateKey,
+        transferKeyId,
+    })
+
+    progress('Broadcasting…')
+    await sdk.broadcastStateTransition(assembled.stateTransition)
+    const transitionHash = String((assembled.stateTransition as any).hash(true))
+
+    return {
+        transitionHash,
+        amount,
+        feeFloor: computeShieldFromIdentityFeeFloor(2),
+    }
+}
+
 /** Utility: hex of bytes (used by the UI for compact display). */
 export const hexOf = (b: Uint8Array) => bytesToHex(b)
+
+/* ---------------------------------------------------------------------------
+ * F51b — the pool-exit edges: Unshield (17, pool -> transparent address) and
+ * IdentityTopUpFromShieldedPool (22, pool -> identity credits). Both reuse
+ * the proven transfer pipeline (selectNotesForSend -> buildTransferPczt ->
+ * prover -> assemble -> broadcast); they differ from a transfer ONLY in the
+ * sighash extra data, the consensus fee formula and the assembled
+ * transition. There is NO recipient Orchard output: the only real output is
+ * the change note (value_balance = net + fee; net goes to the transparent
+ * address / identity).
+ * ------------------------------------------------------------------------- */
+
+/** Unshield (17): move `netCredits` from the shielded pool to OUR
+ *  transparent platform address (outputAddress, a tdash1k/dash1k bech32m
+ *  string or 21 raw bytes). Fee = computeUnshieldFee(2) = 120,222,800
+ *  credits, carved exactly; net is credited to the address. */
+export async function unshieldToAddress(options: {
+    sdk: any
+    keys: ShieldedWalletKeys
+    sync: ShieldedSync
+    network: 'mainnet' | 'testnet'
+    outputAddress: string | Uint8Array
+    netCredits: bigint
+    onProgress?: (phase: string) => void
+}): Promise<SendShieldedResult & { netCredits: bigint }> {
+    const { sdk, keys, sync, network, outputAddress, netCredits } = options
+    const progress = options.onProgress ?? (() => { })
+    if (netCredits <= 0n) throw new Error('Amount must be positive')
+    if (netCredits > 2n ** 63n - 1n) throw new Error('Amount too large')
+
+    progress('Selecting notes…')
+    /* selectNotesForSend already targets amountCredits + ITS OWN feeFn —
+     * pass the net only (double-adding the fee failed the final check,
+     * live-hit 2026-11-14). */
+    const selection = await selectNotesForSend(sync, netCredits, (spendCount) =>
+        computeUnshieldFee(Math.max(spendCount, 2)))
+    const required = netCredits + selection.feeCredits
+
+    /* The only real Orchard output is the change note (to our default
+     * diversifier-0 address). */
+    const changeBytes = deriveAddressBytes(keys.ivk, diversifierAtIndex(keys.dk, 0))
+    const outputs = [{
+        recipient: changeBytes,
+        value: selection.changeCredits,
+        memo: new Uint8Array(36),
+        senderOvk: keys.ovk,
+    }]
+
+    const outputAddressBytes = typeof outputAddress === 'string'
+        ? decodePlatformAddressBytes(outputAddress, network)
+        : outputAddress
+    progress('Building the transaction…')
+    const build: TransferBuild = buildTransferPczt({
+        spends: selection.spends.map(({ note, witness }) => ({
+            recipient: hexToBytes(note.recipient),
+            value: BigInt(note.value),
+            rho: hexToBytes(note.nullifier),
+            rseed: hexToBytes(note.rseed),
+            fvk: keys.fvk,
+            ask: keys.ask,
+            witness,
+        })),
+        outputs,
+        anchor: selection.anchor,
+        extraSighashData: unshieldExtraSighashData(outputAddressBytes, netCredits + selection.feeCredits),
+    })
+
+    progress('Proving (the zk-SNARK prover can take up to ~2 minutes)…')
+    const proved = await postPcztFrame(serializePcztFrame(build.frame))
+
+    progress('Assembling…')
+    const assembled = await assembleUnshield({ build, provedFrame: proved.frame, outputAddress: outputAddressBytes })
+
+    progress('Broadcasting…')
+    await sdk.broadcastStateTransition(assembled.stateTransition)
+    const transitionHash = String((assembled.stateTransition as any).hash(true))
+    await sync.refreshSpent()
+
+    return {
+        transitionHash,
+        feeCredits: selection.feeCredits,
+        changeCredits: selection.changeCredits,
+        spentPositions: selection.spends.map((s) => s.note.position),
+        netCredits,
+    }
+}
+
+/** IdentityTopUpFromShieldedPool (22): move `netCredits` from the pool into
+ *  the identity's credit balance (identityId, 32 bytes). Fee =
+ *  computeIdentityTopUpFromShieldedPoolFee(2) = 114,359,200 credits; the
+ *  transition's topUpAmount field carries the GROSS (net + fee) and
+ *  consensus credits the identity the net. */
+export async function topUpIdentityFromPool(options: {
+    sdk: any
+    keys: ShieldedWalletKeys
+    sync: ShieldedSync
+    network: 'mainnet' | 'testnet'
+    identityId: Uint8Array
+    netCredits: bigint
+    onProgress?: (phase: string) => void
+}): Promise<SendShieldedResult & { netCredits: bigint }> {
+    const { sdk, keys, sync, identityId, netCredits } = options
+    const progress = options.onProgress ?? (() => { })
+    if (netCredits <= 0n) throw new Error('Amount must be positive')
+
+    progress('Selecting notes…')
+    /* Same as unshield: the selector adds feeFn itself — pass the net only. */
+    const selection = await selectNotesForSend(sync, netCredits, (spendCount) =>
+        computeIdentityTopUpFromShieldedPoolFee(Math.max(spendCount, 2)))
+    const required = netCredits + selection.feeCredits
+
+    const changeBytes = deriveAddressBytes(keys.ivk, diversifierAtIndex(keys.dk, 0))
+    const outputs = [{
+        recipient: changeBytes,
+        value: selection.changeCredits,
+        memo: new Uint8Array(36),
+        senderOvk: keys.ovk,
+    }]
+
+    progress('Building the transaction…')
+    const build: TransferBuild = buildTransferPczt({
+        spends: selection.spends.map(({ note, witness }) => ({
+            recipient: hexToBytes(note.recipient),
+            value: BigInt(note.value),
+            rho: hexToBytes(note.nullifier),
+            rseed: hexToBytes(note.rseed),
+            fvk: keys.fvk,
+            ask: keys.ask,
+            witness,
+        })),
+        outputs,
+        anchor: selection.anchor,
+        extraSighashData: identityTopUpFromShieldedExtraSighashData(identityId, required),
+    })
+
+    progress('Proving (the zk-SNARK prover can take up to ~2 minutes)…')
+    const proved = await postPcztFrame(serializePcztFrame(build.frame))
+
+    progress('Assembling…')
+    /* topUpAmount is the GROSS (= required = net + fee): consensus credits
+     * topUpAmount - fee to the identity (rs-dpp v0/mod.rs struct doc).
+     * Live-hit 2026-11-14: passing the net was rejected with
+     * 'bundle verification failed'. */
+    const assembled = await assembleIdentityTopUpFromShieldedPool({ build, provedFrame: proved.frame, identityId, topUpAmount: required })
+
+    progress('Broadcasting…')
+    await sdk.broadcastStateTransition(assembled.stateTransition)
+    const transitionHash = String((assembled.stateTransition as any).hash(true))
+    await sync.refreshSpent()
+
+    return {
+        transitionHash,
+        feeCredits: selection.feeCredits,
+        changeCredits: selection.changeCredits,
+        spentPositions: selection.spends.map((s) => s.note.position),
+        netCredits,
+    }
+}

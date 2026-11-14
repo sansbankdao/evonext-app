@@ -231,6 +231,18 @@ export function unshieldExtraSighashData(outputAddress: Uint8Array, unshieldingA
   return data;
 }
 
+/** identity_top_up_from_shielded_extra_sighash_data_v0 (rs-dpp shielded/
+ *  sighash.rs:216-222 — F51a probe): identity_id(32) || required(u64 LE),
+ *  where required = topUpAmount + fee and equals the transition's
+ *  value_balance. */
+export function identityTopUpFromShieldedExtraSighashData(identityId: Uint8Array, required: bigint): Uint8Array {
+  if (identityId.length !== 32) throw new Error(`identityId: expected 32 bytes, got ${identityId.length}`);
+  const data = new Uint8Array(32 + 8);
+  data.set(identityId, 0);
+  data.set(u64le(required), 32);
+  return data;
+}
+
 /** shielded_withdrawal_extra_sighash_data_v0 (rs-dpp shielded/sighash.rs:99-109):
  *  output_script || unshielding_amount(u64 LE) || core_fee_per_byte(u32 LE) || pooling(u8). */
 export function shieldedWithdrawalExtraSighashData(

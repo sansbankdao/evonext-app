@@ -31,6 +31,7 @@ import { EVONEXT_CONTRACT_ID_MAINNET, EVONEXT_CONTRACT_ID_TESTNET } from '../con
 import { makeProxyFirstShieldedSource } from '../dapi-proxy'
 import {
     deriveShieldedWalletKeys, sendShielded, buildShieldedHistory,
+    unshieldToAddress, topUpIdentityFromPool,
     shieldedAddressAt, type ShieldedWalletKeys,
 } from './wallet'
 import { ShieldedSync, type OwnedShieldedNote } from './sync'
@@ -212,6 +213,32 @@ async function rpcSend(params: {
     }
 }
 
+async function rpcPoolExit(params: {
+    kind: 'unshield' | 'topUpIdentity'
+    outputAddress?: string
+    identityId?: string
+    netCredits: string
+}): Promise<{ transitionHash: string; feeCredits: string; changeCredits: string; spentPositions: number[]; netCredits: string }> {
+    const common = {
+        sdk: sdk as any,
+        keys: keys as ShieldedWalletKeys,
+        sync: sync as ShieldedSync,
+        network,
+        netCredits: BigInt(params.netCredits),
+        onProgress: (phase: string) => post({ type: 'sendProgress', phase }),
+    }
+    const result = params.kind === 'unshield'
+        ? await unshieldToAddress({ ...common, outputAddress: params.outputAddress! })
+        : await topUpIdentityFromPool({ ...common, identityId: new Uint8Array(Buffer.from(params.identityId!, 'hex')) })
+    return {
+        transitionHash: result.transitionHash,
+        feeCredits: result.feeCredits.toString(),
+        changeCredits: result.changeCredits.toString(),
+        spentPositions: result.spentPositions,
+        netCredits: result.netCredits.toString(),
+    }
+}
+
 /* --- Message pump --------------------------------------------------------- */
 
 const handleRpc = async (id: number, method: string, params: any): Promise<void> => {
@@ -236,6 +263,9 @@ const handleRpc = async (id: number, method: string, params: any): Promise<void>
             break
         case 'settle':
             payload = await rpcSettle(params)
+            break
+        case 'poolExit':
+            payload = await rpcPoolExit(params)
             break
         case 'receiveAddress':
             payload = shieldedAddressAt(keys, Number(params?.index ?? 0), network)

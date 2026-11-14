@@ -96,3 +96,38 @@ export function recommendedAssetLockCredits(shieldCredits: bigint): bigint {
   /* Round up to a whole satoshi (1000 credits) for the L1 lock value. */
   return ((withHeadroom + 999n) / 1000n) * 1000n
 }
+
+/* ---- F51b: the three new pool-edge fees (protocol v14, validation v10) ----
+ * All verified against rs-dpp v5.0.0-rc.8 compute_minimum_shielded_fee/v0 +
+ * the shielded/mod.rs effective-byte constants (F51a probe, 2026-11-14):
+ * unshield address write 222 B, identity top-up balance rewrite 8 B,
+ * ShieldFromIdentity identity write allowance (2x400 + 500 B floor). */
+
+/** compute_shielded_unshield_fee (v0): the Unshield transition (17) carves
+ *  EXACTLY this from the pool (builder/unshield.rs: 'The fee is not a
+ *  parameter'); the net (unshielding_amount - fee) is credited to the
+ *  output transparent address. For 2 actions: 114,140,000 + 6,082,800 =
+ *  120,222,800 credits. */
+export function computeUnshieldFee(numActions: number): bigint {
+  return computeMinimumShieldedFee(numActions)
+    + 222n * SHIELDED_STORAGE_PER_BYTE_RATE
+}
+
+/** compute_shielded_identity_top_up_fee (v0): IdentityTopUpFromShieldedPool
+ *  (22) carves EXACTLY this from the pool; the identity receives the net.
+ *  For 2 actions: 114,140,000 + 219,200 = 114,359,200 credits. */
+export function computeIdentityTopUpFromShieldedPoolFee(numActions: number): bigint {
+  return computeMinimumShieldedFee(numActions)
+    + 8n * SHIELDED_STORAGE_PER_BYTE_RATE
+}
+
+/** compute_shielded_identity_balance_write_fee (v0): the ShieldFromIdentity
+ *  (21) ADMISSION FLOOR — the identity is debited amount + the METERED fee
+ *  which may be lower than this floor (compute_.../v0/mod.rs: 'Execution
+ *  charges the actual metered fee, which may be lower'). Client-side we use
+ *  the floor for sizing/validation only. For 2 actions: 114,140,000 +
+ *  1,300x27,400 = 149,760,000 credits. */
+export function computeShieldFromIdentityFeeFloor(numActions: number): bigint {
+  return computeMinimumShieldedFee(numActions)
+    + (BigInt(numActions) * 400n + 500n) * SHIELDED_STORAGE_PER_BYTE_RATE
+}

@@ -289,3 +289,201 @@ export async function assembleShieldedWithdrawal(
         bindingSignature,
     }
 }
+
+export interface AssembleShieldFromIdentityOptions {
+    /* The shielded identity id (32 bytes) whose balance funds the shield. */
+    identityId: Uint8Array
+    /* The net shield amount in credits (the identity is debited amount +
+     * the metered fee). */
+    amount: bigint
+    /* The identity's CURRENT nonce (chain-read via getIdentityNonce). The
+     * transition carries CURRENT + 1 (live-verified 2026-11-14: the bare
+     * current value is rejected — 'invalid identity nonce ... we are
+     * setting N, error is nonce already present at tip'); the increment is
+     * applied HERE so callers pass exactly what getIdentityNonce returns. */
+    nonce: bigint
+    /* The local output-only build whose frame was sent to the prover (built
+     * with buildOutputOnlyPczt + extraSighashData =
+     * shieldFromIdentityExtraSighashData(identityId)). */
+    build: OutputOnlyBuild
+    /* The proved frame returned by postPcztFrame (zkproof !== null). */
+    provedFrame: PcztFrame
+    /* The identity's TRANSFER key (purpose .../n=3) PrivateKeyWASM instance —
+     * ShieldFromIdentity is identity-signed with a TRANSFER key
+     * (rs-dpp builder/shield_from_identity.rs doc comment). */
+    transferPrivateKey: unknown
+    /* The transfer key's identity key id (e.g. 3) for signaturePublicKeyId. */
+    transferKeyId: number
+    platformVersion?: unknown
+    rand?: RandFn
+}
+
+/* Assembly of a protocol-v14 ShieldFromIdentityTransition (v0, umbrella
+ * type 21) from a proved output-only PCZT frame. Runtime-verified F51a:
+ * constructor takes {identityId, amount, actions, anchor, proof,
+ * bindingSignature, nonce, userFeeIncrease}; the class exposes writable
+ * signature/signaturePublicKeyId for the identity signature; the wire =
+ * 0x15 || 0x00. The identity signature signs SHA256d(getSignableBytes())
+ * with the TRANSFER key (signByPrivateKey). */
+export async function assembleShieldFromIdentity(
+    options: AssembleShieldFromIdentityOptions,
+): Promise<AssembledTransition & { signaturePublicKeyId: number }> {
+    const { identityId, amount, nonce, build, provedFrame, transferPrivateKey, transferKeyId, platformVersion } = options
+    const rand = options.rand ?? defaultRand
+
+    /* 1. The proved frame must be the local build's frame plus a zkproof. */
+    assertProvedFrameMatchesBuild(build.frame, provedFrame)
+
+    /* 2. Output-only: value enters the pool (negative sum). */
+    if (!provedFrame.valueSumIsNegative) {
+        throw new Error('assemble: shield-from-identity bundle value_balance is not negative')
+    }
+    const valueBalance = BigInt(provedFrame.valueSumMagnitude)
+
+    /* 3. Map frame actions + binding signature. */
+    const wasm: any = await import('../dash-wasm/wasm_sdk')
+    const actions = mapActionsToWasm(wasm, provedFrame.actions)
+    const bindingSignature = signBinding(build.bsk, build.sighash, rand(80)).sig
+
+    /* 4. Build the transition, then identity-sign it with the TRANSFER key. */
+    const transition = new wasm.ShieldFromIdentityTransition({
+        identityId,
+        amount,
+        actions,
+        anchor: provedFrame.anchor,
+        proof: provedFrame.zkproof,
+        bindingSignature,
+        nonce: nonce + 1n,
+        userFeeIncrease: 0,
+        ...(platformVersion !== undefined ? { platformVersion } : {}),
+    })
+    transition.signature = new Uint8Array(0)
+    transition.signaturePublicKeyId = transferKeyId
+    const stateTransition = transition.toStateTransition()
+    const wireBytes: Uint8Array = stateTransition.signByPrivateKey(transferPrivateKey, transferKeyId, undefined)
+
+    return {
+        stateTransition: wasm.StateTransition.fromBytes(wireBytes),
+        wireBytes,
+        bindingSignature,
+        signaturePublicKeyId: transferKeyId,
+    }
+}
+
+export interface AssembleUnshieldOptions {
+    /* The destination transparent platform address (21 raw bytes type||hash,
+     * a bech32m string, or a wasm PlatformAddress instance). */
+    outputAddress: Uint8Array | string | unknown
+    /* The local spend build whose frame was sent to the prover (built with
+     * buildTransferPczt + extraSighashData =
+     * unshieldExtraSighashData(outputAddress21, required)). */
+    build: TransferBuild
+    /* The proved frame returned by postPcztFrame (zkproof !== null). */
+    provedFrame: PcztFrame
+    platformVersion?: unknown
+    rand?: RandFn
+}
+
+/* Assembly of a protocol-v14 UnshieldTransition (v0, umbrella type 17) from
+ * a proved spend PCZT frame: {outputAddress, actions, unshieldingAmount,
+ * anchor, proof, bindingSignature} — binding-sig-only, NO outer signature
+ * (F51a). unshieldingAmount = required = frame value balance = the NET to
+ * the output address + the consensus fee. */
+export async function assembleUnshield(
+    options: AssembleUnshieldOptions,
+): Promise<AssembledTransition> {
+    const { build, provedFrame, outputAddress, platformVersion } = options
+    const rand = options.rand ?? defaultRand
+
+    assertProvedFrameMatchesBuild(build.frame, provedFrame)
+    if (provedFrame.valueSumIsNegative || provedFrame.valueSumMagnitude === 0n) {
+        throw new Error('assemble: unshield bundle value_balance must be positive (unshielding_amount)')
+    }
+    const unshieldingAmount = BigInt(provedFrame.valueSumMagnitude)
+
+    const wasm: any = await import('../dash-wasm/wasm_sdk')
+    const actions = mapActionsToWasm(wasm, provedFrame.actions)
+    const bindingSignature = signBinding(build.bsk, build.sighash, rand(80)).sig
+
+    const transition = new wasm.UnshieldTransition({
+        outputAddress,
+        actions,
+        unshieldingAmount,
+        anchor: provedFrame.anchor,
+        proof: provedFrame.zkproof,
+        bindingSignature,
+        ...(platformVersion !== undefined ? { platformVersion } : {}),
+    })
+    const stateTransition = transition.toStateTransition()
+    const wireBytes: Uint8Array = stateTransition.toBytes()
+
+    return {
+        stateTransition: wasm.StateTransition.fromBytes(wireBytes),
+        wireBytes,
+        bindingSignature,
+    }
+}
+
+export interface AssembleIdentityTopUpFromShieldedPoolOptions {
+    /* The identity id (32 bytes) to top up. */
+    identityId: Uint8Array
+    /* GROSS credits leaving the pool = the bundle's value balance = net +
+     * fee (rs-dpp v0/mod.rs struct doc: 'top_up_amount — Gross credits
+     * leaving the pool (the bundle's value balance). The identity is
+     * credited top_up_amount - fee'). The net is derived by consensus. */
+    topUpAmount: bigint
+    /* The local spend build (built with buildTransferPczt + extraSighashData
+     * = identityTopUpFromShieldedExtraSighashData(identityId, required)). */
+    build: TransferBuild
+    /* The proved frame returned by postPcztFrame (zkproof !== null). */
+    provedFrame: PcztFrame
+    platformVersion?: unknown
+    rand?: RandFn
+}
+
+/* Assembly of a protocol-v14 IdentityTopUpFromShieldedPoolTransition (v0,
+ * umbrella type 22): {identityId, actions, topUpAmount, anchor, proof,
+ * bindingSignature} — binding-sig-only, NO outer signature (F51a: 'there is
+ * no platform signature'). topUpAmount = the NET credited to the identity;
+ * the frame's value balance = net + the consensus fee. */
+export async function assembleIdentityTopUpFromShieldedPool(
+    options: AssembleIdentityTopUpFromShieldedPoolOptions,
+): Promise<AssembledTransition> {
+    const { identityId, topUpAmount, build, provedFrame, platformVersion } = options
+    const rand = options.rand ?? defaultRand
+
+    assertProvedFrameMatchesBuild(build.frame, provedFrame)
+    if (provedFrame.valueSumIsNegative || provedFrame.valueSumMagnitude === 0n) {
+        throw new Error('assemble: top-up bundle value_balance must be positive (gross)')
+    }
+    const valueBalance = BigInt(provedFrame.valueSumMagnitude)
+    /* Live-hit 2026-11-14: consensus requires top_up_amount == the bundle's
+     * value balance EXACTLY (gross == -value_sum); passing the net produced
+     * 'bundle verification failed: proof, spend auth signatures, or
+     * binding signature invalid'. */
+    if (topUpAmount !== valueBalance) {
+        throw new Error(`assemble: topUpAmount (${topUpAmount}) must equal the bundle's gross value balance (${valueBalance})`)
+    }
+
+    const wasm: any = await import('../dash-wasm/wasm_sdk')
+    const actions = mapActionsToWasm(wasm, provedFrame.actions)
+    const bindingSignature = signBinding(build.bsk, build.sighash, rand(80)).sig
+
+    const transition = new wasm.IdentityTopUpFromShieldedPoolTransition({
+        identityId,
+        actions,
+        topUpAmount,
+        anchor: provedFrame.anchor,
+        proof: provedFrame.zkproof,
+        bindingSignature,
+        ...(platformVersion !== undefined ? { platformVersion } : {}),
+    })
+    const stateTransition = transition.toStateTransition()
+    const wireBytes: Uint8Array = stateTransition.toBytes()
+
+    return {
+        stateTransition: wasm.StateTransition.fromBytes(wireBytes),
+        wireBytes,
+        bindingSignature,
+    }
+}

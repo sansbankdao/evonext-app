@@ -240,6 +240,19 @@ class ShieldedEngineClient {
         return this.call<string>('receiveAddress', { index })
     }
 
+    /** F51b pool-exit moves (worker-side: notes/witnesses never leave):
+     *  'unshield' → pool credits to a transparent platform address (17);
+     *  'topUpIdentity' → pool credits to an identity balance (22). The
+     *  identityId travels as 64-char hex. */
+    poolExit(params: {
+        kind: 'unshield' | 'topUpIdentity'
+        outputAddress?: string
+        identityId?: string
+        netCredits: string
+    }): Promise<ShieldedSendResult & { netCredits: string }> {
+        return this.call<ShieldedSendResult & { netCredits: string }>('poolExit', params, 600000)
+    }
+
     /** Keys for the main-thread SHIELD flow only (asset-lock path). */
     keys(): Promise<ShieldedWalletKeys> {
         return this.call<ShieldedWalletKeys>('keys')
