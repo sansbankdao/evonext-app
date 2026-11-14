@@ -110,34 +110,38 @@ export const registerIdentityAndUsername = async (
         progress('Resuming your pending asset lock...')
         txid = pendingTxid
     } else {
-        /* Auto-resume an UNUSED lock: a previous attempt may have broadcast
-         * the lock but died before identity creation. Its credit output is
-         * UNSPENDABLE on L1, so the locked funds are provably still there —
-         * resume it instead of building a SECOND lock (double burn). */
-        const unusedLockTxid = await findUnusedAssetLock(
-            _currentNetwork, funding.address)
+        /* Collect funding UTXOs (SPENDABLE only — the F27f filter excludes
+         * asset-lock credit outputs). */
+        progress('Checking your deposit...')
+        const utxos = await getFundingUtxos(_currentNetwork, funding.address)
 
-        if (unusedLockTxid) {
-            progress('Resuming your pending asset lock...')
-            txid = unusedLockTxid
+        /* Validate funding. */
+        const funded = utxos.reduce(
+            (sum: number, utxo: any) => sum + utxo.satoshis, 0)
 
-            /* Persist for consistency (cleared after confirmation). */
-            if (typeof window !== 'undefined') {
-                window.localStorage.setItem(pendingKey, txid)
-            }
-        } else {
-            /* Collect funding UTXOs. */
-            progress('Checking your deposit...')
-            const utxos = await getFundingUtxos(_currentNetwork, funding.address)
+        /* Auto-resume an UNUSED lock ONLY when a fresh lock is NOT
+         * affordable. L1-unspent-ness does NOT prove Platform-side unused:
+         * Platform consumes the lock WITHOUT spending the L1 credit output
+         * (F27h) — live-confirmed on mainnet 2026-11-15: resuming the F36
+         * lock hit 'Asset lock transaction … output 0 already completely
+         * used'. When the deposit covers a fresh lock, ALWAYS build fresh. */
+        if (funded < minimumDeposit) {
+            const unusedLockTxid = await findUnusedAssetLock(
+                _currentNetwork, funding.address)
 
-            /* Validate funding. */
-            const funded = utxos.reduce(
-                (sum: number, utxo: any) => sum + utxo.satoshis, 0)
-            if (utxos.length === 0 || funded < minimumDeposit) {
+            if (unusedLockTxid) {
+                progress('Resuming your pending asset lock...')
+                txid = unusedLockTxid
+
+                /* Persist for consistency (cleared after confirmation). */
+                if (typeof window !== 'undefined') {
+                    window.localStorage.setItem(pendingKey, txid)
+                }
+            } else {
                 throw new Error(
                     `Insufficient deposit at ${funding.address}: ${funded} sats available, ${minimumDeposit} required`)
             }
-
+        } else {
             /* Build + sign the asset-lock transaction (client-side). */
             progress('Building your asset lock transaction...')
             const assetLock = createAssetLockTransaction(
@@ -259,6 +263,13 @@ export const registerIdentityAndUsername = async (
         })
     } catch (error: any) {
 console.error('REGISTRAR (identity create failed)', error)
+        /* A resumed lock Platform already consumed (F27h/F55): clear the
+         * persisted pending lock so a retry does not loop on it. */
+        if (/already completely used/i.test(String(error?.message ?? error))) {
+            if (typeof window !== 'undefined') {
+                window.localStorage.removeItem(pendingKey)
+            }
+        }
         throw new Error(
             `identity create failed: ${error?.message || String(error)}`)
     }
