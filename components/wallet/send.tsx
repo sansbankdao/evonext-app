@@ -230,6 +230,16 @@ export function WalletSend({ isFullScreen }: IWalletSendProps) {
                 safeReceiver = receiver
             }
 
+            /* F56: the protocol REJECTS self-transfers ('Credits transfer
+             * recipient must be another identity' — live-confirmed on
+             * mainnet 2026-11-15). Guard early with a friendly toast and
+             * point at the Move card. */
+            if (asset.id === '0' && safeReceiver && user?.identityId && safeReceiver === user.identityId) {
+                showErrorToast("You can't send to your own identity — use the Move card on the Receive tab to move funds between your balances.")
+                setIsSubmitting(false)
+                return
+            }
+
             /* Validate asset. */
             if (asset.id === '0') {
                 /* Request a credit transfer. */

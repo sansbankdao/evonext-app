@@ -155,7 +155,16 @@ class ShieldedEngineClient {
         this.network = options.network
         let raw: string | null = null
         try { raw = window.localStorage.getItem(SYNC_STATE_KEY(options.network)) } catch { /* private mode */ }
+        /* INIT RETRY (F56): the worker's 26.5MB wasm fetch through the Pages
+         * Function is FLAKY — live-verified on production mainnet: "WebAssembly
+         * compilation aborted: Network error: Response body loading was
+         * aborted" left the dashboard's Shielded row at ZERO forever (the
+         * scan effect catches and gives up). Retry the whole init up to 3
+         * times with a backoff before surfacing the failure. */
+        const MAX_INIT_ATTEMPTS = 3
         this.startPromise = new Promise<void>((resolve, reject) => {
+            let attempt = 0
+            let timer: ReturnType<typeof setTimeout> | undefined
             const onReady = (event: MessageEvent) => {
                 const data = event.data as any
                 if (data?.type === 'ready') {
@@ -164,6 +173,17 @@ class ShieldedEngineClient {
                     this.startKey = key
                     resolve()
                 } else if (data?.type === 'initFailed') {
+                    attempt++
+                    if (attempt < MAX_INIT_ATTEMPTS) {
+                        /* Stay subscribed; re-post the same init after a
+                         * backoff (the worker resets initInFlight in its
+                         * finally). */
+                        console.warn(`shielded engine init failed (attempt ${attempt}/${MAX_INIT_ATTEMPTS}):`, String(data.error || '').slice(0, 160), '— retrying')
+                        timer = setTimeout(() => {
+                            worker.postMessage({ type: 'init', network: options.network, mnemonic: options.mnemonic, state: raw })
+                        }, 3000 * attempt)
+                        return
+                    }
                     worker.removeEventListener('message', onReady)
                     worker.removeEventListener('message', onFailed)
                     this.startPromise = null
