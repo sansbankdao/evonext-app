@@ -35,9 +35,14 @@ const INSIGHT_URLS = {
 // this: the OP_RETURN output burns this value into the credit pool AND an
 // equal P2PKH credit output is paid back to the funding key (Dash Core v23
 // requires creditOutputs sum == OP_RETURN value).
-// 0.03 DASH covers an identity + an uncontested DPNS username; contested
-// usernames (masternode-voted) are recommended at 0.2 DASH.
-export const ASSET_LOCK_SATOSHIS = 3_000_000 // 0.03 DASH locked (uncontested)
+// 0.015 DASH covers an identity + an uncontested DPNS username. HALVED from
+// 0.03 on 2026-11-15 (owner-directed): the DPNS contest threshold moved from
+// <20 chars to <15 chars (live-verified 2026-11-15: 14-char contested, 15-char
+// uncontested, on BOTH networks) and an uncontested registration costs only
+// the transition fee (~30M credits, F39 testnet measurement) — the smaller
+// lock still funds the identity comfortably. Contested (≤14-char,
+// masternode-voted keyword) names keep the larger lock.
+export const ASSET_LOCK_SATOSHIS = 1_500_000 // 0.015 DASH locked (uncontested)
 export const CONTESTED_ASSET_LOCK_SATOSHIS = 20_000_000 // 0.2 DASH locked (contested)
 
 // Fee rate used for the asset-lock transaction (sats per kB). Kept well

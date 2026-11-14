@@ -148,7 +148,23 @@ storeIdentityIdx(credentials?.identityIdx ?? 0)
             if (hasMnemonic()) {
                 await handleMnemonic(mnemonic)
             } else {
-                await login(identityId, privateKey)
+                /* Private key path. When no identity id was typed, DISCOVER
+                 * it from the key (the desktop/mobile flow: derive the
+                 * public key hash160 from the WIF, then look the identity up
+                 * by public key hash on the current network). */
+                let effectiveIdentityId = identityId.trim()
+                if (!effectiveIdentityId && privateKey.trim()) {
+                    const { discoverIdentityFromWif } = await import('@/lib/private-key-login')
+                    const discovered = await discoverIdentityFromWif(privateKey)
+                    if (!discovered) {
+                        throw new Error(
+                            'No identity found for this private key on the current network. ' +
+                            'Double-check the key and the selected network, or paste the Identity ID manually.'
+                        )
+                    }
+                    effectiveIdentityId = discovered.identityId
+                }
+                await login(effectiveIdentityId, privateKey)
                 // Navigation handled by auth context
             }
         } catch (err) {
@@ -343,7 +359,7 @@ storeIdentityIdx(credentials?.identityIdx ?? 0)
                         {hasIdentityPrivateKey && <>
                             <div>
                                 <label htmlFor="identityId" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                    Identity ID
+                                    Identity ID <span className="font-normal text-gray-400">(optional — discovered automatically from the key)</span>
                                 </label>
 
                                 <input
@@ -353,7 +369,6 @@ storeIdentityIdx(credentials?.identityIdx ?? 0)
                                     onChange={(e) => setIdentityId(e.target.value)}
                                     placeholder="e.g., 5DbLwAxGBzUzo81VewMUwn4b5P4bpv9FNFybi25XB5Bk"
                                     className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-lg text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-evonext-500 focus:border-transparent transition-colors"
-                                    required
                                 />
                             </div>
 
