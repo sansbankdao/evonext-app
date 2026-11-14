@@ -2838,3 +2838,82 @@ WASM sha256 + page set + _headers, NOT chunk hashes.
   (ssh alias, 172.81.178.120, cargo 1.92.0, 6 cores, 16 GB RAM — prefer for
   heavy builds). Both verified live 2026-10-25.
 - After each completed task, update this file (mark done + record verification).
+
+## F54 — MOVE MATRIX COMPLETE: types 11+15 live-executed via consensus-exact
+reference wires over a direct grpc transport; the wasm-glue encoder bug bypassed
+(2026-11-15, commit `fe6f0bd`)
+
+**(a) THE WASM-GLUE ENCODER BUG — PROVEN by a real bincode-2.0.1 Rust probe**
+(`/tmp/bincodetest`, run on the HOST — a pure std-crate check, not a repo build):
+the vendored wasm's `IdentityTopUpFromAddressesTransition` inner wire = the CORRECT
+bytes **SHIFTED RIGHT BY 4 BITS** from the inputs' nonce onward — every broadcast
+through wasm `StateTransition::to_bytes()` fails drive deserialization for the two
+witness-carrying address-funds types (11 + 15); types 7/9/21 (no inputs map) are fine.
+Ground-truth encoding: bincode standard+BE varint (SINGLE_BYTE_MAX=250; 0xFB u16-BE,
+0xFC u32-BE, 0xFD u64-BE — read from bincode-2.0.1/src/varint), enums = the
+u32-varint variant tag + the payload fields in declaration order, maps/vecs = the
+u64-varint length, Options = the u32-varint variant, **BinaryData payloads =
+LENGTH-PREFIXED** (the witness sig = [0x41][65] — proven by the drive consuming
+exactly 102 = … + [00][len 31][31 bytes] of a raw 65-byte sig).
+
+**(b) THE DRIVE DISPATCH MAP — decoded from the variant probes** (the direct grpc
+sending [0b][version] variants): [0b] = IdentityTopUpFromAddresses (the version
+allowed 0..=0 — the probe '[0b][01]' → 'IdentityTopUpFromAddressesTransition allowed
+Range 0..=0, found 1'), [0c] = AddressFundsTransfer ('AddressFundsFeeStrategyStep
+allowed 0..=1 found 34'). The umbrella tag = the 1st byte, the version = the 2nd.
+
+**(c) THE DIRECT GRPC TRANSPORT — lib/direct-grpc.ts**: a minimal hand-rolled
+grpc-web unary POST to `<host>/org.dash.platform.dapi.v0.Platform/BroadcastStateTransition`
+(the frame = [0x00][4B BE len][0x0A varint len][wire]; NO protobuf-ts; the seed
+hosts = lib/dapi-seeds.ts = the pshenmic SDK's own lists; the errors = the
+grpc-status/`dash-serialized-consensus-error-bin` headers). `broadcastStateTransition`
+via `dash-platform-sdk`'s pool also works (the same proto) but the hand-rolled
+version = no bundle cost. The wasm's own transport is NOT fetch-interceptable
+(native dpp — no WebSocket either).
+
+**(d) THE REFERENCE WIRES — lib/shielded/reference-wire.ts**: the bincode-exact
+builders (`identityTopUpFromAddressesSignable`, `shieldSignable`, the varint/entry/
+fee/witness encoders) + `signAddressWitnessSig` (noble recovered [recid,r,s] →
+[31+recid,r,s] over sha256d(signable)). Two-pass: the `signable` excludes the
+witnesses; `finalize(sig65s)` appends the length-prefixed witness block.
+The serializedError probes + the real bincode diff confirmed: rc.5 = rc.8 for
+every struct involved (the serialization crate, platform_address.rs, the umbrella
+enum, witness.rs, shield/topup mod.rs — all diffs EMPTY).
+
+**(e) LIVE EXECUTIONS (the real drive, testnet)**:
+- **Type 11** Transparent→Identity: input 2,000,000 (the nonce = state+1 = 1),
+  BROADCAST OK via the direct grpc; the address 475,807,200 → 470,869,740
+  (the fee = 2,937,460 credits), the address's nonce 0→1 (the state+1 rule
+  CONFIRMED in practice). The earlier 'full-balance input' (475,807,200) =
+  rejected — the validator wants headroom (the input ≥ the top-up + the fee);
+  the error-data = {address, nonce=1 ✓, the context 1,000,000 =
+  min_identity_funding_amount}.
+- **Type 15** Transparent→Shielded: the CACHED proved frame reused whole (the
+  proof/binding/sighash = the wire-encoding-independent!); the input =
+  384,000,000 = the shield 300M + **84,000,000** (the pool's minimum fee for
+  2 actions — the validator's own error text: 'total input amount (300000000)
+  is less than shield amount (300000000) plus minimum shielded fee (84000000)');
+  BROADCAST OK; the address 470,869,740 → 49,126,260; the nonce 1→2; **the 300M
+  note TRIAL-DECRYPTED via the full ShieldedSync (12 notes, 3,675,650,000
+  credits total): value 300,000,000 memo 'f51c transparent->shielded'**.
+- **Type 7** identity→identity: the manual noble sig over sha256d(getSignableBytes)
+  via the WASM broadcast = accepted; the recipient +exactly 1,000,000. Hashes:
+  hashSkip `b4e5bdf8…0a6df2a`, hashFull `b8f32cc5…d721f1a2a` (the explorer's
+  canonical form = unresolved — the platform-explorer DNS = NXDOMAIN from this
+  host; the skip-sig hash = the F29d unique-id convention → use that).
+
+**(f) THE MOVE MATRIX = COMPLETE** — all ten lanes live-verified on testnet:
+9 identity→address (F51a/F51b), 21 identity→shielded (F51b), 17 shielded→transparent
+(F51b), 22 shielded→identity (F51b), 16 shielded→shielded (F31), 19
+shielded-withdrawal (F32), 18 asset-lock-shield (F29), **7 identity→identity,
+11 transparent→identity, 15 transparent→shielded (F54)**.
+
+**(g) THE APP INTEGRATION**: lib/moves-service.ts (`moveTransparentToIdentity`,
+`moveTransparentToShielded`, `readTransparentAddress` — getAddressesInfos keyed by
+the variant-form hex ✓ F51c rule); components/wallet/move-card.tsx = the Move card
+ON THE RECEIVE TAB (the owner directive), the FROM/TO selectors + the DASH amount +
+the four lanes wired (the shielded-source lanes = the engine's poolExit — the F51b
+proven path; the transparent-source = the new reference flows). The wire KATs =
+test/unit/lib/reference-wire.test.ts (pinned to the real bincode layout — 242/242).
+Gates: tsc 0, eslint 0, 242/242, playwright 2/2, evorunner build green (the Move
+card greps in the live `page-6592710161a7f9f0.js` chunk), deployed + verified.
