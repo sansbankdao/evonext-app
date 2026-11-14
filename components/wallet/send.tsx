@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import Link from 'next/link'
 import { useAuth } from '@/contexts/auth-context'
 import { useNetwork } from '@/contexts/network-context'
 import { BoltIcon, UserIcon } from '@heroicons/react/24/outline'
@@ -97,9 +96,9 @@ export function WalletSend({ isFullScreen }: IWalletSendProps) {
     const [withdrawNote, setWithdrawNote] = useState<string | null>(null)
     const [identityFirstUse, setIdentityFirstUse] = useState('')
     const [isSubmitting, setIsSubmitting] = useState(false)
-    const [txid, setTxid] = useState<string | undefined>()
-    /* The token-send confirmation balances (F53c). */
-    const [tokenNote, setTokenNote] = useState<{ recipient: string; sender?: string } | undefined>()
+    /* The send confirmation balances (F53d): both send paths return the
+     * post-transfer balances; there is no transition-hash surface. */
+    const [tokenNote, setTokenNote] = useState<{ ticker: string; recipient: string; sender?: string } | undefined>()
     const [errorMsgs, setErrorMsgs] = useState()
     const [isShowingVideoPreview, setIsShowingVideoPreview] = useState('hidden')
 
@@ -259,20 +258,22 @@ export function WalletSend({ isFullScreen }: IWalletSendProps) {
                 })
             }
 
-            /* Confirmation: the credit path returns a real txid; the token
-             * path returns the post-transfer balances (there is no
-             * transition-hash surface on the tokenTransfer op). Both were
-             * silently dropped before (F53c): the success block is keyed
-             * on `txid`, which was never set. */
+            /* Confirmation (F53d): the high-level ops expose NO transition
+             * hashes — both return the POST-transfer balances. Show those
+             * (per-asset decimals: DASH 11 credits, DUSD 6, SANS 8); the
+             * old 'UNKNOWN TXID' + nexa-explorer link is gone. */
             const txResponse = response as any
-            if (txResponse && txResponse.txid) {
-                setTxid(txResponse.txid)
-            }
             if (txResponse && txResponse.recipientBalance !== undefined) {
+                const decimals = asset.id === '0' || asset.id === 'shielded'
+                    ? DASH_DECIMALS
+                    : (asset.id === DUSD_CONTRACT_ID_MAINNET || asset.id === DUSD_CONTRACT_ID_TESTNET)
+                        ? DUSD_DECIMALS
+                        : SANS_DECIMALS
                 setTokenNote({
-                    recipient: numeral(parseFloat(txResponse.recipientBalance.toString()) / (10 ** (asset.id === DUSD_CONTRACT_ID_MAINNET || asset.id === DUSD_CONTRACT_ID_TESTNET ? DUSD_DECIMALS : SANS_DECIMALS))).format('0,0[.]000000'),
+                    ticker: asset.ticker,
+                    recipient: numeral(parseFloat(txResponse.recipientBalance.toString()) / (10 ** decimals)).format('0,0[.]00000000'),
                     sender: txResponse.senderBalance !== undefined
-                        ? numeral(parseFloat(txResponse.senderBalance.toString()) / (10 ** (asset.id === DUSD_CONTRACT_ID_MAINNET || asset.id === DUSD_CONTRACT_ID_TESTNET ? DUSD_DECIMALS : SANS_DECIMALS))).format('0,0[.]000000')
+                        ? numeral(parseFloat(txResponse.senderBalance.toString()) / (10 ** decimals)).format('0,0[.]00000000')
                         : undefined,
                 })
             }
@@ -565,17 +566,12 @@ export function WalletSend({ isFullScreen }: IWalletSendProps) {
                     )}
                 </button>
 
-                {txid && <section className="my-10">
+                {tokenNote && <section className="my-10">
                     <div>
                         <h3 className="text-sm text-gray-500 font-medium">Transaction sent successfully!</h3>
-
-                        {tokenNote
-                            ? <h3 className="text-xs text-gray-500 mt-1">
-                                {asset.ticker} balances after the transfer — recipient: {tokenNote.recipient}{tokenNote.sender ? ` · yours: ${tokenNote.sender}` : ''}
-                            </h3>
-                            : <Link href={'https://explorer.nexa.org/tx/' + txid} target="_blank" className="text-blue-500 font-medium hover:underline">
-                                Click here to OPEN transaction details
-                            </Link>}
+                        <h3 className="text-xs text-gray-500 mt-1">
+                            {tokenNote.ticker} balances after the transfer — recipient: {tokenNote.recipient}{tokenNote.sender ? ` · yours: ${tokenNote.sender}` : ''}
+                        </h3>
                     </div>
                 </section>}
 

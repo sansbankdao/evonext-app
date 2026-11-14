@@ -309,7 +309,10 @@ export const sendCredit = async (
     const signer = new IdentitySigner()
     signer.addKeyFromWif(transferWif)
 
-    /* Transfer credits. */
+    /* Transfer credits. The result carries the POST-transfer balances
+     * (IdentityCreditTransferResult) — the UI's confirmation shows them;
+     * the op exposes NO transition-hash surface, so the old
+     * 'UNKNOWN TXID' + nexa-explorer link is gone (F53d). */
     const txResult = await (sdk as any).identityCreditTransfer({
         amount: credits,
         senderId: _identityId,
@@ -319,8 +322,11 @@ export const sendCredit = async (
         signer,
     })
 
-    /* Return transaction (result) ID. */
-    return { txid: (txResult as any)?.txid || 'UNKNOWN TXID' }
+    return {
+        txid: 'UNKNOWN TXID' as any,
+        recipientBalance: txResult?.recipientBalance !== undefined ? BigInt(txResult.recipientBalance) : undefined,
+        senderBalance: txResult?.senderBalance !== undefined ? BigInt(txResult.senderBalance) : undefined,
+    } as any
 }
 
 export const withdrawToCore = async (

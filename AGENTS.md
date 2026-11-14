@@ -1659,6 +1659,25 @@ balances (recipientBalance/senderBalance) and the Send tab shows
 
 Gates: tsc 0, eslint 0/1, 231/231, playwright 2/2.
 
+## F53d — the bogus explorer link REMOVED (2026-11-14)
+
+User: 'https://explorer.nexa.org/tx/UNKNOWN%20TXID' IS WRONG. Root
+causes, all fixed:
+(a) explorer.nexa.org is a NEXA-chain relic — nothing Dash has ever
+linked there;
+(b) the high-level ops (identityCreditTransfer/tokenTransfer) expose NO
+transition-hash surface (IdentityCreditTransferResult/TokenTransferResult
+carry only recipientBalance/senderBalance), so the F25-era fallback
+txid: 'UNKNOWN TXID' rendered into the link;
+(c) sendCredit now ALSO returns the post-transfer balances, and the
+Send tab's confirmation shows 'Transaction sent successfully! —
+<ticket> balances after the transfer — recipient: X · yours: Y' for BOTH
+paths (per-asset decimals: DASH 11 credits, DUSD 6, SANS 8). NO link is
+rendered when there is no real hash to link. The unused Link import
+removed.
+
+Gates: tsc 0, eslint 0/1, 231/231, playwright 2/2.
+
 Next: F51b — the type-15 Shield broadcast rejection (three edges
 live-verified; see F51b) + the type-9 getSignableBytes diagnostic.
 
