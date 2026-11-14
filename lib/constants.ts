@@ -24,15 +24,19 @@ export const DPNS_CONTRACT_ID = 'GWRSAVFMjXx8HpQFaNJMqBV7MBgMK4br5UESsB4S31Ec' /
 
 /* DUSD Contract IDs */
 // NOTE: Platform official stablecoin
-export const DUSD_CONTRACT_ID_MAINNET = 'DYqxCsuDgYsEAJ2ADnimkwNdL7C4xbe4No4so19X9mmd' // DUSD on Mainnet
-export const DUSD_CONTRACT_ID_TESTNET = '3oTHkj8nqn82QkZRHkmUmNBX696nzE1rg1fwPRpemEdz' // tDUSD on Testnet
+export const DUSD_CONTRACT_ID_MAINNET = 'DYqxCsuDgYsEAJ2ADnimkwNdL7C4xbe4No4so19X9mmd' // DUSD token id on Mainnet
+/* NOTE (2026-11-14): these are PLATFORM v5 TOKEN ids, not contract ids —
+ * the tDUSD token id resolves via getTokenContractInfo to contract
+ * GWghYQoDFEb3osEfigrF7CKdZLWauxC7TwM4jsJyqa23 (position 0, 6 decimals);
+ * mainnet DUSD DYqxCsuD… resolves to contract 8CkcAPokwFdxEu2tUu2VdLTjgK3eeR1wUGJcxhjsWaDz. */
+export const DUSD_CONTRACT_ID_TESTNET = '3oTHkj8nqn82QkZRHkmUmNBX696nzE1rg1fwPRpemEdz' // tDUSD token id on Testnet
 export const DUSD_DECIMALS = 6
 export const DUSD_USD_VALUE = 1.00
 
 /* SANS Contract IDs */
 // NOTE: Platform official staking token
 export const SANS_CONTRACT_ID_MAINNET = 'AxAYWyXV6mrm8Sq7vc7wEM18wtL8a8rgj64SM3SDmzsB' // SANS on Mainnet
-export const SANS_CONTRACT_ID_TESTNET = 'A36eJF2kyYXwxCtJGsgbR3CTAscUFaNxZN19UqUfM1kw' // tSANS on Testnet
+export const SANS_CONTRACT_ID_TESTNET = 'A36eJF2kyYXwxCtJGsgbR3CTAscUFaNxZN19UqUfM1kw' // tSANS token id on Testnet
 export const SANS_DECIMALS = 8
 export const SANS_USD_VALUE = 0.01
 

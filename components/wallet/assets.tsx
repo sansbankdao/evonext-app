@@ -10,6 +10,7 @@ import numeral from 'numeral'
 import { useAuth } from '@/contexts/auth-context'
 import { useNetwork } from '@/contexts/network-context'
 import { IToken } from '@/lib/types'
+import { buildAvailableAssets } from '../../lib/wallet-assets'
 import {
     DEFAULT_ASSET,
     DASH_DECIMALS,
@@ -241,7 +242,6 @@ export function WalletAssets({ isFullScreen, onOpenShielded }: WalletAssetProps)
                 // get_identity_balance_with_proof_info,
                 get_identities_token_balances_with_proof_info,
                 // get_identities_token_infos_with_proof_info,
-                WasmSdk,
             } = await import('../../lib/dash-wasm/compat')
 
             /* Initialize SDK. */
@@ -271,13 +271,13 @@ export function WalletAssets({ isFullScreen, onOpenShielded }: WalletAssetProps)
                     sansContractId = SANS_CONTRACT_ID_TESTNET
                 }
 
-                /* Request DUSD balance. NOTE: token queries are keyed by
-                 * the DERIVED token id (contract + position 0), NOT the raw
-                 * contract id (the d.ts doc: 'Passing a data contract ID
-                 * here will not match any record'). */
-                const dusdTokenId = WasmSdk.calculateTokenIdFromContract(dusdContractId, 0)
+                /* Request DUSD balance. NOTE: the constants hold TOKEN ids
+                 * (Platform v5) — verified live 2026-11-14 (the tDUSD token
+                 * 3oTHkj8nqn82QkZRHkmUmNBX696nzE1rg1fwPRpemEdz resolves via
+                 * getTokenContractInfo to contract GWghYQoD…, position 0).
+                 * An earlier 'derive from contract' attempt was WRONG. */
                 response = await get_identities_token_balances_with_proof_info(
-                    sdk, identityIds, dusdTokenId)
+                    sdk, identityIds, dusdContractId)
 // console.log('DUSD BALANCE (response)', response)
 
                 /* Validate response. */
@@ -289,10 +289,9 @@ export function WalletAssets({ isFullScreen, onOpenShielded }: WalletAssetProps)
                     setDisplayDusdBalance(dusdBalance)
                 }
 
-                /* Request SANS balance (derived token id, same rule). */
-                const sansTokenId = WasmSdk.calculateTokenIdFromContract(sansContractId, 0)
+                /* Request SANS balance (same token-id rule). */
                 response = await get_identities_token_balances_with_proof_info(
-                    sdk, identityIds, sansTokenId)
+                    sdk, identityIds, sansContractId)
 // console.log('SANS BALANCE (response)', response)
 
                 /* Validate response. */
@@ -310,71 +309,17 @@ export function WalletAssets({ isFullScreen, onOpenShielded }: WalletAssetProps)
                 const ticker = await response.json()
                 const dashUsdValue = ticker.quote.USD.price
 
-                /* Build AVAILABLE (Platform) assets collection — the
-                 * mobile-parity balance model: Transparent (identity
-                 * credits) + Shielded (the Orchard pool), then tokens. */
-                /* The '0' row shows the DIP-17 Platform-address pool
-                 * balance (the REAL Transparent figure — NOT the identity
-                 * balance, which lives under the dashboard card). */
-                const assets: IToken[] = [{
-                    id: '0',
-                    name: 'Transparent',
-                    ticker: 'DASH',
-                    token_id_hex: dusdContractId,
-                    iconUrl: '/icons/dash.svg',
-                    amount: platformCredits ?? 0n,
-                    decimal_places: DASH_DECIMALS,
-                    fiat: {
-                        USD: dashUsdValue * (Number(platformCredits ?? 0n) / (10 ** DASH_DECIMALS)),
-                    },
-                }]
-
-                /* Shielded row — ALWAYS present (even at ZERO, before the
-                 * worker scan lands), right after Transparent. */
-                assets.push({
-                    id: 'shielded',
-                    name: 'Shielded',
-                    ticker: 'DASH',
-                    token_id_hex: dusdContractId,
-                    iconUrl: '/icons/dash.svg',
-                    amount: shieldedCredits ?? 0n,
-                    decimal_places: DASH_DECIMALS,
-                    fiat: {
-                        USD: dashUsdValue * (Number(shieldedCredits ?? 0n) / (10 ** DASH_DECIMALS)),
-                    },
+                /* Build AVAILABLE (Platform) assets — the row contract
+                 * lives in lib/wallet-assets.ts (unit-tested): Transparent
+                 * + Shielded ALWAYS present; DUSD/SANS only with balances. */
+                const assets = buildAvailableAssets({
+                    network,
+                    dashUsdValue,
+                    platformCredits,
+                    shieldedCredits,
+                    dusdBalance,
+                    sansBalance,
                 })
-
-                /* Validate DUSD balance. */
-                if (typeof dusdBalance !== 'undefined' && dusdBalance !== null) {
-                    assets.push({
-                        id: dusdContractId,
-                        name: 'USD',
-                        ticker: 'DUSD',
-                        token_id_hex: dusdContractId,
-                        iconUrl: '/icons/usd.svg',
-                        amount: dusdBalance,
-                        decimal_places: DUSD_DECIMALS,
-                        fiat: {
-                            USD: DUSD_USD_VALUE * (parseFloat(dusdBalance!.toString()) / (10 ** DUSD_DECIMALS)),
-                        },
-                    })
-                }
-
-                /* Validate SANS balance. */
-                if (typeof sansBalance !== 'undefined' && sansBalance !== null) {
-                    assets.push({
-                        id: sansContractId,
-                        name: 'Sansnote',
-                        ticker: 'SANS',
-                        token_id_hex: sansContractId,
-                        iconUrl: '/icons/sans.svg',
-                        amount: sansBalance,
-                        decimal_places: SANS_DECIMALS,
-                        fiat: {
-                            USD: SANS_USD_VALUE * (parseFloat(sansBalance!.toString()) / (10 ** SANS_DECIMALS)),
-                        },
-                    })
-                }
 
                 /* Save/update assets. */
                 setAssets(assets)

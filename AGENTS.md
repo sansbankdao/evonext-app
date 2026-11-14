@@ -1607,6 +1607,35 @@ THE DUSD TRUTH (verified, decisive):
   real token contract is deployed, the USD/Sansnote rows stay
   placeholders and sends throw the honest not-live error.
 
+## F53b — REGRESSION TESTS for the wallet asset/token layer (2026-11-14)
+
+User directive: add tests to prevent these sorts of regressions. Three
+new suites (231/231 total, was 214):
+
+1. `test/unit/lib/token-facts.test.mts` — REAL-wasm KATs pinning the
+   token-id space: `calculateTokenIdFromContract` for BOTH explorer-
+   verified pairs (testnet contract GWghYQoD…,0 → tDUSD 3oTHkj8nqn82QkZR…;
+   mainnet contract 8CkcAPok…,0 → DUSD DYqxCsuDgYsEAJ2A…), the
+   TokenContractInfo (contract, position) resolution, 32-byte Identifier
+   shape for the constants, and the 6-decimal DUSD fixture. Any future
+   id-space confusion (the root of BOTH F53 incidents) breaks here.
+2. `test/unit/lib/token-send.test.mts` — sendToken CONTRACT tests with a
+   mock SDK: (contract, position) resolution into tokenTransfer, the
+   material-matched transfer key (keyId 3), the nested-wrapper key shapes
+   (the EXACT original crash shape — no positional [3] read), the honest
+   not-live error, the not-found error, and the BigInt amount pass-
+   through. Hardened sendToken's key iteration (values() + flat() +
+   undefined-data skip) as the tests demanded.
+3. `test/unit/lib/wallet-assets.test.ts` — the asset-row CONTRACT:
+   Transparent + Shielded ALWAYS present (F45), DUSD/SANS only with
+   balances (the F53a vanish), keyed by the TOKEN ids, decimals pinned.
+   The row builder was extracted VERBATIM to `lib/wallet-assets.ts`
+   (buildAvailableAssets) so the contract is testable; assets.tsx wires
+   it 1:1.
+
+Gates: tsc 0, eslint 0 errors/1 known warning, 231/231 (23 files),
+playwright 2/2.
+
 Next: F51b — the type-15 Shield broadcast rejection (three edges
 live-verified; see F51b) + the type-9 getSignableBytes diagnostic.
 

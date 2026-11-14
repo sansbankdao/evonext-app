@@ -403,28 +403,24 @@ export const sendToken = async (
      * does the nonce fetch + signing + broadcast internally (the same proven
      * pattern as documentCreate/identityCreditTransfer). */
 
-    /* The asset row's id is the TOKEN'S DATA CONTRACT id; Platform v5 token
-     * ids are DERIVED from (contract, position) and queries/transitions are
-     * keyed by the derived id. DUSD/SANS hold a single token at position 0. */
-    const tokenPosition = 0
-    let tokenId: string
-    try {
-        tokenId = WasmSdk.calculateTokenIdFromContract(_tokenId, tokenPosition)
-    } catch (e: any) {
-        return { code: 1, message: `Invalid token contract id: ${e?.message || e}` }
-    }
-
+    /* The asset row's id is the TOKEN ID (e.g. tDUSD 3oTHkj8nqn82QkZRHkmU…
+     * on testnet, DUSD DYqxCsuDgYsEAJ2ADnimkw… on mainnet) — NOT a contract
+     * id. `getTokenContractInfo` resolves the token's (contract, position)
+     * pair that the tokenTransfer op needs (verified live 2026-11-14:
+     * tDUSD → contract GWghYQoDFEb3osEfigrF7CKdZLWauxC7TwM4jsJyqa23,
+     * position 0, 6 decimals). */
     const sdk = await getWasmSdk()
     const network = _network === 'mainnet' ? 'mainnet' : 'testnet'
 
-    /* Validate the token is LIVE on this network before anything else. */
-    const tokenInfo = await sdk.getTokenContractInfo(tokenId)
+    const tokenInfo = await sdk.getTokenContractInfo(_tokenId)
     if (!tokenInfo) {
         throw new Error(
             'This token is not live on ' + network + ' yet — no token contract is deployed ' +
             'for ' + _tokenId.slice(0, 8) + '…. The USD/Sansnote asset rows are placeholders ' +
             'until a real token contract is wired in.')
     }
+    const dataContractId = String((tokenInfo as any).contractId)
+    const tokenPosition = Number((tokenInfo as any).tokenContractPosition)
 
     /* Sender identity + the signing key matched by MATERIAL (the F26g
      * pattern): find the TRANSFER key by comparing the derived WIF's
@@ -439,12 +435,20 @@ export const sendToken = async (
     const transferWif = await getTransferKey(network, _identityIdx)
     const transferPubHash = PrivateKeyWASM.fromWIF(transferWif).getPublicKeyHash()
     let identityKey: any = undefined
-    let identityKeyId = -1
-    for (const k of (identity as any).publicKeys) {
+    /* Normalize the keys to a list: the wasm class exposes an array, but
+     * wrapper shapes may hand back a record — iterate VALUES (the F53
+     * regression: a positional `[3]` read crashed on wrapper objects). */
+    const rawKeys = (identity as any).publicKeys
+    const keysList: any[] = Array.isArray(rawKeys)
+        ? rawKeys
+        : (rawKeys && typeof rawKeys === 'object')
+            ? Object.values(rawKeys).flat()
+            : []
+    for (const k of keysList) {
+        if (!k || typeof k !== 'object' || k.data === undefined || k.data === null) continue
         const dataHex = typeof k.data === 'string' ? k.data : Buffer.from(k.data).toString('hex')
         if (dataHex.toLowerCase() === transferPubHash.toLowerCase()) {
             identityKey = k
-            identityKeyId = k.keyId ?? k.id ?? k.key_id
         }
     }
     if (!identityKey) {
@@ -455,7 +459,7 @@ export const sendToken = async (
     signer.addKeyFromWif(transferWif)
 
     await (sdk as any).tokenTransfer({
-        dataContractId: _tokenId,
+        dataContractId,
         tokenPosition,
         amount: BigInt(_atomicUnits),
         senderId: _identityId,
