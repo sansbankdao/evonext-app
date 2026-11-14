@@ -2917,3 +2917,72 @@ proven path; the transparent-source = the new reference flows). The wire KATs =
 test/unit/lib/reference-wire.test.ts (pinned to the real bincode layout — 242/242).
 Gates: tsc 0, eslint 0, 242/242, playwright 2/2, evorunner build green (the Move
 card greps in the live `page-6592710161a7f9f0.js` chunk), deployed + verified.
+
+## F55 — PRIVATE-KEY LOGIN (WIF-only, desktop/mobile parity) + MAINNET
+IDENTITY LIVE-CREATED with the halved deposit (2026-11-15, commits `ef0ac1d`,
+`60434cd`)
+
+**(a) THE USER'S BLOCKER — an identity with NO seed phrase, only private
+keys.** Desktop (`evonext-desktop/src/services/identity/discovery/KeyDiscovery.ts`)
+and mobile (`evonext-mobile/src/screens/identity/Manager.tsx
+handleImportByPrivateKey`) both support WIF-only import: derive the public key
+hash160 from the WIF and look the identity up BY PUBLIC KEY HASH. Web parity
+shipped:
+- `lib/private-key-login.ts` `discoverIdentityFromWif(wif)`:
+  `wasm.PrivateKey.fromWIF(wif).getPublicKeyHash()` (network-independent —
+  fromWIF takes NO network arg, mobile-verified pattern) →
+  `sdk.getIdentityByPublicKeyHash(hash)` (unique index) first, then the compat
+  `get_identity_by_non_unique_public_key_hash` fallback (desktop order);
+  normalizes via `.toJSON()` (F26d pattern) WITH the desktop's
+  PURPOSE_MAP/SECURITY_LEVEL_MAP string-enum fallbacks.
+- `app/connect/page.tsx`: the Identity ID field on the private-key path is now
+  OPTIONAL — the id is auto-discovered from the key; pasting BOTH still works
+  (manual path unchanged).
+- LIVE-VERIFIED: (probe) the auth-critical AND transfer WIFs of the F39
+  identity both discover `EcbX…` (775ms, balance 2,123,503,860 ✓); a random
+  WIF → null. (Browser e2e against PRODUCTION testnet.evonext.app) private-key
+  mode → WIF only (id blank) → Sign In → landed on / with the session =
+  EcbXLyhWeMB3BLmpVk1sWgtwQjUzaFASwhL3ShxXqdVa +
+  evonextf39nov13identity.dash ✓. 5 unit tests (unique-first, non-unique
+  fallback, null, throw-tolerance, empty-key guard). The mnemonic-less session
+  works for document ops via state-transition-service.getPrivateKey (the WIF is
+  stored 1h + biometric); seed-derived features (wallet transfers) are
+  unavailable — same as desktop/mobile.
+
+**(b) "REGISTRATION FEES HALVED" — VERIFIED the real change:** the DPNS
+CONTEST THRESHOLD moved from <20 chars to <15 chars. Live-probed BOTH networks
+(protocol still 14 both): 14-char name contested=true, 15-char uncontested=false
+(`dpnsIsContestedUsername`). An UNCONTESTED registration costs only the
+transition fee (F39 testnet measurement: username+profile ≈ 34M credits).
+`ASSET_LOCK_SATOSHIS` 3,000,000 → 1,500,000 sats (deposit required 0.06005 →
+**0.03005**); CONTESTED stays 20M.
+
+**(c) FIRST-EVER MAINNET IDENTITY CREATED THROUGH THE PRODUCTION UI** (the
+user funded 0.04 DASH at the F36 funding address; tx `89191590…` 4M sats at
+2572081):
+- Playwright driver `scratch-mainnet-identity-e2e.mjs` → evonext.app/connect →
+  the F36 24-word mnemonic → confirm() → RegistrarModal → username
+  `evonextmainnetf55` (17 chars, verified available+uncontested) → funding
+  panel showed "Send at least 0.03005" → deposit detected on the first poll →
+  automatic chain: asset lock `294f9394eab29e1c48fd9bb80c08f18fcc81d192d
+  517e12f4d8aa725e060561e` (type 8, block 2572087, vout0 0.015 OP_RETURN 6a00 +
+  vout1 0.015 credit output + vout2 0.01228734 change — the exact v23
+  structure) → chainlock wait → identity CREATED.
+- **Identity `CZUa7rTxZZUL3vF5MrtFj1fT2TX5C1YtqnTxT2gFmG3P`, username
+  `evonextmainnetf55.dash`, balance 1,275,981,880 credits** (1.5B lock −
+  224M creation fee — the fee did NOT halve, matching the F38-era 224M).
+  Independently verified: getIdentity → 5 keys (MASTER p0/s0, CRITICAL p0/s1,
+  HIGH p0/s2, TRANSFER p3/s1, ENCRYPTION p1/s3); dpnsResolveName → the id;
+  lock structure verified on insight. Auto-login landed on /profile/create.
+- State appended to scratch-mainnet-state.json (registeredIdentity/
+  registeredUsername/lockTxid).
+
+**(d) F27h CONFIRMED + FIXED:** `findUnusedAssetLock` resumed the F36 lock
+(L1 credit output unspent) but Platform had ALREADY consumed its outpoint
+(type-18 shield in F36) → `identity create failed: Asset lock transaction
+f7126f9d… output 0 already completely used`. FIX (registrar-manager):
+collect the SPENDABLE utxos FIRST; auto-resume ONLY when
+`funded < minimumDeposit` (a fresh lock unaffordable); build FRESH whenever
+the deposit covers it; an "already completely used" failure now clears the
+persisted pending-lock key so retries don't loop. Deployed + the registration
+rerun went straight through.
