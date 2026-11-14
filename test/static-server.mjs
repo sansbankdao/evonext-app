@@ -46,6 +46,17 @@ const server = createServer(async (req, res) => {
         // it postbuild). Locally the same URL is answered from the committed
         // source file in lib/ so Playwright exercises the real bytes either
         // way: prefer the exported asset when present, fall back to lib/.
+        // Dev parity for the Apple AASA route (F52): the exported file has
+        // NO extension; the upstream MIME table would guess octet-stream /
+        // append .html. Apple requires application/json (the _headers rule
+        // does this on Pages; do it by hand here).
+        if (pathname === '/.well-known/apple-app-site-association') {
+            const body = await readFile(join(ROOT, '.well-known', 'apple-app-site-association'), 'utf8')
+            res.writeHead(200, { 'Content-Type': 'application/json' })
+            res.end(body)
+            return
+        }
+
         if (/^\/_next\/static\/media\/wasm_sdk_bg\.[a-f0-9]+\.wasm$/.test(pathname)) {
             try {
                 await readFile(filePath)

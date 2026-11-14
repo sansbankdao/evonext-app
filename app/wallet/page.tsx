@@ -231,46 +231,13 @@ export default function WalletPage() {
                                 {user?.identityId}
                             </h3>}
 
-                            {/* ALL THREE balances under the username +
-                                address: a TOTAL (identity + Platform
-                                Transparent + Platform Shielded) with the
-                                three-way breakdown. Withdrawals live in
-                                the Send tab's Advanced Options. */}
-                            <div className="mt-2 pt-2 border-t border-sky-200">
-                                <h3 className="text-2xs tracking-widest text-sky-500 font-medium uppercase">
-                                    Total balance
-                                </h3>
-
-                                <h2 className="text-2xl text-gray-700 font-semibold">
-                                    {numeral(totalDash).format('0,0.0000[0000]')}
-                                    <small className="text-sky-400"> DASH</small>
-                                </h2>
-
-                                <h3 className="text-sm text-gray-500 font-medium">
-                                    {numeral(totalDash * dashPrice).format('$0,0.00[00]')}
-                                </h3>
-
-                                <div className="mt-2 grid grid-cols-3 gap-2">
-                                    <div className="rounded-lg bg-white/70 border border-sky-100 px-2 py-1.5">
-                                        <h3 className="text-2xs tracking-wider text-sky-500 uppercase font-medium">Identity</h3>
-                                        <h3 className="text-xs text-gray-700 font-semibold truncate">
-                                            {numeral(identityDash).format('0,0.0000[0000]')}
-                                        </h3>
-                                    </div>
-                                    <div className="rounded-lg bg-white/70 border border-sky-100 px-2 py-1.5">
-                                        <h3 className="text-2xs tracking-wider text-sky-500 uppercase font-medium">Transparent</h3>
-                                        <h3 className="text-xs text-gray-700 font-semibold truncate">
-                                            {numeral(platformDash).format('0,0.0000[0000]')}
-                                        </h3>
-                                    </div>
-                                    <div className="rounded-lg bg-white/70 border border-sky-100 px-2 py-1.5">
-                                        <h3 className="text-2xs tracking-wider text-sky-500 uppercase font-medium">Shielded</h3>
-                                        <h3 className="text-xs text-gray-700 font-semibold truncate">
-                                            {numeral(shieldedDash).format('0,0.0000[0000]')}
-                                        </h3>
-                                    </div>
-                                </div>
-                            </div>
+                            {/* The IDENTITY balance under the identity id
+                                — one simple line (owner directive). The
+                                total lives in the big balance block below
+                                (restored to its pre-refactor spot). */}
+                            {user?.identityId && <h3 className="text-xs tracking-tight text-sky-600 font-medium opacity-70 group-hover:opacity-100 group-hover:scale-105 duration-300 ease-in-out">
+                                Identity balance {numeral(identityDash).format('0,0.0000[0000]')} DASH
+                            </h3>}
                         </section>
 
                         <Image
@@ -280,6 +247,23 @@ export default function WalletPage() {
                             width={0}
                             height={0}
                         />
+                    </div>
+
+                    {/* The big TOTAL balance — the original pre-refactor
+                        spot (right-aligned under the icon row), showing
+                        identity + Platform Transparent + Shielded. */}
+                    <div className="flex flex-col items-end">
+                        <h3 className="text-xs tracking-widest text-sky-700 font-medium uppercase">
+                            Total balance
+                        </h3>
+
+                        <h2 className="text-3xl text-gray-600 font-medium">
+                            {numeral(totalDash).format('0,0.0000[0000]')}
+                        </h2>
+
+                        <h3 className="text-xl text-gray-500 font-medium">
+                            {numeral(totalDash * dashPrice).format('$0,0.00[00]')}
+                        </h3>
                     </div>
 
                     <section className="{[ isShowingAssets ? 'visible' : 'hidden' ]}">

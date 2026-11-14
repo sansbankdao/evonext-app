@@ -18,3 +18,10 @@
 # until the app ships a new build (new hashes = new URLs).
 /_next/static/*
   Cache-Control: public, max-age=31536000, immutable
+
+# Apple AASA (evonext-mobile docs/HANDOFF-aasa-evonext-web.md): Apple's
+# documented content-type for unsigned AASA files is application/json. The
+# exported file has NO extension, so Pages would guess
+# application/octet-stream without this rule.
+/.well-known/apple-app-site-association
+  Content-Type: application/json
