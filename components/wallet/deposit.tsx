@@ -12,6 +12,7 @@ import { showErrorToast } from '@/lib/toast-error'
 import { getMnemonic } from '@/lib/secure-storage'
 import { derivePlatformReceiveAddress } from '@/lib/platform-address'
 import { shieldedEngine } from '@/lib/shielded/engine-client'
+import { WalletMoveCard } from './move-card'
 
 import { CurrencyTypeSelector } from './CurrencyTypeSelector'
 
@@ -427,6 +428,8 @@ export function WalletDeposit({ isFullScreen }: WalletDepositProps) {
                     )
                 })()}
             </section>
+
+            <WalletMoveCard />
 
             <section>
                 <label className="block text-lg font-medium leading-6 text-gray-900">
