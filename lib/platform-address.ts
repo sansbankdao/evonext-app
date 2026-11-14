@@ -84,6 +84,34 @@ export function derivePlatformReceiveAddress(network: Network, index = 0): strin
     return encodePlatformAddress(hash160Of(privateKey.publicKey.toString()), network)
 }
 
+/** Derive the DIP-17 transparent address AND its signing key (the
+ *  Shield transition signs each input address's witness with its own
+ *  key). Same m/9'/coin'/17'/0'/0'/idx derivation as
+ *  derivePlatformReceiveAddress; returns the address plus the key in
+ *  dashcore-LIB hex + WIF form. */
+export function derivePlatformReceiveKey(network: Network, index = 0): {
+    address: string
+    privateKeyHex: string
+    wif: string
+} {
+    const mnemonic = getMnemonic()
+    if (!mnemonic) throw new Error('Mnemonic not found')
+
+    const root = d.HDPrivateKey.fromSeed(
+        (new d.Mnemonic(mnemonic)).toSeed(),
+        toCoreNetwork(network))
+
+    const derived = root.derive(
+        `m/9'/${platformCoinTypeFor(network)}'/17'/0'/0'/${index}`)
+
+    const privateKey = new d.PrivateKey(derived.privateKey, toCoreNetwork(network))
+    return {
+        address: encodePlatformAddress(hash160Of(privateKey.publicKey.toString()), network),
+        privateKeyHex: privateKey.toString(),
+        wif: privateKey.toWIF(),
+    }
+}
+
 /**
  * Sum the credits held across the wallet's DIP-17 receive pool
  * (indexes 0..poolSize-1) — the REAL Transparent balance.

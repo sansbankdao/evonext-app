@@ -28,13 +28,14 @@ import {
     type OutputOnlyBuild, type TransferBuild,
 } from './prove'
 import { serializePcztFrame } from './pczt-wire'
-import { assembleShieldedTransfer, assembleShieldFromAssetLock, assembleUnshield, assembleIdentityTopUpFromShieldedPool, assembleShieldFromIdentity } from './assemble'
+import { assembleShieldedTransfer, assembleShieldFromAssetLock, assembleUnshield, assembleIdentityTopUpFromShieldedPool, assembleShieldFromIdentity, assembleShieldFromTransparent } from './assemble'
+import { signAddressWitness } from './assemble-signing'
 import {
     computeMinimumShieldedFee, computeShieldFromAssetLockPoolFee,
     recommendedAssetLockCredits, computeUnshieldFee,
     computeIdentityTopUpFromShieldedPoolFee, computeShieldFromIdentityFeeFloor,
 } from './fees'
-import { shieldFromAssetLockExtraSighashData, shieldFromIdentityExtraSighashData, unshieldExtraSighashData, identityTopUpFromShieldedExtraSighashData } from './bundle'
+import { shieldFromAssetLockExtraSighashData, shieldFromIdentityExtraSighashData, unshieldExtraSighashData, identityTopUpFromShieldedExtraSighashData, shieldExtraSighashData } from './bundle'
 import { decodeOrchardAddress as decodeOrchardAddr, } from './address'
 import { bech32m } from '@scure/base'
 
@@ -838,5 +839,107 @@ export async function topUpIdentityFromPool(options: {
         changeCredits: selection.changeCredits,
         spentPositions: selection.spends.map((s) => s.note.position),
         netCredits,
+    }
+}
+
+/* ---------------------------------------------------------------------------
+ * F51c — Shield (15): transparent platform address -> the shielded pool.
+ * The input address signs its own witness (65-byte recoverable ECDSA over
+ * the transition's signable bytes, SHA-256d — the same convention as the
+ * identity-key signature, live-verified). Inputs cover shield amount + the
+ * compute fee (84,000,000 for 2 actions); the metered note storage is
+ * charged from the input balance at execution, so the caller leaves
+ * headroom via the feeBuffer.
+ * ------------------------------------------------------------------------- */
+
+/** Shield (15): move `shieldCredits` from OUR transparent DIP-17 address
+ *  (derivePlatformReceiveKey index) into a new note at OUR Orchard address
+ *  (recipientIndex). Requires the mnemonic (address-key derivation). */
+export async function shieldFromTransparent(options: {
+    sdk: any
+    keys: ShieldedWalletKeys
+    network: 'mainnet' | 'testnet'
+    shieldCredits: bigint
+    addressIndex?: number
+    recipientIndex?: number
+    memoText?: string
+    onProgress?: (phase: string) => void
+}): Promise<{ transitionHash: string; shieldCredits: bigint; computeFee: bigint }> {
+    const { sdk, keys, network, shieldCredits } = options
+    const progress = options.onProgress ?? (() => { })
+    if (shieldCredits <= 0n) throw new Error('Amount must be positive')
+
+    const { derivePlatformReceiveKey } = await import('../platform-address')
+    const addressIndex = options.addressIndex ?? 0
+    const { address, privateKeyHex, wif } = derivePlatformReceiveKey(network, addressIndex)
+
+    /* The wasm PlatformAddress 21-byte form = tag(0) || hash160. */
+    const { bech32m: b32 } = await import('@scure/base')
+    const payload = b32.fromWords(b32.decode(address as any).words)
+    if (payload.length !== 21 || payload[0] !== 0xb0) throw new Error('Unexpected transparent address payload')
+    const addressBytes = new Uint8Array(21)
+    addressBytes[0] = 0
+    addressBytes.set(payload.slice(1), 1)
+
+    progress('Reading the address nonce…')
+    /* getAddressesInfos keys its map by the VARIANT-FORM hex (tag||hash160,
+     * live-hit 2026-11-14: a bech32m-string key misses the entry). */
+    const info = await sdk.getAddressesInfos([address])
+    const addressKeyHex = Buffer.from(addressBytes).toString('hex')
+    const infoEntry = info?.get ? info.get(addressKeyHex) : undefined
+    /* The nonce can arrive as a BigInt (wasm getter) — PlatformAddressInput
+     * takes a NUMBER ('Cannot convert a BigInt value to a number'). */
+    const nonce: number = infoEntry?.nonce === undefined ? 0 : Number(infoEntry.nonce)
+    const balance: bigint = infoEntry?.balance !== undefined ? BigInt(infoEntry.balance) : 0n
+    if (infoEntry === undefined) throw new Error('The address has no Platform record yet')
+    if (balance < shieldCredits) throw new Error(`Transparent balance ${balance} < shield amount ${shieldCredits}`)
+
+    /* The 0x84 digest binds the input addresses in map-key order. */
+    const extraSighashData = shieldExtraSighashData([{ type: 0 as const, hash160: addressBytes.slice(1) }])
+
+    const recipientIndex = options.recipientIndex ?? 0
+    const recipientBytes = deriveAddressBytes(keys.ivk, diversifierAtIndex(keys.dk, recipientIndex))
+
+    progress('Building the shield transaction…')
+    const build: OutputOnlyBuild = buildOutputOnlyPczt({
+        outputs: [{
+            recipient: recipientBytes,
+            value: shieldCredits,
+            memo: textMemo(options.memoText ?? ''),
+            senderOvk: keys.ovk,
+        }],
+        extraSighashData,
+    })
+
+    progress('Proving (the zk-SNARK prover can take up to ~2 minutes)…')
+    const proved = await postPcztFrame(serializePcztFrame(build.frame))
+
+    progress('Signing the address witness…')
+    const wasm: any = await import('../dash-wasm/wasm_sdk')
+    const addressPrivateKey = wasm.PrivateKey.fromWIF(wif)
+    const assembled0 = await assembleShieldFromTransparent({
+        inputs: [{ addressBytes, nonce, amount: balance }],
+        build,
+        provedFrame: proved.frame,
+        witnessSignatures: [],
+    })
+    const signable = (assembled0.stateTransition as any).getSignableBytes()
+    const witnessSignature = signAddressWitness(addressPrivateKey.toBytes(), signable)
+
+    const assembled = await assembleShieldFromTransparent({
+        inputs: [{ addressBytes, nonce, amount: balance }],
+        build,
+        provedFrame: proved.frame,
+        witnessSignatures: [witnessSignature],
+    })
+
+    progress('Broadcasting…')
+    await sdk.broadcastStateTransition(assembled.stateTransition)
+    const transitionHash = String((assembled.stateTransition as any).hash(true))
+
+    return {
+        transitionHash,
+        shieldCredits,
+        computeFee: 84_000_000n,
     }
 }

@@ -487,3 +487,77 @@ export async function assembleIdentityTopUpFromShieldedPool(
         bindingSignature,
     }
 }
+
+export interface AssembleShieldFromTransparentOptions {
+    /* The transparent input(s): [variant||hash160] 21-byte encodings + the
+     * per-address nonce + the balance to draw from. */
+    inputs: { addressBytes: Uint8Array; nonce: number; amount: bigint }[]
+    /* The local output-only build (built with buildOutputOnlyPczt +
+     * extraSighashData = shieldExtraSighashData(sorted input parts)). */
+    build: OutputOnlyBuild
+    /* The proved frame returned by postPcztFrame (zkproof !== null). */
+    provedFrame: PcztFrame
+    /* ECDSA over the transition's signable bytes with EACH input address's
+     * own key (the caller signs; the hashing convention is the caller's —
+     * SHA-256d, verified live). */
+    witnessSignatures: Uint8Array[]
+    platformVersion?: unknown
+    rand?: RandFn
+}
+
+/* Assembly of a protocol-v14 ShieldTransition (v0, umbrella type 15):
+ * {inputs, actions, amount, anchor, proof, bindingSignature, feeStrategy,
+ * inputWitnesses} — the transparent inputs are authorized by P2PKH
+ * address-key witnesses (65-byte recoverable ECDSA over the transition's
+ * signable bytes, which EXCLUDE the witnesses). The two-pass build mirrors
+ * rs-dpp try_from_bundle_with_signer: construct with EMPTY witnesses ->
+ * getSignableBytes -> sign -> reconstruct. */
+export async function assembleShieldFromTransparent(
+    options: AssembleShieldFromTransparentOptions,
+): Promise<AssembledTransition> {
+    const { inputs, build, provedFrame, witnessSignatures, platformVersion } = options
+    const rand = options.rand ?? defaultRand
+
+    assertProvedFrameMatchesBuild(build.frame, provedFrame)
+    if (!provedFrame.valueSumIsNegative) {
+        throw new Error('assemble: shield bundle value_balance is not negative')
+    }
+    const valueBalance = BigInt(provedFrame.valueSumMagnitude)
+
+    const wasm: any = await import('../dash-wasm/wasm_sdk')
+    const actions = mapActionsToWasm(wasm, provedFrame.actions)
+    const bindingSignature = signBinding(build.bsk, build.sighash, rand(80)).sig
+
+    const wasmInputs = inputs.map(({ addressBytes, nonce, amount }) =>
+        new wasm.PlatformAddressInput(new wasm.PlatformAddress(addressBytes), nonce, amount))
+
+    const ctor = (witnesses: unknown[]) => new wasm.ShieldTransition({
+        inputs: wasmInputs,
+        actions,
+        amount: valueBalance,
+        anchor: provedFrame.anchor,
+        proof: provedFrame.zkproof,
+        bindingSignature,
+        feeStrategy: [wasm.FeeStrategyStep.deductFromInput(0)],
+        inputWitnesses: witnesses,
+        userFeeIncrease: 0,
+        ...(platformVersion !== undefined ? { platformVersion } : {}),
+    })
+
+    /* Pass 1: EMPTY witnesses -> the signable bytes (they exclude the
+     * witnesses; rs-dpp try_from_bundle_with_signer two-pass). */
+    const signable = ctor([]).toStateTransition().getSignableBytes()
+    if (signable.length === 0) throw new Error('assemble: empty signable bytes for the shield witnesses')
+
+    /* Pass 2: reconstruct with the caller-signed witnesses. */
+    const witnesses = witnessSignatures.map((sig) => wasm.AddressWitness.p2pkh(sig))
+    const transition = ctor(witnesses)
+    const stateTransition = transition.toStateTransition()
+    const wireBytes: Uint8Array = stateTransition.toBytes()
+
+    return {
+        stateTransition: wasm.StateTransition.fromBytes(wireBytes),
+        wireBytes,
+        bindingSignature,
+    }
+}
