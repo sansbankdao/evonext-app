@@ -325,7 +325,34 @@ storeIdentityIdx(credentials?.identityIdx ?? 0)
                     </div>
 
                     <form onSubmit={handleSubmit} className="mt-8 space-y-6">
+                        {/* PROMINENT sign-in method selector — the private-key
+                         * path was previously buried behind a small toggle
+                         * (F55 owner feedback: "I DO NOT SEE ANY CHANGES"). */}
                         {!identityId &&
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    Sign in with
+                                </label>
+                                <div className="flex rounded-xl bg-gray-100 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 p-1 gap-1">
+                                    <button
+                                        type="button"
+                                        onClick={() => setHasIdentityPrivateKey(false)}
+                                        className={`flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition-all ${!hasIdentityPrivateKey ? 'bg-sky-600 text-white shadow-sm' : 'text-gray-600 dark:text-gray-300 hover:bg-white dark:hover:bg-gray-800'}`}
+                                    >
+                                        Recovery Phrase
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={togglePrivateKey}
+                                        className={`flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition-all ${hasIdentityPrivateKey ? 'bg-sky-600 text-white shadow-sm' : 'text-gray-600 dark:text-gray-300 hover:bg-white dark:hover:bg-gray-800'}`}
+                                    >
+                                        Private Key
+                                    </button>
+                                </div>
+                            </div>
+                        }
+
+                        {!identityId && !hasIdentityPrivateKey &&
                             <div className="space-y-4">
                                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
                                     {mnemonic.map((word, idx) => (
@@ -342,34 +369,22 @@ storeIdentityIdx(credentials?.identityIdx ?? 0)
                             </div>
                         }
 
-                        {!identityId &&
+                        {!identityId && !hasIdentityPrivateKey &&
                             <button onClick={toggleExtWords} className="px-5 py-2 bg-sky-700 font-medium text-sky-100 rounded-xl shadow">
                                 {(mnemonic.length === 12) && <>switch to 24 word seed phrase</>}
                                 {(mnemonic.length === 24) && <>switch to 12 word seed phrase</>}
                             </button>
                         }
 
-                        {!identityId &&
-                            <button onClick={togglePrivateKey} className="px-5 py-2 bg-sky-700 font-medium text-sky-100 rounded-xl shadow">
-                                switch to using an Identity private key
-                                <span className="block italic">(HIGH or CRITICAL)</span>
-                            </button>
-                        }
-
                         {hasIdentityPrivateKey && <>
-                            <div>
-                                <label htmlFor="identityId" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                    Identity ID <span className="font-normal text-gray-400">(optional — discovered automatically from the key)</span>
-                                </label>
-
-                                <input
-                                    id="identityId"
-                                    type="text"
-                                    value={identityId}
-                                    onChange={(e) => setIdentityId(e.target.value)}
-                                    placeholder="e.g., 5DbLwAxGBzUzo81VewMUwn4b5P4bpv9FNFybi25XB5Bk"
-                                    className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-lg text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-evonext-500 focus:border-transparent transition-colors"
-                                />
+                            <div className="rounded-xl border border-sky-200 bg-sky-50 dark:bg-sky-950/40 p-4">
+                                <p className="text-sm font-semibold text-sky-900 dark:text-sky-200">
+                                    No seed phrase? No problem.
+                                </p>
+                                <p className="text-xs text-sky-700 dark:text-sky-300 mt-1">
+                                    Paste your private key (WIF) below — your identity is found
+                                    automatically from it. No recovery phrase required.
+                                </p>
                             </div>
 
                             <div>
@@ -385,6 +400,21 @@ storeIdentityIdx(credentials?.identityIdx ?? 0)
                                     placeholder="e.g., XK6CFyvYUMvY9FVQLeYBZBF..."
                                     className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-lg text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-evonext-500 focus:border-transparent transition-colors"
                                     required
+                                />
+                            </div>
+
+                            <div>
+                                <label htmlFor="identityId" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                    Identity ID <span className="font-normal text-gray-400">(optional — discovered automatically from the key)</span>
+                                </label>
+
+                                <input
+                                    id="identityId"
+                                    type="text"
+                                    value={identityId}
+                                    onChange={(e) => setIdentityId(e.target.value)}
+                                    placeholder="e.g., 5DbLwAxGBzUzo81VewMUwn4b5P4bpv9FNFybi25XB5Bk"
+                                    className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-lg text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-evonext-500 focus:border-transparent transition-colors"
                                 />
                             </div>
                         </>}
