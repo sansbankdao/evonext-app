@@ -1569,8 +1569,46 @@ transition instead. Withdrawal output_script must be canonical
 P2PKH(25B)/P2SH(23B); core_fee_per_byte must be a non-zero Fibonacci
 number.
 
-Next: F51b implementation — assemble functions for 21/17/22 (+ Shield
-15 later), fees.ts additions, the RECEIVE-tab internal-move UI.
+## F53 — TOKEN SEND crash FIXED + the DUSD truth (2026-11-14)
+
+User-reported: sending 15 DUSD to `5apjqb8…` crashed with 'Cannot read
+properties of undefined (reading 3)'. Root cause: the F25-era
+`wallet-manager.sendToken` ran on dash-platform-sdk 1.5.3 and read
+`identity.publicKeys[3]` — the 5.0-era identity wrapper from that package
+has NO publicKeys property → `undefined[3]`.
+
+FIXED: `sendToken` rewritten on the wasm high-level `sdk.tokenTransfer`
+({dataContractId, tokenPosition: 0, amount, senderId, recipientId,
+identityKey, signer} — the SDK fetches nonces + signs + broadcasts
+internally, the proven documentCreate/identityCreditTransfer pattern);
+the signing key is matched BY MATERIAL (the F26g pattern) and the token
+id is DERIVED via `WasmSdk.calculateTokenIdFromContract(contract, 0)`
+with a `getTokenContractInfo` gate that throws an HONEST error when the
+token is not live. Assets rows now derive the token id the same way (the
+raw contract id never matches any record per the d.ts doc).
+
+THE DUSD TRUTH (verified, decisive):
+- '3oTHkj…' (tDUSD) and 'A36eJF2k…' (tSANS) — the constants in
+  lib/constants.ts AND the ids the dashswap.xyz frontend treats as token
+  ids — are PHANTOMS: `getDataContract` returns undefined (the contracts
+  do NOT exist on testnet), and the same for mainnet 'DYqxCsu…'.
+- A FULL enumeration of testnet's 4,191 contracts found 1,319 contracts
+  WITH tokens (via the DataContract CLASS's .tokens accessor — the
+  toJSON omits the tokens section, which is why the first JSON-stringify
+  scan showed zero!); none is DUSD/SANS, and the recipient identity
+  5apjqb8… (which EXISTS on testnet, 89,691,256,150 credits) holds NONE
+  of the 1,319 tokens. Mainnet: 66 contracts, 5 with tokens, no DUSD.
+- The dashswap team's DAPI-HANDOFF-2 'verified live' claim for those ids
+  rests on get_identity_token_balances NOT THROWING for an empty map.
+- CONSEQUENCE: the user's 15 DUSD is NOT a Platform token balance. If it
+  exists at all it is the dashswap.xyz service's internal ledger. The
+  open item on the DashSwap side (their DAPI-HANDOFF-2 §4-5: 'Testnet
+  mint/inventory authority — testnet swap E2E') is still undone; until a
+  real token contract is deployed, the USD/Sansnote rows stay
+  placeholders and sends throw the honest not-live error.
+
+Next: F51b — the type-15 Shield broadcast rejection (three edges
+live-verified; see F51b) + the type-9 getSignableBytes diagnostic.
 
 ## F51b — pool-edge moves LIVE-VERIFIED x3 on testnet (2026-11-14)
 

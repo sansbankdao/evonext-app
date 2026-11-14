@@ -241,6 +241,7 @@ export function WalletAssets({ isFullScreen, onOpenShielded }: WalletAssetProps)
                 // get_identity_balance_with_proof_info,
                 get_identities_token_balances_with_proof_info,
                 // get_identities_token_infos_with_proof_info,
+                WasmSdk,
             } = await import('../../lib/dash-wasm/compat')
 
             /* Initialize SDK. */
@@ -270,9 +271,13 @@ export function WalletAssets({ isFullScreen, onOpenShielded }: WalletAssetProps)
                     sansContractId = SANS_CONTRACT_ID_TESTNET
                 }
 
-                /* Request DUSD balance. */
+                /* Request DUSD balance. NOTE: token queries are keyed by
+                 * the DERIVED token id (contract + position 0), NOT the raw
+                 * contract id (the d.ts doc: 'Passing a data contract ID
+                 * here will not match any record'). */
+                const dusdTokenId = WasmSdk.calculateTokenIdFromContract(dusdContractId, 0)
                 response = await get_identities_token_balances_with_proof_info(
-                    sdk, identityIds, dusdContractId)
+                    sdk, identityIds, dusdTokenId)
 // console.log('DUSD BALANCE (response)', response)
 
                 /* Validate response. */
@@ -284,9 +289,10 @@ export function WalletAssets({ isFullScreen, onOpenShielded }: WalletAssetProps)
                     setDisplayDusdBalance(dusdBalance)
                 }
 
-                /* Request SANS balance. */
+                /* Request SANS balance (derived token id, same rule). */
+                const sansTokenId = WasmSdk.calculateTokenIdFromContract(sansContractId, 0)
                 response = await get_identities_token_balances_with_proof_info(
-                    sdk, identityIds, sansContractId)
+                    sdk, identityIds, sansTokenId)
 // console.log('SANS BALANCE (response)', response)
 
                 /* Validate response. */

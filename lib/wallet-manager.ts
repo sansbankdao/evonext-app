@@ -5,11 +5,13 @@ import { GasFeesPaidByWASM, PrivateKeyWASM } from 'pshenmic-dpp'
 import { wasmSdkService } from './services'
 import {
     IdentitySigner,
+    WasmSdk,
     WasmSdkBuilder,
     WasmTrustedContext,
     derive_key_from_seed_with_path,
     get_identities_token_balances_with_proof_info,
 } from './dash-wasm/compat'
+import { getWasmSdk } from './services/wasm-sdk-service'
 import { getIdentities } from './identity-manager'
 import { getIdentityIdx, getMnemonic } from './secure-storage'
 import {
@@ -394,75 +396,75 @@ export const sendToken = async (
     _receiver: string,
     _atomicUnits: bigint,
 ): Promise<ITxSuccess | ITxError> => {
-    /* Initialize locals. */
-    let sdk
+    /* Rewritten on the WASM SDK (5.0) — the F25-era dash-platform-sdk path
+     * crashed with 'Cannot read properties of undefined (reading 3)': the
+     * 1.5.3 identity wrapper has NO publicKeys property on 5.0, so the
+     * identityPublicKeys[3] read exploded. The high-level sdk.tokenTransfer
+     * does the nonce fetch + signing + broadcast internally (the same proven
+     * pattern as documentCreate/identityCreditTransfer). */
 
-    /* Handle network. */
-    if (_network === 'mainnet') {
-        /* Initialize Dash Platform SDK. */
-        sdk = new DashPlatformSDK({ network: 'mainnet' })
-    } else {
-        /* Initialize Dash Platform SDK. */
-        sdk = new DashPlatformSDK({ network: 'testnet' })
+    /* The asset row's id is the TOKEN'S DATA CONTRACT id; Platform v5 token
+     * ids are DERIVED from (contract, position) and queries/transitions are
+     * keyed by the derived id. DUSD/SANS hold a single token at position 0. */
+    const tokenPosition = 0
+    let tokenId: string
+    try {
+        tokenId = WasmSdk.calculateTokenIdFromContract(_tokenId, tokenPosition)
+    } catch (e: any) {
+        return { code: 1, message: `Invalid token contract id: ${e?.message || e}` }
     }
 
-    /* Set transfer amount. */
-    // const amount = BigInt(_satoshis)
-    /* Initialize token base transition. */
-    const tokenBaseTransition = await sdk.tokens
-        .createBaseTransition(_tokenId, _identityId)
+    const sdk = await getWasmSdk()
+    const network = _network === 'mainnet' ? 'mainnet' : 'testnet'
 
-    /* Initialize state transition. */
-    const stateTransition = sdk.tokens
-        .createStateTransition(
-            tokenBaseTransition,
-            _identityId,
-            'transfer',
-            {
-                identityId: _receiver,
-                amount: _atomicUnits,
-            },
-        )
+    /* Validate the token is LIVE on this network before anything else. */
+    const tokenInfo = await sdk.getTokenContractInfo(tokenId)
+    if (!tokenInfo) {
+        throw new Error(
+            'This token is not live on ' + network + ' yet — no token contract is deployed ' +
+            'for ' + _tokenId.slice(0, 8) + '…. The USD/Sansnote asset rows are placeholders ' +
+            'until a real token contract is wired in.')
+    }
 
-    /* Request transfer (WIF) key. */
-    const authWif = await getAuthKey(_network, _identityIdx)
+    /* Sender identity + the signing key matched by MATERIAL (the F26g
+     * pattern): find the TRANSFER key by comparing the derived WIF's
+     * public-key hash against the identity's keys, then pass BOTH the key
+     * object and an IdentitySigner holding the WIF (the tokenTransfer
+     * contract). */
+    const identity = await sdk.getIdentity(_identityId)
+    if (!identity) {
+        throw new Error(`Identity not found: ${_identityId}`)
+    }
 
-    /* Request transfer (WIF) key. */
-    const transferWif = await getTransferKey(_network, _identityIdx)
-    /* Set private (transfer) key. */
-    const privKey = PrivateKeyWASM.fromWIF(transferWif)
-    // const privKey = PrivateKeyWASM.fromHex(transferWif, 'testnet')
-    /* Set identity. */
-    const identity = await sdk.identities.getIdentityByIdentifier(_identityId)
+    const transferWif = await getTransferKey(network, _identityIdx)
+    const transferPubHash = PrivateKeyWASM.fromWIF(transferWif).getPublicKeyHash()
+    let identityKey: any = undefined
+    let identityKeyId = -1
+    for (const k of (identity as any).publicKeys) {
+        const dataHex = typeof k.data === 'string' ? k.data : Buffer.from(k.data).toString('hex')
+        if (dataHex.toLowerCase() === transferPubHash.toLowerCase()) {
+            identityKey = k
+            identityKeyId = k.keyId ?? k.id ?? k.key_id
+        }
+    }
+    if (!identityKey) {
+        throw new Error('The identity has no transfer key matching the derived key material')
+    }
 
-    /* Set public keys. */
-    // NOTE: the 4.2 dev-build d.ts declares getPublicKeys(), but at runtime
-    // the method does not exist — the keys live on the .publicKeys property.
-    const identityPublicKeys = (identity as any).publicKeys
-// console.log('PUBLIC KEYS', identityPublicKeys)
+    const signer = new IdentitySigner()
+    signer.addKeyFromWif(transferWif)
 
-    /* Set public key ID. */
-    const publicKeyId = 3 // 03 => Transfer (Critical)
+    await (sdk as any).tokenTransfer({
+        dataContractId: _tokenId,
+        tokenPosition,
+        amount: BigInt(_atomicUnits),
+        senderId: _identityId,
+        recipientId: _receiver,
+        identityKey,
+        signer,
+    })
 
-    /* Set public key. */
-    const pubKey = identityPublicKeys[publicKeyId]
-// console.log('PUB KEY', pubKey)
-    // stateTransition.signByPrivateKey(PrivateKeyWASM.fromHex(privateKey, 'testnet'), 'ECDSA_SECP256K1')
-    // stateTransition.signByPrivateKey(PrivateKeyWASM.fromWIF(transferWif), publicKeyId, 'ECDSA_HASH160')
-    // stateTransition.signByPrivateKey(PrivateKeyWASM.fromHex(transferWif, 'testnet'), undefined, 'ECDSA_HASH160')
-
-    /* Assign public key ID. */
-// NOTE IS THIS STILL NECESSARY??
-    // stateTransition.signaturePublicKeyId = publicKeyId
-
-    /* Sign state transition. */
-    stateTransition.sign(privKey, pubKey)
-
-    /* Broadcast state transition. */
-    await sdk.stateTransitions.broadcast(stateTransition)
-
-    // FIXME FIND A WAY TO REQUEST TXID
-    return { txid: 'UNKNOWN TXID' }
+    return { txid: 'UNKNOWN TXID' as any }
 }
 
 export const createDocument = async (
