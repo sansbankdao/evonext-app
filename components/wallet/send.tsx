@@ -166,7 +166,11 @@ export function WalletSend({ isFullScreen }: IWalletSendProps) {
                     (async () => {
                         const { wasmSdkService } = await import('@/lib/services/wasm-sdk-service')
                         const { EVONEXT_CONTRACT_ID_MAINNET, EVONEXT_CONTRACT_ID_TESTNET } = await import('@/lib/constants')
-                        const sdkNetwork = network === 'mainnet' ? 'mainnet' : 'testnet'
+                        /* The SYNCHRONOUS host switch — useNetwork's state
+                         * is stale ('testnet') during the first render on
+                         * production (the F57 Phase 1 race fix). */
+                        const { getNetwork } = await import('@/lib/network')
+                        const sdkNetwork = getNetwork() as 'mainnet' | 'testnet'
                         if (!wasmSdkService.isReady() || wasmSdkService.initializedNetwork() !== sdkNetwork) {
                             await wasmSdkService.initialize({
                                 network: sdkNetwork,

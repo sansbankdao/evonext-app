@@ -8,6 +8,7 @@ import { RegistrarModal } from '@/components/id/registrar-modal'
 import { useRouter } from 'next/navigation'
 import { showErrorToast } from '@/lib/toast-error'
 import { validate_mnemonic } from '@/lib/dash-wasm/compat'
+import { getNetwork } from '@/lib/network'
 
 export default function LoginPage() {
     const router = useRouter()
@@ -36,7 +37,14 @@ export default function LoginPage() {
      * retried internally) and keep the Sign In button honest until ready. */
     const [engineReady, setEngineReady] = useState(false)
     useEffect(() => {
-        const sdkNetwork = network === 'mainnet' ? 'mainnet' : 'testnet'
+        /* F57 Phase 1 fix: the engine's network comes from the
+         * SYNCHRONOUS host switch (lib/network getNetwork) — useNetwork's
+         * state starts 'testnet' and only flips to 'mainnet' in the
+         * provider's effect, which runs AFTER this page's effect; the
+         * first init would otherwise build the TESTNET SDK on production
+         * and the login search would miss every mainnet identity (live
+         * hit 2026-11-16). */
+        const sdkNetwork = getNetwork() as 'mainnet' | 'testnet'
         void (async () => {
             try {
                 const { wasmSdkService } = await import('@/lib/services/wasm-sdk-service')
