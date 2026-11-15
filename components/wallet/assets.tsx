@@ -20,9 +20,6 @@ import {
     DUSD_DECIMALS,
     DUSD_USD_VALUE,
 
-    EVONEXT_CONTRACT_ID_MAINNET,
-    EVONEXT_CONTRACT_ID_TESTNET,
-
     SANS_CONTRACT_ID_MAINNET,
     SANS_CONTRACT_ID_TESTNET,
     SANS_DECIMALS,
@@ -35,7 +32,6 @@ import {
     storeAsset,
     storeIdentityIdx,
 } from '@/lib/secure-storage'
-import { wasmSdkService, getWasmSdk } from '@/lib/services/wasm-sdk-service'
 import { shieldedEngine, persistedShieldedBalance } from '@/lib/shielded/engine-client'
 import { readCachedDashPrice, writeCachedDashPrice } from '@/lib/wallet-assets'
 import { fetchPlatformAddressBalance } from '@/lib/platform-address'
@@ -96,25 +92,15 @@ export function WalletAssets({ isFullScreen, onOpenShielded, selectedAsset, onSe
             ;(async () => {
                 try {
                     const sdkNetwork = network === 'mainnet' ? 'mainnet' : 'testnet'
-                    /* The main-thread SDK service must be live for the
-                     * token + platform-address queries — NOTHING else
-                     * initializes it on this page since the shielded scan
-                     * moved into the worker (F44). initialize() no-ops on
-                     * a matching config; re-inits on a network mismatch
-                     * (F37 gotcha). */
-                    if (!wasmSdkService.isReady() || wasmSdkService.initializedNetwork() !== sdkNetwork) {
-                        await wasmSdkService.initialize({
-                            network: sdkNetwork,
-                            contractId: sdkNetwork === 'mainnet'
-                                ? EVONEXT_CONTRACT_ID_MAINNET
-                                : EVONEXT_CONTRACT_ID_TESTNET,
-                        })
-                    }
+                    /* F57 Phase 1: the platform-address read is TRUSTLESS
+                     * (dapi.sansbank.dev proxy -> the pshenmic JS SDK
+                     * direct to the DAPI seed hosts -> the WASM SDK last
+                     * resort) — the main-thread WASM SDK is NOT constructed
+                     * for this read on the happy path. */
                     for (let attempt = 0; attempt < 3 && !cancelled; attempt++) {
                         try {
-                            const sdk = await getWasmSdk()
                             const credits = await withTimeout(
-                                fetchPlatformAddressBalance(sdk, sdkNetwork),
+                                fetchPlatformAddressBalance(sdkNetwork),
                                 90000,
                                 `platform-address balance (attempt ${attempt + 1})`)
                             if (!cancelled) setPlatformCredits(credits)
@@ -256,13 +242,12 @@ export function WalletAssets({ isFullScreen, onOpenShielded, selectedAsset, onSe
     useEffect(() => {
         let cancelled = false
         ;(async () => {
-            const {
-                get_identities_token_balances_with_proof_info,
-            } = await import('../../lib/dash-wasm/compat')
-
-            /* The SDK init + the token reads (the wasm is needed for these
-             * two; the Transparent/Shielded rows load in their OWN effects). */
-            const sdk = await getWasmSdk()
+            /* F57 Phase 1: the token reads are TRUSTLESS (the same ladder
+             * as the platform-address read) — no WASM SDK construction.
+             * The network is NORMALIZED (useNetwork can carry the raw host
+             * string on localhost — the F26j gotcha). */
+            const { getIdentitiesTokenBalances } = await import('@/lib/trustless-reads')
+            const sdkNetwork = network === 'mainnet' ? 'mainnet' : 'testnet'
 
             if (typeof user !== 'undefined' && user !== null) {
                 const identityIds = [user.identityId]
@@ -272,10 +257,11 @@ export function WalletAssets({ isFullScreen, onOpenShielded, selectedAsset, onSe
                 /* DUSD task. */
                 void (async () => {
                     try {
-                        const response = await get_identities_token_balances_with_proof_info(
-                            sdk, identityIds, dusdContractId)
-                        if (!cancelled && response !== undefined && response !== null && response.data.length > 0) {
-                            setDisplayDusdBalance(BigInt(response.data[0].balance))
+                        const balances = await getIdentitiesTokenBalances(
+                            sdkNetwork, identityIds, dusdContractId)
+                        const balance = balances.get(user.identityId)
+                        if (!cancelled && balance !== undefined) {
+                            setDisplayDusdBalance(balance)
                         }
                     } catch (err: any) {
                         console.error('DUSD balance read failed:', err?.message)
@@ -285,10 +271,11 @@ export function WalletAssets({ isFullScreen, onOpenShielded, selectedAsset, onSe
                 /* SANS task (independent). */
                 void (async () => {
                     try {
-                        const response = await get_identities_token_balances_with_proof_info(
-                            sdk, identityIds, sansContractId)
-                        if (!cancelled && response !== undefined && response !== null && response.data.length > 0) {
-                            setDisplaySansBalance(BigInt(response.data[0].balance))
+                        const balances = await getIdentitiesTokenBalances(
+                            sdkNetwork, identityIds, sansContractId)
+                        const balance = balances.get(user.identityId)
+                        if (!cancelled && balance !== undefined) {
+                            setDisplaySansBalance(balance)
                         }
                     } catch (err: any) {
                         console.error('SANS balance read failed:', err?.message)

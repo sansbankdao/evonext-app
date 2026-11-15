@@ -154,7 +154,32 @@ export function WalletSend({ isFullScreen }: IWalletSendProps) {
     }
 
     useEffect(() => {
-        void refreshSourceBalances().then(() => setEngineReady(true))
+        void (async () => {
+            /* F57 Phase 1: the balance reads are TRUSTLESS — the
+             * transparent lane no longer warms the wasm engine as a side
+             * effect, so the F56f engine gate is now EXPLICIT: the sends
+             * still execute on the wasm engine until Phase 2 (the same
+             * guarded initialize ensureWasmReady runs at submit). */
+            try {
+                await Promise.all([
+                    refreshSourceBalances(),
+                    (async () => {
+                        const { wasmSdkService } = await import('@/lib/services/wasm-sdk-service')
+                        const { EVONEXT_CONTRACT_ID_MAINNET, EVONEXT_CONTRACT_ID_TESTNET } = await import('@/lib/constants')
+                        const sdkNetwork = network === 'mainnet' ? 'mainnet' : 'testnet'
+                        if (!wasmSdkService.isReady() || wasmSdkService.initializedNetwork() !== sdkNetwork) {
+                            await wasmSdkService.initialize({
+                                network: sdkNetwork,
+                                contractId: sdkNetwork === 'mainnet'
+                                    ? EVONEXT_CONTRACT_ID_MAINNET
+                                    : EVONEXT_CONTRACT_ID_TESTNET,
+                            })
+                        }
+                    })(),
+                ])
+            } catch { /* the send-time ensureWasmReady re-attempts (F56d) */ }
+            setEngineReady(true)
+        })()
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [source, user?.identityId])
 

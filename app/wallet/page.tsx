@@ -16,12 +16,10 @@ import { showErrorToast } from '@/lib/toast-error'
 // @ts-ignore
 import numeral from 'numeral'
 
-import { getWasmSdk, wasmSdkService } from '../../lib/services/wasm-sdk-service'
 import { fetchPlatformAddressBalance } from '../../lib/platform-address'
 import { getMnemonic, storeAsset, clearAsset } from '../../lib/secure-storage'
 import { DEFAULT_ASSET } from '../../lib/constants'
 import type { IToken } from '../../lib/types'
-import { EVONEXT_CONTRACT_ID_TESTNET, EVONEXT_CONTRACT_ID_MAINNET } from '../../lib/constants'
 import { shieldedEngine, persistedShieldedBalance } from '../../lib/shielded/engine-client'
 
 import { useAuth } from '@/contexts/auth-context'
@@ -89,20 +87,15 @@ export default function WalletPage() {
             ;(async () => {
                 try {
                     const sdkNetwork = network === 'mainnet' ? 'mainnet' : 'testnet'
-                    /* The main-thread SDK must be live (the F37 guard). */
-                    if (!wasmSdkService.isReady() || wasmSdkService.initializedNetwork() !== sdkNetwork) {
-                        await wasmSdkService.initialize({
-                            network: sdkNetwork,
-                            contractId: sdkNetwork === 'mainnet'
-                                ? EVONEXT_CONTRACT_ID_MAINNET
-                                : EVONEXT_CONTRACT_ID_TESTNET,
-                        })
-                    }
+                    /* F57 Phase 1: the platform-address read is TRUSTLESS
+                     * (dapi.sansbank.dev proxy -> the pshenmic JS SDK
+                     * direct to the DAPI seed hosts -> the WASM SDK last
+                     * resort) — the main-thread WASM SDK is NOT constructed
+                     * for this read on the happy path. */
                     for (let attempt = 0; attempt < 3 && !cancelled; attempt++) {
                         try {
-                            const sdk = await getWasmSdk()
                             const credits = await withTimeout(
-                                fetchPlatformAddressBalance(sdk, sdkNetwork),
+                                fetchPlatformAddressBalance(sdkNetwork),
                                 90000,
                                 `dashboard platform balance (attempt ${attempt + 1})`)
                             if (!cancelled) setPlatformCredits(credits)
@@ -171,14 +164,10 @@ export default function WalletPage() {
 
     useEffect(() => {
         async function fetchData() {
-            const {
-                // get_identity_balance_with_proof_info,
-                get_identities_token_balances_with_proof_info,
-                // get_identities_token_infos_with_proof_info,
-            } = await import('../../lib/dash-wasm/compat')
-
-            /* Initiallize SDK. */
-            const sdk = await getWasmSdk()
+            /* F57 Phase 1: the dead wasm-SDK initialization is GONE — the
+             * compat token-balance readers it was scaffolding for are never
+             * called here (the token rows live in WalletAssets), and the
+             * main-thread WASM SDK must not be constructed for reads. */
 
 // FIXME FOR DEV PURPOSES ONLY
             const ENDPOINT = 'https://dashswap.xyz/v1/ticker/DASH'

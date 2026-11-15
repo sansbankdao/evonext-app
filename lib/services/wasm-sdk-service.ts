@@ -281,15 +281,32 @@ class WasmSdkService {
     }
 
     /**
-     * Get the SDK instance, initializing if necessary
+     * Get the SDK instance, initializing if necessary.
+     *
+     * F57 Phase 1: SdkProvider no longer initializes eagerly on every page
+     * load, so the FIRST consumer self-configures from the host (the same
+     * host switch the provider used to run at mount). Server-side (no
+     * window) stays a hard error — never initialize during prerender.
      */
     async getSdk(): Promise<WasmSdk> {
         if (!this._isInitialized || !this.sdk) {
             if (!this.config) {
-                throw new Error('WASM SDK not configured. Call initialize() first.');
+                if (typeof window === 'undefined' || !window.location) {
+                    throw new Error('WASM SDK not configured. Call initialize() first.');
+                }
+                const host = window.location.host
+                const network = host === 'evonext.app' ? 'mainnet' : 'testnet'
+                const { EVONEXT_CONTRACT_ID_MAINNET, EVONEXT_CONTRACT_ID_TESTNET } =
+                    await import('../constants')
+                await this.initialize({
+                    network: network as 'mainnet' | 'testnet',
+                    contractId: network === 'mainnet'
+                        ? EVONEXT_CONTRACT_ID_MAINNET
+                        : EVONEXT_CONTRACT_ID_TESTNET,
+                })
+            } else {
+                await this.initialize(this.config);
             }
-
-            await this.initialize(this.config);
         }
 
         return this.sdk!

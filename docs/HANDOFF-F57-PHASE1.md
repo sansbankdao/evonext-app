@@ -6,6 +6,38 @@ commit, a live verification recorded in AGENTS.md, or an on-chain fact.
 
 ---
 
+## ✅ STATUS UPDATE (2026-11-16): PHASE 1 IS DONE — see AGENTS.md «F57
+PHASE 1» for the full record. Summary of what shipped vs this spec:
+- The ladder = `lib/trustless-reads.ts`: tier 1 the proxy (the two methods
+  are NOT live yet — the DAPI-team handoff is
+  `../dev-dapi-proxy/docs/HANDOFF-wallet-trustless-reads-phase1.md`; the
+  explicit "not supported" verdict is memoized 5 min so there is no request
+  storm), tier 2 the pshenmic DashPlatformSDK `{network, proofs: false}`
+  (DEFAULT seed pool — the PINNED `dapiUrl` pool is unreliable: the mainnet
+  seeds mix full/limited nodes and the no-proof path does not rotate;
+  live-probed), tier 3 the wasm SDK (LAZY, last resort).
+- All four consumers rewired (the page's platformCredits effect, assets.tsx
+  Transparent + DUSD/SANS, send.tsx via moves-service) + the wallet page's
+  DEAD wasm-init scaffolding removed (it destructured a compat reader it
+  never called).
+- PLUS the discovery the e2e forced: `SdkProvider` (in components/
+  providers.tsx = EVERY page) eagerly initialized the wasm SDK on mount —
+  the residual trusted-context traffic. It is now LAZY (`ensureReady()`,
+  single-flight) with the registrar/username modals + the test page warming
+  on demand, and `wasm-sdk-service.getSdk()` self-configures from the host
+  when never configured.
+- Acceptance e2e (evorunner, headless chromium, the real F39 testnet login):
+  ZERO main-thread `quorums.*` requests on the dashboard; the reads via the
+  proxy slots + the seed grpc; blocking dapi.sansbank.dev → the same total
+  still renders; zero page errors. 261/261 tests, tsc 0, build green.
+- NEXT: Phase 2 (the writes off the wasm) per §8.3 — and the production
+  mainnet verification of this build (the DUSD row should show the owner's
+  1.0 DUSD — the token is LIVE on mainnet, see AGENTS.md).
+
+---
+
+---
+
 ## 1. WHERE THE PROJECT STANDS RIGHT NOW
 
 **evonext-app v26.11.15+ on master** — the last commits today (the newest last):

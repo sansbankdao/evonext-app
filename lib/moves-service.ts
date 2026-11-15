@@ -27,7 +27,6 @@
  *     reserves a 60M safety margin.
  */
 
-import { getWasmSdk } from './services/wasm-sdk-service'
 import { derivePlatformReceiveKey } from './platform-address'
 import { broadcastWireDirect } from './direct-grpc'
 import {
@@ -70,15 +69,18 @@ export interface AddressState {
     nonce: number
 }
 
-/** Read the DIP-17 receive address at `addressIndex` plus its chain state. */
+/** Read the DIP-17 receive address at `addressIndex` plus its chain state.
+ *  F57 Phase 1: the read goes through the trustless ladder
+ *  (proxy -> pshenmic JS SDK -> WASM last resort) — no trusted-context
+ *  construction on the happy path. */
 export async function readTransparentAddress(
     network: 'mainnet' | 'testnet',
     addressIndex = 0,
 ): Promise<AddressState> {
-    const sdk = await getWasmSdk()
     const { address, wif } = derivePlatformReceiveKey(network, addressIndex)
     const addressBytes21 = await platformAddressBytes(address)
-    const info = await sdk.getAddressesInfos([address])
+    const { getAddressesInfos } = await import('./trustless-reads')
+    const info = await getAddressesInfos(network, [address])
     const keyHex = Buffer.from(addressBytes21).toString('hex')
     const entry = info?.get ? info.get(keyHex) : undefined
     if (entry === undefined) {

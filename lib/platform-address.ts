@@ -17,9 +17,10 @@
 //     leaf index NON-hardened — account_type.rs)
 //   - address payload  0xb0 (P2PKH_TYPE) || hash160(compressed pubkey)
 //     encoded as bech32m with HRP "dash" (mainnet) / "tdash" (testnet)
-//   - balance query    WasmSdk.getAddressesInfos(addresses) ->
-//     Map<string, PlatformAddressInfo | undefined>; balance is CREDITS
-//     (1 DASH = 1e11 credits, rs-dpp util/units.rs)
+//   - balance query    lib/trustless-reads.getAddressesInfos (the F57
+//     Phase 1 ladder: dapi.sansbank.dev proxy -> the pshenmic JS SDK
+//     direct to the DAPI seed hosts -> the WASM SDK last resort); the
+//     balance is CREDITS (1 DASH = 1e11 credits, rs-dpp util/units.rs)
 
 // NOTE: dashcore-lib ships TypeScript definitions that do not match its
 // runtime API (the same reason lib/core-chain.ts accesses it untyped).
@@ -115,9 +116,12 @@ export function derivePlatformReceiveKey(network: Network, index = 0): {
 /**
  * Sum the credits held across the wallet's DIP-17 receive pool
  * (indexes 0..poolSize-1) — the REAL Transparent balance.
+ *
+ * F57 Phase 1: the read goes through the trustless ladder
+ * (proxy -> pshenmic JS SDK -> WASM last resort) — the WASM SDK's trusted
+ * context is no longer constructed for this read on the happy path.
  */
 export async function fetchPlatformAddressBalance(
-    sdk: any,
     network: Network,
     poolSize = 20,
 ): Promise<bigint> {
@@ -125,10 +129,11 @@ export async function fetchPlatformAddressBalance(
     for (let i = 0; i < poolSize; i++) {
         addresses.push(derivePlatformReceiveAddress(network, i))
     }
-    const infos = await sdk.getAddressesInfos(addresses)
+    const { getAddressesInfos } = await import('./trustless-reads')
+    const infos = await getAddressesInfos(network, addresses)
     let total = 0n
     for (const info of infos.values()) {
-        if (info) total += info.balance
+        total += info.balance
     }
     return total
 }

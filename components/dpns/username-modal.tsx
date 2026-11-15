@@ -44,7 +44,14 @@ export function UsernameModal({
 
     const { user, updateDPNSUsername } = useAuth()
     const { network } = useNetwork()
-    const { isReady: isSdkReady, error: sdkError } = useSdk()
+    const { isReady: isSdkReady, error: sdkError, ensureReady } = useSdk()
+
+    /* F57 Phase 1: the engine initializes ON DEMAND — warm it when the
+     * modal opens (the provider no longer initializes eagerly on every
+     * page load). */
+    useEffect(() => {
+        if (isOpen) void ensureReady()
+    }, [isOpen, ensureReady])
 
     const [username, setUsername] = useState('')
     const [isChecking, setIsChecking] = useState(false)

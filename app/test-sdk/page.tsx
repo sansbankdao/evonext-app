@@ -5,10 +5,13 @@ import { useEffect, useState } from 'react'
 import { wasmSdkService } from '@/lib/services/wasm-sdk-service'
 
 export default function TestSdkPage() {
-    const { isReady, error } = useSdk()
+    const { isReady, error, ensureReady } = useSdk()
     const [testResult, setTestResult] = useState<string>('')
 
     useEffect(() => {
+        /* F57 Phase 1: no eager global init — this page asks for the
+         * engine itself. */
+        void ensureReady()
         const testSdk = async () => {
             try {
                 const sdk = await wasmSdkService.getSdk()
@@ -22,7 +25,7 @@ export default function TestSdkPage() {
         if (isReady) {
             testSdk()
         }
-    }, [isReady])
+    }, [isReady, ensureReady])
 
     return (
         <div className="p-8">

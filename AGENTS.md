@@ -3199,3 +3199,161 @@ FIXES:
   (private-key-login).
 NOTE: evorunner gained a 100GB volume (the owner, 2026-11-15) — no action
 needed.
+
+## F57 PHASE 1 — the dashboard's reads are TRUSTLESS: dapi.sansbank.dev →
+## pshenmic JS-SDK direct → wasm last-resort; the trusted context leaves the
+## read path; the type-7 mainnet lane CLOSED; DUSD confirmed LIVE on mainnet
+## (2026-11-16)
+
+**(0) SESSION-START ITEM (§2/§8.1 of the handoff): the owner's incoming
+transfer LANDED.** Mainnet identity `CZUa7rTx…` balance 839,462,820 →
+**866,202,820 credits = +26,740,000 EXACT** (a type-7 recipient receives the
+full amount; the sender pays the fee). Corroborated: the DIP-17 address
+`dash1kplq428…` UNCHANGED (nonce 3, balance 37,177,180 — not a type-11 from
+our own address) and the identity nonce UNCHANGED (2 — the recipient signs
+nothing). **The type-7 mainnet lane is CLOSED** (7/7 move-matrix lanes are
+now mainnet-verified except 7 which is protocol-forbidden self-transfer —
+the lane = a transfer between two DIFFERENT identities, this transfer IS it).
+
+**(1) DUSD IS LIVE ON MAINNET — the F53 'phantom' verdict CORRECTED.** The
+pshenmic token-balance query returned **1,000,000 units (1.0 DUSD) held by
+the owner's F55 identity** for token id `DYqxCsu…`. `getTokenContractInfo`
+resolves it to **contract `8CkcAPokwFdxEu2tUu2VdLTjgK3eeR1wUGJcxhjsWaDz`,
+position 0** — exactly the F53b KAT's pinned derivation pair — and
+`getTokenTotalSupply` = 5,600,000,000 units (6 decimals → 5.6 DUSD), all in
+user accounts. F53's 'phantom' conclusion came from querying the TOKEN id as
+a CONTRACT id (`getDataContract(DYqxCsu…)` = undefined by construction) —
+the same id-space confusion F53b's tests guard. CONSEQUENCE: the mainnet
+wallet's DUSD row now shows REAL balances and `sendToken`'s
+`getTokenContractInfo` gate passes on mainnet.
+
+**(2) THE PHASE-1 LADDER — `lib/trustless-reads.ts` (NEW).** Three tiers per
+read, never a hard fail (the F29 pattern):
+- **Tier 1 — dapi.sansbank.dev**: `get_addresses_infos` +
+  `get_identities_token_balances` per the handoff to the DAPI team
+  (`../dev-dapi-proxy/docs/HANDOFF-wallet-trustless-reads-phase1.md` —
+  the shapes specced there: the bech32m address array →
+  `[{address, balance: "string", nonce}]`; the identityIds + tokenId →
+  `[{identityId, balance: "string"}]`, holders only). The proxy answers
+  "Method '…' is not supported." today — that EXPLICIT verdict is memoized
+  5 minutes (no request storm on their side); any OTHER proxy error falls
+  through per call; a SUCCESS clears the memo. When they ship the methods,
+  tier 1 wins with ZERO wallet-side changes.
+- **Tier 2 — the pshenmic `DashPlatformSDK` ({network, proofs: false})**:
+  pure JS, grpc-web (`@protobuf-ts/grpcweb-transport`) straight to the DAPI
+  seed hosts, NO trusted context, NO wasm-sdk, NO quorum keys (the no-proof
+  path skips GroveDB + signature verification entirely —
+  QueryExecutor#executeWithoutProof). ONE instance per network memoized for
+  the app lifetime (the seed discovery + healthchecks run once: 2-11s cold,
+  then ~300ms/read). 2 attempts per read (the no-proof path does NOT
+  rotate/ban on failure; a fresh getClient() picks the next pool node).
+- **Tier 3 — the wasm SDK, LAZY last resort** (total proxy+seed outage
+  parity with the pre-Phase-1 surface; Phase 2 deletes it). Normalizes to
+  the same maps: addresses = `Map<variantHex /*tag‖hash160*/, {balance,
+  nonce}>` (the F51c key space); tokens = `Map<identityId, bigint>` with
+  NON-HOLDERS OMITTED (the pshenmic plural method returns
+  `balance: undefined` for a queried non-holder — live-probed; the wasm
+  returns no entry — 1:1 semantics).
+
+**(3) PROBE FACTS (evorunner, Node 22.23.2, dash-platform-sdk 1.6.1)**:
+- The PINNED seed pool is UNRELIABLE for reads: the 3 mainnet seeds mix
+  full and limited nodes — `[C]`/`[G]` got grpc UNIMPLEMENTED (12) on
+  getAddressesInfos while `[B]`/`[D]` succeeded — so DO NOT pass
+  `grpc: { dapiUrl: <seeds> }`; use the DEFAULT pool (quorum discovery +
+  healthchecks → 15 full validators): 5/5 warm reads at ~320ms, zero
+  failures (live probe #2).
+- `new DashPlatformSDK({network, proofs: false})` construction = free
+  (the pool init is backgrounded; the first read awaits it).
+- Response shapes: getAddressesInfos → `[{address: PlatformAddressWASM,
+  nonce: number, balance: bigint}]` (`.bytes()` = the 21-byte tag‖hash160 =
+  the variant-hex key; `.toBech32m(network)` the string); the tokens plural
+  → `[{identityId: IdentifierWASM, balance?: bigint}]`.
+
+**(4) THE CONSUMERS REWIRED (the four in the spec + one dead one)**:
+- `lib/platform-address.ts fetchPlatformAddressBalance(network, poolSize)`
+  — the `sdk` param DROPPED (no callers/tests referenced it — grep-verified
+  before the change); delegates to the ladder.
+- `lib/moves-service.ts readTransparentAddress` — the ladder; the
+  `getWasmSdk` import removed. The nonce (consensus-critical for the
+  type-11/15 flows) comes from the same read.
+- `components/wallet/assets.tsx` — the Transparent row + the DUSD/SANS
+  tasks: the `wasmSdkService.initialize` F37-guard block DELETED from both
+  effects; the token tasks use the ladder (the per-task try/catch +
+  `IToken.loading` semantics preserved EXACTLY: a non-holder leaves null →
+  the skeleton, 1:1 with the wasm path). The network is NORMALIZED
+  (`useNetwork` can carry the raw host string — the F26j gotcha).
+- `app/wallet/page.tsx` — the same for the dashboard's platformCredits
+  effect; PLUS the dead `fetchData` scaffolding removed: it destructured
+  `get_identities_token_balances_with_proof_info` it NEVER called and
+  initialized the wasm SDK purely as a side effect (the only remaining
+  logic — the dashswap ticker fetch + the identity display — unchanged
+  1:1; the unguarded ticker fetch there is a PRE-EXISTING wart, noted as a
+  follow-up, deliberately not touched in Phase 1).
+- `components/wallet/send.tsx` — the transparent lane's balance now arrives
+  trustless through readTransparentAddress; the F56f engine gate is now
+  EXPLICIT (the preflight runs the guarded `wasmSdkService.initialize` in
+  parallel with the balance reads) — the sends still execute on the wasm
+  engine until Phase 2, and the F56d ensureWasmReady submit guard is
+  unchanged.
+- **NOT touched**: `lib/shielded/wallet.ts:885` (the shield flow's
+  getAddressesInfos — a WRITE-path flow where the sdk is already in hand;
+  Phase 2's territory).
+
+**(5) THE GLOBAL EAGER INIT WAS THE LAST READ-PATH VIOLATION — FIXED.**
+`contexts/sdk-context.tsx` (mounted in components/providers.tsx = EVERY
+page) initialized the wasm SDK ON MOUNT — that was the residual 3-request
+`quorums.*` burst on the dashboard (caught by the e2e's fetch
+instrumentation: the trusted-context prefetch host =
+`quorums.{mainnet,testnet}.networks.dash.org`, live-probed from the vendored
+glue). FIX: SdkProvider is now LAZY — no mount init; it exposes
+`ensureReady()` (single-flight, a FAILURE clears the flight so a later
+caller retries; isReady flips on success), and its three consumers warm the
+engine on demand: `components/id/registrar-modal.tsx` +
+`components/dpns/username-modal.tsx` (an `isOpen`-keyed effect) and
+`app/test-sdk/page.tsx` (mount). To keep every DIRECT `getWasmSdk()` caller
+working with no eager init, `wasm-sdk-service.getSdk()` now SELF-CONFIGURES
+from the host when never configured (the same host switch the provider used
+to run at mount: evonext.app → mainnet + EVONEXT_CONTRACT_ID_MAINNET, else
+testnet; server-side/no-window stays a hard error — never init during
+prerender). The social pages' first service call self-inits a few hundred
+ms after mount instead of at provider-mount — the first read awaits the
+SAME initialize either way (it already awaited initPromise pre-change), so
+no real latency regression.
+
+**(6) LIVE VERIFICATION (evorunner, headless chromium 158, the F39 testnet
+session via the real /connect login)**: dashboard labels total/transparent/
+shielded/identity ALL OK; total 0.02323504 rendered; **ZERO main-thread
+requests to quorums.*.networks.dash.org during the /wallet window** (the
+window.fetch instrumentation sees main-thread traffic only — the engine
+WORKER's wasm/scan traffic is out of scope by design = the acceptance
+test's "the engine's shielded scan + the login derivation" carve-out);
+4 dapi.sansbank.dev attempts (the two methods' tier-1 slots);
+60 pshenmic-seed grpc-web requests carried the reads; **the FALLBACK test:
+blocking dapi.sansbank.dev via page.route → reload → the SAME total
+rendered** (tier 2 carried everything); ZERO page errors. Plus a separate
+registrar-modal e2e with a throwaway valid mnemonic: the modal opens,
+ensureReady warms the engine ON OPEN, the DPNS availability check runs,
+zero page errors (NO registration broadcast — stopped before any write).
+GOTCHA for future drivers: the /connect submit button is DISABLED until
+the F56g engine init completes — a click loop must waitForFunction
+`!button.disabled` (and the connect-page init FAILURE leaves the button
+disabled forever — a PRE-EXISTING F56g deadlock on a total init failure,
+surfaced here, not yet fixed).
+
+**(7) GATES**: tsc 0 · eslint 0 errors (0 output on every touched file) ·
+**261/261 tests (29 files** — +7: `test/unit/lib/trustless-reads.test.mts`
+covers the tier-1 envelope/key mapping, the not-supported memo, the
+per-call fall-through, the 2-attempt rotation → the wasm tier, the
+F37-network-mismatch re-init, the holder/non-holder token mapping, and the
+wasm compat fallback) · evorunner build green (35 pages, wasm stripped) ·
+playwright chromium installed on evorunner (~/.cache/ms-playwright —
+headless shell; `channel: 'chrome'` NOT needed there).
+
+**(8) RESIDUALS (recorded, deliberate non-changes)**: the auth-restore's
+background DPNS fetch (`savedUser` without a saved username →
+dpnsService.resolveUsername → getWasmSdk) can now SELF-INIT the wasm on a
+page load — an identity read, Phase 2/3 territory. The unguarded dashswap
+ticker fetch in app/wallet/page.tsx fetchData (pre-existing, the F56e fix
+covered only assets.tsx). The connect-page init-failure button deadlock
+(pre-existing F56g). The proxy-tier tier-1 calls currently always miss
+(the DAPI team's implementation pending — the handoff is in their repo).

@@ -33,8 +33,9 @@ interface ProxyResponse {
     type?: string
 }
 
-/* POST a read method to the proxy. Returns the unwrapped `result`, or throws. */
-async function proxyCall(
+/* POST a read method to the proxy. Returns the unwrapped `result`, or throws.
+ * (Exported for lib/trustless-reads.ts — the F57 Phase 1 read ladder.) */
+export async function proxyCall(
     method: string,
     params: Record<string, unknown>,
     network: 'mainnet' | 'testnet'
