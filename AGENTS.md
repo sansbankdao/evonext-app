@@ -3153,3 +3153,29 @@ vitest suite (the 28-file parallel workers × the 26.5MB wasm initSync)
 launched detached several times pegged the host alongside the owner's own
 two VirtualBox VMs (the Sansbank VM + APECS = ~57% CPU continuously for
 days — the baseline load the owner was investigating).
+
+## F56g — the private-key login crash fixed at the root + the connect page
+initializes the wasm on mount + the Identity ID field removed
+(2026-11-15, commits `ba3f669`)
+
+The owner's report: the private-key login crashed with "Cannot read
+properties of undefined (reading '__wbindgen_malloc')" — the SAME class as
+the F56d send crash (the glue used before the module load) in a path the
+F56d fix didn't cover: `discoverIdentityFromWif` decoded the WIF at line 95
+BEFORE `wasmSdkService.getSdk()` at line 98, and the CONNECT PAGE = the one
+page that never initializes the wasm up front (no session = nothing loaded
+it). The F55 e2e passed only because the load won the race in that session.
+FIXES:
+- The connect page initializes the wasm ON MOUNT (the single-flight service
+  init) + the Sign In button = disabled with "Loading wallet engine…" until
+  ready — EVERY path on the page (the mnemonic, the passkey, the private
+  key, validate_mnemonic) is now guarded.
+- `discoverIdentityFromWif(wif, network)` initializes the service FIRST (the
+  defense in depth) + the network param.
+- The Identity ID field is REMOVED from the private-key panel entirely (the
+  owner: it has never been required) — the discovery is always automatic.
+- Regression tests (254/254): the fromWIF round-trip (wasm-glue-init) + the
+  getWasmSdk-before-fromWIF ORDER guard with the exact TypeError simulated
+  (private-key-login).
+NOTE: evorunner gained a 100GB volume (the owner, 2026-11-15) — no action
+needed.
