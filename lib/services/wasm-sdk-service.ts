@@ -164,7 +164,7 @@ class WasmSdkService {
          * "Failed to prefetch quorums: HTTP request error" failing every
          * init for a stretch. Retry the prefetch+build 3x (the wasm load is
          * NOT re-attempted here — its own retry already ran). */
-        const MAX_PREFETCH_ATTEMPTS = 3
+        const MAX_PREFETCH_ATTEMPTS = 5
         let lastError: unknown
         for (let attempt = 1; attempt <= MAX_PREFETCH_ATTEMPTS; attempt++) {
             try {
@@ -176,7 +176,9 @@ class WasmSdkService {
                 lastError = error
                 console.warn(`WasmSdkService: init attempt ${attempt}/${MAX_PREFETCH_ATTEMPTS} failed:`, String((error as any)?.message ?? error).slice(0, 140))
                 if (attempt < MAX_PREFETCH_ATTEMPTS) {
-                    await new Promise((resolve) => setTimeout(resolve, 2000 * attempt))
+                    /* F57: the discovery endpoint flakes in BURSTS — a longer
+                     * ladder (2/4/8/16s ≈ 30s of retrying) outlives them. */
+                    await new Promise((resolve) => setTimeout(resolve, 2000 * 2 ** (attempt - 1)))
                 }
             }
         }
