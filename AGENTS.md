@@ -3059,6 +3059,26 @@ DASH. Gates: tsc 0, eslint 0, 247/247, playwright 2/2.
   the mainnet scan ran → the row landed "SHIELDED 0.0025 DASH ≈ $0.09" and
   climbing (the full sync continues to the ~455M-credit balance).
 
+## F56c — the asset-row selection UX + the Send-page funding-source selector
+(2026-11-15, commit `84a34c0`)
+
+The owner's directives: (a) highlight the SELECTED asset row ("so i know it
+has been selected") + make the TOTAL BALANCE icon reflect it; (b) the
+persisted SANS selection TRAPPED the Send panel ("i want to send DASH but
+SANS is selected and the UI won't let me go back") — "OR JUST DEFAULT TO
+DASH EACH TIME (RELOAD)".
+- The selected asset is LIFTED to app/wallet/page.tsx (the Total card's
+  icon = selectedAsset.iconUrl); the Assets/Collections rows highlight
+  (the ring + the border) when selected; the click lifts + stores.
+- ON EVERY RELOAD the selection resets to DASH and the persisted 'asset'
+  key is CLEARED — the Send panel (which reads getAsset()) can never be
+  trapped again. In-session clicks still carry.
+- The Send page gained a 'Send from' selector for the DASH-credits asset
+  with LIVE balances per lane: Identity (sendCredit), Transparent (the
+  moves-service type-11 reference wire — the address pays), Shielded (the
+  engine poolExit type-22 — the pool fee ≈0.00114 DASH deducted from the
+  pool); the per-source balance guards.
+
 ## F56d — the send-path wasm-readiness crash FIXED + the regression tests the
 owner demanded (2026-11-15, commit `6037568`)
 
