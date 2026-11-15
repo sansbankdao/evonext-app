@@ -37,7 +37,7 @@ export async function onRequestGet(context) {
     // day per POP.
     const upstream = await fetch(
         'https://raw.githubusercontent.com/sansbankdao/evonext-app/master/lib/dash-wasm/wasm_sdk_bg.wasm',
-        { cf: { cacheEverything: true, cacheTtl: 3600, cacheTtlByStatus: { '200-299': 3600, '404': 60, '500-599': 10 } } },
+        { cf: { cacheEverything: true, cacheTtl: 2592000, staleWhileRevalidate: 86400, cacheTtlByStatus: { '200-299': 2592000, '404': 60, '500-599': 10 } } },
     )
     if (!upstream.ok || !upstream.body) {
         return new Response(`upstream fetch failed: ${upstream.status}`, { status: 502 })

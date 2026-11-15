@@ -6,7 +6,12 @@
  * buildAvailableAssets (the pure builder extracted from
  * components/wallet/assets.tsx):
  *  - the Transparent ('0') and Shielded ('shielded') rows are ALWAYS
- *    present, even at zero (the F45 directive);
+ *    present, even at zero (the F45 directive); F56f: with loading=true
+ *    when the balance read is still in flight (null = loading, 0 = real);
+ *  - F56f (the owner directive): the DUSD/SANS rows are ALSO always
+ *    present — loading=true until their read lands, then the real balance
+ *    (even zero). The F53a 'no phantom rows' rule is superseded: missing
+ *    balances now render SKELETON rows instead of vanishing;
  *  - the DUSD row appears only with a balance, keyed by the TOKEN id
  *    (3oTHkj8nqn82QkZRHkmUmNBX696nzE1rg1fwPRpemEdz on testnet — NOT a
  *    contract id), with 6 decimals;
@@ -36,9 +41,14 @@ describe('buildAvailableAssets (F53a regression guards)', () => {
             dusdBalance: undefined,
             sansBalance: undefined,
         })
-        expect(rows.map((r) => r.id)).toEqual(['0', 'shielded'])
+        expect(rows.map((r) => r.id)).toEqual(['0', 'shielded', DUSD_CONTRACT_ID_TESTNET, SANS_CONTRACT_ID_TESTNET])
         expect(rows[0].amount).toBe(0n)
         expect(rows[1].amount).toBe(0n)
+        /* The unread token balances = the LOADING rows (the skeleton). */
+        expect(rows[0].loading).toBe(true)
+        expect(rows[1].loading).toBe(true)
+        expect(rows[2].loading).toBe(true)
+        expect(rows[3].loading).toBe(true)
     })
 
     it('renders the DUSD row with a balance, keyed by the TOKEN id, 6 decimals', () => {
@@ -67,15 +77,24 @@ describe('buildAvailableAssets (F53a regression guards)', () => {
         expect(sans!.decimal_places).toBe(8)
     })
 
-    it('renders NO phantom DUSD/SANS rows when balances are missing', () => {
-        const rows = buildAvailableAssets({
+    it('shows LOADING (skeleton) token rows when balances are unread, and real rows once read — even at zero (F56f)', () => {
+        const unread = buildAvailableAssets({
             ...BASE,
             dusdBalance: undefined,
             sansBalance: undefined,
         })
-        expect(rows.find((r) => r.ticker === 'DUSD')).toBeUndefined()
-        expect(rows.find((r) => r.ticker === 'SANS')).toBeUndefined()
-        expect(rows.length).toBe(2)
+        expect(unread.find((r) => r.ticker === 'DUSD')!.loading).toBe(true)
+        expect(unread.find((r) => r.ticker === 'SANS')!.loading).toBe(true)
+
+        /* A READ balance — even ZERO — is no longer loading: the real row. */
+        const read = buildAvailableAssets({
+            ...BASE,
+            dusdBalance: 0n,
+            sansBalance: 0n,
+        })
+        expect(read.find((r) => r.ticker === 'DUSD')!.loading).toBe(false)
+        expect(read.find((r) => r.ticker === 'SANS')!.loading).toBe(false)
+        expect(read.find((r) => r.ticker === 'DUSD')!.amount).toBe(0n)
     })
 
     it('uses the MAINNET DUSD token id on mainnet', () => {

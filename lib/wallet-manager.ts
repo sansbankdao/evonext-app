@@ -307,17 +307,12 @@ export const sendCredit = async (
     await ensureWasmReady(_network)
     const transferWif = await getTransferKey(_network, _identityIdx)
     /* Handle network. */
-    if (_network === 'mainnet') {
-        /* Initialize SDK. */
-        // 4.1.1 API: the trusted context discovers live masternode addresses
-        // at runtime (the old build's hard-coded address list was removed).
-        const context = await WasmTrustedContext.prefetchMainnet()
-        sdk = await WasmSdkBuilder.mainnet().withTrustedContext(context).build()
-    } else {
-        /* Initialize SDK. */
-        const context = await WasmTrustedContext.prefetchTestnet()
-        sdk = await WasmSdkBuilder.testnet().withTrustedContext(context).build()
-    }
+    /* F56f — the SERVICE's singleton SDK (the cached trusted context + the
+     * 8s settings): the per-call WasmTrustedContext.prefetch re-fetched the
+     * DAPI discovery on EVERY send — a flaky prefetch failed the whole send
+     * (the owner's 'spinner forever', live-observed) and doubled the
+     * discovery load. getWasmSdk() reuses the service's init. */
+    sdk = await getWasmSdk()
     /* 4.1.1 API: the transfer needs the sender's current identity nonce. The
      * TS interface for the method expects { amount, senderId, recipientId,
      * nonce } while the API docs describe an { identity, signer } shape — the
@@ -375,18 +370,8 @@ export const withdrawToCore = async (
     await ensureWasmReady(_network)
     const transferWif = await getTransferKey(_network, _identityIdx)
 
-    /* Handle network. */
-    if (_network === 'mainnet') {
-        /* Initialize SDK. */
-        // 4.1.1 API: the trusted context discovers live masternode
-        // addresses at runtime (the old hard-coded list was removed).
-        const context = await WasmTrustedContext.prefetchMainnet()
-        sdk = await WasmSdkBuilder.mainnet().withTrustedContext(context).build()
-    } else {
-        /* Initialize SDK. */
-        const context = await WasmTrustedContext.prefetchTestnet()
-        sdk = await WasmSdkBuilder.testnet().withTrustedContext(context).build()
-    }
+    /* F56f — the service's singleton SDK (see sendCredit). */
+    sdk = await getWasmSdk()
 
     /* Request identity. */
     const identity = await sdk.getIdentity(_identityId)

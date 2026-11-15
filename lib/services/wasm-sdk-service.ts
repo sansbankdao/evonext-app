@@ -13,6 +13,13 @@ export interface WasmSdkConfig {
 }
 
 class WasmSdkService {
+    /* F56f — the trusted-context MEMO: the prefetch (quorum keys + the DAPI
+     * discovery) is EXPENSIVE and FLAKY (live-observed 2026-11-15:
+     * "Failed to prefetch quorums: HTTP request error" killed the service
+     * init, the dashboard's Transparent/Total reads, AND the send spinner).
+     * One success is cached per network and reused for every later init. */
+    private static trustedContextCache = new Map<'testnet' | 'mainnet', any>();
+
     private sdk: WasmSdk | null = null
     private initPromise: Promise<void> | null = null
     private config: WasmSdkConfig | null = null
@@ -148,9 +155,36 @@ class WasmSdkService {
     }
 
     private async _performInitialization(): Promise<void> {
+        // Ensure WASM module is initialized first (shared across all
+        // instances; the LOAD itself is retried inside _ensure...).
+        await this._ensureWasmModuleInitialized()
+
+        /* F56f — the PREFETCH+BUILD retry: the trusted-context prefetch (the
+         * DAPI discovery) is the OTHER flaky step — live-observed
+         * "Failed to prefetch quorums: HTTP request error" failing every
+         * init for a stretch. Retry the prefetch+build 3x (the wasm load is
+         * NOT re-attempted here — its own retry already ran). */
+        const MAX_PREFETCH_ATTEMPTS = 3
+        let lastError: unknown
+        for (let attempt = 1; attempt <= MAX_PREFETCH_ATTEMPTS; attempt++) {
+            try {
+                await this._buildSdkWithTrustedContext()
+                await this._preloadEvoNextContract()
+                this._isInitialized = true
+                return
+            } catch (error) {
+                lastError = error
+                console.warn(`WasmSdkService: init attempt ${attempt}/${MAX_PREFETCH_ATTEMPTS} failed:`, String((error as any)?.message ?? error).slice(0, 140))
+                if (attempt < MAX_PREFETCH_ATTEMPTS) {
+                    await new Promise((resolve) => setTimeout(resolve, 2000 * attempt))
+                }
+            }
+        }
+        throw lastError
+    }
+
+    private async _buildSdkWithTrustedContext(): Promise<void> {
         try {
-            // Ensure WASM module is initialized first (shared across all instances)
-            await this._ensureWasmModuleInitialized()
 
             // Now create the SDK instance for this service
             // Prefetch trusted quorums and create SDK builder based on network
@@ -159,7 +193,11 @@ class WasmSdkService {
                 // v4.1.1 API: the trusted context fetches quorum keys AND discovers
                 // live masternode addresses at runtime, replacing the removed
                 // hard-coded address list of older SDK builds.
-                const context = await WasmTrustedContext.prefetchTestnet();
+                const context = (WasmSdkService.trustedContextCache.get('testnet')
+                    ?? await WasmTrustedContext.prefetchTestnet().then((c: any) => {
+                        WasmSdkService.trustedContextCache.set('testnet', c);
+                        return c;
+                    }));
 
                 // Create builder - returns a builder preconfigured for the network
                 let builder;
@@ -189,7 +227,11 @@ class WasmSdkService {
                 }
             } else {
 
-                const context = await WasmTrustedContext.prefetchMainnet();
+                const context = (WasmSdkService.trustedContextCache.get('mainnet')
+                    ?? await WasmTrustedContext.prefetchMainnet().then((c: any) => {
+                        WasmSdkService.trustedContextCache.set('mainnet', c);
+                        return c;
+                    }));
 
                 // Create builder - returns a builder preconfigured for the network
 
@@ -219,11 +261,8 @@ class WasmSdkService {
                     throw error;
                 }
             }
-
-            this._isInitialized = true;
-
-            // Preload the yappr contract into the trusted context
-            await this._preloadEvoNextContract();
+            /* (the _isInitialized + the contract preload now happen in
+             * _performInitialization after the build succeeds) */
         } catch (error) {
             console.error('WasmSdkService: Failed to initialize WASM SDK:', error);
             console.error('WasmSdkService: Error details:', {

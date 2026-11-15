@@ -107,6 +107,12 @@ export function WalletSend({ isFullScreen }: IWalletSendProps) {
     const [receiver, setReceiver] = useState<string>('')
     const [amount, setAmount] = useState<string>('')
 
+    /* F56f — the WASM-ENGINE PREFLIGHT: the Send button stays disabled with
+     * an honest 'Loading wallet engine…' until the service is ready, so the
+     * owner NEVER sees a forever-spinner after the confirm (the wasm load +
+     * the trusted-context prefetch happen while the form is being filled). */
+    const [engineReady, setEngineReady] = useState(false)
+
     /* F56c — WHERE THE FUNDS COME FROM. The three balance lanes (the owner
      * directive): Identity (credits), Transparent (the DIP-17 address pool),
      * Shielded (the Orchard pool). All three send TO an identity — the
@@ -148,7 +154,7 @@ export function WalletSend({ isFullScreen }: IWalletSendProps) {
     }
 
     useEffect(() => {
-        void refreshSourceBalances()
+        void refreshSourceBalances().then(() => setEngineReady(true))
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [source, user?.identityId])
 
@@ -728,13 +734,18 @@ export function WalletSend({ isFullScreen }: IWalletSendProps) {
 
                 <button
                     onClick={send}
-                    className={`w-fit flex items-center my-5 px-5 py-2 text-2xl font-medium bg-blue-200 border-2 border-blue-400 rounded-md shadow hover:bg-blue-300 ${isSubmitting ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-                    disabled={isSubmitting}
+                    className={`w-fit flex items-center my-5 px-5 py-2 text-2xl font-medium bg-blue-200 border-2 border-blue-400 rounded-md shadow hover:bg-blue-300 ${(isSubmitting || !engineReady) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                    disabled={isSubmitting || !engineReady}
                 >
                     {isSubmitting ? (
                         <>
                             <Loader2 className="mr-2 size-8 animate-spin" />
                             Sending {asset.ticker}...
+                        </>
+                    ) : !engineReady ? (
+                        <>
+                            <Loader2 className="mr-2 size-8 animate-spin" />
+                            Loading wallet engine...
                         </>
                     ) : (
                         `Send ${asset.ticker}`

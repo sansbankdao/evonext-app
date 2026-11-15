@@ -282,6 +282,7 @@ export default function WalletPage() {
                             <div className="flex flex-col items-end gap-1.5 my-1">
                                 <div className="h-7 w-44 rounded bg-gray-200 dark:bg-gray-700 animate-pulse" />
                                 <div className="h-4 w-24 rounded bg-gray-100 dark:bg-gray-800 animate-pulse" />
+                                <span className="text-[11px] text-gray-400 italic">loading the wallet engine…</span>
                             </div>
                         ) : (<>
                             <h2 className="text-3xl text-gray-600 font-medium">

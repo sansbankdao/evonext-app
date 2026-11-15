@@ -80,34 +80,39 @@ export function buildAvailableAssets(input: AvailableAssetInput): IToken[] {
         },
     })
 
-    /* Validate DUSD balance. */
-    if (typeof dusdBalance !== 'undefined' && dusdBalance !== null) {
+    /* F56f — the TOKEN rows are ALWAYS present (the owner: "my TWO assets
+     * NEVER load — SANS, DUSD"): undefined = the read is still in flight
+     * (the skeleton), a read (even zero) = the real row. */
+    if (true) {
+        void dusdBalance
         assets.push({
             id: dusdContractId,
             name: 'USD',
             ticker: 'DUSD',
             token_id_hex: dusdContractId,
             iconUrl: '/icons/usd.svg',
-            amount: dusdBalance,
+            amount: dusdBalance ?? 0n,
+            loading: dusdBalance === undefined || dusdBalance === null,
             decimal_places: DUSD_DECIMALS,
             fiat: {
-                USD: DUSD_USD_VALUE * (parseFloat(dusdBalance!.toString()) / (10 ** DUSD_DECIMALS)),
+                USD: dashUsdValue * (Number(dusdBalance ?? 0n) / (10 ** DUSD_DECIMALS)),
             },
         })
     }
 
-    /* Validate SANS balance. */
-    if (typeof sansBalance !== 'undefined' && sansBalance !== null) {
+    if (true) {
+        void sansBalance
         assets.push({
             id: sansContractId,
             name: 'Sansnote',
             ticker: 'SANS',
             token_id_hex: sansContractId,
-            iconUrl: '/icons/sans.svg',
-            amount: sansBalance,
+            iconUrl: '/icons/usd.svg',
+            amount: sansBalance ?? 0n,
+            loading: sansBalance === undefined || sansBalance === null,
             decimal_places: SANS_DECIMALS,
             fiat: {
-                USD: SANS_USD_VALUE * (parseFloat(sansBalance!.toString()) / (10 ** SANS_DECIMALS)),
+                USD: dashUsdValue * (Number(sansBalance ?? 0n) / (10 ** SANS_DECIMALS)),
             },
         })
     }
