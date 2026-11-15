@@ -125,9 +125,21 @@ export default secureStorage
 export const storePrivateKey = (
     identityId: string,
     privateKey: string,
-    ttlMs: number = 3600000,
+    /* F57f — the ttlMs argument is now IGNORED. The F57d flip made the old
+     * 1-hour default LIVE on the in-memory slot, which SILENTLY EVICTED the
+     * WIF mid-session: the owner live-hit 'The submitted private key has
+     * expired from this session' one hour into an ACTIVE session (the
+     * withdraw died until a reconnect, and the bomb re-armed for another
+     * hour). There is NO mid-session eviction in this security model: the
+     * material lives in the TAB's memory only (never on disk), the
+     * beforeunload/pagehide wipe is the boundary, the session vault is the
+     * persistence, and a deliberate 'Lock now' (the B4 backlog) will be
+     * the visible re-lock. A silent timer adds zero security — the memory
+     * is equally exposed at minute 5 and minute 65 — and breaks active
+     * sessions. */
+    _ttlMs?: number,
 ) => {
-    secureStorage.set(`pk_${identityId}`, privateKey, ttlMs) // 1 hour default TTL
+    secureStorage.set(`pk_${identityId}`, privateKey)
 }
 
 export const getPrivateKey = (identityId: string): string | null => {

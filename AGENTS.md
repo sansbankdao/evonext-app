@@ -3878,3 +3878,37 @@ through the wasm SDK's trusted-context RPC stack:
   already holds 45 tDUSD, the F53c 15M provenance solved (it left
   DashSwap's e2e identity), the mint authority = the dashusd.org issuer
   custody ONLY (tSANS minting closed chain-wide).
+
+## F57f — the MID-SESSION TTL EVICTION regression FIXED (the owner live-hit
+## on their WIF-only session) (2026-11-16, the direct-deploy path)
+
+The owner's withdraw failed one hour into an ACTIVE private-key session:
+'The submitted private key has expired from this session'. ROOT CAUSE =
+MY F57d regression: the memory-only flip made the old 1-hour TTL default
+(storePrivateKey's `ttlMs = 3600000`) actually FIRE — on the old
+localStorage it was commented-out theater; on the in-memory Map it
+silently deleted `pk_<id>` mid-session, `getTransferKey` found nothing,
+and the honest-but-deadly 'expired' error followed. The bomb re-armed
+after every reconnect.
+
+FIX: storePrivateKey's ttlMs = IGNORED (the API signature kept for the
+1:1 compat). The security model has NO mid-session eviction: the key
+material lives in the TAB's memory only (never on disk), the
+beforeunload/pagehide wipe = the boundary, the session vault = the
+persistence, the deliberate 'Lock now' (the B4 backlog) = the visible
+re-lock. A silent timer adds zero security — the memory is equally
+exposed at minute 5 and minute 65. +3 regression tests (the WIF survives
+5h past the old default; the explicit ttl arg = accepted and ignored;
+the explicit clear still works). 294/294 (33 files), tsc 0, build green.
+
+**THE FIRST WRANGLER DIRECT DEPLOY (the runbook's debut)**: the owner
+supplied the token mid-session and the Pages git-build = not needed —
+`~/evonext/deploy-evonext.sh` uploaded the verified out/ →
+deployment 6d522d43 → the new wallet chunk page-25c2245d3ad6d072 live on
+testnet.evonext.app within ~30 seconds of the build. The deploy-stall
+insurance = now the PRIMARY deploy path for the owner-critical fixes.
+
+THE WIF-ONLY SESSION UX (the owner guidance): the vault ALREADY wraps the
+legacy WIF (collectPayload includes legacyWif + the restore re-seeds it)
+— the WIF-only user sets an unlock password ONCE (the banner) and every
+future reload = ONE password prompt, never a reconnect.
