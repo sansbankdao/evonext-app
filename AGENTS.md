@@ -3357,3 +3357,40 @@ ticker fetch in app/wallet/page.tsx fetchData (pre-existing, the F56e fix
 covered only assets.tsx). The connect-page init-failure button deadlock
 (pre-existing F56g). The proxy-tier tier-1 calls currently always miss
 (the DAPI team's implementation pending — the handoff is in their repo).
+
+**(9) PRODUCTION MAINNET VERIFICATION (evonext.app, post-deploy commits
+`39f5ae3` + `a7b46cc`)**: the FULL acceptance e2e on the LIVE site with the
+F55 identity `CZUa7rTx…` (the F36 24-word login through /connect):
+- **the login SEARCH was BROKEN on mainnet production — a PRE-EXISTING RACE
+  that Phase 1's lazy init EXPOSED, now FIXED (`a7b46cc`)**:
+  `NetworkProvider` initializes its state to `'testnet'` and only flips to
+  'mainnet' in its EFFECT, and React fires a page's effects BEFORE its
+  ancestors' — so the F56g connect-page engine init read the STALE
+  'testnet' on production (live proof: the login search's
+  getIdentityByNonUniquePublicKeyHash calls hit `quorums.testnet…` + the
+  :1443 testnet hosts, then the dialog "COULD NOT find an Identity").
+  Pre-Phase-1 this was MASKED by SdkProvider's eager host-switch init
+  (mainnet) overwriting the service config afterwards. FIX: the engine-init
+  network comes from the SYNCHRONOUS `getNetwork()` host switch
+  (lib/network.ts) in BOTH racy init sites (app/connect/page.tsx + the
+  send.tsx preflight). Verified: the wasm non-unique hash query on mainnet
+  finds CZUa7rTx… in 0.4s from the derived master hash
+  (987eb261a9b3cf89e80510fa985b38d03f118593 — the wallet-manager
+  `m/9'/5'/5'/0'/0'/0'/0'` idx-0 derivation, hash-match confirmed against
+  the on-chain key 0 data; NOTE an earlier probe's mismatch print was a
+  probe-side hash bug, settled by an independent host computation). This
+  was the FIRST-EVER verified mainnet EXISTING-identity login (F55 created
+  the identity but nobody had re-logged-in since).
+- the /wallet dashboard on production: the total renders; **ZERO
+  main-thread quorums.*.networks.dash.org requests** (the trusted context
+  is GONE from the read path on the live site); 4 dapi.sansbank.dev tier-1
+  attempts; 5 mainnet-seed grpc reads; ZERO page errors.
+- **the DUSD row shows the OWNER'S REAL 1.0 DUSD on mainnet production**:
+  `USD | 1 | USD | $37.83` (1,000,000 units @ 6 decimals × the live ~$37.83
+  DASH price — the row amount formats as '1' (numeral trims the trailing
+  zeros, the F42 gotcha)); Transparent 0.0003 ($0.014066), Shielded 0.0025
+  ($0.096348), Sansnote 0. The F53 'phantom' correction is now VISIBLE in
+  the product.
+- gates re-run post-fix: tsc 0 · 261/261 · build green · the TESTNET
+  acceptance e2e re-green (0 quorums / the proxy slots / the seeds / the
+  fallback / 0 errors).
