@@ -3707,3 +3707,73 @@ revision.** WHAT SHIPPED:
   grep the PAGE CHUNK ITSELF (the banner/diagnostics code can live outside
   the HTML's initial chunk list; the earlier "not yet" polls were a grep
   artifact, the Pages build had landed).
+
+## F57e — the PASSWORD-wrapped vault: the UNIVERSAL persistence tier (the
+## owner's directive: "Desktop users MUST be able to safely store their
+## secrets across sessions — memory-only is NOT an option") (2026-11-16)
+
+**(a) THE VERIFIED HARDWARE/PLATFORM FACTS (the owner's box)**: Ubuntu +
+Brave 154 (snap): the PROBED reality — `webauthn: true` on a localhost
+secure context (headed; the data:-URL and old-headless probes hid the API
+by spec) but **`isUVPAA: false`** — Brave on Linux has NO local passkey
+store (Chrome's GPM passkeys are stripped) and NO OS-biometric bridge
+(fprintd is NOT a WebAuthn provider — there is no "Ubuntu Hello"); the
+EliteBook's fingerprint reader is NOT enumerable by Linux (USB/HID/i2c:
+only the touchpad + mouse; `fprintd-list`: "No devices available" — check
+the BIOS, and even a working fprintd reader serves Linux login only, NOT
+WebAuthn). So the PRF tier cannot run on this box — and the owner ruled
+memory-only unacceptable.
+
+**(b) THE ANSWER — the password-wrapped vault (the Bitwarden model), the
+UNIVERSAL tier**: the user sets a DEVICE UNLOCK PASSWORD (≥10 chars,
+enforced); the session payload (the mnemonic + the Key-Manager keys + the
+legacy WIF + the identity index) is wrapped under
+**scrypt(N=65536, r=8, p=1, dkLen=32) ≈ 550ms / 64 MiB — measured live**
+(argon2id in noble-JS measured 543ms–3.4s per config — scrypt won on the
+browser UX; the params ride in the record for the future upgrades) →
+AES-GCM → localStorage `evonext_pwv1_<identityId>` = the CIPHERTEXT +
+the salt + the IV ONLY. At rest: no plaintext, no key material — the same
+guarantee the PRF tier gives, with a password instead of a passkey.
+Every session start = ONE password prompt in the lock banner. The
+password never leaves the device and is never stored.
+
+**(c) THE LADDER (final)**: PRF passkey vault (where isUVPAA) →
+PASSWORD-wrapped vault (EVERYWHERE) → memory-only (only if the user
+declines both, stated honestly). The banner
+(components/wallet/session-lock-banner.tsx) renders per state: locked =
+the PRF Unlock button and/or the password field; unlocked = the offers
+(the PRF offer GATED on isUVPAA — hidden on the owner's Linux/Brave
+instead of failing on every click) + the stale nudge. The lock state =
+the rich `getSessionLockInfo` {material, prfVault, pwVault, pwStale} +
+the string `getSessionLockState` (+ 'locked-password').
+
+**(d) THE CONSISTENCY**: the Key-Manager add/remove marks the password
+vault STALE (`evonext_pwv1_stale_<id>`) — the banner offers a re-save
+(the password re-prompt; no silent re-wrap without the password). The PRF
+re-enroll stays best-effort as before.
+
+**(e) VERIFICATION**: the session-unlock tests extended (8 — the
+password-tier round-trip set→reload→unlock, the wrong-password honest
+rejection with the memory untouched, the short-password refusal, the
+nothing-to-wrap refusal, the stale mark + the re-save clearing) →
+**285/285 (32 files)**; tsc 0; eslint clean; build green. **THE BROWSER
+E2E (headless — the universal tier needs NO authenticator, so the FULL
+journey ran)**: login → the SPA nav (the memory survives; a full goto
+CORRECTLY lands on the reconnect banner — the flip working) → set the
+unlock password → **the disk = {pwVault: ciphertext ✓, mnemonic: absent ✓,
+legacyWif: absent ✓}** → reload → the locked banner + the password field →
+**the wrong password refused honestly** → the right password → the
+material restored → the banner gone → ZERO page errors. The driver
+artifacts recorded: the placeholders are NOT in innerText (assert the
+locator count); the success toast auto-dismisses before a 12s check (the
+banner-gone = the authoritative signal); the PRF offer renders per
+isUVPAA (true in playwright-chromium, false in the owner's Brave — the
+gate verified in both directions).
+
+**(f) THE OWNER'S QUESTION ANSWERED**: the plaintext hole stays CLOSED —
+nobody's secrets rest unencrypted in ANY browser; desktops without
+biometrics get the password tier; hardware keys = the optional upgrade
+(the vault requires authenticatorAttachment 'platform' — a YubiKey/PRF
+relaxation is a possible follow-up); the future native tier = the
+evonext-desktop companion (native messaging → the OS keyring) if ever
+needed.

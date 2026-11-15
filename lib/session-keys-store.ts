@@ -198,10 +198,13 @@ export async function addSessionKey(
     await saveBlob(identityId, blob)
     /* F57b Option B — keep the session vault consistent (a stale vault
      * would restore WITHOUT this key after an unlock). BEST-EFFORT: the
-     * ceremony may be declined; the next login re-collects everything. */
+     * ceremony may be declined; the next login re-collects everything.
+     * F57e — the password tier: mark it stale (the banner offers a
+     * re-save with the password; no silent re-wrap without it). */
     try {
-        const { reenrollSessionKeys } = await import('./session-unlock')
+        const { reenrollSessionKeys, markPasswordVaultStale } = await import('./session-unlock')
         await reenrollSessionKeys(identityId)
+        markPasswordVaultStale(identityId)
     } catch { /* non-fatal */ }
     return { keyId: match.keyId, fingerprint: pubHash.slice(0, 16), addedAt: Date.now(), source: 'keystore' }
 }
@@ -242,10 +245,11 @@ export async function removeSessionKey(
             }
         }
     } catch { /* an invalid legacy value — leave it */ }
-    /* F57b Option B — keep the session vault consistent. BEST-EFFORT. */
+    /* F57b Option B — keep the session vaults consistent. BEST-EFFORT. */
     try {
-        const { reenrollSessionKeys } = await import('./session-unlock')
+        const { reenrollSessionKeys, markPasswordVaultStale } = await import('./session-unlock')
         await reenrollSessionKeys(identityId)
+        markPasswordVaultStale(identityId)
     } catch { /* non-fatal */ }
 }
 
