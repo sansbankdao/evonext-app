@@ -3394,3 +3394,100 @@ F55 identity `CZUa7rTx…` (the F36 24-word login through /connect):
 - gates re-run post-fix: tsc 0 · 261/261 · build green · the TESTNET
   acceptance e2e re-green (0 quorums / the proxy slots / the seeds / the
   fallback / 0 errors).
+
+## F57b — the PRIVATE-KEY (WIF-only) session can now SEND CREDITS + TOKENS
+## (the owner's blocker, live-verified end-to-end on testnet) + the DAPI
+## team shipped the Phase-1 tier-1 methods (2026-11-16)
+
+**(0) THE OWNER'S ANSWERS**: the 1.0 DUSD on the F55 mainnet identity = the
+owner's own TEST send (ledger note corrected). The owner submitted the
+**TRANSFER key** at connect for their WIF-only identity
+`AFaVqRJCWXFZRUhuq6ZUUcWXVW8fErCN3wpEtgsBnDZm` (testnet, 6,567,702,098,955
+credits = 65.68 DASH, 5 keys: 0 AUTH-MASTER, 1 AUTH-CRITICAL, 2 AUTH-HIGH,
+**3 TRANSFER-CRITICAL**, 4 AUTH-HIGH) — **that is the CORRECT key for their
+goal**: credit transfers (type 7), token transfers and L1 withdrawals all
+sign with the purpose-3 TRANSFER key (the mnemonic path has signed with the
+derived transfer key since F25/F53, live-verified repeatedly). The
+AUTH-CRITICAL/HIGH keys sign DOCUMENTS (profiles/posts) + DPNS — a session
+holding one WIF can do one or the other; multi-key sessions = a backlog
+item if the owner ever needs both from one WIF-only session.
+
+**(1) THE BLOCKING BUG — root cause + fix.** A WIF-only session has NO
+seed, and three paths demanded one:
+- `dashboard platform scan attempt 3 failed: Mnemonic not found` — the
+  Transparent row's `fetchPlatformAddressBalance` derives the DIP-17
+  receive pool from the seed (m/9'/coin'/17'/0'/0'/idx). FIX
+  (lib/platform-address.ts): no mnemonic → return **0n honestly and
+  quietly** — a WIF-only wallet's seed-derived pool is EMPTY BY DEFINITION
+  (its credits live in the identity lane; the shielded engine was already
+  mnemonic-guarded). Zero console spam, the row renders 0.
+- `lib/moves-service.readTransparentAddress` — now throws an HONEST,
+  actionable message for no-mnemonic sessions ('The Transparent (Move)
+  lane needs a recovery-phrase session — the DIP-17 addresses are
+  seed-derived.') instead of the raw 'Mnemonic not found'.
+- `components/wallet/send.tsx refreshSourceBalances` — the Transparent and
+  Shielded source chips show a quiet 0 for WIF-only sessions (the
+  seed-derived pools are empty by definition; the identity chip carries
+  the real spendable balance).
+
+**(2) THE SENDS — `getTransferKey` is now SESSION-AWARE
+(lib/wallet-manager.ts).** New optional third param `_identityId` (all four
+callers pass it: sendCredit, withdrawToCore, sendToken, createDocument).
+When `getMnemonic()` returns null (a WIF-only session):
+  1. read the submitted WIF (secure-storage `pk_<identityId>`, the F55 1h
+     TTL — `getPrivateKey`),
+  2. `PrivateKeyWASM.fromWIF(wif).getPublicKeyHash()` and MATERIALLY match
+     it against the identity's registered keys, requiring **purpose 3
+     (TRANSFER)** — accepting the numeric 3 and the 'TRANSFER' enum string,
+     hex or byte-array `data` (the F26g/F53 patterns; the F53 key
+     normalization: values() + flat() + non-object skip),
+  3. match → return the submitted WIF for signing (the IdentitySigner /
+     tokenTransfer / withdrawal paths work unchanged),
+  4. no match → an HONEST error naming the fix ('The submitted key is NOT
+     this identity's TRANSFER key. Reconnect with the TRANSFER key (WIF) —
+     credit and token transfers are signed by purpose 3 (TRANSFER), not by
+     the authentication keys.'); a missing/expired WIF → its own honest
+     error. THE MNEMONIC PATH IS UNTOUCHED 1:1 (the same branch returns to
+     the original derivation + getIdentities cross-check).
+
+**(3) LIVE E2E (evorunner, headless chromium, localhost build, testnet):**
+login through the REAL private-key flow with the F39 identity's
+**TRANSFER-key WIF** (derived in Node from the F39 mnemonic and staged in a
+0600 temp file — never printed) → /wallet: the identity balance line
+renders (0.02123504 DASH), **ZERO 'Mnemonic not found' console errors**
+(previously 3 per load), zero page errors → Send tab → the IDENTITY source →
+recipient `8Yj6Vu…` (the legal-winner test identity) → 0.00001 DASH → the
+confirm dialog → **t+10s: 'Transaction sent successfully!'** → ON-CHAIN
+PROOF: the recipient 16,712,433,484 → **16,713,433,484 = EXACTLY
++1,000,000**; the sender 2,123,503,860 → 2,119,401,840 (−4,102,020 = the
+transfer + the 3,102,020 consensus fee). A live TOKEN send from a WIF-only
+session was NOT executed (the F39 identity holds no tokens) — sendToken
+shares the same session-aware key resolution + the F53c material match, and
+the token-send contract tests cover the shapes. Driver gotchas recorded:
+the SEND shows a window.confirm ('Are you sure you want to send X DASH…')
+that drivers must ACCEPT (the earlier dismiss cancelled the send), and one
+pshenmic seed host can emit ERR_CERT_AUTHORITY_INVALID — the pool rotates
+past it.
+
+**(4) THE DAPI TEAM SHIPPED THE PHASE-1 TIER-1 METHODS
+(../dev-dapi-proxy/docs/HANDOFF-trustless-reads-phase1-shipped.md)**:
+`get_addresses_infos` + `get_identities_token_balances` implemented on
+their master, live-verified on BOTH networks, shapes EXACTLY as my spec —
+two calibrations: (a) no-state addresses return ZERO-ROWS (balance "0",
+nonce 0) not omission — my `proxyAddressRow` maps them identically (a
+no-op); (b) non-holders return `balance: null` rows — my adapter already
+skips null/undefined. **Production cut-over pending** (their standard
+runbook) — verified still 'not supported' at session close; when it lands,
+tier 1 wins automatically with ZERO wallet-side changes (the memo's
+not-supported verdict expires within 5 min). THEIR CALIBRATION NOTE, fixed
+here: `proxyCall` threw on `!res.ok` WITHOUT reading the body, so the
+'is not supported' memo never engaged (the verdict rides a 500 + body) —
+`proxyCall` now reads the body on non-2xx and prefers `body.error`
+(better diagnostics too). The tier-1 attempts' 500s in the browser console
+('Failed to load resource') are the expected pre-cutover slots.
+
+**(5) GATES**: tsc 0 · eslint clean on every touched file · 261/261
+(29 files) · evorunner build green · the WIF-session e2e above. The
+dashboard/assets/send surfaces for WIF-only sessions: the identity lane =
+the real balance; Transparent/Shielded = 0 with zero console spam; the
+Move flows refuse explicitly with the recovery-phrase message.

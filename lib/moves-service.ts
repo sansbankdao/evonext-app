@@ -72,11 +72,20 @@ export interface AddressState {
 /** Read the DIP-17 receive address at `addressIndex` plus its chain state.
  *  F57 Phase 1: the read goes through the trustless ladder
  *  (proxy -> pshenmic JS SDK -> WASM last resort) — no trusted-context
- *  construction on the happy path. */
+ *  construction on the happy path.
+ *  F57b: a PRIVATE-KEY (WIF-only) session has no seed, and the DIP-17
+ *  addresses are SEED-derived — the Transparent/Move lane is genuinely
+ *  unusable there, so this fails with an HONEST, actionable message
+ *  (the send panel turns it into a quiet 0; the Move flows refuse
+ *  explicitly instead of building a garbage wire). */
 export async function readTransparentAddress(
     network: 'mainnet' | 'testnet',
     addressIndex = 0,
 ): Promise<AddressState> {
+    const { getMnemonic } = await import('./secure-storage')
+    if (!getMnemonic()) {
+        throw new Error('The Transparent (Move) lane needs a recovery-phrase session — the DIP-17 addresses are seed-derived. Connect with your recovery phrase to use it.')
+    }
     const { address, wif } = derivePlatformReceiveKey(network, addressIndex)
     const addressBytes21 = await platformAddressBytes(address)
     const { getAddressesInfos } = await import('./trustless-reads')

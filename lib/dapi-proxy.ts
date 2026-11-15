@@ -52,7 +52,18 @@ export async function proxyCall(
         })
 
         if (!res.ok) {
-            throw new Error(`proxy HTTP ${res.status}`)
+            /* F57 hardening (the DAPI team's calibration note): the envelope
+             * keeps failures on non-2xx — read the body anyway and prefer
+             * its `error` (the explicit verdicts such as "Method '…' is not
+             * supported." drive lib/trustless-reads.ts's memo, and every
+             * other failure surfaces a real message instead of a bare
+             * status code). */
+            let detail = `proxy HTTP ${res.status}`
+            try {
+                const errBody = (await res.json()) as ProxyResponse
+                if (errBody?.error) detail = errBody.error
+            } catch { /* keep the status-line detail */ }
+            throw new Error(detail)
         }
 
         const body = (await res.json()) as ProxyResponse

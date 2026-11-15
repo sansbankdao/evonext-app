@@ -13,7 +13,7 @@ import {
 } from './dash-wasm/compat'
 import { getWasmSdk } from './services/wasm-sdk-service'
 import { getIdentities } from './identity-manager'
-import { getIdentityIdx, getMnemonic } from './secure-storage'
+import { getIdentityIdx, getMnemonic, getPrivateKey } from './secure-storage'
 import {
     IKeyTypes,
     ITxError,
@@ -206,9 +206,54 @@ const ensureWasmReady = async (_network: string) => {
 export const getTransferKey = async (
     _currentNetwork: string,
     _identityIdx: number,
+    _identityId?: string,
 ) => {
     /* Set network. */
     const network = (_currentNetwork === 'mainnet') ? 'mainnet' : 'testnet'
+
+    /* F57b — the PRIVATE-KEY (WIF-ONLY) SESSION: no recovery phrase → the
+     * WIF submitted at connect IS the signing key, but ONLY if it is this
+     * identity's TRANSFER key (purpose 3 — credit transfers, token
+     * transfers and withdrawals all sign with purpose 3; live-verified
+     * with the mnemonic path's derived transfer key since F25/F53).
+     * Material-match it against the identity's registered keys (the F26g
+     * pattern — the class getter's .data is HEX, the JSON shape may be
+     * base64) and either hand it back or fail with an HONEST error naming
+     * the fix. */
+    if (!getMnemonic()) {
+        if (!_identityId) {
+            throw new Error('This session has no recovery phrase. Reconnect with the TRANSFER key (WIF) of your identity to send credits or tokens.')
+        }
+        const submittedWif = getPrivateKey(_identityId)
+        if (!submittedWif) {
+            throw new Error('The submitted private key has expired from this session — reconnect with the TRANSFER key (WIF) of your identity.')
+        }
+        const sdk = await getWasmSdk()
+        const identity = await sdk.getIdentity(_identityId)
+        if (!identity) {
+            throw new Error(`Identity not found: ${_identityId}`)
+        }
+        const submittedPubHash = PrivateKeyWASM.fromWIF(submittedWif).getPublicKeyHash()
+        /* Normalize the keys to a list (the F53 regression: a positional
+         * read crashes on wrapper objects — iterate VALUES + flat). */
+        const rawKeys = (identity as any).publicKeys
+        const keysList: any[] = Array.isArray(rawKeys)
+            ? rawKeys
+            : (rawKeys && typeof rawKeys === 'object')
+                ? Object.values(rawKeys).flat()
+                : []
+        for (const k of keysList) {
+            if (!k || typeof k !== 'object' || k.data === undefined || k.data === null) continue
+            const purpose = k.purpose
+            const isTransfer = purpose === 3 || String(purpose).toUpperCase() === 'TRANSFER'
+            if (!isTransfer) continue
+            const dataHex = typeof k.data === 'string' ? k.data : Buffer.from(k.data).toString('hex')
+            if (dataHex.toLowerCase() === String(submittedPubHash).toLowerCase()) {
+                return submittedWif
+            }
+        }
+        throw new Error('The submitted key is NOT this identity\'s TRANSFER key. Reconnect with the TRANSFER key (WIF) — credit and token transfers are signed by purpose 3 (TRANSFER), not by the authentication keys.')
+    }
 
     /* Request private keys. */
     const generatedkeys = getPrivateKeys(network, _identityIdx)
@@ -303,9 +348,11 @@ export const sendCredit = async (
     // TODO ADD FINAL CREDITS VALIDATION
     const credits = BigInt(_credits)
 
-    /* WASM readiness (F56d) + the transfer (WIF) key. */
+    /* WASM readiness (F56d) + the transfer (WIF) key — the session-aware
+     * F57b resolution (a WIF-only session signs with its submitted
+     * TRANSFER-key WIF). */
     await ensureWasmReady(_network)
-    const transferWif = await getTransferKey(_network, _identityIdx)
+    const transferWif = await getTransferKey(_network, _identityIdx, _identityId)
     /* Handle network. */
     /* F56f — the SERVICE's singleton SDK (the cached trusted context + the
      * 8s settings): the per-call WasmTrustedContext.prefetch re-fetched the
@@ -366,9 +413,10 @@ export const withdrawToCore = async (
     // TODO ADD FINAL CREDITS VALIDATION
     const credits = BigInt(_credits)
 
-    /* WASM readiness (F56d) + the transfer (WIF) key. */
+    /* WASM readiness (F56d) + the transfer (WIF) key — the session-aware
+     * F57b resolution. */
     await ensureWasmReady(_network)
-    const transferWif = await getTransferKey(_network, _identityIdx)
+    const transferWif = await getTransferKey(_network, _identityIdx, _identityId)
 
     /* F56f — the service's singleton SDK (see sendCredit). */
     sdk = await getWasmSdk()
@@ -446,7 +494,7 @@ export const sendToken = async (
         throw new Error(`Identity not found: ${_identityId}`)
     }
 
-    const transferWif = await getTransferKey(network, _identityIdx)
+    const transferWif = await getTransferKey(network, _identityIdx, _identityId)
     const transferPubHash = PrivateKeyWASM.fromWIF(transferWif).getPublicKeyHash()
     let identityKey: any = undefined
     /* Normalize the keys to a list: the wasm class exposes an array, but
@@ -550,9 +598,10 @@ export const createDocument = async (
         },
     )
 
-    /* WASM readiness (F56d) + the transfer (WIF) key. */
+    /* WASM readiness (F56d) + the transfer (WIF) key — the session-aware
+     * F57b resolution. */
     await ensureWasmReady(_network)
-    const transferWif = await getTransferKey(_network, _identityIdx)
+    const transferWif = await getTransferKey(_network, _identityIdx, _identityId)
 
     /* Set private (transfer) key. */
     const privKey = PrivateKeyWASM.fromWIF(transferWif)

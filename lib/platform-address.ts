@@ -125,6 +125,17 @@ export async function fetchPlatformAddressBalance(
     network: Network,
     poolSize = 20,
 ): Promise<bigint> {
+    /* F57b — the PRIVATE-KEY (WIF-only) SESSION: the DIP-17 receive pool is
+     * SEED-derived (m/9'/coin'/17'/0'/0'/idx). A session connected with a
+     * submitted WIF has no seed, so the pool is EMPTY BY DEFINITION —
+     * return 0 honestly and quietly instead of throwing 'Mnemonic not
+     * found' through the callers' retry ladders (the live-hit dashboard
+     * spam: 'dashboard platform scan attempt 3 failed: Mnemonic not
+     * found'). The identity's credits live in the IDENTITY lane and are
+     * unaffected. */
+    if (!getMnemonic()) {
+        return 0n
+    }
     const addresses: string[] = []
     for (let i = 0; i < poolSize; i++) {
         addresses.push(derivePlatformReceiveAddress(network, i))

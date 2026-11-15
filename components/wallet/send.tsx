@@ -136,8 +136,16 @@ export function WalletSend({ isFullScreen }: IWalletSendProps) {
         } catch { /* leave null */ }
         try {
             const { readTransparentAddress } = await import('@/lib/moves-service')
-            const addr = await readTransparentAddress(sdkNetwork as 'mainnet' | 'testnet', 0)
-            setTransparentBalance(addr.balance)
+            if (!getMnemonic()) {
+                /* F57b — the WIF-only session: the DIP-17 pool is
+                 * seed-derived and this wallet has no seed — the pool is
+                 * empty BY DEFINITION. Show 0 honestly and quietly (the
+                 * identity lane carries the spendable balance). */
+                setTransparentBalance(0n)
+            } else {
+                const addr = await readTransparentAddress(sdkNetwork as 'mainnet' | 'testnet', 0)
+                setTransparentBalance(addr.balance)
+            }
         } catch (e: any) {
             console.error('transparent balance read failed:', e?.message)
         }
@@ -147,6 +155,10 @@ export function WalletSend({ isFullScreen }: IWalletSendProps) {
                 await shieldedEngine.start({ network: sdkNetwork, mnemonic })
                 const snap = await shieldedEngine.snapshot()
                 setShieldedBalance(BigInt(snap.balance))
+            } else {
+                /* F57b — the WIF-only session: the Orchard keys are
+                 * ZIP-32 seed-derived — empty by definition. */
+                setShieldedBalance(0n)
             }
         } catch (e: any) {
             console.error('shielded balance read failed:', e?.message)
