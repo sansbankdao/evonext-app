@@ -3058,3 +3058,22 @@ DASH. Gates: tsc 0, eslint 0, 247/247, playwright 2/2.
   LIVE-VERIFIED post-fix: attempt 1 aborted → retried → the engine ready →
   the mainnet scan ran → the row landed "SHIELDED 0.0025 DASH ≈ $0.09" and
   climbing (the full sync continues to the ~455M-credit balance).
+
+## F56d — the send-path wasm-readiness crash FIXED + the regression tests the
+owner demanded (2026-11-15, commit `6037568`)
+
+The owner's Send crashed with "Cannot read properties of undefined (reading
+'wasmsdk_deriveKeyFromSeedWithPath')". ROOT CAUSE: sendCredit derived the
+transfer key DIRECTLY off the wasm glue BEFORE the glue's module load
+completed — the glue's internal `wasm` reference = undefined until init()
+finishes, and the 26.5MB fetch through the Pages Function is flaky (the F56b
+retry covered only the WORKER; the main thread was unguarded, and credit
+transfers "worked previously" only because the load usually won the race).
+FIXES: (1) the service's `_ensureWasmModuleInitialized` retries the load 3×
+with a backoff and resets the cached promise on total failure (no poisoned
+singleton); (2) `ensureWasmReady()` in the wallet-manager runs before every
+key derivation (sendCredit/sendToken/withdrawToCore).
+REGRESSION TESTS (252/252): wasm-glue-init (the EXACT TypeError before the
+load + the success after), wasm-sdk-service-retry (the flaky load + the
+no-poisoning guarantee), send-credit-readiness (the initialize→derive ORDER
+guard — which CAUGHT a missing constants import in the guard's first draft).
