@@ -3700,3 +3700,10 @@ revision.** WHAT SHIPPED:
   memory is readable (the standard WebAuthn limitation — the vault
   protects AT REST). The B3/B4 polish (retiring the biometric theater +
   the idle re-lock) remains.
+- THE F57d DEPLOY VERIFIED LIVE (testnet.evonext.app, poll fix): the served
+  wallet page chunk carries all three session-lock states ("Enable biometric
+  unlock" / "Session locked" / "Keys not in this session") and the connect
+  page chunk references the paste normalization — the deploy check must
+  grep the PAGE CHUNK ITSELF (the banner/diagnostics code can live outside
+  the HTML's initial chunk list; the earlier "not yet" polls were a grep
+  artifact, the Pages build had landed).
