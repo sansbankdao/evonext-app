@@ -25,6 +25,21 @@ class StateTransitionService {
             throw new Error('State transitions can only be performed in browser');
         }
 
+        /* F57b — the multi-key store first: an explicitly ADDED AUTH
+         * (CRITICAL|HIGH) key (Settings → Keys) signs documents. A
+         * TRANSFER-only session then fails with getSigningKey's honest
+         * material mismatch instead of silently mis-signing. */
+        try {
+            const { getSessionAuthWif } = await import('../session-keys-store');
+            const { getNetwork } = await import('../network');
+            const storedAuthWif = await getSessionAuthWif(getNetwork() as 'mainnet' | 'testnet', identityId);
+            if (storedAuthWif) {
+                return storedAuthWif;
+            }
+        } catch (e: any) {
+            console.error('session-keys-store auth lookup failed:', e?.message);
+        }
+
         // First try to get from memory (session storage)
         const { getPrivateKey } = await import('../secure-storage');
         let privateKey = getPrivateKey(identityId);

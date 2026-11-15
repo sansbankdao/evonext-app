@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import {
     UserIcon,
@@ -21,7 +21,15 @@ import { Sidebar } from '@/components/layout/sidebar'
 import { RightSidebar } from '@/components/layout/right-sidebar'
 import { Button } from '@/components/ui/button'
 import { withAuth, useAuth } from '@/contexts/auth-context'
+import { useNetwork } from '@/contexts/network-context'
 import { useTheme } from 'next-themes'
+import {
+    addSessionKey,
+    removeSessionKey,
+    listSessionKeys,
+    type RegisteredKeyInfo,
+    type SessionKeyEntry,
+} from '@/lib/session-keys-store'
 import * as Switch from '@radix-ui/react-switch'
 // App version displayed on the About page — pulled from package.json so
 // it always matches the release.
@@ -29,13 +37,15 @@ import packageJson from '../../package.json'
 import * as RadioGroup from '@radix-ui/react-radio-group'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import toast from 'react-hot-toast'
 import { showErrorToast } from '@/lib/toast-error'
 import { cacheManager } from '@/lib/cache-manager'
 
-type SettingsSection = 'main' | 'account' | 'notifications' | 'privacy' | 'appearance' | 'about'
+type SettingsSection = 'main' | 'account' | 'keys' | 'notifications' | 'privacy' | 'appearance' | 'about'
 
 const settingsSections = [
     { id: 'account', label: 'Account', icon: UserIcon, description: 'Manage your account details' },
+    { id: 'keys', label: 'Keys', icon: KeyIcon, description: 'Add or remove the private keys this session holds' },
     { id: 'notifications', label: 'Notifications', icon: BellIcon, description: 'Control your notification preferences' },
     { id: 'privacy', label: 'Privacy & Security', icon: ShieldCheckIcon, description: 'Manage your privacy settings' },
     { id: 'appearance', label: 'Appearance', icon: PaintBrushIcon, description: 'Customize how EvoNext looks' },
@@ -45,8 +55,68 @@ const settingsSections = [
 function SettingsPage() {
     const router = useRouter()
     const { user, logout } = useAuth()
+    const { network } = useNetwork()
     const { theme, setTheme } = useTheme()
     const [activeSection, setActiveSection] = useState<SettingsSection>('main')
+
+    /* F57b — the KEY MANAGER state (Settings → Keys). */
+    const [keysData, setKeysData] = useState<{ registered: RegisteredKeyInfo[]; loaded: Map<number, SessionKeyEntry> } | null>(null)
+    const [keysLoading, setKeysLoading] = useState(false)
+    const [keyInput, setKeyInput] = useState('')
+    const [keysSubmitting, setKeysSubmitting] = useState(false)
+
+    const loadSessionKeys = useCallback(async () => {
+        if (!user?.identityId) return
+        setKeysLoading(true)
+        try {
+            const sdkNetwork = (network === 'mainnet' ? 'mainnet' : 'testnet') as 'mainnet' | 'testnet'
+            const data = await listSessionKeys(sdkNetwork, user.identityId)
+            setKeysData(data)
+        } catch (e: any) {
+            showErrorToast(e?.message || 'Failed to read the identity keys.')
+        } finally {
+            setKeysLoading(false)
+        }
+    }, [network, user?.identityId])
+
+    /* Load when the Keys panel opens. */
+    useEffect(() => {
+        if (activeSection === 'keys') {
+            void loadSessionKeys()
+        }
+    }, [activeSection, loadSessionKeys])
+
+    const handleAddSessionKey = async () => {
+        if (!user?.identityId || keysSubmitting) return
+        setKeysSubmitting(true)
+        try {
+            const sdkNetwork = (network === 'mainnet' ? 'mainnet' : 'testnet') as 'mainnet' | 'testnet'
+            const entry = await addSessionKey(sdkNetwork, user.identityId, keyInput)
+            toast.success(`Key #${entry.keyId} added to this session.`)
+            setKeyInput('')
+            await loadSessionKeys()
+        } catch (e: any) {
+            showErrorToast(e?.message || 'Failed to add the key.')
+        } finally {
+            setKeysSubmitting(false)
+        }
+    }
+
+    const handleRemoveSessionKey = async (keyId: number) => {
+        if (!user?.identityId || keysSubmitting) return
+        if (!confirm(`Remove key #${keyId} from this session? Sends/documents that need it will stop working until you add it back.`)) return
+        setKeysSubmitting(true)
+        try {
+            const sdkNetwork = (network === 'mainnet' ? 'mainnet' : 'testnet') as 'mainnet' | 'testnet'
+            await removeSessionKey(sdkNetwork, user.identityId, keyId)
+            toast.success(`Key #${keyId} removed.`)
+            await loadSessionKeys()
+        } catch (e: any) {
+            showErrorToast(e?.message || 'Failed to remove the key.')
+        } finally {
+            setKeysSubmitting(false)
+        }
+    }
 
     // Notification settings
     const [notificationSettings, setNotificationSettings] = useState({
@@ -441,12 +511,129 @@ function SettingsPage() {
         </div>
     )
 
+    /* F57b — the Key Manager helpers. The purpose/security enums arrive
+     * as numbers OR enum strings (the wasm class vs the JSON shapes). */
+    const purposeLabel = (p: any) => {
+        const s = String(p).toUpperCase()
+        if (p === 0 || s === 'AUTHENTICATION') return 'Authentication'
+        if (p === 1 || s === 'ENCRYPTION') return 'Encryption'
+        if (p === 2 || s === 'DECRYPTION') return 'Decryption'
+        if (p === 3 || s === 'TRANSFER') return 'Transfer'
+        return s || '?'
+    }
+    const securityLabel = (s: any) => {
+        const u = String(s).toUpperCase()
+        if (s === 0 || u === 'MASTER') return 'Master'
+        if (s === 1 || u === 'CRITICAL') return 'Critical'
+        if (s === 2 || u === 'HIGH') return 'High'
+        if (s === 3 || u === 'MEDIUM') return 'Medium'
+        return u || '?'
+    }
+    const capabilityHint = (p: any, sec: any) => {
+        const pu = String(p).toUpperCase()
+        if (p === 3 || pu === 'TRANSFER') return 'signs credit sends, token sends and Core withdrawals'
+        if (p === 0 || pu === 'AUTHENTICATION') {
+            const su = String(sec).toUpperCase()
+            if (sec === 0 || su === 'MASTER') return 'identity management — documents need Critical or High'
+            return 'signs documents: profile, posts, likes, follows, usernames'
+        }
+        if (p === 1 || pu === 'ENCRYPTION') return 'message encryption'
+        return 'no wallet action uses this key'
+    }
+
+    const renderKeysSettings = () => (
+        <div className="p-6 space-y-6">
+            <div className="rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 p-4">
+                <p className="text-sm font-medium text-amber-900 dark:text-amber-200">Keys held by this session</p>
+                <p className="text-xs text-amber-800 dark:text-amber-300 mt-1">
+                    A key stays in this browser until you remove it (or clear the browser). It is never shown in full — only a short fingerprint.
+                    Sends are signed by the <strong>Transfer</strong> key; documents (profile, posts, usernames) are signed by an <strong>Authentication Critical/High</strong> key.
+                </p>
+            </div>
+
+            <div>
+                <h3 className="font-semibold mb-4">Add a key</h3>
+                <div className="flex gap-2">
+                    <input
+                        type="password"
+                        value={keyInput}
+                        onChange={(e) => setKeyInput(e.target.value)}
+                        placeholder="Paste a private key (WIF)"
+                        autoComplete="off"
+                        className="flex-1 px-3 py-2 bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-lg text-sm font-mono"
+                    />
+                    <Button
+                        onClick={handleAddSessionKey}
+                        disabled={keysSubmitting || !keyInput.trim()}
+                    >
+                        {keysSubmitting ? 'Adding…' : 'Add key'}
+                    </Button>
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                    The key is matched against this identity&apos;s registered keys by its public-key hash — a key this identity does not carry is refused.
+                </p>
+            </div>
+
+            <div>
+                <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-semibold">Registered keys on this identity</h3>
+                    <Button variant="ghost" size="sm" onClick={() => void loadSessionKeys()} disabled={keysLoading}>
+                        <ArrowPathIcon className="h-4 w-4 mr-1" />
+                        {keysLoading ? 'Loading…' : 'Refresh'}
+                    </Button>
+                </div>
+
+                {keysLoading && !keysData && <p className="text-sm text-gray-500">Reading the identity&apos;s keys…</p>}
+
+                <div className="space-y-3">
+                    {(keysData?.registered ?? []).map((k) => {
+                        const entry = keysData?.loaded.get(k.keyId)
+                        return (
+                            <div key={k.keyId} className={`rounded-lg p-4 border ${entry ? 'bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-900' : 'bg-gray-50 dark:bg-gray-950 border-gray-200 dark:border-gray-800'}`}>
+                                <div className="flex items-start justify-between gap-3">
+                                    <div className="min-w-0">
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                            <span className="font-medium text-sm">Key #{k.keyId}</span>
+                                            <span className="text-xs px-2 py-0.5 rounded-full bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300">{purposeLabel(k.purpose)}</span>
+                                            <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-900 text-gray-600 dark:text-gray-400">{securityLabel(k.securityLevel)}</span>
+                                            {entry && (
+                                                <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 dark:bg-green-950 text-green-700 dark:text-green-300 font-medium">
+                                                    Loaded · {entry.fingerprint}…
+                                                </span>
+                                            )}
+                                        </div>
+                                        <p className="text-xs text-gray-500 mt-1.5">{capabilityHint(k.purpose, k.securityLevel)}</p>
+                                    </div>
+                                    {entry && (
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => void handleRemoveSessionKey(k.keyId)}
+                                            disabled={keysSubmitting}
+                                        >
+                                            Remove
+                                        </Button>
+                                    )}
+                                </div>
+                            </div>
+                        )
+                    })}
+                    {keysData && keysData.registered.length === 0 && (
+                        <p className="text-sm text-gray-500">No registered keys found on this identity.</p>
+                    )}
+                </div>
+            </div>
+        </div>
+    )
+
     const renderSection = () => {
         switch (activeSection) {
         case 'main':
             return renderMainSettings()
         case 'account':
             return renderAccountSettings()
+        case 'keys':
+            return renderKeysSettings()
         case 'notifications':
             return renderNotificationSettings()
         case 'privacy':

@@ -3491,3 +3491,103 @@ here: `proxyCall` threw on `!res.ok` WITHOUT reading the body, so the
 dashboard/assets/send surfaces for WIF-only sessions: the identity lane =
 the real balance; Transparent/Shielded = 0 with zero console spam; the
 Move flows refuse explicitly with the recovery-phrase message.
+
+## F57c — the KEY MANAGER (Settings → Keys): add/remove the private keys a
+## session holds; the multi-key resolution wired into the sends AND the
+## document paths (2026-11-16)
+
+**(a) WHAT + WHY.** The owner directive: "add a KEY MANAGER somewhere under
+the SETTINGS; the user MUST be able to add/remove keys". This resolves the
+F57b one-WIF-slot tradeoff: a session can now hold BOTH the TRANSFER key
+(sends/withdrawals) and an AUTH CRITICAL|HIGH key (documents/DPNS).
+SCOPE: the session's PRIVATE keys (WIFs) — NOT on-chain identity key
+rotation (an identity-update protocol feature needing the master key;
+out of scope unless requested).
+
+**(b) NEW `lib/session-keys-store.ts`** — a per-identity key map:
+- `addSessionKey(network, identityId, wif)` — validates the WIF
+  (PrivateKeyWASM.fromWIF), derives its hash160 and MATERIALLY matches it
+  against the identity's registered keys (fetchRegisteredKeys — the wasm
+  getIdentity, the data as hash160-hex, the 66-char raw-key entries
+  normalized through ripemd160(sha256()) for type-0 keys; the F53 key
+  normalization values()+flat()+skip). An UNREGISTERED key is refused
+  honestly ('This key is NOT registered on that identity…'); an invalid
+  WIF refused honestly; stored under the REGISTERED KEY ID
+  (`evonext_keystore_<identityId>` = a JSON blob in secure-storage),
+  never displayed after entry — only a 16-hex fingerprint.
+- `listSessionKeys` — the registered keys (id/purpose/security/type from
+  the chain) + the loaded state: the store entries AND the LEGACY
+  `pk_<identityId>` slot (the connect-submitted WIF, material-matched,
+  source 'legacy') — everything the session holds is visible.
+- `removeSessionKey(network, identityId, keyId)` — drops the store entry
+  AND clears the legacy slot when it holds the same material. LIVE-HIT
+  BUG (caught by the e2e): a key sourced ONLY from the legacy slot (the
+  F57b connect-submitted transfer key — never in the store map) was not
+  cleared (the early return fired on a missing store entry) — fixed: the
+  legacy slot clears when its material matches either the removed store
+  entry or the requested registered key (a chain lookup for the
+  legacy-only case).
+- `getSessionWifForPurpose` / `getSessionTransferWif` /
+  `getSessionAuthWif` — the purpose-targeted resolution: the store entry
+  for the registered key → the legacy slot (only when its material
+  matches a candidate key) → null (the callers turn that into their
+  honest errors). The purpose/security enums arrive as numbers OR enum
+  strings (the F26d/F55b tolerance).
+
+**(c) THE CONSUMERS**:
+- `wallet-manager.getTransferKey`: the store's TRANSFER entry FIRST, then
+  the F57b legacy material check, then the honest error reworded ('No
+  TRANSFER key in this session. Add it under Settings → Keys (or
+  reconnect with the TRANSFER key WIF)…').
+- `state-transition-service.getPrivateKey` (documents/profiles/DPNS): the
+  store's AUTH CRITICAL|HIGH entry FIRST, then the existing chain
+  (pk_ → biometric). A transfer-only session then fails at getSigningKey's
+  material mismatch instead of silently mis-signing.
+
+**(d) THE UI (app/settings/page.tsx — a new 'Keys' section)**: the honest
+session note (the storage truth, below); Add (a password-style WIF field +
+Add → validated/matched/returned toasts); the registered-keys rows with
+the purpose + security + a CAPABILITY HINT per key ('signs credit sends,
+token sends and Core withdrawals' / 'signs documents: profile, posts,
+likes, follows, usernames' / 'identity management — documents need
+Critical or High'); a LOADED badge with the fingerprint per loaded key;
+Remove with a confirm that says what stops working; Refresh. The
+success/removed toasts + showErrorToast for the refusals.
+
+**(e) THE STORAGE TRUTH (verified — surface it!)**: `lib/secure-storage.ts`
+currently writes PLAIN localStorage and its TTL timers are COMMENTED OUT —
+the in-memory Map is the dead path. So the "1 hour TTL" claim (F55 + the
+storePrivateKey default arg) is NOT ENFORCED: keys (and the MNEMONIC) live
+in localStorage UNTIL REMOVED; the beforeunload/pagehide clear wipes only
+the unused in-memory Map, i.e. NOTHING. The Key Manager labels this
+honestly ("A key stays in this browser until you remove it (or clear the
+browser)"). NOT silently changed here (the mnemonic + the sessions depend
+on the persistence); the owner should decide between (i) enforcing the
+intended TTL (a timestamp check in get()), (ii) the real in-memory +
+biometric re-prompt, or (iii) the F27b passkey vault for all key material.
+
+**(f) VERIFICATION**: 9 new store tests
+(`test/unit/lib/session-keys-store.test.mts` — the real wasm derivation
+fixtures: the add/list/legacy-merge/remove (+the different-legacy-survives)
+semantics, the honest refusals, the TRANSFER vs AUTH purpose targeting, the
+MASTER-is-not-a-document-key rule, the legacy fallback) → **270/270
+(30 files)**; tsc 0; eslint clean; evorunner build green. BROWSER E2E
+(evorunner, the WIF-only session via the F39 TRANSFER WIF): Settings →
+Keys → the 5 registered keys render from the chain; the legacy transfer
+key shows Loaded; ADD the AUTH-CRITICAL WIF → Key #1 Loaded; REMOVE Key #3
+(the confirm dialog fires; the legacy slot clears — verified via
+localStorage presence pre/post) → the row un-loads; RE-ADD → Loaded; an
+invalid WIF → the honest toast; ZERO page errors. Driver note: assert the
+ROW-SCOPED innerText (the page-wide regexes false-match Loaded badges on
+OTHER rows — the earlier FAIL was a driver artifact; the state checks in
+the diag run were the truth).
+
+**(g) THE DAPI TEAM (the owner's question)**: the ONLY pending item = the
+production cut-over of the two Phase-1 methods (implemented + live-verified
+on their master). The Phase-2/3 asks are handed off
+(`../dev-dapi-proxy/docs/HANDOFF-phase2-reads-nonce-documents.md`, commit
+f5e32f0): `get_identity_nonce` (Phase 2 — the last wasm read on the send
+path), the `get_documents` relaxed `$createdAt`-leading range clauses (the
+social feed's F27o blocker), + (low priority) `get_token_contract_info`
+and the DPNS resolution. Writes stay OFF the proxy by design (direct
+grpc-web from the client).

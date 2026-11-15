@@ -224,6 +224,11 @@ export const getTransferKey = async (
         if (!_identityId) {
             throw new Error('This session has no recovery phrase. Reconnect with the TRANSFER key (WIF) of your identity to send credits or tokens.')
         }
+        /* F57b — the multi-key store first: an explicitly ADDED TRANSFER
+         * key (Settings → Keys) wins. */
+        const { getSessionTransferWif } = await import('./session-keys-store')
+        const storedTransferWif = await getSessionTransferWif(network, _identityId)
+        if (storedTransferWif) return storedTransferWif
         const submittedWif = getPrivateKey(_identityId)
         if (!submittedWif) {
             throw new Error('The submitted private key has expired from this session — reconnect with the TRANSFER key (WIF) of your identity.')
@@ -252,7 +257,7 @@ export const getTransferKey = async (
                 return submittedWif
             }
         }
-        throw new Error('The submitted key is NOT this identity\'s TRANSFER key. Reconnect with the TRANSFER key (WIF) — credit and token transfers are signed by purpose 3 (TRANSFER), not by the authentication keys.')
+        throw new Error('No TRANSFER key in this session. Add it under Settings → Keys (or reconnect with the TRANSFER key WIF) — credit and token transfers are signed by purpose 3 (TRANSFER), not by the authentication keys.')
     }
 
     /* Request private keys. */
