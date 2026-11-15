@@ -3077,3 +3077,33 @@ REGRESSION TESTS (252/252): wasm-glue-init (the EXACT TypeError before the
 load + the success after), wasm-sdk-service-retry (the flaky load + the
 no-poisoning guarantee), send-credit-readiness (the initialize→derive ORDER
 guard — which CAUGHT a missing constants import in the guard's first draft).
+
+## F56e — independent balance loading + skeletons; the Send-panel DASH hang
+fixed (2026-11-15, commit `66575f0`)
+
+The owner's two reports:
+1. "EVERYTHING is blocking on SHIELDED balance; the TRANSPARENT row shows but
+   the balance is ZERO" — ROOT CAUSE: the Assets' fetchData ran a SERIAL chain
+   (the DUSD read → the SANS read → an UNGUARDED dashswap ticker fetch → the
+   ONE build at the end) — any slow step left every row at zero, and the
+   ticker fetch had NO timeout and NO catch (a slow connection = the build
+   hung FOREVER).
+2. "when i click SEND the spinner spins FOREVER; SENDING DUSD WORKS" — the
+   SAME unguarded ticker fetch in the DASH branch (the DUSD branch uses the
+   DUSD_USD_VALUE constant → no fetch → worked). THE ASYMMETRY WAS THE CLUE.
+
+FIXES:
+- Each balance read = its OWN fire-and-forget task setting its own state; the
+  rows rebuild INCREMENTALLY as each lands (the transparent = its own
+  bounded-retry effect since F44; the shielded = the engine worker).
+- The rows show a SKELETON while their balance is loading (IToken.loading;
+  null = loading, 0n = a REAL zero); the Total card skeletons until BOTH the
+  Transparent and Shielded reads land.
+- The shared DASH/USD price cache (lib/wallet-assets.ts readCachedDashPrice/
+  writeCachedDashPrice, the F37b 10-min-TTL pattern): the Send panel reads
+  the cache first and refreshes non-fatally with an 8s AbortController — the
+  send NEVER blocks on the network for a cosmetic USD figure.
+Gates: tsc 0, eslint 0, 252/252 (the earlier 3-file failure = the known
+host-load flake; the standalone + the clean full runs green), playwright
+2/2, the evorunner build, the live chunks verified (the pulse + the cache
+helpers in page-99f3cec38b5712d5.js).
