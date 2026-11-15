@@ -274,13 +274,24 @@ export default function WalletPage() {
                             Total balance
                         </h3>
 
-                        <h2 className="text-3xl text-gray-600 font-medium">
-                            {numeral(totalDash).format('0,0.0000[0000]')}
-                        </h2>
+                        {/* F56e: the TOTAL waits for every lane's read — until
+                         * then it shows a skeleton (a zero would be a lie:
+                         * the Transparent/Shielded reads are still in flight
+                         * and each loads INDEPENDENTLY below). */}
+                        {platformCredits === null || shieldedCredits === null ? (
+                            <div className="flex flex-col items-end gap-1.5 my-1">
+                                <div className="h-7 w-44 rounded bg-gray-200 dark:bg-gray-700 animate-pulse" />
+                                <div className="h-4 w-24 rounded bg-gray-100 dark:bg-gray-800 animate-pulse" />
+                            </div>
+                        ) : (<>
+                            <h2 className="text-3xl text-gray-600 font-medium">
+                                {numeral(totalDash).format('0,0.0000[0000]')}
+                            </h2>
 
-                        <h3 className="text-xl text-gray-500 font-medium">
-                            {numeral(totalDash * dashPrice).format('$0,0.00[00]')}
-                        </h3>
+                            <h3 className="text-xl text-gray-500 font-medium">
+                                {numeral(totalDash * dashPrice).format('$0,0.00[00]')}
+                            </h3>
+                        </>)}
                     </div>
 
                     <section className="{[ isShowingAssets ? 'visible' : 'hidden' ]}">

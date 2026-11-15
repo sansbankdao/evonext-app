@@ -44,7 +44,9 @@ export function buildAvailableAssets(input: AvailableAssetInput): IToken[] {
 
     /* Build AVAILABLE (Platform) assets collection — the mobile-parity
      * balance model: Transparent (identity credits) + Shielded (the
-     * Orchard pool), then tokens. */
+     * Orchard pool), then tokens.
+     * F56e: null balance = STILL LOADING → the row carries loading=true
+     * and the UI shows a skeleton; 0n = a REAL zero. */
     /* The '0' row shows the DIP-17 Platform-address pool balance (the
      * REAL Transparent figure — NOT the identity balance, which lives
      * under the dashboard card). */
@@ -55,6 +57,7 @@ export function buildAvailableAssets(input: AvailableAssetInput): IToken[] {
         token_id_hex: dusdContractId,
         iconUrl: '/icons/dash.svg',
         amount: platformCredits ?? 0n,
+        loading: platformCredits === null,
         decimal_places: DASH_DECIMALS,
         fiat: {
             USD: dashUsdValue * (Number(platformCredits ?? 0n) / (10 ** DASH_DECIMALS)),
@@ -70,6 +73,7 @@ export function buildAvailableAssets(input: AvailableAssetInput): IToken[] {
         token_id_hex: dusdContractId,
         iconUrl: '/icons/dash.svg',
         amount: shieldedCredits ?? 0n,
+        loading: shieldedCredits === null,
         decimal_places: DASH_DECIMALS,
         fiat: {
             USD: dashUsdValue * (Number(shieldedCredits ?? 0n) / (10 ** DASH_DECIMALS)),
@@ -109,4 +113,32 @@ export function buildAvailableAssets(input: AvailableAssetInput): IToken[] {
     }
 
     return assets
+}
+
+/* ---------------------------------------------------------------------------
+ * F56e — the shared DASH/USD price cache (the F37b pattern): the ticker
+ * fetch on a SLOW connection hung the Send panel FOREVER (no timeout, no
+ * catch — the DUSD branch used a constant and worked, the DASH branch hung).
+ * The price now reads from the cache first and refreshes non-fatally. */
+const DASH_PRICE_CACHE_KEY = 'evonext_dash_usd'
+const DASH_PRICE_TTL_MS = 10 * 60 * 1000
+
+export function readCachedDashPrice(): number | null {
+    if (typeof window === 'undefined') return null
+    try {
+        const raw = window.localStorage.getItem(DASH_PRICE_CACHE_KEY)
+        if (!raw) return null
+        const parsed = JSON.parse(raw) as { price: number; at: number }
+        if (typeof parsed.price !== 'number' || Date.now() - parsed.at > DASH_PRICE_TTL_MS) return null
+        return parsed.price
+    } catch {
+        return null
+    }
+}
+
+export function writeCachedDashPrice(price: number): void {
+    if (typeof window === 'undefined') return
+    try {
+        window.localStorage.setItem(DASH_PRICE_CACHE_KEY, JSON.stringify({ price, at: Date.now() }))
+    } catch { /* private mode */ }
 }

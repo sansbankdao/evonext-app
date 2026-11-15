@@ -240,11 +240,26 @@ export function WalletSend({ isFullScreen }: IWalletSendProps) {
             /* Calculate DASH value. */
             assetValue = BigInt(Math.trunc(numericAmount * (10 ** DASH_DECIMALS)))
 
-// FIXME FOR DEV PURPOSES ONLY
-            const ENDPOINT = 'https://dashswap.xyz/v1/ticker/DASH'
-            const response = await fetch(ENDPOINT)
-            const ticker = await response.json()
-            const dashUsdValue = ticker.quote.USD.price
+            /* F56e — THE SEND-PANEL HANG FIX: this ticker fetch had NO
+             * timeout and NO error handling — on a slow connection it hung
+             * the send FOREVER (the owner's exact report; the DUSD branch
+             * uses a constant and worked). The price now comes from the
+             * shared cache first (instant) and falls back to 0 — the send
+             * NEVER blocks on the network for a cosmetic USD figure. */
+            const { readCachedDashPrice } = await import('@/lib/wallet-assets')
+            let dashUsdValue = readCachedDashPrice() ?? 0
+            try {
+                const ctrl = new AbortController()
+                const timer = setTimeout(() => ctrl.abort(), 8000)
+                const tickerResponse = await fetch('https://dashswap.xyz/v1/ticker/DASH', { signal: ctrl.signal })
+                clearTimeout(timer)
+                const ticker = await tickerResponse.json()
+                if (Number(ticker?.quote?.USD?.price ?? 0) > 0) {
+                    dashUsdValue = Number(ticker.quote.USD.price)
+                    const { writeCachedDashPrice } = await import('@/lib/wallet-assets')
+                    writeCachedDashPrice(dashUsdValue)
+                }
+            } catch { /* the cached/0 price — the send continues */ }
 
             /* Calculate USD value. */
             assetUsdValue = numericAmount * dashUsdValue

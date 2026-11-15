@@ -116,6 +116,9 @@ export interface IToken {
     amount?: bigint;
     decimal_places: number;
     fiat: ICurrency;
+    /* F56e: true = the balance read is still in flight — the row renders a
+     * skeleton instead of a (misleading) zero. */
+    loading?: boolean;
 }
 
 export interface ITokenPaymentInfo {

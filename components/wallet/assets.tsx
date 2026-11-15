@@ -37,6 +37,7 @@ import {
 } from '@/lib/secure-storage'
 import { wasmSdkService, getWasmSdk } from '@/lib/services/wasm-sdk-service'
 import { shieldedEngine, persistedShieldedBalance } from '@/lib/shielded/engine-client'
+import { readCachedDashPrice, writeCachedDashPrice } from '@/lib/wallet-assets'
 import { fetchPlatformAddressBalance } from '@/lib/platform-address'
 
 interface WalletAssetProps {
@@ -60,9 +61,9 @@ export function WalletAssets({ isFullScreen, onOpenShielded, selectedAsset, onSe
     const [assets, setAssets] = useState<IToken[]>([DEFAULT_ASSET])
     const [collections, setCollections] = useState<IToken[]>()
 
-    const [displayDusdBalance, setDisplayDusdBalance] = useState(BigInt(0))
+    const [displayDusdBalance, setDisplayDusdBalance] = useState<bigint | null>(null)
     const [displayDusdBalanceUsd, setDisplayDusdBalanceUsd] = useState(BigInt(0))
-    const [displaySansBalance, setDisplaySansBalance] = useState(BigInt(0))
+    const [displaySansBalance, setDisplaySansBalance] = useState<bigint | null>(null)
     const [displaySansBalanceUsd, setDisplaySansBalanceUsd] = useState(BigInt(0))
 
     /* The Shielded row's balance — the note scan runs in the SHIELDED
@@ -78,6 +79,9 @@ export function WalletAssets({ isFullScreen, onOpenShielded, selectedAsset, onSe
      * displayed). Bounded + retried like the shielded scan (the wasm
      * request-timeout can leave a query pending FOREVER — F30). */
     const [platformCredits, setPlatformCredits] = useState<bigint | null>(null)
+    /* F56e — the price state (the token balances = the existing display
+     * states above, now bigint|null so null = not-yet-read). */
+    const [dashPrice, setDashPrice] = useState<number>(0)
 
     useEffect(() => {
         if (typeof user !== 'undefined' && user !== null) {
@@ -241,104 +245,100 @@ export function WalletAssets({ isFullScreen, onOpenShielded, selectedAsset, onSe
         }
     }
 
+    /* F56e — EACH BALANCE LOADS INDEPENDENTLY. The old fetchData ran a
+     * SERIAL chain (the DUSD read → the SANS read → an UNGUARDED ticker
+     * fetch → the ONE build at the end): any slow step left every row at
+     * zero, and on a slow connection the ticker fetch hung the build
+     * FOREVER. Now each read is its own fire-and-forget task that sets its
+     * own state, and the rows REBUILD incrementally as each lands. The
+     * DASH/USD price comes from the shared cache first (instant) and
+     * refreshes non-fatally with an 8s timeout. */
     useEffect(() => {
-        async function fetchData() {
+        let cancelled = false
+        ;(async () => {
             const {
-                // get_identity_balance_with_proof_info,
                 get_identities_token_balances_with_proof_info,
-                // get_identities_token_infos_with_proof_info,
             } = await import('../../lib/dash-wasm/compat')
 
-            /* Initialize SDK. */
+            /* The SDK init + the token reads (the wasm is needed for these
+             * two; the Transparent/Shielded rows load in their OWN effects). */
             const sdk = await getWasmSdk()
 
-            /* Validate user. */
             if (typeof user !== 'undefined' && user !== null) {
-                /* Set Identity ID. */
-                const identityId = user.identityId
+                const identityIds = [user.identityId]
+                const dusdContractId = network === 'mainnet' ? DUSD_CONTRACT_ID_MAINNET : DUSD_CONTRACT_ID_TESTNET
+                const sansContractId = network === 'mainnet' ? SANS_CONTRACT_ID_MAINNET : SANS_CONTRACT_ID_TESTNET
 
-                /* Set Identity ID array. */
-                const identityIds = [identityId]
+                /* DUSD task. */
+                void (async () => {
+                    try {
+                        const response = await get_identities_token_balances_with_proof_info(
+                            sdk, identityIds, dusdContractId)
+                        if (!cancelled && response !== undefined && response !== null && response.data.length > 0) {
+                            setDisplayDusdBalance(BigInt(response.data[0].balance))
+                        }
+                    } catch (err: any) {
+                        console.error('DUSD balance read failed:', err?.message)
+                    }
+                })()
 
-                /* Initialize locals. */
-                let dusdBalance
-                let dusdContractId
-                let sansBalance
-                let sansContractId
-                let response
-
-                /* Handle network. */
-                if (network === 'mainnet') {
-                    dusdContractId = DUSD_CONTRACT_ID_MAINNET
-                    sansContractId = SANS_CONTRACT_ID_MAINNET
-                } else {
-                    dusdContractId = DUSD_CONTRACT_ID_TESTNET
-                    sansContractId = SANS_CONTRACT_ID_TESTNET
-                }
-
-                /* Request DUSD balance. NOTE: the constants hold TOKEN ids
-                 * (Platform v5) — verified live 2026-11-14 (the tDUSD token
-                 * 3oTHkj8nqn82QkZRHkmUmNBX696nzE1rg1fwPRpemEdz resolves via
-                 * getTokenContractInfo to contract GWghYQoD…, position 0).
-                 * An earlier 'derive from contract' attempt was WRONG. */
-                response = await get_identities_token_balances_with_proof_info(
-                    sdk, identityIds, dusdContractId)
-// console.log('DUSD BALANCE (response)', response)
-
-                /* Validate response. */
-                if (typeof response !== 'undefined' && response !== null && response.data.length > 0) {
-                    /* Set DUSD balance. */
-                    dusdBalance = BigInt(response.data[0].balance)
-
-                    /* Save DUSD balance. */
-                    setDisplayDusdBalance(dusdBalance)
-                }
-
-                /* Request SANS balance (same token-id rule). */
-                response = await get_identities_token_balances_with_proof_info(
-                    sdk, identityIds, sansContractId)
-// console.log('SANS BALANCE (response)', response)
-
-                /* Validate response. */
-                if (typeof response !== 'undefined' && response !== null && response.data.length > 0) {
-                    /* Set SANS balance. */
-                    sansBalance = BigInt(response.data[0].balance)
-
-                    /* Save SANS balance. */
-                    setDisplaySansBalance(sansBalance)
-                }
-
-// FIXME FOR DEV PURPOSES ONLY
-                const ENDPOINT = 'https://dashswap.xyz/v1/ticker/DASH'
-                response = await fetch(ENDPOINT)
-                const ticker = await response.json()
-                const dashUsdValue = ticker.quote.USD.price
-
-                /* Build AVAILABLE (Platform) assets — the row contract
-                 * lives in lib/wallet-assets.ts (unit-tested): Transparent
-                 * + Shielded ALWAYS present; DUSD/SANS only with balances. */
-                const assets = buildAvailableAssets({
-                    network,
-                    dashUsdValue,
-                    platformCredits,
-                    shieldedCredits,
-                    dusdBalance,
-                    sansBalance,
-                })
-
-                /* Save/update assets. */
-                setAssets(assets)
+                /* SANS task (independent). */
+                void (async () => {
+                    try {
+                        const response = await get_identities_token_balances_with_proof_info(
+                            sdk, identityIds, sansContractId)
+                        if (!cancelled && response !== undefined && response !== null && response.data.length > 0) {
+                            setDisplaySansBalance(BigInt(response.data[0].balance))
+                        }
+                    } catch (err: any) {
+                        console.error('SANS balance read failed:', err?.message)
+                    }
+                })()
             }
-        }
+        })()
 
-        /* Fetch (async) data. Re-runs when the shielded scan lands so the
-         * Shielded row appears with its balance. */
-        fetchData()
+        /* The price task: the CACHE first (instant), then a NON-FATAL
+         * refresh with an 8s timeout — never blocks anything. */
+        setDashPrice(readCachedDashPrice() ?? 0)
+        void (async () => {
+            try {
+                const ctrl = new AbortController()
+                const timer = setTimeout(() => ctrl.abort(), 8000)
+                const response = await fetch('https://dashswap.xyz/v1/ticker/DASH', { signal: ctrl.signal })
+                clearTimeout(timer)
+                const ticker = await response.json()
+                const price = Number(ticker?.quote?.USD?.price ?? 0)
+                if (!cancelled && price > 0) {
+                    setDashPrice(price)
+                    writeCachedDashPrice(price)
+                }
+            } catch { /* keep the cached price — never fatal */ }
+        })()
+    }, [network, user])
+
+    /* The rows REBUILD incrementally as each independent balance lands. */
+    useEffect(() => {
+        const dusdBalance = displayDusdBalance
+        const sansBalance = displaySansBalance
+        const dashUsdValue = dashPrice || 0
+
+        const assets = buildAvailableAssets({
+            network,
+            dashUsdValue,
+            platformCredits,
+            shieldedCredits,
+            dusdBalance: dusdBalance === null ? undefined : dusdBalance,
+            sansBalance: sansBalance === null ? undefined : sansBalance,
+        })
+
+        setAssets(assets)
     }, [
         network,
-        user,
-        shieldedCredits,
         platformCredits,
+        shieldedCredits,
+        displayDusdBalance,
+        displaySansBalance,
+        dashPrice,
     ])
 
     return (
@@ -415,26 +415,35 @@ export function WalletAssets({ isFullScreen, onOpenShielded, selectedAsset, onSe
                                     {displayTokenName(token.id)}
                                 </h3>
 
-                                <span className="sm:hidden text-lg font-medium text-sky-600">
-                                    {displayDecimalAmount(token)}
-                                </span>
-                                <span className="hidden sm:flex text-xl font-medium text-sky-600">
-                                    {displayDecimalAmount(token)}
-                                </span>
+                                {token.loading ? <>
+                                    <span className="sm:hidden inline-block h-5 w-20 rounded bg-sky-200/80 animate-pulse" />
+                                    <span className="hidden sm:inline-block h-5 w-24 rounded bg-sky-200/80 animate-pulse" />
+                                </> : <>
+                                    <span className="sm:hidden text-lg font-medium text-sky-600">
+                                        {displayDecimalAmount(token)}
+                                    </span>
+                                    <span className="hidden sm:flex text-xl font-medium text-sky-600">
+                                        {displayDecimalAmount(token)}
+                                    </span>
+                                </>}
                             </div>
                         </div>
 
                         <h3 className="w-1/2 flex flex-col items-end font-medium text-sky-700">
-                            <sup className="text-xs">
-                                USD
-                            </sup>
+                            {token.loading ? (
+                                <span className="mt-2 inline-block h-6 w-24 rounded bg-sky-200/80 animate-pulse" />
+                            ) : (<>
+                                <sup className="text-xs">
+                                    USD
+                                </sup>
 
-                            <span className="-mt-3 sm:hidden text-2xl">
-                                {displayDecimalAmountUsd(token)}
-                            </span>
-                            <span className="-mt-3 hidden sm:flex text-3xl">
-                                {displayDecimalAmountUsd(token)}
-                            </span>
+                                <span className="-mt-3 sm:hidden text-2xl">
+                                    {displayDecimalAmountUsd(token)}
+                                </span>
+                                <span className="-mt-3 hidden sm:flex text-3xl">
+                                    {displayDecimalAmountUsd(token)}
+                                </span>
+                            </>)}
                         </h3>
                     </div>
                 ))}
@@ -465,26 +474,35 @@ export function WalletAssets({ isFullScreen, onOpenShielded, selectedAsset, onSe
                                     {displayTokenName(token.id)}
                                 </h3>
 
-                                <span className="sm:hidden text-lg font-medium text-sky-600">
-                                    {displayDecimalAmount(token)}
-                                </span>
-                                <span className="hidden sm:flex text-xl font-medium text-sky-600">
-                                    {displayDecimalAmount(token)}
-                                </span>
+                                {token.loading ? <>
+                                    <span className="sm:hidden inline-block h-5 w-20 rounded bg-sky-200/80 animate-pulse" />
+                                    <span className="hidden sm:inline-block h-5 w-24 rounded bg-sky-200/80 animate-pulse" />
+                                </> : <>
+                                    <span className="sm:hidden text-lg font-medium text-sky-600">
+                                        {displayDecimalAmount(token)}
+                                    </span>
+                                    <span className="hidden sm:flex text-xl font-medium text-sky-600">
+                                        {displayDecimalAmount(token)}
+                                    </span>
+                                </>}
                             </div>
                         </div>
 
                         <h3 className="w-1/2 flex flex-col items-end font-medium text-sky-700">
-                            <sup className="text-xs">
-                                USD
-                            </sup>
+                            {token.loading ? (
+                                <span className="mt-2 inline-block h-6 w-24 rounded bg-sky-200/80 animate-pulse" />
+                            ) : (<>
+                                <sup className="text-xs">
+                                    USD
+                                </sup>
 
-                            <span className="-mt-3 sm:hidden text-2xl">
-                                {displayDecimalAmountUsd(token)}
-                            </span>
-                            <span className="-mt-3 hidden sm:flex text-3xl">
-                                {displayDecimalAmountUsd(token)}
-                            </span>
+                                <span className="-mt-3 sm:hidden text-2xl">
+                                    {displayDecimalAmountUsd(token)}
+                                </span>
+                                <span className="-mt-3 hidden sm:flex text-3xl">
+                                    {displayDecimalAmountUsd(token)}
+                                </span>
+                            </>)}
                         </h3>
                     </div>
                 ))}
