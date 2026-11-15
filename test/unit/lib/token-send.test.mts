@@ -37,6 +37,29 @@ vi.mock('@/lib/secure-storage', async (importOriginal) => {
     }
 })
 
+/* F57 Phase 2: sendToken resolves the (contract, position) through the
+ * trustless LADDER (lib/trustless-reads.ts), not the wasm SDK directly.
+ * The tier-1 proxy answers the explicit "not supported" verdict and the
+ * tier-2 pshenmic SDK throws — so the exercised resolution path = the
+ * tier-3 WASM fallback below (the fake SDK), keeping the original F53b
+ * assertions 1:1 while never touching the live network. */
+vi.mock('@/lib/dapi-proxy', () => ({
+    proxyCall: vi.fn(async (method: string) => {
+        throw new Error(`Method '${method}' is not supported.`)
+    }),
+}))
+
+vi.mock('dash-platform-sdk', () => ({
+    DashPlatformSDK: class {
+        platformAddresses = { getAddressesInfos: async () => { throw new Error('mocked tier-2') } }
+        identities = { getIdentityNonce: async () => { throw new Error('mocked tier-2') } }
+        tokens = {
+            getIdentitiesTokenBalances: async () => { throw new Error('mocked tier-2') },
+            getTokenContractInfo: async () => { throw new Error('mocked tier-2') },
+        }
+    },
+}))
+
 /* The fake SDK: getTokenContractInfo resolves the live-verified tDUSD
  * (token id → contract GWghYQoD…, position 0); tokenTransfer captures the
  * args; getIdentity returns an identity whose publicKeys carry the REAL

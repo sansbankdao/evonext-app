@@ -3777,3 +3777,63 @@ biometrics get the password tier; hardware keys = the optional upgrade
 relaxation is a possible follow-up); the future native tier = the
 evonext-desktop companion (native messaging → the OS keyring) if ever
 needed.
+
+## F57 PHASE 2 — the SEND-PATH preflight reads off the wasm RPC stack
+## (2026-11-16, commit a261f9c+)
+
+The F57 read ladder (lib/trustless-reads.ts) gained the two remaining
+send-path preflight methods; the send paths no longer do these reads
+through the wasm SDK's trusted-context RPC stack:
+
+(a) **getIdentityNonce(network, identityId) → bigint** — the tier-1 proxy
+    returns the DECIMAL STRING (live-verified: "2" mainnet / "3"
+    testnet); the tier-2 = pshenmic `identities.getIdentityNonce`
+    (live-verified: the plain value, warm ~100ms on the memoized client —
+    NOTE the namespace = `identities` PLURAL, `sdk.identity` = undefined);
+    the tier-3 = the wasm (`bigint | undefined` — an undefined identity
+    THROWS honestly, never a silent 0: a 0 nonce would sign an invalid
+    transition). sendCredit now sources the nonce here (the F56f
+    singleton SDK still builds/signs/broadcasts — only the READ moved).
+
+(b) **getTokenContractInfo(network, tokenId) → {contractId,
+    tokenContractPosition} | null** — the tier-1 proxy shape =
+    {dataContractId, tokenContractPosition} (live-verified on the
+    mainnet DUSD: contract 8CkcAPok…, position 0); the tier-2 =
+    pshenmic `tokens.getTokenContractInfo` (dataContractId = an
+    Identifier INSTANCE → .base58()); the tier-3 = the wasm (undefined →
+    null). sendToken's honest not-live gate consumes null (the F53 rule
+    unchanged). The tSANS id = genuinely NOT_FOUND (the honest null path
+    live-exercised).
+
+(c) **shieldFromTransparent (the type-15 Move lane)** now reads the
+    address info via the trustless getAddressesInfos (the same
+    variant-hex map-key space F51c across ALL tiers — 1:1 with the wasm
+    shape).
+
+(d) **LIVE PROBE of the bundled real code** (esbuild, both networks):
+    mainnet nonce 2n / testnet nonce 3n / the mainnet DUSD info mapped /
+    the tDUSD info mapped. **THE POST-F53 TESTNET FACT (the wasm
+    ground-truth, the F53c-proven plural method run NOW): the tDUSD
+    contract GWghYQoD… RESOLVES and the F53c recipient 5apjqb8… holds NO
+    tDUSD anymore (an EMPTY balances array) — the DashSwap team's
+    bootstrap inventory ops moved the tokens since 2026-11-14; the F53
+    'phantom contract' state was RESOLVED on their side. The tSANS id
+    remains not-live. NOT an app defect; the DUSD/SANS testnet rows keep
+    their balance-driven visibility.**
+
+(e) **The F53b token-send tests updated to the ladder reality**: the
+    tier-1 proxyCall mock = the explicit "not supported" verdict + the
+    tier-2 DashPlatformSDK mock throws — the exercised path = the tier-3
+    wasm fallback (the fakeSdk), keeping every original assertion 1:1
+    and the unit suite OFF the live network. +6 Phase-2 ladder tests
+    (the proxy decimal-string → bigint; the pshenmic tier-2 + the 2-
+    attempt rotation then the wasm; the honest undefined-nonce throw;
+    the token-info mapping + the tier-1 short-circuit + the null
+    not-live). 291/291 (32 files), tsc 0, eslint clean, build green.
+
+(f) **THE DAPI-TEAM BUG (their side)**: `dpns_resolve_name` = BROKEN on
+    the proxy regardless of the param shape ({"name"|"fullName", with or
+    without .dash} → SDK_EXECUTION_ERROR "Cannot read properties of
+    undefined (reading 'toLowerCase')" — inside THEIR code). The app's
+    DPNS resolution stays on the wasm until fixed; noted for the
+    handoff.

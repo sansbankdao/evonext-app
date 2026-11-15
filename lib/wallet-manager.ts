@@ -21,6 +21,7 @@ import {
     ITokenPaymentInfo,
 } from './types'
 import { EVONEXT_CONTRACT_ID_MAINNET, EVONEXT_CONTRACT_ID_TESTNET } from './constants'
+import { getIdentityNonce, getTokenContractInfo } from './trustless-reads'
 
 /* Get Private Keys. */
 export const getPrivateKeys = (
@@ -369,7 +370,9 @@ export const sendCredit = async (
      * TS interface for the method expects { amount, senderId, recipientId,
      * nonce } while the API docs describe an { identity, signer } shape — the
      * call passes a superset so either binding contract is satisfied. */
-    const nonce = await sdk.getIdentityNonce(_identityId)
+    /* F57 Phase 2: the nonce read comes from the plain-API ladder (proxy →
+     * pshenmic → wasm last resort) instead of the wasm RPC stack directly. */
+    const nonce = await getIdentityNonce(_network === 'mainnet' ? 'mainnet' : 'testnet', _identityId)
     const identity = await sdk.getIdentity(_identityId)
     if (!identity) {
         throw new Error(`Identity not found: ${_identityId}`)
@@ -479,7 +482,9 @@ export const sendToken = async (
     const sdk = await getWasmSdk()
     const network = _network === 'mainnet' ? 'mainnet' : 'testnet'
 
-    const tokenInfo = await sdk.getTokenContractInfo(_tokenId)
+    /* F57 Phase 2: the (contract, position) resolution rides the plain-API
+     * ladder too; null = the honest not-live gate below (unchanged). */
+    const tokenInfo = await getTokenContractInfo(network, _tokenId)
     if (!tokenInfo) {
         throw new Error(
             'This token is not live on ' + network + ' yet — no token contract is deployed ' +

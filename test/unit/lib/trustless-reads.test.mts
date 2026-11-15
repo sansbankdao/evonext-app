@@ -14,6 +14,8 @@ import { bech32m } from '@scure/base';
 const h = vi.hoisted(() => ({
     sdkGetAddressesInfos: undefined as any,
     sdkGetTokenBalances: undefined as any,
+    sdkGetIdentityNonce: undefined as any,
+    sdkGetTokenContractInfo: undefined as any,
     serviceInitializedNetwork: undefined as any,
     serviceInitialize: undefined as any,
     getWasmSdk: undefined as any,
@@ -25,8 +27,12 @@ vi.mock('dash-platform-sdk', () => ({
         platformAddresses = {
             getAddressesInfos: (...args: unknown[]) => h.sdkGetAddressesInfos(...args),
         };
+        identities = {
+            getIdentityNonce: (...args: unknown[]) => h.sdkGetIdentityNonce(...args),
+        };
         tokens = {
             getIdentitiesTokenBalances: (...args: unknown[]) => h.sdkGetTokenBalances(...args),
+            getTokenContractInfo: (...args: unknown[]) => h.sdkGetTokenContractInfo(...args),
         };
     },
 }));
@@ -87,6 +93,8 @@ describe('trustless reads (F57 Phase 1 ladder)', () => {
         vi.resetModules();
         h.sdkGetAddressesInfos = vi.fn();
         h.sdkGetTokenBalances = vi.fn();
+        h.sdkGetIdentityNonce = vi.fn();
+        h.sdkGetTokenContractInfo = vi.fn();
         h.serviceInitializedNetwork = vi.fn(() => NETWORK);
         h.serviceInitialize = vi.fn();
         h.getWasmSdk = vi.fn();
@@ -220,5 +228,94 @@ describe('trustless reads (F57 Phase 1 ladder)', () => {
 
         expect(balances.get('id-y')).toBe(1_000_000n);
         expect(h.sdkGetTokenBalances).not.toHaveBeenCalled();
+    });
+
+    /* ------------------------------------------------------------------
+     * F57 Phase 2 — the send-path preflight reads (the nonce + the token
+     * contract info) off the wasm RPC stack.
+     * ------------------------------------------------------------------ */
+
+    it('phase 2 nonce: the proxy decimal string -> bigint; params shape pinned', async () => {
+        (fetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(okEnvelope('2'));
+
+        const { getIdentityNonce } = await loadModule();
+        const nonce = await getIdentityNonce(NETWORK, 'id-A');
+
+        const body = lastRequestBody();
+        expect(body.method).toBe('get_identity_nonce');
+        expect(body.network).toBe(NETWORK);
+        expect(body.params).toEqual({ identityId: 'id-A' });
+        expect(nonce).toBe(2n);
+        expect(h.sdkGetIdentityNonce).not.toHaveBeenCalled();
+    });
+
+    it('phase 2 nonce: the pshenmic tier-2 on the "not supported" verdict; 2 attempts then the wasm', async () => {
+        (fetch as unknown as ReturnType<typeof vi.fn>)
+            .mockResolvedValue(errEnvelope("Method 'get_identity_nonce' is not supported."));
+        h.sdkGetIdentityNonce
+            .mockRejectedValueOnce(new Error('UNIMPLEMENTED'))
+            .mockRejectedValueOnce(new Error('UNIMPLEMENTED again'));
+        h.getWasmSdk.mockResolvedValue({ getIdentityNonce: vi.fn().mockResolvedValue(9n) });
+
+        const { getIdentityNonce } = await loadModule();
+        const nonce = await getIdentityNonce(NETWORK, 'id-A');
+
+        expect(h.sdkGetIdentityNonce).toHaveBeenCalledTimes(2);
+        expect(h.getWasmSdk).toHaveBeenCalledTimes(1);
+        expect(nonce).toBe(9n);
+    });
+
+    it('phase 2 nonce: an undefined identity NEVER returns a silent 0 — the tier-3 throws honestly', async () => {
+        (fetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(
+            errEnvelope("Method 'get_identity_nonce' is not supported."));
+        h.sdkGetIdentityNonce
+            .mockRejectedValueOnce(new Error('down'))
+            .mockRejectedValueOnce(new Error('down again'));
+        h.getWasmSdk.mockResolvedValue({ getIdentityNonce: vi.fn().mockResolvedValue(undefined) });
+
+        const { getIdentityNonce } = await loadModule();
+        await expect(getIdentityNonce(NETWORK, 'id-missing')).rejects.toThrow(/no nonce on-chain/);
+    });
+
+    it('phase 2 token info: the proxy {dataContractId, tokenContractPosition} mapped to the consumer shape', async () => {
+        (fetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(okEnvelope({
+            dataContractId: 'contract-XYZ',
+            tokenContractPosition: 0,
+        }));
+
+        const { getTokenContractInfo } = await loadModule();
+        const info = await getTokenContractInfo(NETWORK, 'token-id');
+
+        const body = lastRequestBody();
+        expect(body.method).toBe('get_token_contract_info');
+        expect(body.params).toEqual({ tokenId: 'token-id' });
+        expect(info).toEqual({ contractId: 'contract-XYZ', tokenContractPosition: 0 });
+        expect(h.sdkGetTokenContractInfo).not.toHaveBeenCalled();
+    });
+
+    it('phase 2 token info: the pshenmic Identifier base58() on tier 2; the wasm undefined -> null on tier 3', async () => {
+        (fetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(
+            errEnvelope("Method 'get_token_contract_info' is not supported."));
+        h.sdkGetTokenContractInfo
+            .mockRejectedValueOnce(new Error('down'))
+            .mockRejectedValueOnce(new Error('down again'));
+        h.getWasmSdk.mockResolvedValue({ getTokenContractInfo: vi.fn().mockResolvedValue(undefined) });
+
+        const { getTokenContractInfo } = await loadModule();
+        const notLive = await getTokenContractInfo(NETWORK, 'token-id');
+        expect(notLive).toBeNull();
+    });
+
+    it('phase 2 token info: the tier-1 success short-circuits before the pshenmic tier', async () => {
+        (fetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(okEnvelope({
+            dataContractId: 'contract-live',
+            tokenContractPosition: 3,
+        }));
+        h.sdkGetTokenContractInfo.mockResolvedValue({ dataContractId: { base58: () => 'should-not-run' }, tokenContractPosition: 9 });
+
+        const { getTokenContractInfo } = await loadModule();
+        const info = await getTokenContractInfo(NETWORK, 'token-id');
+        expect(info).toEqual({ contractId: 'contract-live', tokenContractPosition: 3 });
+        expect(h.sdkGetTokenContractInfo).not.toHaveBeenCalled();
     });
 });

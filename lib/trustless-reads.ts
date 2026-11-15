@@ -150,6 +150,146 @@ async function getWasmSdkForNetwork(network: ProxyNetwork): Promise<any> {
 }
 
 /* ------------------------------------------------------------------ *
+ * getIdentityNonce — the send-path preflight (F57 Phase 2)            *
+ * ------------------------------------------------------------------ */
+
+/**
+ * The identity's CURRENT nonce (the callers/transition builders apply the
+ * CURRENT + 1 increment themselves — see the F51b rule in assemble.ts).
+ * Proxy → pshenmic → WASM. The send path previously did this read through
+ * the wasm SDK's trusted-context RPC stack; Phase 2 sources it from the
+ * plain API ladder instead. The wasm tier returns `bigint | undefined`;
+ * every tier throws on a missing identity rather than returning a silent 0
+ * (a 0 nonce would sign an invalid transition).
+ */
+export async function getIdentityNonce(
+    network: ProxyNetwork,
+    identityId: string,
+): Promise<bigint> {
+    /* Tier 1 — the proxy (live-verified: result = the decimal string "2"). */
+    if (!isProxyUnsupported(network, 'get_identity_nonce')) {
+        try {
+            const { proxyCall } = await import('./dapi-proxy')
+            const result = await proxyCall('get_identity_nonce', { identityId }, network)
+            if (result === undefined || result === null || String(result).length === 0) {
+                throw new Error('proxy get_identity_nonce: empty result')
+            }
+            const value = BigInt(String(result))
+            clearProxyUnsupported(network, 'get_identity_nonce')
+            return value
+        } catch (error) {
+            if (/is not supported/.test((error as Error)?.message ?? '')) {
+                noteProxyUnsupported(network, 'get_identity_nonce')
+            } else {
+                console.warn('[trustless-reads] proxy get_identity_nonce failed:',
+                    (error as Error)?.message)
+            }
+        }
+    }
+
+    /* Tier 2 — the pshenmic JS SDK (live-verified: a plain value; warm
+     * ~100ms on the memoized client). */
+    try {
+        const sdk = await getTrustlessSdk(network)
+        return await withRotation(async () => {
+            const nonce = await sdk.identities.getIdentityNonce(identityId)
+            if (nonce === undefined || nonce === null) {
+                throw new Error('pshenmic getIdentityNonce: undefined')
+            }
+            return BigInt(nonce)
+        }, 'pshenmic getIdentityNonce')
+    } catch (error) {
+        console.warn('[trustless-reads] pshenmic getIdentityNonce failed, falling back to WASM:',
+            (error as Error)?.message)
+    }
+
+    /* Tier 3 — the WASM SDK, last resort (the pre-Phase-2 path). */
+    const sdk = await getWasmSdkForNetwork(network)
+    const nonce = await sdk.getIdentityNonce(identityId)
+    if (nonce === undefined || nonce === null) {
+        throw new Error(`Identity has no nonce on-chain: ${identityId.slice(0, 8)}…`)
+    }
+    return BigInt(nonce)
+}
+
+/* ------------------------------------------------------------------ *
+ * getTokenContractInfo — the sendToken (contract, position) gate      *
+ * ------------------------------------------------------------------ */
+
+export interface TokenContractInfoLite {
+    /** The base58 contract id carrying the token. */
+    contractId: string
+    tokenContractPosition: number
+}
+
+/**
+ * Resolve a token id to its (contract, position) pair — the sendToken
+ * gate that must throw an HONEST not-live error (the F53 rule). Proxy →
+ * pshenmic → WASM. Null = the token is not live on the network (the wasm
+ * tier's undefined), never swallowed into a fake success.
+ */
+export async function getTokenContractInfo(
+    network: ProxyNetwork,
+    tokenId: string,
+): Promise<TokenContractInfoLite | null> {
+    /* Tier 1 — the proxy (live-verified: {dataContractId, tokenContractPosition}). */
+    if (!isProxyUnsupported(network, 'get_token_contract_info')) {
+        try {
+            const { proxyCall } = await import('./dapi-proxy')
+            const result = await proxyCall('get_token_contract_info', { tokenId }, network)
+            if (!result || typeof result !== 'object') {
+                throw new Error('proxy get_token_contract_info: empty result')
+            }
+            if (typeof result.dataContractId !== 'string' || result.dataContractId.length === 0) {
+                throw new Error('proxy get_token_contract_info: missing dataContractId')
+            }
+            const mapped: TokenContractInfoLite = {
+                contractId: result.dataContractId,
+                tokenContractPosition: Number(result.tokenContractPosition ?? 0),
+            }
+            clearProxyUnsupported(network, 'get_token_contract_info')
+            return mapped
+        } catch (error) {
+            if (/is not supported/.test((error as Error)?.message ?? '')) {
+                noteProxyUnsupported(network, 'get_token_contract_info')
+            } else {
+                console.warn('[trustless-reads] proxy get_token_contract_info failed:',
+                    (error as Error)?.message)
+            }
+        }
+    }
+
+    /* Tier 2 — the pshenmic JS SDK (dataContractId is an Identifier
+     * instance — base58() it; tokenContractPosition is a number). */
+    try {
+        const sdk = await getTrustlessSdk(network)
+        return await withRotation(async () => {
+            const info = await sdk.tokens.getTokenContractInfo(tokenId)
+            if (!info) throw new Error('pshenmic getTokenContractInfo: undefined')
+            const contractId = info.dataContractId?.base58?.()
+                ?? (typeof info.dataContractId === 'string' ? info.dataContractId : undefined)
+            if (!contractId) throw new Error('pshenmic getTokenContractInfo: no dataContractId')
+            return {
+                contractId,
+                tokenContractPosition: Number(info.tokenContractPosition ?? 0),
+            }
+        }, 'pshenmic getTokenContractInfo')
+    } catch (error) {
+        console.warn('[trustless-reads] pshenmic getTokenContractInfo failed, falling back to WASM:',
+            (error as Error)?.message)
+    }
+
+    /* Tier 3 — the WASM SDK, last resort (undefined = not live → null). */
+    const sdk = await getWasmSdkForNetwork(network)
+    const info = await sdk.getTokenContractInfo(tokenId)
+    if (!info) return null
+    return {
+        contractId: String((info as any).contractId ?? (info as any).dataContractId),
+        tokenContractPosition: Number((info as any).tokenContractPosition ?? 0),
+    }
+}
+
+/* ------------------------------------------------------------------ *
  * getAddressesInfos — the DIP-17 Transparent reads                    *
  * ------------------------------------------------------------------ */
 

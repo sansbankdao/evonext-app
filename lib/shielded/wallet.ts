@@ -883,8 +883,11 @@ export async function shieldFromTransparent(options: {
 
     progress('Reading the address nonce…')
     /* getAddressesInfos keys its map by the VARIANT-FORM hex (tag||hash160,
-     * live-hit 2026-11-14: a bech32m-string key misses the entry). */
-    const info = await sdk.getAddressesInfos([address])
+     * live-hit 2026-11-14: a bech32m-string key misses the entry). The map
+     * shape is identical across the trustless ladder's tiers (F57 Phase 2:
+     * the plain-API proxy/pshenmic first, the wasm as the last resort). */
+    const { getAddressesInfos } = await import('../trustless-reads')
+    const info = await getAddressesInfos(network, [address])
     const addressKeyHex = Buffer.from(addressBytes).toString('hex')
     const infoEntry = info?.get ? info.get(addressKeyHex) : undefined
     /* The nonce can arrive as a BigInt (wasm getter) — PlatformAddressInput
