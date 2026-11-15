@@ -20,7 +20,7 @@ vi.mock('@/lib/dash-wasm/wasm_sdk.js', async (importOriginal) => {
     return await importOriginal<any>()
 })
 
-import { WasmSdk, initSync } from '@/lib/dash-wasm/wasm_sdk.js'
+import { WasmSdk, PrivateKey, initSync } from '@/lib/dash-wasm/wasm_sdk.js'
 
 const MNEMONIC = 'legal winner thank year wave sausage worth useful legal winner thank yellow'
 
@@ -48,5 +48,20 @@ describe('the wasm-glue init mechanism', () => {
             network: 'testnet',
         })
         expect(String(info.public_key ?? info.publicKey ?? '')).toMatch(/^0[23]/)
+    })
+
+    /* F56g — the PRIVATE-KEY LOGIN crash: PrivateKey.fromWIF ran before the
+     * module load on the connect page ("reading '__wbindgen_malloc'"). The
+     * module IS loaded by the earlier test in this file, so pin the working
+     * side here; the PRE-init failure signature is identical to the derive
+     * one above (the same undefined `wasm` reference) and is exercised by
+     * the order guard in private-key-login.test.ts. */
+    it('decodes a WIF once the module IS loaded (the private-key login path)', () => {
+        /* A throwaway key generated on the spot (no secret material) — the
+         * WIF round-trip pins the fromWIF decode the login uses. */
+        const wif = PrivateKey.fromHex('11'.repeat(32), 'testnet').toWIF()
+        const pk = PrivateKey.fromWIF(wif)
+        expect(pk.getPublicKeyHash()).toMatch(/^[0-9a-f]{40}$/)
+        expect(pk.toWIF()).toBe(wif)
     })
 })

@@ -13,7 +13,6 @@ export default function LoginPage() {
     const router = useRouter()
     const { login } = useAuth()
     const { network } = useNetwork()
-    const [identityId, setIdentityId] = useState('')
     const [privateKey, setPrivateKey] = useState('')
     const [isLoading, setIsLoading] = useState(false)
     const [isResuming, setIsResuming] = useState(false)
@@ -26,6 +25,36 @@ export default function LoginPage() {
     const [passkeyWords, setPasskeyWords] = useState<string[] | null>(null)
     const [isPasskeyBusy, setIsPasskeyBusy] = useState(false)
     const [passkeySupported, setPasskeySupported] = useState(true)
+
+    /* F56g — THE WASM ENGINE INIT ON MOUNT. The connect page is the ONE page
+     * that never initialized the wasm up front, so EVERY first-glue consumer
+     * on it (the private-key fromWIF decode, validate_mnemonic, the
+     * mnemonic-flow key derivation) could crash with the
+     * "reading '__wbindgen_malloc'" / "reading
+     * 'wasmsdk_deriveKeyFromSeedWithPath'" class of errors when the load
+     * hadn't finished. Initialize on mount (the single-flight service init,
+     * retried internally) and keep the Sign In button honest until ready. */
+    const [engineReady, setEngineReady] = useState(false)
+    useEffect(() => {
+        const sdkNetwork = network === 'mainnet' ? 'mainnet' : 'testnet'
+        void (async () => {
+            try {
+                const { wasmSdkService } = await import('@/lib/services/wasm-sdk-service')
+                const { EVONEXT_CONTRACT_ID_MAINNET, EVONEXT_CONTRACT_ID_TESTNET } = await import('@/lib/constants')
+                await wasmSdkService.initialize({
+                    network: sdkNetwork,
+                    contractId: sdkNetwork === 'mainnet'
+                        ? EVONEXT_CONTRACT_ID_MAINNET
+                        : EVONEXT_CONTRACT_ID_TESTNET,
+                })
+                setEngineReady(true)
+            } catch (err: any) {
+                /* The retry lives inside the service; surface but don't
+                 * brick the page — a later submit re-runs initialize. */
+                console.error('connect-page wasm init failed:', err?.message)
+            }
+        })()
+    }, [network])
 
     /* Hide the passkey buttons when no platform authenticator exists. */
     useEffect(() => {
@@ -148,23 +177,26 @@ storeIdentityIdx(credentials?.identityIdx ?? 0)
             if (hasMnemonic()) {
                 await handleMnemonic(mnemonic)
             } else {
-                /* Private key path. When no identity id was typed, DISCOVER
-                 * it from the key (the desktop/mobile flow: derive the
-                 * public key hash160 from the WIF, then look the identity up
-                 * by public key hash on the current network). */
-                let effectiveIdentityId = identityId.trim()
-                if (!effectiveIdentityId && privateKey.trim()) {
-                    const { discoverIdentityFromWif } = await import('@/lib/private-key-login')
-                    const discovered = await discoverIdentityFromWif(privateKey)
-                    if (!discovered) {
-                        throw new Error(
-                            'No identity found for this private key on the current network. ' +
-                            'Double-check the key and the selected network, or paste the Identity ID manually.'
-                        )
-                    }
-                    effectiveIdentityId = discovered.identityId
+                /* Private key path — the identity is ALWAYS discovered from
+                 * the key (the desktop/mobile flow: derive the public key
+                 * hash160 from the WIF, then look the identity up by public
+                 * key hash on the current network). No Identity ID field —
+                 * the owner: it has never been required. */
+                if (!privateKey.trim()) {
+                    throw new Error('Paste your private key (WIF) to sign in.')
                 }
-                await login(effectiveIdentityId, privateKey)
+                const { discoverIdentityFromWif } = await import('@/lib/private-key-login')
+                const discovered = await discoverIdentityFromWif(
+                    privateKey,
+                    network === 'mainnet' ? 'mainnet' : 'testnet',
+                )
+                if (!discovered) {
+                    throw new Error(
+                        'No identity found for this private key on the current network. ' +
+                        'Double-check the key and the selected network.'
+                    )
+                }
+                await login(discovered.identityId, privateKey)
                 // Navigation handled by auth context
             }
         } catch (err) {
@@ -328,8 +360,7 @@ storeIdentityIdx(credentials?.identityIdx ?? 0)
                         {/* PROMINENT sign-in method selector — the private-key
                          * path was previously buried behind a small toggle
                          * (F55 owner feedback: "I DO NOT SEE ANY CHANGES"). */}
-                        {!identityId &&
-                            <div>
+                        <div>
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                                     Sign in with
                                 </label>
@@ -349,10 +380,9 @@ storeIdentityIdx(credentials?.identityIdx ?? 0)
                                         Private Key
                                     </button>
                                 </div>
-                            </div>
-                        }
+                        </div>
 
-                        {!identityId && !hasIdentityPrivateKey &&
+                        {!hasIdentityPrivateKey &&
                             <div className="space-y-4">
                                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
                                     {mnemonic.map((word, idx) => (
@@ -369,7 +399,7 @@ storeIdentityIdx(credentials?.identityIdx ?? 0)
                             </div>
                         }
 
-                        {!identityId && !hasIdentityPrivateKey &&
+                        {!hasIdentityPrivateKey &&
                             <button onClick={toggleExtWords} className="px-5 py-2 bg-sky-700 font-medium text-sky-100 rounded-xl shadow">
                                 {(mnemonic.length === 12) && <>switch to 24 word seed phrase</>}
                                 {(mnemonic.length === 24) && <>switch to 12 word seed phrase</>}
@@ -402,21 +432,6 @@ storeIdentityIdx(credentials?.identityIdx ?? 0)
                                     required
                                 />
                             </div>
-
-                            <div>
-                                <label htmlFor="identityId" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                    Identity ID <span className="font-normal text-gray-400">(optional — discovered automatically from the key)</span>
-                                </label>
-
-                                <input
-                                    id="identityId"
-                                    type="text"
-                                    value={identityId}
-                                    onChange={(e) => setIdentityId(e.target.value)}
-                                    placeholder="e.g., 5DbLwAxGBzUzo81VewMUwn4b5P4bpv9FNFybi25XB5Bk"
-                                    className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-lg text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-evonext-500 focus:border-transparent transition-colors"
-                                />
-                            </div>
                         </>}
 
                         {error && (
@@ -428,7 +443,7 @@ storeIdentityIdx(credentials?.identityIdx ?? 0)
                         <div className="space-y-3">
                             <Button
                                 type="submit"
-                                disabled={isResuming || isLoading || (!identityId && !privateKey && !hasMnemonic())}
+                                disabled={isResuming || isLoading || !engineReady || (!privateKey && !hasMnemonic())}
                                 className="w-full shadow-evonext-lg text-3xl tracking-wider"
                                 size="lg"
                             >
@@ -455,7 +470,7 @@ storeIdentityIdx(credentials?.identityIdx ?? 0)
                         </div>
                     </form>
 
-                    {passkeySupported && !identityId && (
+                    {passkeySupported && (
                         <div className="mt-6 space-y-3">
                             <div className="flex items-center gap-3">
                                 <div className="h-px flex-1 bg-gray-200 dark:bg-gray-800" />

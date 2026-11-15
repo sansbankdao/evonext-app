@@ -79,17 +79,34 @@ const normalizeIdentity = (identity: any): Omit<DiscoveredIdentityInfo, 'publicK
  *
  * @param wif the private key in WIF format (the version byte is part of the
  *            key itself — pshenmic's PrivateKey.fromWIF takes no network arg)
+ * @param network the CURRENT network — the wasm service (and therefore the
+ *            glue the fromWIF decode runs against) is initialized for it
+ *            BEFORE any glue call (F56g: the connect page used to reach this
+ *            with an uninitialized glue — the exact
+ *            "reading '__wbindgen_malloc'" crash the owner hit).
  * @returns the discovered identity, or null when no identity on the CURRENT
  *          network holds this key's hash160 in either key index.
  */
-export async function discoverIdentityFromWif(wif: string): Promise<DiscoveredIdentityInfo | null> {
+export async function discoverIdentityFromWif(wif: string, network: 'mainnet' | 'testnet'): Promise<DiscoveredIdentityInfo | null> {
     const cleanKey = wif.trim()
     if (!cleanKey) return null
 
-    const [{ wasmSdkService }, wasm] = await Promise.all([
+    const [{ wasmSdkService, getWasmSdk }, wasm] = await Promise.all([
         import('./services/wasm-sdk-service'),
         import('./dash-wasm/wasm_sdk'),
     ])
+
+    /* F56g — THE GLUE MUST BE LOADED BEFORE ANY fromWIF. The service's
+     * initialize loads the wasm module AND builds the SDK for the current
+     * network (idempotent, single-flight, retried internally). The connect
+     * page also initializes on mount; this is the defense in depth. */
+    await getWasmSdk().catch(async () => {
+        const { EVONEXT_CONTRACT_ID_MAINNET, EVONEXT_CONTRACT_ID_TESTNET } = await import('./constants')
+        await wasmSdkService.initialize({
+            network,
+            contractId: network === 'mainnet' ? EVONEXT_CONTRACT_ID_MAINNET : EVONEXT_CONTRACT_ID_TESTNET,
+        })
+    })
 
     /* WIF -> public key hash160 (network-independent). */
     const publicKeyHash = wasm.PrivateKey.fromWIF(cleanKey).getPublicKeyHash()
