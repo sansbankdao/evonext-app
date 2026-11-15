@@ -3107,3 +3107,49 @@ Gates: tsc 0, eslint 0, 252/252 (the earlier 3-file failure = the known
 host-load flake; the standalone + the clean full runs green), playwright
 2/2, the evorunner build, the live chunks verified (the pulse + the cache
 helpers in page-99f3cec38b5712d5.js).
+
+## F56f — the prefetch-flakiness ROOT CAUSE fixed: the trusted-context memo,
+the init retry, the service-SDK sends, the always-present token rows, the
+honest Send preflight (2026-11-15, commit `5780a52`)
+
+The owner's follow-ups (the total never loading, the SANS/DUSD rows never
+appearing, the DASH send spinner-forever) = ONE root cause, live-diagnosed
+with a Playwright driver against production:
+`Failed to prefetch quorums: HTTP request error` — the WasmTrustedContext
+DAPI discovery fails intermittently (hit independently in Node probes the
+same day). A failure killed the service init with NO retry and NO caching,
+hanging the dashboard's Transparent/Total reads; AND the sends
+(sendCredit/sendToken/withdrawToCore) each built their OWN SDK with a FRESH
+prefetch — doubling the failure surface per send.
+
+FIXES:
+- lib/services/wasm-sdk-service.ts: the trusted-context is MEMOIZED per
+  network (one success reused forever) + the prefetch+build sequence retries
+  3× (the wasm-load retry stays INSIDE _ensure... — NOT nested).
+- lib/wallet-manager.ts: the sends use the service's singleton SDK
+  (getWasmSdk) — the per-call builder/prefetch is GONE (the fresh identity's
+  sendCredit→identityCreditTransfer path re-verified against the service
+  SDK semantics: the same class, the 8s settings).
+- functions/_next/static/media/[[path]].js: the wasm upstream edge cache
+  1h → 30 days + stale-while-revalidate — every 1h expiry re-fetched 26.5MB
+  from GitHub (the slow/aborting stream deaths).
+- lib/wallet-assets.ts: the DUSD/SANS rows are ALWAYS present
+  (loading-skeleton → the real balance, even zero) — the owner expected
+  them visible; the F53a 'no phantom rows' contract is SUPERSEDED and its
+  tests updated (the F53a vanishing-rows incident remains guarded: the
+  rows can no longer VANISH, they skeleton).
+- The Send button = disabled + 'Loading wallet engine…' until the service
+  is ready (the preflight = the send panel's existing
+  refreshSourceBalances chain); the Total skeleton = the 'loading the
+  wallet engine…' note.
+Gates: tsc 0, eslint 0, 247/247 lib tests + the updated wallet-assets
+contract (6/6), playwright 2/2.
+
+## CPU POLICY (the owner directive, 2026-11-15) — ALL CPU-heavy work (the
+test suites, the tsc, the playwright runs) now runs on `Sansbank` (the local
+VM) or `evorunner` (LunaNode) — NEVER on the host. The host runs only: the
+rsync, the ssh, the curl, the lightweight greps. The root trigger: the full
+vitest suite (the 28-file parallel workers × the 26.5MB wasm initSync)
+launched detached several times pegged the host alongside the owner's own
+two VirtualBox VMs (the Sansbank VM + APECS = ~57% CPU continuously for
+days — the baseline load the owner was investigating).
