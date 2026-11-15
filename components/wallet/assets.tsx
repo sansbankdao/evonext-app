@@ -126,7 +126,14 @@ export function WalletAssets({ isFullScreen, onOpenShielded, selectedAsset, onSe
             ;(async () => {
                 try {
                     const mnemonic = getMnemonic()
-                    if (!mnemonic) return
+                    if (!mnemonic) {
+                        /* F57b — a WIF-only session: the Orchard keys are
+                         * ZIP-32 SEED-derived — the shielded balance is 0
+                         * BY DEFINITION. Set it so the row leaves the
+                         * loading skeleton (the owner's report, 2026-11-16). */
+                        if (!cancelled) setShieldedCredits(0n)
+                        return
+                    }
                     const sdkNetwork = network === 'mainnet' ? 'mainnet' : 'testnet'
                     /* Instant seed from the persisted state (last known
                      * balance) — the scan then refreshes it. */

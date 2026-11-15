@@ -196,6 +196,13 @@ export async function addSessionKey(
         addedAt: Date.now(),
     }
     await saveBlob(identityId, blob)
+    /* F57b Option B — keep the session vault consistent (a stale vault
+     * would restore WITHOUT this key after an unlock). BEST-EFFORT: the
+     * ceremony may be declined; the next login re-collects everything. */
+    try {
+        const { reenrollSessionKeys } = await import('./session-unlock')
+        await reenrollSessionKeys(identityId)
+    } catch { /* non-fatal */ }
     return { keyId: match.keyId, fingerprint: pubHash.slice(0, 16), addedAt: Date.now(), source: 'keystore' }
 }
 
@@ -235,6 +242,11 @@ export async function removeSessionKey(
             }
         }
     } catch { /* an invalid legacy value — leave it */ }
+    /* F57b Option B — keep the session vault consistent. BEST-EFFORT. */
+    try {
+        const { reenrollSessionKeys } = await import('./session-unlock')
+        await reenrollSessionKeys(identityId)
+    } catch { /* non-fatal */ }
 }
 
 /**

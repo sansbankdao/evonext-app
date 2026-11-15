@@ -97,8 +97,14 @@ export default function LoginPage() {
         /* Set the mnemonic (store). */
         setMnemonic(_mnemonic)
 
-        /* Join an array of seed words. */
-        const mnemonic = _mnemonic.join(' ')
+        /* Join an array of seed words — NORMALIZED (trim, lowercase, any
+         * whitespace collapsed; F57b): the BIP39 seed is derived from the
+         * normalized phrase in every wallet, so 'THANK' must not fail the
+         * validation nor produce a different seed. */
+        const { normalizePhrase } = await import('@/lib/mnemonic-diagnostics')
+        const mnemonic = normalizePhrase(_mnemonic.join(' '))
+        const normalizedWords = mnemonic.length ? mnemonic.split(' ') : ['']
+        setMnemonic(normalizedWords)
 
         /* Set current network. */
         const currentNetwork = (network === 'mainnet' ? 'mainnet' : 'testnet') as 'mainnet' | 'testnet'
@@ -108,7 +114,12 @@ export default function LoginPage() {
 
         /* Validate mnemonic. */
         if (!isValid) {
-            return showErrorToast(`Oops! Those seed words are INVALID!`)
+            /* F57b — a DIAGNOSTIC rejection instead of the blanket toast:
+             * name the word count, the non-wordlist words, or the
+             * checksum-fails case so the user can actually fix it. */
+            const { diagnoseRejectedPhrase } = await import('@/lib/mnemonic-diagnostics')
+            const diagnosis = await diagnoseRejectedPhrase(mnemonic)
+            return showErrorToast(diagnosis)
         }
 
         /* Initialize secure storage. */
@@ -159,8 +170,13 @@ storeIdentityIdx(credentials?.identityIdx ?? 0)
 
         /* Wait a tick. */
         setTimeout(async () => {
-            /* Split seed words. */
-            const splitWords = clipboard.split(' ')
+            /* Split seed words — on ANY whitespace run and normalized (trim,
+         * lowercase): the old split(' ') produced contaminated words for
+         * phrases pasted with newlines / double spaces / tabs (typical of
+         * password managers and notes apps) and rejected VALID phrases —
+         * the live 'seed words are INVALID' reports, 2026-11-16. */
+            const { wordsOf } = await import('@/lib/mnemonic-diagnostics')
+            const splitWords = wordsOf(clipboard)
 
             /* Fill the array with the pasted words. */
             const emptyValuesNeeded = ((splitWords.length > 12) ? 24 : 12) - splitWords.length

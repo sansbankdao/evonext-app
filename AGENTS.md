@@ -3591,3 +3591,112 @@ path), the `get_documents` relaxed `$createdAt`-leading range clauses (the
 social feed's F27o blocker), + (low priority) `get_token_contract_info`
 and the DPNS resolution. Writes stay OFF the proxy by design (direct
 grpc-web from the client).
+
+## F57d — the seed-words false rejections FIXED (the paste + the
+## diagnostics), the shielded skeleton for WIF-only sessions FIXED, the
+## DAPI Phase-2/3 SHIPPED + verified, and OPTION B (the plaintext hole)
+## CLOSED (2026-11-16)
+
+**(1) "Oops! Those seed words are INVALID!" — root cause + fix.** The
+connect paste handler split the clipboard on SINGLE SPACES ONLY
+(`clipboard.split(' ')`) — a phrase pasted with a newline / double space /
+tab (typical of password managers and notes apps) produced CONTAMINATED
+words and a false rejection of a VALID phrase. FIXES:
+- lib/mnemonic-diagnostics.ts (NEW): `normalizePhrase` (trim + lowercase +
+  collapse ALL whitespace runs) + `diagnoseRejectedPhrase` — the blanket
+  toast is REPLACED by a specific diagnosis: the word count (13–23 → the
+  24-word toggle hint), the non-BIP39-wordlist words with their positions
+  ("#7 \"wrod\" — check for typos"), the case mismatch (a RAW-scan first —
+  the normalized callers never hit it), or the all-words-valid-but-
+  checksum case (the order/typos/another standard like Electrum).
+- app/connect/page.tsx: the paste = `wordsOf(clipboard)` (normalized); the
+  handleMnemonic VALIDATES THE NORMALIZED PHRASE and stores it (a typed
+  'THANK' neither fails validation nor yields a different seed — the
+  wallets normalize BIP39 input universally). The live e2e: a phrase
+  pasted with newlines + a double space logged in successfully.
+- Tests: test/unit/lib/mnemonic-diagnostics.test.mts (7 — the
+  normalization, the count, the named typos, the case, the checksum, the
+  empty). NOTE for future diagnoses: a 12-word phrase with one BAD word
+  hits the wordlist branch (the count is fine) — the count branch fires
+  only for a genuine 13–23-word input.
+
+**(2) THE SHIELDED SKELETON FOR WIF-ONLY SESSIONS — FIXED (the owner's
+"even if it's ZERO, the skeleton should go away").** The dashboard +
+assets shielded effects only started the engine when a mnemonic existed
+and otherwise left `shieldedCredits` null → `loading: null` → the row
+skeleton FOREVER. FIX: both effects now set the honest `0n` for
+no-mnemonic sessions (the Orchard keys are ZIP-32 SEED-derived — the
+shielded balance is 0 BY DEFINITION for a WIF-only session; the dashboard
+branch also overrides a STALE persisted seed from another wallet's
+session — that would have been a lie). The send panel's lanes already
+ behaved (the F57b fix). Live e2e: `TRANSPARENT | 0 | USD | $0.00`,
+`SHIELDED | 0 | USD | $0.00` — no skeletons, zero 'Mnemonic not found'
+spam.
+
+**(3) THE DAPI TEAM SHIPPED PHASE 2/3
+(../dev-dapi-proxy/docs/HANDOFF-trustless-reads-phase2-shipped.md,
+production-verified by them 2026-11-15 15:17 UTC; smokes re-verified by us
+live)**: `get_identity_nonce` (both the identifier/identityId param names;
+`result: "2"` for the F55 identity ✓), `get_token_contract_info` (the
+exact specced shape ✓), `dpns_resolve_name` (the bare labels normalized +
+the explicit identityId/fullName fields ✓), and **F27o (the
+`$createdAt`-leading range clauses) ALREADY RESOLVED** — their evo-sdk wasm
+document path accepts both Yappr feed shapes; the one legitimate rejection
+left = a bare `$createdAt`-only query (no leading equality) which Drive
+rejects on-chain (the Yappr contract has no such index) — the client never
+sends that shape. RECORD: my smoke curl of get_documents used a shape the
+proxy's fromObject rejected ('invalid type: null, expected str') — the
+feed-wiring session must mirror the app's EXACT compat-wrapper query shape
+before switching the feeds to the proxy. The nonce/token-info/DPNS tier-1
+slots wire in WITH their consumers (Phase 2's write path; the sendToken
+gate; the username badges) — the ladder pattern is ready.
+
+**(4) OPTION B (the plaintext hole) — CLOSED, with a live-hit design
+revision.** WHAT SHIPPED:
+- lib/passkey-vault.ts: the SESSION vault (`evonext_pv_v1_session_<id>`) —
+  wrap/unwrap a JSON payload (the mnemonic + the Key-Manager keys + the
+  connect-submitted WIF + the identity index) under the PRF-derived KEK;
+  the credential REUSES the identity's Option-A vault when present (one
+  passkey, one ceremony).
+- lib/secure-storage.ts: THE FLIP — the class is what it was designed to
+  be: IN-MEMORY ONLY with the real TTL timers (the localStorage path was
+  the plaintext hole). Cleared by the TTLs + the beforeunload/pagehide
+  handlers.
+- lib/session-unlock.ts: the lock state machine — 'unlocked' /
+  'unlocked-novault' (the memory has material, no vault → the enroll
+  OFFER) / 'locked-vault' (the memory empty, a vault exists → ONE
+  ceremony) / 'locked-novault' (no vault → the honest reconnect) /
+  'nologin'. `enrollSessionKeysAfterLogin` = BEST-EFFORT (a PRF-less
+  authenticator or a declined ceremony never fails anything);
+  `reenrollSessionKeys` keeps the vault consistent after the Key-Manager
+  add/remove (wired into lib/session-keys-store.ts — the stale vault
+  would restore WITHOUT a newly-added key).
+- components/wallet/session-lock-banner.tsx (mounted on the wallet page):
+  the enroll offer (a sky banner — USER-INITIATED), the Unlock button
+  (one ceremony → everything back), or the reconnect guidance.
+- **THE LIVE-HIT DESIGN REVISION: the auto-enroll inside login() HANGS
+  the login in authenticator-less browsers** (headless Chrome's
+  navigator.credentials.create never resolves — the login stuck on
+  "Signing in..." forever; the driver caught it). REVERTED: the enroll is
+  USER-INITIATED on the banner's offer button (a WebAuthn ceremony must
+  never run silently inside login()).
+- The VERIFIED LIVE E2E (headless): the newline-pasted phrase logged in;
+  **after login localStorage holds NO plaintext mnemonic / pk_ WIF /
+  keystore blob** (only the non-sensitive session record — THE HOLE IS
+  CLOSED); after a full reload the banner renders with the honest
+  reconnect guidance (headless cannot enroll); the rows = the honest
+  zeros; zero page errors. The vault-unlock ceremony itself = the unit
+  tests (the mocked PRF) + a REAL-device check remains for the owner
+  (Touch ID / Hello / Android).
+- Tests: test/unit/lib/session-unlock.test.mts (5 — the enroll→reload→
+  unlock round-trip restoring the mnemonic/idx/legacy WIF/keystore blob,
+  the locked-novault honesty, the declined-enroll non-fatality, the
+  WIF-only enroll, nologin) → **282/282 (32 files)**; tsc 0; eslint 0
+  errors (the 1 known postsState warning); evorunner build green.
+- THE TRADEOFFS (recorded for the owner): PRF-less devices (iOS Safari —
+  Safari has no PRF yet) = the keys live in memory ONLY + the reconnect
+  after a reload (the honest cost of closing the hole); the vault record
+  is per-browser (a new browser = one re-enroll); an unlocked tab's
+  memory is readable (the standard WebAuthn limitation — the vault
+  protects AT REST). The B3/B4 polish (retiring the biometric theater +
+  the idle re-lock) remains.

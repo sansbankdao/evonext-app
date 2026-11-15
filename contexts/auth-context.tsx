@@ -283,6 +283,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             setUser(authUser)
 
+            /* F57b Option B — the session vault is NOT enrolled here ON
+             * PURPOSE: a WebAuthn ceremony inside login() would hang the
+             * login in authenticator-less browsers (live-hit: headless
+             * Chrome's credentials.create never resolves — "Signing
+             * in..." forever) and surprise-prompt every login. The enroll
+             * is a USER-INITIATED offer on the wallet's session-lock
+             * banner instead (components/wallet/session-lock-banner.tsx). */
+
             // Set identity in DashPlatformClient for document operations
             try {
                 const { getDashPlatformClient } = await import('@/lib/dash-platform-client')

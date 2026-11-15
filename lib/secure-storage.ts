@@ -12,87 +12,65 @@ class SecureStorage {
     private timers: Map<string, NodeJS.Timeout> = new Map()
 
     /**
-     * Store a value securely in memory with optional TTL
+     * Store a value SECURELY IN MEMORY with optional TTL.
+     *
+     * F57b Option B (the plaintext hole closed): this class previously
+     * wrote PLAIN LOCALSTORAGE with the TTL timers commented out — key
+     * material (the mnemonic, the WIFs, the keystore blob) persisted in
+     * the browser indefinitely. It is now what it was designed to be:
+     * in-memory ONLY, cleared by the TTL timers and by the
+     * beforeunload/pagehide handlers below. Re-materialization after a
+     * reload = the session vault (lib/session-unlock.ts) with ONE passkey
+     * ceremony — no key material ever rests on disk.
      */
     set(key: string, value: any, ttlMs?: number): void {
-        localStorage.setItem(key, value)
-        // this.storage.set(key, value)
+        this.storage.set(key, value)
 
-        // // Clear any existing timer for this key
-        // const existingTimer = this.timers.get(key)
+        // Clear any existing timer for this key
+        const existingTimer = this.timers.get(key)
 
-        // if (existingTimer) {
-        //     clearTimeout(existingTimer)
-        // }
+        if (existingTimer) {
+            clearTimeout(existingTimer)
+        }
 
-        // // Set TTL if provided
-        // if (ttlMs && ttlMs > 0) {
-        //     const timer = setTimeout(() => {
-        //         this.delete(key)
-        //     }, ttlMs)
+        // Set TTL if provided
+        if (ttlMs && ttlMs > 0) {
+            const timer = setTimeout(() => {
+                this.delete(key)
+            }, ttlMs)
 
-        //     this.timers.set(key, timer)
-        // }
+            this.timers.set(key, timer)
+        }
     }
 
     /**
-     * Get a value from secure storage
+     * Get a value from secure storage (memory only)
      */
     get(key: string): any {
-        /* Request saved storage (from local storage). */
-        const savedStorage = localStorage.getItem(key)
-
-        /* Validate saved storage. */
-        if (typeof savedStorage === 'string') {
-            return savedStorage
-        } else if (typeof savedStorage !== 'undefined' && savedStorage !== null ) {
-            return JSON.parse(savedStorage)
-        } else {
-            return null
-        }
-        // return this.storage.get(key)
+        const value = this.storage.get(key)
+        return value !== undefined ? value : null
     }
 
     /**
-     * Check if a key exists
+     * Check if a key exists (memory only)
      */
     has(key: string): boolean {
-        /* Request saved storage (from local storage). */
-        const savedStorage = localStorage.getItem(key)
-
-        /* Validate saved storage. */
-        if (typeof savedStorage === 'string') {
-            return false
-        } else if (typeof savedStorage !== 'undefined' && savedStorage !== null ) {
-            const parsed = JSON.parse(savedStorage)
-
-            /* Validate key exists. */
-            if (parsed[key]) {
-                return true
-            }
-
-            return false
-        } else {
-            return false
-        }
-        // return this.storage.has(key)
+        return this.storage.has(key)
     }
 
     /**
-     * Delete a value from secure storage
+     * Delete a value from secure storage (memory only)
      */
     delete(key: string): boolean {
-        localStorage.removeItem(key)
-        return true
-        // // Clear timer if exists
-        // const timer = this.timers.get(key)
+        // Clear timer if exists
+        const timer = this.timers.get(key)
 
-        // if (timer) {
-        //     clearTimeout(timer)
-        //     this.timers.delete(key)
-        // }
+        if (timer) {
+            clearTimeout(timer)
+            this.timers.delete(key)
+        }
 
-        // return this.storage.delete(key)
+        return this.storage.delete(key)
     }
 
     /**

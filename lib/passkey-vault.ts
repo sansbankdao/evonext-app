@@ -309,6 +309,109 @@ export function removeVault(identityId: string): void {
 }
 
 // ---------------------------------------------------------------------------
+// Option B — the SESSION vault: wrap the whole in-memory key set (the
+// mnemonic, the Key-Manager keys, the connect-submitted WIF, the identity
+// index) so a page reload can re-materialize it with ONE passkey ceremony
+// instead of leaving plaintext key material in localStorage forever.
+// The record = `evonext_pv_v1_session_<identityId>`; the plaintext is a
+// JSON blob. The CREDENTIAL is REUSED from the identity's Option-A vault
+// when one exists (one passkey serves both records — one ceremony).
+// ---------------------------------------------------------------------------
+
+const SESSION_VAULT_KEY_PREFIX = 'evonext_pv_v1_session_'
+
+function getSessionVaultRecord(identityId: string): VaultRecord | null {
+    const raw = storage().getItem(SESSION_VAULT_KEY_PREFIX + identityId)
+    if (!raw) return null
+    try {
+        const record = JSON.parse(raw) as VaultRecord
+        if (record.version !== 1 || !record.credentialId || !record.salt || !record.iv || !record.ciphertext) {
+            return null
+        }
+        return record
+    } catch {
+        return null
+    }
+}
+
+export function hasSessionVault(identityId: string): boolean {
+    return getSessionVaultRecord(identityId) !== null
+}
+
+export function removeSessionVault(identityId: string): void {
+    storage().removeItem(SESSION_VAULT_KEY_PREFIX + identityId)
+}
+
+/**
+ * Wrap a JSON payload (the session's key material) under the passkey's
+ * PRF-derived KEK. Reuses the identity's existing vault credential when
+ * present (no second passkey is created); otherwise creates one.
+ */
+export async function enrollSessionVault(identityId: string, payloadJson: string, username?: string): Promise<void> {
+    const existing = getSessionVaultRecord(identityId)
+    const identityVault = getVaultRecord(identityId)
+    let credentialId: string
+    let prfOutput: Uint8Array
+    let salt: Uint8Array
+
+    if (existing) {
+        /* Re-wrap under the EXISTING session credential (a re-enroll after
+         * a key change — the same passkey, a fresh salt/IV). */
+        credentialId = existing.credentialId
+        salt = base64urlToBytes(existing.salt)
+        const got = await getPasskeyWithPrf(salt, base64urlToBytes(credentialId))
+        prfOutput = got.prfOutput
+    } else if (identityVault) {
+        /* Reuse the identity vault's credential for the session record. */
+        credentialId = identityVault.credentialId
+        salt = base64urlToBytes(identityVault.salt)
+        const got = await getPasskeyWithPrf(salt, base64urlToBytes(credentialId))
+        prfOutput = got.prfOutput
+    } else {
+        salt = randomBytes(32)
+        const created = await createPasskeyWithPrf(
+            username || `evonext-${identityId.slice(0, 8)}`,
+            salt,
+            false)
+        credentialId = bytesToBase64url(new Uint8Array(created.credential.rawId))
+        prfOutput = created.prfOutput
+    }
+
+    const kek = await hkdfSha256(prfOutput, salt, KEK_INFO)
+    const { iv, ciphertext } = await aesGcmEncrypt(kek, utf8(payloadJson))
+    const record: VaultRecord = {
+        version: 1,
+        credentialId,
+        salt: bytesToBase64url(salt),
+        iv: bytesToBase64url(iv),
+        ciphertext: bytesToBase64url(ciphertext),
+        createdAt: Date.now(),
+    }
+    storage().setItem(SESSION_VAULT_KEY_PREFIX + identityId, JSON.stringify(record))
+}
+
+/**
+ * Unlock the session vault: passkey prompt -> PRF -> KEK -> decrypt -> the
+ * JSON payload. Throws PasskeyVaultError('NOT_FOUND') when no record
+ * exists and ('DECRYPT_FAILED') when the passkey does not match.
+ */
+export async function unlockSessionVault(identityId: string): Promise<string> {
+    const record = getSessionVaultRecord(identityId)
+    if (!record) {
+        throw new PasskeyVaultError('NOT_FOUND', `No session vault for identity ${identityId}`)
+    }
+    const salt = base64urlToBytes(record.salt)
+    const { prfOutput } = await getPasskeyWithPrf(salt, base64urlToBytes(record.credentialId))
+    const kek = await hkdfSha256(prfOutput, salt, KEK_INFO)
+    try {
+        const plaintext = await aesGcmDecrypt(kek, base64urlToBytes(record.iv), base64urlToBytes(record.ciphertext))
+        return new TextDecoder().decode(plaintext)
+    } catch {
+        throw new PasskeyVaultError('DECRYPT_FAILED', 'Session vault decryption failed')
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Option A — Vault: wrap an existing identity private key (WIF)
 // ---------------------------------------------------------------------------
 

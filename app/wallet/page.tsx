@@ -32,6 +32,7 @@ import { WalletSwap } from '@/components/wallet/swap'
 import { WalletHistory } from '@/components/wallet/history'
 import { WalletSend } from '@/components/wallet/send'
 import { WalletShielded } from '@/components/wallet/shielded'
+import { SessionLockBanner } from '@/components/wallet/session-lock-banner'
 
 export default function WalletPage() {
     const { user } = useAuth()
@@ -78,6 +79,16 @@ export default function WalletPage() {
                             if (!cancelled) setShieldedCredits(BigInt(balance))
                         })
                         return () => { off() }
+                    } else {
+                        /* F57b — a WIF-only session: the Orchard keys are
+                         * ZIP-32 SEED-derived and this session has no seed,
+                         * so the shielded balance is 0 BY DEFINITION. Set
+                         * it explicitly (overriding any stale persisted
+                         * seed from another wallet's session) so the row
+                         * leaves the loading skeleton — the owner's report:
+                         * "even if it's ZERO, the skeleton should go
+                         * away". */
+                        if (!cancelled) setShieldedCredits(0n)
                     }
                 } catch (err: any) {
                     console.error('dashboard shielded balance failed:', err?.message)
@@ -218,6 +229,10 @@ export default function WalletPage() {
 
             <main className="pt-14 py-10 flex-1 min-w-0 grid grid-cols-1 gap-8 h-screen">
             <div className="sm:mt-2 lg:mt-4 w-full overflow-y-scroll">
+                {/* F57b Option B — the session-lock gate: renders ONLY when
+                 * the in-memory keys are gone after a reload (the vault
+                 * unlock, or the honest reconnect guidance). */}
+                <SessionLockBanner />
                 {showShielded && <WalletShielded isFullScreen onBack={() => setShowShielded(false)} />}
                 <button
                     onClick={() => setActiveTab('assets')}
