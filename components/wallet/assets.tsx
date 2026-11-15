@@ -44,9 +44,14 @@ interface WalletAssetProps {
     /* The Shielded row opens the full-screen shielded wallet (the wallet
      * page owns the show/hide state). */
     onOpenShielded?: () => void;
+    /* F56c — the SELECTED asset (lifted to the wallet page so the Total
+     * card's icon reflects it) + the click handler. The selected row is
+     * HIGHLIGHTED (the owner directive: "so i know it has been selected"). */
+    selectedAsset?: IToken | null;
+    onSelectAsset?: (asset: IToken) => void;
 }
 
-export function WalletAssets({ isFullScreen, onOpenShielded }: WalletAssetProps) {
+export function WalletAssets({ isFullScreen, onOpenShielded, selectedAsset, onSelectAsset }: WalletAssetProps) {
     const { user } = useAuth()
     const { network } = useNetwork()
 
@@ -228,11 +233,11 @@ export function WalletAssets({ isFullScreen, onOpenShielded }: WalletAssetProps)
         })
         /* Validate asset. */
         if (typeof asset !== 'undefined' && asset !== null) {
-            /* Set (local) asset. */
+            /* Lift to the wallet page (the Total card's icon + the
+             * highlight); the page also stores it for the Send panel. */
             setAsset(asset)
-
-            /* Store (in-browser) asset. */
             storeAsset(asset)
+            onSelectAsset?.(asset)
         }
     }
 
@@ -382,7 +387,9 @@ export function WalletAssets({ isFullScreen, onOpenShielded }: WalletAssetProps)
                             }
                             handleActiveAsset(token.id)
                         }}
-                        className="flex flex-row justify-between items-center pl-2.5 pr-3 py-2.5 sm:py-3 bg-gradient-to-br from-white via-sky-50/80 to-sky-100 border border-sky-200 rounded-2xl shadow-sm hover:border-sky-400 hover:shadow-md hover:-translate-y-px transition-all cursor-pointer"
+                        className={`flex flex-row justify-between items-center pl-2.5 pr-3 py-2.5 sm:py-3 bg-gradient-to-br rounded-2xl shadow-sm hover:shadow-md hover:-translate-y-px transition-all cursor-pointer ${selectedAsset?.id === token.id
+                            ? 'from-sky-100 via-sky-200/80 to-sky-300 border-2 border-sky-500 ring-2 ring-sky-300/60'
+                            : 'from-white via-sky-50/80 to-sky-100 border border-sky-200 hover:border-sky-400'}`}
                     >
                         <div className="w-1/2 flex flex-row items-center gap-2.5">
                             {/* Icon tile: bordered, shaded mark. BOTH the
@@ -438,7 +445,9 @@ export function WalletAssets({ isFullScreen, onOpenShielded }: WalletAssetProps)
                     <div
                         key={token.id}
                         onClick={() => handleActiveAsset(token.id)}
-                        className="flex flex-row justify-between items-center pl-2.5 pr-3 py-2.5 sm:py-3 bg-gradient-to-br from-white via-sky-50/80 to-sky-100 border border-sky-200 rounded-2xl shadow-sm hover:border-sky-400 hover:shadow-md hover:-translate-y-px transition-all cursor-pointer"
+                        className={`flex flex-row justify-between items-center pl-2.5 pr-3 py-2.5 sm:py-3 bg-gradient-to-br rounded-2xl shadow-sm hover:shadow-md hover:-translate-y-px transition-all cursor-pointer ${selectedAsset?.id === token.id
+                            ? 'from-sky-100 via-sky-200/80 to-sky-300 border-2 border-sky-500 ring-2 ring-sky-300/60'
+                            : 'from-white via-sky-50/80 to-sky-100 border border-sky-200 hover:border-sky-400'}`}
                     >
                         <div className="w-1/2 flex flex-row items-center gap-2.5">
                             <div className="relative h-11 w-11 sm:h-12 sm:w-12 shrink-0 flex items-center justify-center rounded-xl bg-white border border-sky-200 shadow-sm">

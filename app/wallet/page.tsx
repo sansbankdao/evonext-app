@@ -18,7 +18,9 @@ import numeral from 'numeral'
 
 import { getWasmSdk, wasmSdkService } from '../../lib/services/wasm-sdk-service'
 import { fetchPlatformAddressBalance } from '../../lib/platform-address'
-import { getMnemonic } from '../../lib/secure-storage'
+import { getMnemonic, storeAsset, clearAsset } from '../../lib/secure-storage'
+import { DEFAULT_ASSET } from '../../lib/constants'
+import type { IToken } from '../../lib/types'
 import { EVONEXT_CONTRACT_ID_TESTNET, EVONEXT_CONTRACT_ID_MAINNET } from '../../lib/constants'
 import { shieldedEngine, persistedShieldedBalance } from '../../lib/shielded/engine-client'
 
@@ -128,6 +130,21 @@ export default function WalletPage() {
 
     /* The Shielded ASSET-LIST row opens the full-screen shielded wallet. */
     const [showShielded, setShowShielded] = useState(false)
+
+    /* F56c — the SELECTED ASSET (lifted so the Total card's icon reflects
+     * it). DEFAULT TO DASH ON EVERY RELOAD (the owner directive — the
+     * persisted SANS selection previously trapped the Send panel): the
+     * stored selection is CLEARED on mount; in-session clicks re-store it
+     * for the Send panel's read. */
+    const [selectedAsset, setSelectedAsset] = useState<IToken>(DEFAULT_ASSET)
+    useEffect(() => {
+        try { clearAsset() } catch { /* private mode */ }
+        setSelectedAsset(DEFAULT_ASSET)
+    }, [])
+    const handleSelectAsset = (asset: IToken) => {
+        setSelectedAsset(asset)
+        try { storeAsset(asset) } catch { /* private mode */ }
+    }
 
     const [Identity, setIdentity] = useState({
         asset: {
@@ -241,7 +258,7 @@ export default function WalletPage() {
                         </section>
 
                         <Image
-                            src={Identity.asset?.iconUrl}
+                            src={selectedAsset?.iconUrl ?? '/icons/dash.svg'}
                             className="-mt-3 -mr-2 p-2 h-16 w-auto opacity-40 group-hover:opacity-100 group-hover:h-11 duration-300 ease-in-out"
                             alt=""
                             width={0}
@@ -345,6 +362,8 @@ export default function WalletPage() {
                     {activeTab === 'assets' && <WalletAssets
                         isFullScreen={isFullScreen}
                         onOpenShielded={() => setShowShielded(true)}
+                        selectedAsset={selectedAsset}
+                        onSelectAsset={handleSelectAsset}
                     />}
 
                     {activeTab === 'send' && <WalletSend

@@ -8,6 +8,7 @@ import { BoltIcon, UserIcon } from '@heroicons/react/24/outline'
 // import { Button } from '@/components/ui/button'
 import { Loader2 } from 'lucide-react'
 import bs58 from 'bs58'
+import toast from 'react-hot-toast'
 import { showErrorToast } from '@/lib/toast-error'
 
 import { getIdentityIdx } from '@/lib/secure-storage'
@@ -35,6 +36,7 @@ const {
 import { getAsset, getMnemonic } from '@/lib/secure-storage'
 import { IToken } from '@/lib/types'
 import { sendCredit, sendToken, withdrawToCore } from '@/lib/wallet-manager'
+import { shieldedEngine } from '@/lib/shielded/engine-client'
 
 import moment from 'moment'
 // @ts-ignore
@@ -105,10 +107,56 @@ export function WalletSend({ isFullScreen }: IWalletSendProps) {
     const [receiver, setReceiver] = useState<string>('')
     const [amount, setAmount] = useState<string>('')
 
+    /* F56c — WHERE THE FUNDS COME FROM. The three balance lanes (the owner
+     * directive): Identity (credits), Transparent (the DIP-17 address pool),
+     * Shielded (the Orchard pool). All three send TO an identity — the
+     * Transparent lane = type 11 (the reference wire), the Shielded lane =
+     * the engine's poolExit top-up. */
+    const [source, setSource] = useState<'identity' | 'transparent' | 'shielded'>('identity')
+    const [identityBalance, setIdentityBalance] = useState<bigint | null>(null)
+    const [transparentBalance, setTransparentBalance] = useState<bigint | null>(null)
+    const [shieldedBalance, setShieldedBalance] = useState<bigint | null>(null)
+
     useEffect(() => {
         /* Request asset. */
         setAsset(getAsset())
     }, [])
+
+    /* Refresh the source balances (on mount + on the source switch). */
+    const refreshSourceBalances = async () => {
+        const sdkNetwork = network === 'mainnet' ? 'mainnet' : 'testnet'
+        try {
+            if (user?.balance !== undefined && user?.balance !== null) setIdentityBalance(BigInt(user.balance))
+        } catch { /* leave null */ }
+        try {
+            const { readTransparentAddress } = await import('@/lib/moves-service')
+            const addr = await readTransparentAddress(sdkNetwork as 'mainnet' | 'testnet', 0)
+            setTransparentBalance(addr.balance)
+        } catch (e: any) {
+            console.error('transparent balance read failed:', e?.message)
+        }
+        try {
+            const mnemonic = getMnemonic()
+            if (mnemonic) {
+                await shieldedEngine.start({ network: sdkNetwork, mnemonic })
+                const snap = await shieldedEngine.snapshot()
+                setShieldedBalance(BigInt(snap.balance))
+            }
+        } catch (e: any) {
+            console.error('shielded balance read failed:', e?.message)
+        }
+    }
+
+    useEffect(() => {
+        void refreshSourceBalances()
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [source, user?.identityId])
+
+    const SOURCE_META: Record<'identity' | 'transparent' | 'shielded', { label: string; fee: string }> = {
+        identity: { label: 'Identity', fee: 'network fee ≈ 0.00003 DASH paid from the identity' },
+        transparent: { label: 'Transparent', fee: 'the address pays the transfer + fee (≈ 0.00002 DASH)' },
+        shielded: { label: 'Shielded', fee: 'pool fee ≈ 0.00114 DASH deducted from the pool' },
+    }
 
     const openScanner = () => {
     }
@@ -242,6 +290,75 @@ export function WalletSend({ isFullScreen }: IWalletSendProps) {
 
             /* Validate asset. */
             if (asset.id === '0') {
+                /* Per-source balance guard (F56c). */
+                const bal = source === 'identity'
+                    ? identityBalance
+                    : source === 'transparent'
+                        ? transparentBalance === null ? null : transparentBalance - 4_000_000n
+                        : shieldedBalance
+                if (bal !== null && assetValue > bal) {
+                    setIsSubmitting(false)
+                    return showErrorToast(`Insufficient ${SOURCE_META[source].label} balance (${Number(bal) / 1e11} DASH available).`)
+                }
+
+                if (source === 'transparent') {
+                    /* F56c: the DIP-17 address → the recipient identity
+                     * (type 11, the consensus-exact reference wire). */
+                    try {
+                        const { moveTransparentToIdentity } = await import('@/lib/moves-service')
+                        const r = await moveTransparentToIdentity({
+                            network: (network === 'mainnet' ? 'mainnet' : 'testnet') as 'mainnet' | 'testnet',
+                            identityId: safeReceiver,
+                            addressIndex: 0,
+                            amountCredits: assetValue,
+                            onProgress: () => { },
+                        })
+                        setTokenNote({
+                            ticker: asset.ticker,
+                            recipient: `${numeral(Number(0) / 1e11).format('0,0[.]00000000')}`,
+                            sender: 'your Transparent balance',
+                        })
+                        toast.success(`Sent ${numeral(numericAmount).format('0,0.00[0000]')} DASH from Transparent — tx ${r.transitionHash.slice(0, 16)}…`)
+                        setAmount('')
+                        setIsSubmitting(false)
+                        void refreshSourceBalances()
+                        return
+                    } catch (err: any) {
+                        console.error(err)
+                        setErrorMsgs(err?.consensusError ?? err?.message)
+                        setIsSubmitting(false)
+                        return
+                    }
+                }
+                if (source === 'shielded') {
+                    /* F56c: the shielded pool → the recipient identity
+                     * (type 22 via the engine worker; the notes never leave). */
+                    try {
+                        const mnemonic = getMnemonic()
+                        await shieldedEngine.start({ network: network === 'mainnet' ? 'mainnet' : 'testnet', mnemonic: mnemonic || '' })
+                        const r = await shieldedEngine.poolExit({
+                            kind: 'topUpIdentity',
+                            identityId: Buffer.from(bs58.decode(safeReceiver)).toString('hex'),
+                            netCredits: assetValue.toString(),
+                        })
+                        setTokenNote({
+                            ticker: asset.ticker,
+                            recipient: numeral(Number(r.netCredits) / 1e11).format('0,0[.]00000000'),
+                            sender: 'your Shielded balance',
+                        })
+                        toast.success(`Sent ${numeral(numericAmount).format('0,0.00[0000]')} DASH from Shielded — fee ${Number(r.feeCredits) / 1e11} DASH`)
+                        setAmount('')
+                        setIsSubmitting(false)
+                        void refreshSourceBalances()
+                        return
+                    } catch (err: any) {
+                        console.error(err)
+                        setErrorMsgs(err?.message)
+                        setIsSubmitting(false)
+                        return
+                    }
+                }
+
                 /* Request a credit transfer. */
                 response = await sendCredit(
                     network!,
@@ -514,6 +631,39 @@ export function WalletSend({ isFullScreen }: IWalletSendProps) {
     return (
         <main className="grid grid-cols-1 lg:grid-cols-7 gap-8 lg:divide-x-2 divide-solid divide-sky-200">
             <div className="col-span-4">
+                {/* F56c — WHERE THE FUNDS COME FROM (the owner directive):
+                 * the three balance lanes with their live balances. Only the
+                 * DASH-credits asset shows it (tokens have a single lane). */}
+                {asset.id === '0' && <section className="mt-5">
+                    <h2 className="text-xs tracking-widest text-sky-700 font-medium uppercase mb-2">
+                        Send from
+                    </h2>
+                    <div className="flex rounded-xl bg-sky-100/80 border border-sky-200 p-1 gap-1">
+                        {(['identity', 'transparent', 'shielded'] as const).map((s) => {
+                            const bal = s === 'identity'
+                                ? identityBalance
+                                : s === 'transparent'
+                                    ? transparentBalance
+                                    : shieldedBalance
+                            return (
+                                <button
+                                    key={s}
+                                    onClick={() => setSource(s)}
+                                    className={`flex-1 rounded-lg px-2 py-2 text-xs font-semibold transition-all ${source === s ? 'bg-sky-600 text-white shadow-sm' : 'text-sky-700 hover:bg-white/70'}`}
+                                >
+                                    <span className="block">{SOURCE_META[s].label}</span>
+                                    <span className={`block font-mono text-[11px] ${source === s ? 'text-sky-100' : 'text-sky-500'}`}>
+                                        {bal === null ? '…' : `${numeral(Number(bal) / 1e11).format('0,0.00[0000]')}`}
+                                    </span>
+                                </button>
+                            )
+                        })}
+                    </div>
+                    <p className="mt-1 text-[11px] text-gray-500 italic">
+                        {SOURCE_META[source].fee}
+                    </p>
+                </section>}
+
                 <section className="mt-5 flex flex-row gap-1">
                     <input
                         className="w-full px-3 py-1 text-xl sm:text-2xl bg-cyan-100 border-2 border-cyan-300 rounded-md shadow"
