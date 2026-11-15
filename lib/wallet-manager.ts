@@ -20,6 +20,7 @@ import {
     ITxSuccess,
     ITokenPaymentInfo,
 } from './types'
+import { EVONEXT_CONTRACT_ID_MAINNET, EVONEXT_CONTRACT_ID_TESTNET } from './constants'
 
 /* Get Private Keys. */
 export const getPrivateKeys = (
@@ -182,6 +183,26 @@ const seedPrivateKey = signingPrivateKey!.privateKeyWif
     // return generatedkeys.transferKey.private_key_hex
 }
 
+
+/* F56d — WASM READINESS GUARD. The glue's key derivation reads the loaded
+ * wasm module directly; when the main thread's module load failed/never ran
+ * the send paths crashed with "Cannot read properties of undefined (reading
+ * 'wasmsdk_deriveKeyFromSeedWithPath')". Every send/withdraw entry now makes
+ * sure the service (and therefore the glue) is initialized first — the
+ * service's initialize is idempotent, single-flight, and (since F56d) retries
+ * a flaky wasm load internally. */
+const ensureWasmReady = async (_network: string) => {
+    const network = (_network === 'mainnet') ? 'mainnet' : 'testnet'
+    if (!wasmSdkService.isReady() || wasmSdkService.initializedNetwork() !== network) {
+        await wasmSdkService.initialize({
+            network,
+            contractId: network === 'mainnet'
+                ? EVONEXT_CONTRACT_ID_MAINNET
+                : EVONEXT_CONTRACT_ID_TESTNET,
+        })
+    }
+}
+
 export const getTransferKey = async (
     _currentNetwork: string,
     _identityIdx: number,
@@ -282,7 +303,8 @@ export const sendCredit = async (
     // TODO ADD FINAL CREDITS VALIDATION
     const credits = BigInt(_credits)
 
-    /* Request transfer (WIF) key. */
+    /* WASM readiness (F56d) + the transfer (WIF) key. */
+    await ensureWasmReady(_network)
     const transferWif = await getTransferKey(_network, _identityIdx)
     /* Handle network. */
     if (_network === 'mainnet') {
@@ -349,7 +371,8 @@ export const withdrawToCore = async (
     // TODO ADD FINAL CREDITS VALIDATION
     const credits = BigInt(_credits)
 
-    /* Request transfer (WIF) key. */
+    /* WASM readiness (F56d) + the transfer (WIF) key. */
+    await ensureWasmReady(_network)
     const transferWif = await getTransferKey(_network, _identityIdx)
 
     /* Handle network. */
@@ -542,7 +565,8 @@ export const createDocument = async (
         },
     )
 
-    /* Request transfer (WIF) key. */
+    /* WASM readiness (F56d) + the transfer (WIF) key. */
+    await ensureWasmReady(_network)
     const transferWif = await getTransferKey(_network, _identityIdx)
 
     /* Set private (transfer) key. */

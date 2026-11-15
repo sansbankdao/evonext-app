@@ -73,18 +73,35 @@ class WasmSdkService {
             return
         }
 
+        /* RETRY (F56d): the 26.5MB wasm fetch through the Pages Function is
+         * FLAKY — an abort ("Response body loading was aborted") left the
+         * main thread's glue uninitialized and any direct glue consumer
+         * (the wallet-manager key derivation) crashed with "Cannot read
+         * properties of undefined (reading
+         * 'wasmsdk_deriveKeyFromSeedWithPath')". Retry the load up to 3×
+         * with a backoff before surfacing. */
+        const MAX_WASM_LOAD_ATTEMPTS = 3
         WasmSdkService.wasmInitPromise = (async () => {
-            try {
-                // Use the same pattern as the working index.html - just call init() without parameters
-                // The init() function will automatically fetch and load the WASM file
-                await init()
+            let lastError: unknown
+            for (let attempt = 1; attempt <= MAX_WASM_LOAD_ATTEMPTS; attempt++) {
+                try {
+                    // Use the same pattern as the working index.html - just call init() without parameters
+                    // The init() function will automatically fetch and load the WASM file
+                    await init()
 
-                WasmSdkService.wasmModuleInitialized = true
-            } catch (error) {
-                // Reset on error so retry is possible
-                WasmSdkService.wasmInitPromise = null
-                throw error
+                    WasmSdkService.wasmModuleInitialized = true
+                    return
+                } catch (error) {
+                    lastError = error
+                    console.warn(`WasmSdkService: wasm load failed (attempt ${attempt}/${MAX_WASM_LOAD_ATTEMPTS}):`, String((error as any)?.message ?? error).slice(0, 140))
+                    if (attempt < MAX_WASM_LOAD_ATTEMPTS) {
+                        await new Promise((resolve) => setTimeout(resolve, 1500 * attempt))
+                    }
+                }
             }
+            // Reset on error so retry is possible
+            WasmSdkService.wasmInitPromise = null
+            throw lastError
         })()
 
         await WasmSdkService.wasmInitPromise
