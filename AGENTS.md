@@ -3837,3 +3837,44 @@ through the wasm SDK's trusted-context RPC stack:
     undefined (reading 'toLowerCase')" — inside THEIR code). The app's
     DPNS resolution stays on the wasm until fixed; noted for the
     handoff.
+
+## F57 — THE CLOUDFLARE DIRECT-DEPLOY PATH IS LIVE (the owner supplied the
+## credentials on the Sansbank VM) (2026-11-16)
+
+- **Sansbank `~/.cloudflare/api-token`** (0600, per the VM's own README) =
+  verified ACTIVE and **Pages-capable**: `GET /accounts/{acc}/pages/projects`
+  lists the projects incl. **evonext-app** (evonext.app,
+  testnet.evonext.app, www.evonext.app). Account
+  `cff27acd0f4e86139f6cf3f1a295d4b0`. Copied to **evorunner
+  `~/.cloudflare/api-token`** (0600); wrangler 4.162.0 installed
+  (~/.local/node22/bin/wrangler). NEVER print the token.
+- **Proven**: `wrangler pages deployment list --project-name evonext-app`
+  = the full deployment history (which also confirmed the owner's ACK
+  commit 61aca58 deployed 27 min after their push — the git-build
+  pipeline healthy at check time).
+- **THE RUNBOOK**: evorunner `~/evonext/deploy-evonext.sh` — the direct
+  upload of the verified `out/` (an upload, NOT a build) for the
+  deploy-stall insurance; the F32-era fallback recipe is now executable
+  in one command.
+
+## The owner's deposits (verified live 2026-11-16)
+
+- **tDUSD: LANDED** — the F39 e2e identity EcbXLyhWeMB3BLmpVk1sWgtwQjUza
+  FASwhL3ShxXqdVa holds EXACTLY 50,000,000 (50.0 tDUSD, the wasm plural
+  method). **THE LIVE TOKEN-SEND E2E PASSED through the app's REAL
+  sendToken (the F57 Phase-2 path: the ladder-sourced (contract,
+  position) → the wasm op)**: 5 tDUSD → the owner's WIF-only identity
+  AFaVqRJCWXFZRUhuq6ZUUcWXVW8fErCN3wpEtgsBnDZm; before/after =
+  50,000,000→45,000,000 and 2,405,955,136→2,410,955,136 — EXACT ±5M both
+  sides. (The first attempt with a memory-mangled recipient id was
+  REJECTED by the chain — 'recipient identity doesn't exist' — no tokens
+  moved; the honest-error surface works.) The owner's identity already
+  held ~2,405 tDUSD = the DashSwap inventory is being distributed.
+- **tDASH**: sent by the owner but NOT yet visible at the F39 funding
+  address ydSpCGhjxCH77HHnjq5SdQ58fSTGNQ5WC1 (still 0.97196620) — the
+  testnet block times are irregular; poll before assuming.
+- **THE DASHSWAP ACK** (the owner committed it: 61aca58): the tSANS id
+  per the team = A36eJF2kyYXw… (ours was NOT_FOUND), the e2e identity
+  already holds 45 tDUSD, the F53c 15M provenance solved (it left
+  DashSwap's e2e identity), the mint authority = the dashusd.org issuer
+  custody ONLY (tSANS minting closed chain-wide).
