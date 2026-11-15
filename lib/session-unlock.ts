@@ -136,7 +136,13 @@ async function wrapWithPassword(identityId: string, password: string): Promise<v
  * password never leaves the device and is never stored.
  */
 export async function setSessionUnlockPassword(identityId: string, password: string): Promise<boolean> {
-    if (typeof password !== 'string' || password.length < 10) {
+    /* The F57e hardening (the owner's probe): a BLANK or WHITESPACE-ONLY
+     * password must never wrap the vault — a 10-space password would pass
+     * a bare length check with near-zero entropy. The trim check rejects
+     * it; the real minimum = 10 NON-WHITESPACE characters... no: 10+
+     * characters INCLUDING the internal spaces, with at least 10 total
+     * and non-blank. */
+    if (typeof password !== 'string' || password.length < 10 || password.trim().length === 0) {
         throw new PasskeyVaultError('FAILED', 'Use at least 10 characters — this password protects your keys on this device.')
     }
     await wrapWithPassword(identityId, password)

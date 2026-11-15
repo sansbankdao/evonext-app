@@ -137,8 +137,15 @@ describe('session-unlock (F57b Option B)', () => {
         expect(await getSessionLockState(ID)).toBe('unlocked')
     })
 
-    it('the password tier: too-short passwords are refused; a fresh session cannot wrap nothing', async () => {
+    it('the password tier: too-short/blank/whitespace-only passwords are refused; a fresh session cannot wrap nothing', async () => {
         await expect(setSessionUnlockPassword(ID, 'short'))
+            .rejects.toThrow(/at least 10 characters/)
+        /* The owner's probe: a BLANK password must never wrap the vault. */
+        await expect(setSessionUnlockPassword(ID, ''))
+            .rejects.toThrow(/at least 10 characters/)
+        /* A WHITESPACE-ONLY password passes a bare length check — the trim
+         * guard rejects it (near-zero entropy). */
+        await expect(setSessionUnlockPassword(ID, '          '))
             .rejects.toThrow(/at least 10 characters/)
         await expect(setSessionUnlockPassword(ID, 'a-very-long-password-with-nothing-to-wrap'))
             .rejects.toThrow(/nothing in this session/)
