@@ -137,7 +137,26 @@ class WasmSdkService {
                 // v4.1.1 API: getDataContract fetches (with proof) and caches the
                 // contract in the SDK's contract store; resolves undefined when
                 // the contract is not on the network.
-                const contract = await this.sdk.getDataContract(contractId)
+                //
+                // F30 GOTCHA (live-reproduced 2026-11-17): the wasm grpc
+                // transport can leave a future pending FOREVER even though
+                // the HTTP 200 response has already arrived — the login
+                // driver watched getDataContract's seed POST return 200 and
+                // the wasm never resolve. This preload sits inside
+                // _performInitialization's retry loop, so a hung preload
+                // blocked initialize() — i.e. the WHOLE login — forever
+                // ("Signing in..." with no error). The preload is a cache
+                // warm only (document ops fetch the contract on demand), so
+                // race it with a timeout and move on either way: if the
+                // wasm settles late the contract still lands in the store.
+                const PRELOAD_TIMEOUT_MS = 8000
+                const contract = await Promise.race([
+                    this.sdk.getDataContract(contractId),
+                    new Promise<never>((_, reject) =>
+                        setTimeout(() => reject(
+                            new Error(`contract preload timed out after ${PRELOAD_TIMEOUT_MS / 1000}s (wasm transport hang)`),
+                        ), PRELOAD_TIMEOUT_MS)),
+                ])
                 if (contract) {
                 } else {
                 }

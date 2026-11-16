@@ -85,15 +85,23 @@ const server = createServer(async (req, res) => {
         }
 
         // Dev parity for the Pages Function (functions/api/dashswap/[[path]].js):
-        // forward /api/dashswap/* to the DashSwap API (DASHSWAP_API_BASE
-        // overrides the default upstream; dev key via DASHSWAP_API_KEY).
+        // forward /api/dashswap/* to the DashSwap API, NETWORK-AWARE (F58):
+        // the ?network=testnet param routes to DASHSWAP_API_BASE_TESTNET
+        // (default testnet.dashswap.xyz/v1) + the DASHSWAP_API_KEY_TESTNET
+        // key; everything else = DASHSWAP_API_BASE (dashswap.xyz) +
+        // DASHSWAP_API_KEY. The param is stripped before the upstream call.
         if (pathname.startsWith('/api/dashswap/')) {
-            const base = process.env.DASHSWAP_API_BASE || 'https://dashswap.xyz'
+            const isTestnet = url.searchParams.get('network') === 'testnet'
+            url.searchParams.delete('network')
+            const base = isTestnet
+                ? (process.env.DASHSWAP_API_BASE_TESTNET || 'https://testnet.dashswap.xyz')
+                : (process.env.DASHSWAP_API_BASE || 'https://dashswap.xyz')
             const rest = pathname.slice('/api/dashswap/'.length)
             const chunks = []
             for await (const c of req) chunks.push(c)
             const headers = { 'Content-Type': req.headers['content-type'] || 'application/json' }
-            if (process.env.DASHSWAP_API_KEY) headers['X-API-Key'] = process.env.DASHSWAP_API_KEY
+            const apiKey = isTestnet ? process.env.DASHSWAP_API_KEY_TESTNET : process.env.DASHSWAP_API_KEY
+            if (apiKey) headers['X-API-Key'] = apiKey
             const upstream = await fetch(`${base}/v1/${rest}${url.search}`, {
                 method: req.method,
                 headers,

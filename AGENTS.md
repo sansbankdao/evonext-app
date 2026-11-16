@@ -4037,3 +4037,68 @@ probe swap b6e4d30c = also consumed from the pool (settling→settled on
 their next confirm cycle). The wallet's Swap tab = fully wired and
 waiting for the UI verification pass (the owner can now see the settled
 state + dest_txid + the SANS row on /wallet).
+
+## F59 — THE WALLET HISTORY TAB REBUILT ON REAL DATA + TWO LIVE-HIT LOGIN/QUERY
+## FIXES (2026-11-17, commit `35ba547`, deployed + prod-e2e-verified)
+
+The owner's History tab was DEAD SCAFFOLDING: a hardcoded DEFAULT_TX, stub
+renderers returning `''` (`displayTime`/`displayInputs`/…), a type bug
+(`displayOutputs(tx.vin)`), and a `explorer.dash.org/tx/` link with an EMPTY
+txid — the F53d bogus-link class. It never fetched anything.
+
+(a) **NEW lib/wallet-history.ts** — the honest data layer:
+  - Withdrawals to Core: the system contract's `withdrawal` documents (the
+    F48 flat shape: amount/outputScript/status at top level), queried by the
+    WITHDRAWING identity `$ownerId == identityId` over
+    identityRecent($ownerId,$updatedAt,status), via compat get_documents +
+    a 30s deadline race (the F30 pending-forever gotcha).
+  - Swaps: the wallet's own DashSwap records (`evonext_swaps_<network>`,
+    F58). `swapStatusFailed` ALWAYS false — the engine has NO failure states
+    yet (F58); unrecognized statuses render neutrally via the label.
+  - `dashOfMax` truncation: NOT a floor-shift (59820000/1e8 = 0.59819999…
+    floats BELOW the true decimal) — `toFixed(max+6)` then STRING-CUT at
+    `max` decimals, trailing zeros trimmed, NaN → '0'.
+  - `mergeActivity` = a total order: `(y.when - x.when) || KIND_RANK
+    (withdrawal:0 swap:1) || key compare`.
+(b) **components/wallet/history.tsx rebuilt**: skeletons → rows → honest
+    per-source error line ("Could not load withdrawal history: <the real
+    error>. Showing local swap records only."); withdrawal rows deep-link
+    `https://{www|testnet}.platform-explorer.com/document/<$id>`;
+    `dest_txid` NEVER linked as a chain artifact (the DAPI review — it is
+    the engine's internal sha256d dedupe key).
+(c) **LIVE-HIT FIX 1 — the login-blocking preload**: the connect driver
+    "hangs" led to `_preloadEvoNextContract()` awaiting
+    `sdk.getDataContract()` with NO timeout inside the init retry loop; the
+    wasm transport left the future pending FOREVER (the F30 gotcha — the
+    driver watched the HTTP 200 land and the wasm never resolve).
+    FIXED: the preload now races an 8s timeout and moves on either way
+    (it is a cache warm only; a late settle still lands in the store).
+(d) **LIVE-HIT FIX 2 — the 43-char contract id**: the withdrawal-system
+    contract id in SESSION NOTES was a 43-char transcription (one dropped
+    'r') of the verified id; it decodes to 31 base58 bytes and rc.8's query
+    deserializer REJECTS any identifier not decoding to exactly 32 bytes —
+    the tab died with "Identifier must be 32 bytes long" (the honest error
+    line worked exactly as designed and named it). The verified id
+    `4fJLR2GYTPFdomuTVvNy3VRrvWgvkKPzqehEBpNf2nk6` (44 chars, 32 bytes,
+    test/e2e/shield-stage5-withdrawal.live.mts:56) returns exactly the two
+    F46 withdrawals live (amount 100000000, status 3). **RULE: always
+    base58-decode-check a Dash identifier = 32 bytes before trusting a
+    transcription.** The repo AGENTS.md id was ALWAYS correct (the error
+    was in the compacted session summary, not any file).
+(e) **DRIVER GOTCHA (two false 'login hangs' burned on it)**:
+    `page.getByText(/Sign In/i).first()` clicks the "Sign in with" LABEL —
+    it precedes the button in the DOM and the click is silently swallowed
+    (no handler on the span). The connect form then sits there forever.
+    ALWAYS click `page.getByRole("button", { name: "Sign In" })`. Also on
+    production the button is disabled ("Loading wallet engine…") until the
+    F56g mount-init completes — wait for the label, then click.
+(f) **Gates on evorunner**: tsc 0, eslint clean (all changed files),
+    312/312 (34 files), build 36/36 (wasm stripped, _routes.json). The F58
+    swap-UI refinements (pinned engine status vocabulary, per-direction out
+    decimals SANS 8 / DUSD 6, the network-aware Pages Function + static-
+    server parity) rode along in the same commit.
+(g) **DEPLOYED + PROD-VERIFIED**: direct wrangler deploy → testnet.evonext
+    .app serves chunk `page-1a572b151fe75d32`; headless-chromium e2e
+    AGAINST PRODUCTION: login (12-word) → /wallet → History tab = exactly
+    2 "0.001 DASH withdrawn to Core · 3d ago · Paid · view on explorer"
+    rows + 2 explorer doc links + ZERO page errors.

@@ -36,6 +36,12 @@ import { showErrorToast } from '@/lib/toast-error'
 import toast from 'react-hot-toast'
 import * as coreChain from '../../lib/core-chain'
 import { getIdentityIdx } from '@/lib/secure-storage'
+import {
+    DUSD_CONTRACT_ID_MAINNET,
+    DUSD_CONTRACT_ID_TESTNET,
+    SANS_CONTRACT_ID_MAINNET,
+    SANS_CONTRACT_ID_TESTNET,
+} from '@/lib/constants'
 
 type Network = 'mainnet' | 'testnet'
 
@@ -55,14 +61,33 @@ interface DashswapSwap {
     amount_out?: number | null
     rate?: number | null
     expected_out?: number | null
+    fee_bps?: number | null
+    fee_duffs?: number | null
+    dest_txid?: string | null
     status: string
     created_at: number
     updated_at?: number
 }
 
-/** Terminal/known status vocabulary (per the API's swap lifecycle). */
-const isSettled = (status: string) => /settled|complete|completed|done/i.test(status)
-const isFailed = (status: string) => /fail|reject|cancel|expire|refund/i.test(status)
+/**
+ * F58 — the PINNED status vocabulary, read from the DashSwap engine's
+ * own source (src/lib/detect.ts + src/endpoints/swap/Create.ts):
+ *   pending (create) -> detected (deposit seen) -> confirmed
+ *   (ChainLock finality) -> settling (the token transfer broadcast; the
+ *   row carries amount_out + dest_txid at THIS transition) -> settled.
+ * No refund/failure states exist in the engine yet — any UNRECOGNIZED
+ * status displays neutrally (never a fake failure).
+ */
+const STATUS_LABEL: Record<string, string> = {
+    pending: 'Waiting for your deposit',
+    detected: 'Deposit detected — confirming on-chain',
+    confirmed: 'Deposit confirmed — preparing settlement',
+    settling: 'Settling — sending your tokens',
+    settled: 'Settled',
+}
+const isSettled = (status: string) => status === 'settled'
+const statusLabel = (status: string) => STATUS_LABEL[status] ?? `Status: ${status}`
+const statusFailed = (status: string) => !STATUS_LABEL[status]
 
 /** localStorage swap-id list per network. */
 const swapListKey = (network: Network) => `evonext_swaps_${network}`
@@ -88,19 +113,49 @@ const rememberSwapId = (network: Network, swapid: string) => {
 }
 
 /** The token metadata for the destination chips. */
-const TOKEN_META: Record<SwapDestination, { name: string; symbol: string; icon: string; tile: string }> = {
+const TOKEN_META: Record<SwapDestination, { name: string; symbol: string; icon: string; tile: string; decimals: number; tokenId: Record<Network, string> }> = {
     SANS: {
         name: 'Sansnote',
         symbol: 'SANS',
         icon: '/icons/sans.svg',
         tile: 'from-cyan-400 to-cyan-200 border-cyan-500 text-cyan-900',
+        decimals: 8,
+        tokenId: {
+            mainnet: SANS_CONTRACT_ID_MAINNET,
+            testnet: SANS_CONTRACT_ID_TESTNET,
+        },
     },
     DUSD: {
         name: 'USD',
         symbol: 'DUSD',
         icon: '/icons/usd.svg',
         tile: 'from-lime-400 to-lime-200 border-lime-500 text-lime-900',
+        decimals: 6,
+        tokenId: {
+            mainnet: DUSD_CONTRACT_ID_MAINNET,
+            testnet: DUSD_CONTRACT_ID_TESTNET,
+        },
     },
+}
+
+/**
+ * F58 — the DECODED quote from the PUBLIC endpoint (no key — the proxy
+ * still routes it for the same-origin simplicity):
+ *   GET /v1/quote?Dest=SANS|DUSD&AmountIn=<duffs>
+ *   -> {dest, rate, season, fee_bps, network, fee_duffs, expected_out}
+ * `rate` = the destination BASE units per duff; `expected_out` = NET of
+ * the platform fee, the engine's OWN math (per the FRONTEND-HANDOFF-2-ACK
+ * §3.1: never re-derive, never hardcode — seasons bump via ops KV). We
+ * display expected_out / 10^decimals and fee_duffs/1e8 DASH verbatim.
+ */
+interface DashswapQuote {
+    dest: string
+    rate: number
+    season?: number
+    fee_bps?: number
+    fee_duffs?: number | null
+    expected_out?: number | null
+    network?: string
 }
 
 interface WalletSwapProps {
@@ -122,8 +177,51 @@ export function WalletSwap({ isFullScreen }: WalletSwapProps) {
     const [creating, setCreating] = useState(false)
     /* Statuses of the locally remembered swaps. */
     const [history, setHistory] = useState<Record<string, DashswapSwap>>({})
+    /* F58 — the live engine quote for the CURRENT (destination, amount). */
+    const [quote, setQuote] = useState<DashswapQuote | null>(null)
+    const [quoteLoading, setQuoteLoading] = useState(false)
 
     const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+    const quoteAbortRef = useRef<AbortController | null>(null)
+
+    /* F58 — fetch the engine's own quote whenever (destination, amount)
+     * changes (debounced 400ms; aborted per input; the estimate = the
+     * engine's expected_out, NOT our math). */
+    useEffect(() => {
+        const duffs = (() => {
+            const trimmed = amount.trim()
+            if (!/^\d+(\.\d{0,8})?$/.test(trimmed)) return null
+            const value = Number(trimmed)
+            if (!(value > 0)) return null
+            return Math.round(value * DUFFS_PER_DASH)
+        })()
+        if (duffs === null) {
+            setQuote(null)
+            setQuoteLoading(false)
+            return
+        }
+        setQuoteLoading(true)
+        const controller = new AbortController()
+        quoteAbortRef.current = controller
+        const timer = setTimeout(async () => {
+            try {
+                const res = await fetch(
+                    `/api/dashswap/quote?Dest=${destination}&AmountIn=${duffs}&network=${sdkNetwork}`,
+                    { signal: controller.signal })
+                if (!res.ok) { setQuote(null); return }
+                const body = await res.json()
+                setQuote(body?.dest === destination ? body : null)
+            } catch {
+                /* aborted or offline — the estimate just stays blank */
+            } finally {
+                if (quoteAbortRef.current === controller) setQuoteLoading(false)
+            }
+        }, 400)
+        return () => {
+            clearTimeout(timer)
+            controller.abort()
+        }
+    }, [amount, destination, sdkNetwork])
 
     /** The funding wallet's spendable balance — the pool this swap pays
      *  from (an operational context line for the swap form only; per the
@@ -140,17 +238,17 @@ export function WalletSwap({ isFullScreen }: WalletSwapProps) {
         }
     }, [sdkNetwork, user])
 
-    /** Fetch one swap's status through the same-origin proxy. */
+    /** Fetch one swap's status through the same-origin proxy (network-routed). */
     const fetchSwap = useCallback(async (swapid: string): Promise<DashswapSwap | null> => {
         try {
-            const res = await fetch(`/api/dashswap/swap/${encodeURIComponent(swapid)}`)
+            const res = await fetch(`/api/dashswap/swap/${encodeURIComponent(swapid)}?network=${sdkNetwork}`)
             if (!res.ok) return null
             const body = await res.json()
             return body?.swap ?? null
         } catch {
             return null
         }
-    }, [])
+    }, [sdkNetwork])
 
     const refreshHistory = useCallback(async () => {
         const ids = loadSwapIds(sdkNetwork)
@@ -180,7 +278,7 @@ export function WalletSwap({ isFullScreen }: WalletSwapProps) {
             if (!swap) return
             setActiveSwap(swap)
             setHistory((prev) => ({ ...prev, [swap.swapid]: swap }))
-            if (isSettled(swap.status) || isFailed(swap.status)) {
+            if (isSettled(swap.status) || statusFailed(swap.status)) {
                 if (pollRef.current) {
                     clearInterval(pollRef.current)
                     pollRef.current = null
@@ -220,7 +318,7 @@ export function WalletSwap({ isFullScreen }: WalletSwapProps) {
         setCreating(true)
         try {
             const direction: SwapDirection = destination === 'SANS' ? 'DASH->SANS' : 'DASH->DUSD'
-            const res = await fetch('/api/dashswap/swap', {
+            const res = await fetch(`/api/dashswap/swap?network=${sdkNetwork}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -282,7 +380,7 @@ export function WalletSwap({ isFullScreen }: WalletSwapProps) {
                     return (
                         <button
                             key={key}
-                            onClick={() => { setDestination(key); if (activeSwap && !isSettled(activeSwap.status) && !isFailed(activeSwap.status)) return; setActiveSwap(null) }}
+                            onClick={() => { setDestination(key); if (activeSwap && !isSettled(activeSwap.status) && !statusFailed(activeSwap.status)) return; setActiveSwap(null) }}
                             className={`flex flex-row items-center gap-2 px-3 py-3 border rounded-2xl shadow-sm transition-all cursor-pointer bg-gradient-to-br ${meta.tile} ${selected ? 'ring-2 ring-sky-400 border-sky-400' : 'opacity-70 hover:opacity-100'}`}
                         >
                             <span className="relative h-9 w-9 shrink-0 flex items-center justify-center rounded-xl bg-white border border-white/60 shadow-sm">
@@ -336,16 +434,16 @@ export function WalletSwap({ isFullScreen }: WalletSwapProps) {
                     </span>
                 </div>
 
-                {/* TO */}
+                {/* TO — the engine's own NET quote (the F58 §3.1 law) */}
                 <div className="rounded-xl bg-white border border-gray-200 p-3 mt-2">
                     <div className="flex items-center justify-between mb-1">
                         <span className="text-2xs text-gray-500 font-medium">You receive (estimated)</span>
                         <span className="text-2xs text-gray-400">final rate fixes at settlement</span>
                     </div>
                     <div className="flex items-center gap-2">
-                        <span className="flex-1 min-w-0 text-2xl font-medium text-gray-400 truncate">
-                            {swapRate !== null && amountDuffs() !== null
-                                ? numeral((amountDuffs() as number) / DUFFS_PER_DASH * swapRate).format('0,0.00[000000]')
+                        <span className={`flex-1 min-w-0 text-2xl font-medium truncate ${quote?.expected_out != null ? 'text-gray-800' : 'text-gray-400'} ${quoteLoading ? 'animate-pulse' : ''}`}>
+                            {quote?.expected_out != null
+                                ? numeral(quote.expected_out / Math.pow(10, TOKEN_META[destination].decimals)).format('0,0.00[000000]')
                                 : '0.0'}
                         </span>
                         <span className="flex items-center gap-1.5 rounded-xl bg-gray-100 border border-gray-200 px-3 py-2">
@@ -353,6 +451,11 @@ export function WalletSwap({ isFullScreen }: WalletSwapProps) {
                             <span className="text-sm font-semibold text-gray-700">{TOKEN_META[destination].symbol}</span>
                         </span>
                     </div>
+                    {quote?.fee_duffs != null && amountDuffs() !== null && (
+                        <p className="text-2xs text-gray-400 mt-1">
+                            incl. {numeral(quote.fee_duffs / DUFFS_PER_DASH).format('0.00000')} DASH platform fee (season {quote.season ?? '—'})
+                        </p>
+                    )}
                 </div>
             </section>
 
@@ -402,26 +505,54 @@ export function WalletSwap({ isFullScreen }: WalletSwapProps) {
                                 </button>
                                 {(swapRate !== null) && (
                                     <span className="text-2xs text-gray-400">
-                                        Rate: 1 DASH ≈ {numeral(swapRate).format('0,0.00[000000]')} {TOKEN_META[destination].symbol}
+                                        Rate: 1 DASH ≈ {numeral(swapRate / Math.pow(10, TOKEN_META[destination].decimals)).format('0,0.00[000000]')} {TOKEN_META[destination].symbol}
                                     </span>
                                 )}
                             </div>
                         </div>
                     </div>
 
-                    <div className="mt-3 pt-3 border-t border-gray-100 flex items-center gap-2">
-                        {isSettled(activeSwap.status)
-                            ? <CheckCircleIcon className="w-4 h-4 text-emerald-600" />
-                            : isFailed(activeSwap.status)
-                                ? <ExclamationTriangleIcon className="w-4 h-4 text-rose-600" />
-                                : <ClockIcon className="w-4 h-4 text-sky-600 animate-pulse" />}
-                        <span className="text-xs text-gray-600">
+                    <div className="mt-3 pt-3 border-t border-gray-100">
+                        <div className="flex items-center gap-2">
                             {isSettled(activeSwap.status)
-                                ? <>Settled{expectedOut !== null ? ` — you received ${numeral(expectedOut / 1e8).format('0,0.00[000000]')} ${TOKEN_META[destination].symbol}` : ''}</>
-                                : isFailed(activeSwap.status)
-                                    ? `Swap ${activeSwap.status} — contact support with id ${activeSwap.swapid.slice(0, 18)}…`
-                                    : `Status: ${activeSwap.status} — waiting for your deposit (checking every 10s)`}
-                        </span>
+                                ? <CheckCircleIcon className="w-4 h-4 text-emerald-600" />
+                                : statusFailed(activeSwap.status)
+                                    ? <ExclamationTriangleIcon className="w-4 h-4 text-rose-600" />
+                                    : <ClockIcon className="w-4 h-4 text-sky-600 animate-pulse" />}
+                            <span className="text-xs text-gray-600">
+                                {isSettled(activeSwap.status)
+                                    ? <>Settled{expectedOut !== null ? ` — you received ${numeral(expectedOut / Math.pow(10, TOKEN_META[destination].decimals)).format('0,0.00[000000]')} ${TOKEN_META[destination].symbol}` : ''}</>
+                                    : statusFailed(activeSwap.status)
+                                        ? `Swap ${activeSwap.status} — contact support with id ${activeSwap.swapid.slice(0, 18)}…`
+                                        : `${statusLabel(activeSwap.status)} (checking every 10s)`}
+                            </span>
+                        </div>
+                        {/* F58 — the settlement artifact (their dest_txid = the
+                         * DPP state-transition hash returned by broadcast;
+                         * exposed since the settle integration went in). The
+                         * link = the token's explorer page, whose transition
+                         * log carries this transfer (verified live 2026-11-14
+                         * for the F53c tDUSD settlement). */}
+                        {activeSwap.dest_txid && (
+                            <div className="mt-2 flex items-center gap-2 flex-wrap">
+                                <span className="text-2xs text-gray-500">Settlement tx:</span>
+                                <button
+                                    onClick={() => { navigator.clipboard.writeText(activeSwap.dest_txid as string).then(() => toast.success('Settlement hash copied')).catch(() => showErrorToast('Failed to copy')) }}
+                                    title="Click to copy the state-transition hash"
+                                    className="rounded-lg border border-gray-200 bg-white px-2 py-1 font-mono text-2xs text-gray-600 break-all hover:border-sky-300 transition-colors"
+                                >
+                                    {activeSwap.dest_txid.slice(0, 24)}…{activeSwap.dest_txid.slice(-8)}
+                                </button>
+                                <a
+                                    href={`https://${sdkNetwork === 'mainnet' ? 'www' : 'testnet'}.platform-explorer.com/token/${TOKEN_META[destination].tokenId[sdkNetwork]}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-2xs text-sky-600 hover:underline"
+                                >
+                                    view on the explorer ↗
+                                </a>
+                            </div>
+                        )}
                     </div>
                 </section>
             )}
@@ -440,10 +571,10 @@ export function WalletSwap({ isFullScreen }: WalletSwapProps) {
                                 const to = swap.direction.includes('SANS') ? 'SANS' : 'DUSD'
                                 return (
                                     <div key={swap.swapid} className="px-4 py-3 flex items-center gap-3">
-                                        <span className={`shrink-0 rounded-full border p-1.5 ${isSettled(swap.status) ? 'text-emerald-600 border-emerald-300' : isFailed(swap.status) ? 'text-rose-600 border-rose-300' : 'text-sky-600 border-sky-300'}`}>
+                                        <span className={`shrink-0 rounded-full border p-1.5 ${isSettled(swap.status) ? 'text-emerald-600 border-emerald-300' : statusFailed(swap.status) ? 'text-rose-600 border-rose-300' : 'text-sky-600 border-sky-300'}`}>
                                             {isSettled(swap.status)
                                                 ? <CheckCircleIcon className="w-3.5 h-3.5" />
-                                                : isFailed(swap.status)
+                                                : statusFailed(swap.status)
                                                     ? <ExclamationTriangleIcon className="w-3.5 h-3.5" />
                                                     : <ClockIcon className="w-3.5 h-3.5" />}
                                         </span>
@@ -454,10 +585,10 @@ export function WalletSwap({ isFullScreen }: WalletSwapProps) {
                                             </p>
                                             <p className="text-2xs text-gray-500">
                                                 {swap.amount_in != null ? `${numeral(swap.amount_in / DUFFS_PER_DASH).format('0,0.00[000000]')} DASH in` : 'open amount'}
-                                                {swap.amount_out != null && ` → ${numeral(swap.amount_out / 1e8).format('0,0.00[000000]')} ${to}`}
+                                                {swap.amount_out != null && ` → ${numeral(swap.amount_out / Math.pow(10, TOKEN_META[to as SwapDestination].decimals)).format('0,0.00[000000]')} ${to}`}
                                             </p>
                                         </div>
-                                        <span className={`text-2xs uppercase shrink-0 ${isSettled(swap.status) ? 'text-emerald-600' : isFailed(swap.status) ? 'text-rose-600' : 'text-sky-600'}`}>
+                                        <span className={`text-2xs uppercase shrink-0 ${isSettled(swap.status) ? 'text-emerald-600' : statusFailed(swap.status) ? 'text-rose-600' : 'text-sky-600'}`}>
                                             {swap.status}
                                         </span>
                                     </div>
@@ -468,8 +599,9 @@ export function WalletSwap({ isFullScreen }: WalletSwapProps) {
             )}
 
             <p className="text-2xs text-gray-400 px-1">
-                Rates are indicative (quoted from the DashSwap tickers) and fix at
-                settlement. Powered by DashSwap — dashswap.xyz.
+                Estimates come from the DashSwap engine's own quote endpoint (NET
+                of the platform fee) and fix at settlement. Powered by DashSwap —
+                dashswap.xyz.
             </p>
         </main>
     )
