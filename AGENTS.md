@@ -4014,3 +4014,26 @@ re-reviewed claim-by-claim:
     broadcast; the confirm = the recipient balance delta per cycle
     (fail-closed); NO refund/failure states exist yet (the honest
     "contact support" copy stays).
+
+## F58.1 — THE SWAP ROUND-TRIP IS COMPLETE (2026-11-16, the owner's top-up)
+
+The owner funded the settlement pool with 500 tSANS (50,000,000,000 base,
+sent from their own custody identity — their AFaVqR balance unchanged =
+the send came from another identity they hold). The engine's pool guard
+released and **BOTH stuck settlements executed in one pass**:
+12,518,750,000 (the pre-existing pool) + 50,000,000,000 (the top-up) −
+20,992,963,125 (their probe swap) − 37,387,500,000 (our swap) =
+**4,138,286,875 remaining — exact to the digit**.
+
+**THE FINAL PROOF: the e2e identity EcbXLy… now holds tSANS =
+37,387,500,000 EXACTLY = the expected settlement delta (59,820,000 net
+duffs × 625, wasm-verified via the plural proof read).** The full
+round-trip ran end-to-end with real funds: the wallet create → the
+deposit → their detection/monitor → the confirm → their settle broadcast
+(the first ST soft-dropped by drive on the pre-guard inventory — the
+three-team post-mortem) → the pool guard + the top-up → the execution →
+the tokens on-chain. The complete DASH→SANS swap path is proven. Their
+probe swap b6e4d30c = also consumed from the pool (settling→settled on
+their next confirm cycle). The wallet's Swap tab = fully wired and
+waiting for the UI verification pass (the owner can now see the settled
+state + dest_txid + the SANS row on /wallet).
