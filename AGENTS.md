@@ -4102,3 +4102,51 @@ txid — the F53d bogus-link class. It never fetched anything.
     AGAINST PRODUCTION: login (12-word) → /wallet → History tab = exactly
     2 "0.001 DASH withdrawn to Core · 3d ago · Paid · view on explorer"
     rows + 2 explorer doc links + ZERO page errors.
+
+## F57 PHASE 3 — THE FEED/DOCUMENT READS ON THE LADDER (proxy FIRST, wasm
+## per-call fallback) (2026-11-17, commit `343e421`, deployed + prod-verified)
+
+The owner-approved third phase: the document reads leave the wasm-SDK-only
+path. The F27o-era blocker is SUPERSEDED — live-probed (2026-11-17): the
+proxy's get_documents accepts the previously-rejected shapes TODAY (all
+HTTP 200): the global feed (languageTimeline + `$createdAt > 0`), the
+author feed (ownerAndTime + `$createdAt > 0`), withdrawal docs by
+$ownerId, and the plain query; the evoService.queryDocuments
+auto-injects missing timestamp `>0` clauses for orderBy timestamp fields.
+
+(a) **lib/dapi-proxy.ts**: `fetchDocumentsProxyFirst(network, query,
+    fallback)` + `fetchDocumentViaProxyFirst(...)` — the F29 pattern. An
+    EMPTY proxy array = an honest answer (returned as-is, NO fallback); a
+    non-array result = a shape break (fallback); get_document's
+    definitive "Document not found" verdict returns undefined WITHOUT
+    burning the fallback (the pshenmic handler 404s); any other failure
+    falls back per call. Proxy params =
+    {dataContractId, documentType, whereClause, orderBy, limit,
+    startAfter, startAt} (paramValidator.js); rows come back in the SAME
+    flat $-shape compat.get_documents maps to ($id/$ownerId/$createdAt +
+    the data fields at top level) — consumers unchanged.
+(b) **lib/dash-platform-client.ts**: `documentsViaLadder` /
+    `documentByIdViaLadder` helpers; ALL read sites converted — the
+    global/author feed (queryPosts), the two interaction-count `in`
+    batches (getInteractionCounts + getInteractionsForPosts), getReplies,
+    getPostById, and the profile query. The wasm fallback legs keep their
+    exact prior behavior (JSON-stringified clauses through compat
+    get_documents); the legacy defensive SDK-object shims stay 1:1 (now
+    provably dead on the ladder path, cast to any for tsc).
+(c) **NOT converted**: dpns_resolve_name (the proxy path is broken
+    server-side — the DAPI team's issue 61ae759) and the WRITE paths
+    (documentCreate) — both stay wasm. The 87-ish per-page seed
+    getDocuments calls left in the e2e trace are the DPNS reverse
+    lookups (resolveItemAuthors) — a future ladder candidate once the
+    proxy's DPNS surface is fixed.
+(d) **Tests**: test/unit/lib/dapi-proxy-documents.test.mts (8): the
+    request shape, honest empties, fallback on failure/shape-break, the
+    definitive-miss short-circuit.
+(e) **Gates on evorunner**: tsc 0, eslint clean, 320/320 (35 files),
+    build 36/36. Browser e2e: login → /posts = real posts render, **9/9
+    proxy get_documents calls OK** (the feed reads visibly go through
+    dapi.sansbank.dev), 0 Invalid Date, 0 'User nknown', 0 page errors —
+    verified on BOTH the local out/ and PRODUCTION testnet.evonext.app
+    (deployed via the direct wrangler path; chunk page-1a572b151fe75d32
+    — unchanged wallet-page hash because the ladder lives in the shared
+    lib chunks).
