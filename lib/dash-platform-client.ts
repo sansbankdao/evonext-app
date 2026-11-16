@@ -99,6 +99,60 @@ export class DashPlatformClient {
         }
     }
 
+    /* F57 PHASE 3 — the document reads ride the resilience ladder: the dapi
+     * proxy FIRST (12s-bounded by proxyCall, wasm-free), the wasm SDK as the
+     * per-call fallback on ANY proxy failure. The proxy returns the SAME
+     * flat $-shape compat.get_documents maps to, so every consumer below is
+     * unchanged. where/orderBy take the ARRAY form the call sites already
+     * build; the wasm fallback leg keeps its JSON-string serialization. */
+    private async documentsViaLadder(
+        contractId: string,
+        documentType: string,
+        where: unknown[] | null,
+        orderBy: unknown[] | null,
+        limit: number | null,
+        startAfter: string | null = null,
+        startAt: string | null = null,
+    ): Promise<any[]> {
+        const network = ((getNetwork() === 'mainnet') ? 'mainnet' : 'testnet')
+        const { fetchDocumentsProxyFirst } = await import('./dapi-proxy')
+        return fetchDocumentsProxyFirst(network, {
+            contractId,
+            type: documentType,
+            where,
+            orderBy,
+            limit,
+            startAfter,
+            startAt,
+        }, async () => {
+            const response = await get_documents(
+                this.sdk,
+                contractId,
+                documentType,
+                where && where.length > 0 ? JSON.stringify(where) : null,
+                orderBy && orderBy.length > 0 ? JSON.stringify(orderBy) : null,
+                limit,
+                startAfter,
+                startAt,
+            )
+            return Array.isArray(response) ? response : []
+        })
+    }
+
+    /** A single document by id through the same ladder. */
+    private async documentByIdViaLadder(
+        contractId: string,
+        documentType: string,
+        documentId: string,
+    ): Promise<any | undefined> {
+        const network = ((getNetwork() === 'mainnet') ? 'mainnet' : 'testnet')
+        const { fetchDocumentViaProxyFirst } = await import('./dapi-proxy')
+        return fetchDocumentViaProxyFirst(network, contractId, documentType, documentId, async () => {
+            const { get_document } = await import('./dash-wasm/compat')
+            return get_document(this.sdk, contractId, documentType, documentId)
+        })
+    }
+
     /**
      * Set the identity ID for document operations
      * This is called by the auth system after identity verification
@@ -313,25 +367,24 @@ export class DashPlatformClient {
                 limit: 1
             }
 
-            const profileResponse = await get_documents(
-                this.sdk,
+            const profileResponse = await this.documentsViaLadder(
                 contractId,
                 'profile',
-                JSON.stringify(query.where),
+                query.where,
                 null,
-                query.limit,
-                null,
-                null
+                query.limit
             )
 
 
-            // Convert response if needed
+            // Convert response if needed (F57 Phase 3: the ladder returns the
+            // flat array already — the legacy shim stays as a defensive no-op).
             let profiles
 
-            if (profileResponse && typeof profileResponse.toJSON === 'function') {
-                profiles = profileResponse.toJSON()
+            const rawProfileResponse: any = profileResponse
+            if (rawProfileResponse && typeof rawProfileResponse.toJSON === 'function') {
+                profiles = rawProfileResponse.toJSON()
             } else {
-                profiles = profileResponse
+                profiles = rawProfileResponse
             }
 
 
@@ -436,27 +489,28 @@ export class DashPlatformClient {
             }
 
             try {
-                const postsResponse = await get_documents(
-                    this.sdk,
+                const postsResponse = await this.documentsViaLadder(
                     this.contractId!,
                     'post',
-                    where.length > 0 ? JSON.stringify(where) : null,
-                    JSON.stringify(orderBy),
+                    where.length > 0 ? where : null,
+                    orderBy,
                     options?.limit || 20,
-                    options?.startAfter || null,
-                    null // startAt
+                    options?.startAfter || null
                 )
 
 
-                // Convert response if needed
+                // Convert response if needed (F57 Phase 3: the ladder returns
+                // the flat array already — the legacy SDK-object shims stay
+                // as a defensive no-op for any non-ladder response shape).
                 let posts
 
-                if (postsResponse && typeof postsResponse.toJSON === 'function') {
-                    posts = postsResponse.toJSON()
-                } else if (postsResponse && postsResponse.documents) {
-                    posts = postsResponse.documents
+                const rawPostsResponse: any = postsResponse
+                if (rawPostsResponse && typeof rawPostsResponse.toJSON === 'function') {
+                    posts = rawPostsResponse.toJSON()
+                } else if (rawPostsResponse && rawPostsResponse.documents) {
+                    posts = rawPostsResponse.documents
                 } else {
-                    posts = postsResponse || []
+                    posts = rawPostsResponse || []
                 }
 
 
@@ -545,15 +599,13 @@ export class DashPlatformClient {
 
                 // Paginate past the 100 documents per query cap.
                 for (let page = 0; page < 100; page++) {
-                    const response = await get_documents(
-                        this.sdk,
+                    const response = await this.documentsViaLadder(
                         this.contractId!,
                         spec.documentType,
-                        JSON.stringify([[spec.field, 'in', postIds]]),
-                        JSON.stringify(spec.orderBy),
+                        [[spec.field, 'in', postIds]],
+                        spec.orderBy,
                         100,
-                        startAfter,
-                        null // startAt
+                        startAfter
                     )
 
                     const docs: any[] = Array.isArray(response) ? response : []
@@ -664,15 +716,13 @@ export class DashPlatformClient {
 
                 // Paginate past the 100 documents per query cap.
                 for (let page = 0; page < 100; page++) {
-                    const response = await get_documents(
-                        this.sdk,
+                    const response = await this.documentsViaLadder(
                         this.contractId!,
                         spec.documentType,
-                        JSON.stringify([[spec.field, 'in', postIds]]),
-                        JSON.stringify(spec.orderBy),
+                        [[spec.field, 'in', postIds]],
+                        spec.orderBy,
                         100,
-                        startAfter,
-                        null // startAt
+                        startAfter
                     )
 
                     const docs: any[] = Array.isArray(response) ? response : []
@@ -721,9 +771,7 @@ export class DashPlatformClient {
         try {
             await this.ensureInitialized()
 
-            const { get_document } = await import('./dash-wasm/compat')
-
-            return await get_document(this.sdk, this.contractId!, 'post', id)
+            return await this.documentByIdViaLadder(this.contractId!, 'post', id)
         } catch (error) {
             const message = (error as any)?.message || String(error)
             console.error('DashPlatformClient: Failed to get post by ID:', message)
@@ -740,15 +788,12 @@ export class DashPlatformClient {
         try {
             await this.ensureInitialized()
 
-            const response = await get_documents(
-                this.sdk,
+            const response = await this.documentsViaLadder(
                 this.contractId!,
                 'reply',
-                JSON.stringify([['parentId', '==', postId]]),
-                JSON.stringify([['parentId', 'asc'], ['$createdAt', 'asc']]),
-                limit,
-                null, // startAfter
-                null // startAt
+                [['parentId', '==', postId]],
+                [['parentId', 'asc'], ['$createdAt', 'asc']],
+                limit
             )
 
             return Array.isArray(response) ? response : []

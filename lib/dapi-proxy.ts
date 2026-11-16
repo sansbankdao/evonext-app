@@ -78,10 +78,16 @@ export async function proxyCall(
     }
 }
 
-/* NOTE: the proxy's get_documents path enforces STRICTER grpc index
- * validation than the WASM SDK (it rejects the `$createdAt > 0` range clauses
- * the Yappr feed relies on — see smoke tests). Document queries therefore stay
- * on the WASM SDK; the proxy serves identity reads where its cache wins.
+/* NOTE (F57 PHASE 3, 2026-11-17): the F27o-era note — "document queries stay
+ * on the WASM SDK because the proxy rejects the `$createdAt > 0` clauses the
+ * Yappr feed relies on" — is SUPERSEDED. Live-probed (all HTTP 200 through
+ * dapi.sansbank.dev): the global-feed shape (languageTimeline + $createdAt>0),
+ * the author-feed shape (ownerAndTime + $createdAt>0), the withdrawal docs by
+ * $ownerId, and the plain unfiltered query ALL pass today, and the rows come
+ * back in the SAME flat $-shape compat.get_documents maps to. The feed's
+ * document reads now ride the ladder below (proxy FIRST, per-call wasm
+ * fallback); the dwpns_resolve_name proxy path stays broken server-side
+ * (the DAPI team's issue 61ae759) — DPNS remains wasm-only.
  */
 
 /**
@@ -278,6 +284,101 @@ export async function fetchShieldedNotesCountViaProxy(
         console.warn('[dapi-proxy] get_shielded_notes_count failed, falling back to WASM SDK:', (error as Error)?.message)
     }
     return fallback()
+}
+
+/* F57 PHASE 3 — the document/feed reads on the same ladder.
+ *
+ * The proxy's get_documents (evoService.queryDocuments) takes
+ * {dataContractId, documentType, whereClause, orderBy, limit, startAfter,
+ * startAt} (paramValidator.js) and returns the flat $-shaped plain objects
+ * ($id/$ownerId/$createdAt/… + the data fields at top level) — the SAME
+ * shape compat.get_documents hands back, so every consumer is unchanged.
+ * The 12s proxy timeout (proxyCall) bounds the proxy leg; the wasm leg is
+ * the caller's fallback and keeps its existing behavior.
+ */
+export interface DocumentsProxyQuery {
+    contractId: string;
+    type: string;
+    where?: unknown[] | null;
+    orderBy?: unknown[] | null;
+    limit?: number | null;
+    startAfter?: string | null;
+    startAt?: string | null;
+}
+
+/** One page of documents via the proxy — throws on any proxy failure. */
+async function fetchDocumentsViaProxyOnly(
+    network: 'mainnet' | 'testnet',
+    query: DocumentsProxyQuery,
+): Promise<any[]> {
+    const params: Record<string, unknown> = {
+        dataContractId: query.contractId,
+        documentType: query.type,
+    }
+    if (query.where && query.where.length > 0) params.whereClause = query.where
+    if (query.orderBy && query.orderBy.length > 0) params.orderBy = query.orderBy
+    if (query.limit != null) params.limit = query.limit
+    if (query.startAfter) params.startAfter = query.startAfter
+    if (query.startAt) params.startAt = query.startAt
+
+    const result = await proxyCall('get_documents', params, network)
+    /* An honest proxy answer is an array (possibly empty). Anything else is
+     * a shape break — treat it as a proxy failure for the fallback. */
+    if (!Array.isArray(result)) {
+        throw new Error('proxy get_documents returned a non-array')
+    }
+    return result
+}
+
+/**
+ * Document queries: proxy FIRST, per-call wasm fallback — the F29 pattern.
+ * The fallback receives nothing and must return the document array itself.
+ * An EMPTY proxy array is an honest answer (no matching documents) and is
+ * returned as-is — the fallback only runs on proxy failures.
+ */
+export async function fetchDocumentsProxyFirst(
+    network: 'mainnet' | 'testnet',
+    query: DocumentsProxyQuery,
+    fallback: () => Promise<any[]>,
+): Promise<any[]> {
+    try {
+        return await fetchDocumentsViaProxyOnly(network, query)
+    } catch (proxyError) {
+        console.warn('[dapi-proxy] get_documents via proxy failed — falling back to the wasm SDK:',
+            String((proxyError as any)?.message ?? proxyError).slice(0, 140))
+        return fallback()
+    }
+}
+
+/**
+ * A single document by id: proxy first (get_document). A definitive
+ * "Document not found" verdict returns undefined WITHOUT burning the
+ * fallback; any other proxy failure falls back to the wasm leg.
+ */
+export async function fetchDocumentViaProxyFirst(
+    network: 'mainnet' | 'testnet',
+    contractId: string,
+    type: string,
+    documentId: string,
+    fallback: () => Promise<any | undefined>,
+): Promise<any | undefined> {
+    try {
+        const result = await proxyCall('get_document', {
+            dataContractId: contractId,
+            documentType: type,
+            documentId,
+        }, network)
+        return result ?? undefined
+    } catch (proxyError) {
+        const message = String((proxyError as any)?.message ?? proxyError)
+        /* The pshenmic handler 404s with "Document not found" — a definitive
+         * on-chain miss, not a proxy failure. The wasm leg would return
+         * undefined for the same document. */
+        if (/document not found/i.test(message)) return undefined
+        console.warn('[dapi-proxy] get_document via proxy failed — falling back to the wasm SDK:',
+            message.slice(0, 140))
+        return fallback()
+    }
 }
 
 /**
