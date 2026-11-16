@@ -3954,3 +3954,63 @@ re-reviewed claim-by-claim:
     FRONTEND-HANDOFF-2-RESPONSE + the live GET /v1/status; the swap-track
     completion = the next-session task (read those + the F47 questions
     against swap.tsx).
+
+## F58 — THE SWAP TRACK COMPLETED (the app side) + THE SETTLEMENT EXECUTION
+## BLOCKER (upstream, both teams filed) (2026-11-16, commits 434e108/7ac4914)
+
+(a) **The network-aware Pages Function** (functions/api/dashswap/[[path]].js):
+    `?network=testnet` → testnet.dashswap.xyz/v1 + DASHSWAP_API_KEY_TESTNET,
+    mainnet → dashswap.xyz/v1 + DASHSWAP_API_KEY (BOTH secrets set via the
+    wrangler path = the owner's staged dev keys from the sansbank
+    ~/.cloudflare/). Verified live on the deployed site: the testnet quote
+    = network:"testnet", the create = the testnet D1 (bip44_index 2).
+
+(b) **swap.tsx completed per the DashSwap answers**: the estimate = THEIR
+    quote endpoint's expected_out (NET of fee; the engine's own math — our
+    rate×amount derivation DELETED) + fee_duffs/season displayed; the
+    status vocabulary PINNED from their detect.ts source (pending →
+    detected → confirmed → settling → settled, the user labels, no
+    fabricated failures); dest_txid = displayed + copied + deep-linked to
+    the token's explorer page; the per-token decimals (SANS 8/DUSD 6) in
+    the display + the history. tsc 0, eslint clean, 295/295, build green,
+    deployed ×2 (the routing bug caught live — see (d)).
+
+(c) **THE LIVE ROUND-TRIP ran through the REAL funds**: the testnet swap
+    70cb1414-d2ed-4ec3-9bf4-d6c94666cbd8 (0.1 tDASH → SANS, dest = the
+    e2e identity), funded with tx 9a9a5e18… from the funding wallet →
+    their engine detected (the monitor shim core.sansbank.dev/execute =
+    LIVE for testnet — probed directly) → confirmed → **settling with
+    dest_txid f0a0a74fb91084f630f931956dca427376cf74df** recorded by their
+    engine (the amount = 59,820,000 net duffs — the deposit address also
+    received an unattributed 0.5 tDASH which their unspent-total semantics
+    correctly swept into the same swap; the math exact). The tokens did
+    NOT land: the recipient balance = 0 by the direct wasm reads
+    (get_identities_token_balances_with_proof_info, ~20 min, DUSD = 45M
+    on the same read path ✓). Their OWN probe swap b6e4d30c = stuck
+    identically ("balance delta 0 < expected"). **THE DAPI PROXY'S
+    broadcastStateTransition = returns 200 + the stateTransitionHash but
+    the transitions never execute** — the handoff filed with the DAPI
+    team (docs/HANDOFF-broadcast-settlement-not-executing.md, their
+    commit 7ac4914) + the completion ACK for the DashSwap team
+    (EVONEXT-SWAP-UI-COMPLETION-ACK.md, their commit 434e108). The moment
+    the executions land, both swaps flip settled — ZERO wallet-side work
+    remains.
+
+(d) **THE LIVE-CAUGHT ROUTING BUG**: my first rsync dropped the Function
+    into evorunner's ~/evonext/web/api/ (the -a dir semantics) so the
+    deployed Function = the OLD mainnet-only version — the testnet create
+    LANDED ON MAINNET with a mainnet deposit address (XqB8cdz…); my 0.1
+    tDASH funding went to a mainnet-derived script unrecoverable by the
+    testnet engine's automation (absorbed ~$0.04). Fixed (the -aR
+    relative delivery + the rm of the misdelivered dir) + the deploy
+    verified by the response network:"testnet". LESSON: after ANY
+    Function edit, verify the deployed behavior, not just the upload.
+
+(e) **The engine facts learned (their source)**: the deposit detection =
+    their batched D5 monitor over core.sansbank.dev/execute
+    getreceivedbyaddresses (the UNSPENT totals, the single-use pool
+    addresses); the settle = their own pure-JS DPP construction
+    (dpp.ts, the serialization-oracle-verified) → the DAPI-proxy
+    broadcast; the confirm = the recipient balance delta per cycle
+    (fail-closed); NO refund/failure states exist yet (the honest
+    "contact support" copy stays).
