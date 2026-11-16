@@ -3912,3 +3912,45 @@ THE WIF-ONLY SESSION UX (the owner guidance): the vault ALREADY wraps the
 legacy WIF (collectPayload includes legacyWif + the restore re-seeds it)
 — the WIF-only user sets an unlock password ONCE (the banner) and every
 future reload = ONE password prompt, never a reconnect.
+
+## F57g — THE DASHSWAP ACK REVIEWED (every claim verified) (2026-11-16)
+
+The team's ACK (`../dashswap-api/EVONEXT-TOKEN-TESTNET-HANDOFF-ACK.md`)
+re-reviewed claim-by-claim:
+
+(a) **§1 VERIFIED ✓**: both contract-info resolutions re-ran = identical;
+    **the tSANS claim VERIFIED END-TO-END**: their id
+    `A36eJF2kyYXwxCtJGsgbR3CTAscUFaNxZN19UqUfM1kw` → resolves (contract
+    `2EUW1Do3exKMDKaj9uh5jkPPSUcrMgXfWUraiz6ALrwP`, position 0), OUR
+    short id `A36eJF2kCcZmZSN…` → NOT_FOUND (reproduced), AND the KAT
+    math: `calculateTokenIdFromContract(2EUW1Do3…, 0)` = A36eJF2kyYXw…
+    EXACT. **The constant in lib/constants.ts was ALREADY correct** (the
+    owner's ACK commit fixed/knew it — the handoff's "our constants"
+    claim traced to the F53-era AGENTS record conflating THEIR frontend's
+    phantom SHORT id with our constant). The only repo change = +1 KAT
+    pinning the tSANS derivation pair + the constant (6/6; guards the
+    F53 confusion class forever).
+
+(b) **§2 VERIFIED ✓**: the 45,000,000 = my own post-5M-send read
+    (consistent); the 5apjqb8 = empty (confirmed by both sides); their
+    15M provenance story = their keys' ledger (their e2e identity
+    ADtgYG2… sent it, and the REMOVAL required 5apjqb8's own keys —
+    which they never held).
+
+(c) **THE MINT-AUTHORITY TRUTH (the big correction to MY mental model)**:
+    BOTH testnet contracts are owned by
+    `AFaVqRJCWXFZRUhuq6ZUUcWXVW8fErCN3wpEtgsBnDZm` — **THE OWNER'S OWN
+    WIF-ONLY IDENTITY** (53.67 DASH credits). The owner IS the
+    dashusd.org issuer custody on testnet: the 50-tDUSD deposit to our
+    e2e identity = the owner's own issuance, NOT a DashSwap
+    distribution (my F57 'inventory is being distributed' note =
+    WRONG — corrected). tSANS minting = noOne (21M hard-capped, fully
+    pre-minted, transfer-only). OPEN QUESTION FOR THE OWNER: do they
+    also hold 5apjqb8…'s keys (the F53c 15M recipient) and did THEY move
+    the 15M out?
+
+(d) **§3 ✓** (the singular-read caution = consistent with the F53
+    notes). **§4**: their swap-UI answers live in their
+    FRONTEND-HANDOFF-2-RESPONSE + the live GET /v1/status; the swap-track
+    completion = the next-session task (read those + the F47 questions
+    against swap.tsx).
