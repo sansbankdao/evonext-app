@@ -29,12 +29,11 @@ import {
     ExclamationTriangleIcon, InboxIcon,
 } from '@heroicons/react/24/outline'
 import {
-    ActivityRow, ActivityTone, ActivityKind, SYSTEM_WITHDRAWAL_CONTRACT_ID,
-    readSwapHistory, withdrawalToRow, swapToRow, mergeActivity,
+    ActivityRow, ActivityTone, ActivityKind,
+    readSwapHistory, swapToRow, mergeActivity, queryWithdrawalRows,
 } from '@/lib/wallet-history'
 import { EVONEXT_CONTRACT_ID_TESTNET, EVONEXT_CONTRACT_ID_MAINNET } from '@/lib/constants'
 
-const QUERY_DEADLINE_MS = 30_000
 const MAX_ROWS = 50
 
 interface WalletHistoryProps {
@@ -106,20 +105,15 @@ export function WalletHistory({ isFullScreen }: WalletHistoryProps) {
                 }
                 const sdk = await getWasmSdk()
                 const compat = await import('@/lib/dash-wasm/compat') as any
-                const docsPromise = compat.get_documents(
-                    sdk,
-                    SYSTEM_WITHDRAWAL_CONTRACT_ID,
-                    'withdrawal',
-                    [['$ownerId', '==', identityId]],
-                    [['$ownerId', 'asc'], ['$updatedAt', 'desc']],
-                    25,
-                )
-                const deadline = new Promise((_, reject) =>
-                    setTimeout(() => reject(new Error('query timed out')), QUERY_DEADLINE_MS))
-                const docs = await Promise.race([docsPromise, deadline]) as any[]
-                withdrawalRows = (Array.isArray(docs) ? docs : [])
-                    .map((doc) => withdrawalToRow(doc, net))
-                    .filter((r): r is ActivityRow => r !== null)
+                /* The deadline race lives in lib/wallet-history.ts now (it is
+                 * testable without the DOM) — behavior identical: the F30
+                 * pending-forever wasm future degrades to the honest error. */
+                const result = await queryWithdrawalRows({
+                    getDocuments: (contractId, type, where, orderBy, limit) =>
+                        compat.get_documents(sdk, contractId, type, where, orderBy, limit),
+                }, identityId, net)
+                withdrawalRows = result.rows
+                error = result.error
             } catch (e: any) {
                 error = (e && typeof e.message === 'string' && e.message) || 'withdrawal history unavailable'
             }

@@ -10,6 +10,7 @@ import {
     dpns_resolve_name
 } from '../dash-wasm/compat'
 import { DPNS_CONTRACT_ID, DPNS_DOCUMENT_TYPE } from '../constants'
+import { getNetwork } from '../network'
 
 interface DpnsDocument {
     $id: string;
@@ -46,10 +47,77 @@ class DpnsService {
     }
 
     /**
+     * F57 Phase 3b — one page of DPNS domain documents through the
+     * resilience ladder: the dapi proxy FIRST (12s-bounded by proxyCall,
+     * wasm-free), the wasm doc query as the per-call fallback.
+     *
+     * ONLY the records.identity reverse queries belong here: the proxy
+     * REJECTS the normalizedLabel startsWith searches ("where clause on
+     * non indexed property" — live-probed 2026-11-17), so the label
+     * searches stay wasm-only.
+     */
+    private async domainsViaLadder(
+        where: unknown[],
+        orderBy: unknown[] | null,
+        limit: number,
+    ): Promise<DpnsDocument[]> {
+        const network = ((getNetwork() === 'mainnet') ? 'mainnet' : 'testnet')
+        const { fetchDocumentsProxyFirst } = await import('../dapi-proxy')
+        return fetchDocumentsProxyFirst(network, {
+            contractId: DPNS_CONTRACT_ID,
+            type: DPNS_DOCUMENT_TYPE,
+            where,
+            orderBy,
+            limit,
+        }, async () => {
+            const sdk = await getWasmSdk()
+
+            const response = await get_documents(
+                sdk,
+                DPNS_CONTRACT_ID,
+                DPNS_DOCUMENT_TYPE,
+                JSON.stringify(where),
+                orderBy ? JSON.stringify(orderBy) : null,
+                limit,
+                null,
+                null
+            )
+
+            const docs = (response && (response as any).documents) ||
+                (Array.isArray(response) ? response : []) || []
+
+            return Array.isArray(docs) ? docs : []
+        })
+    }
+
+    /**
      * Get all usernames for an identity ID
      */
     async getAllUsernames(identityId: string): Promise<string[]> {
         try {
+
+            /* F57 Phase 3b — LADDER FIRST: the feed's resolveUsername fans out
+             * ~2 lookups per author per load (F26s) and those must not hang on
+             * the wasm transport. The proxy's records.identity doc query
+             * (live-probed 2026-11-17 on BOTH networks) returns the same flat
+             * rows the doc fallback below reads; the wasm-native sequence
+             * below stays VERBATIM as the fallback (and still runs for an
+             * honest empty — a nameless identity behaved identically before:
+             * native → doc query → []). */
+            try {
+                const ladderDocs = await this.domainsViaLadder(
+                    [['records.identity', '==', identityId]], null, 20)
+                const ladderUsernames = ladderDocs
+                    .map((doc) => (doc && typeof doc.label === 'string' &&
+                        typeof doc.normalizedParentDomainName === 'string')
+                        ? `${doc.label}.${doc.normalizedParentDomainName}` : null)
+                    .filter((u): u is string => !!u)
+                if (ladderUsernames.length > 0) {
+                    return ladderUsernames
+                }
+            } catch (ladderError) {
+                console.warn('DPNS: the proxy ladder failed — falling back to the wasm-native path:', ladderError);
+            }
 
             const sdk = await getWasmSdk()
 
@@ -120,6 +188,21 @@ class DpnsService {
      */
     async getUsernameCreatedAt(identityId: string): Promise<number | null> {
         try {
+            /* F57 Phase 3b — ladder first (see getAllUsernames); the wasm doc
+             * query below stays verbatim as the fallback. */
+            try {
+                const ladderDocs = await this.domainsViaLadder(
+                    [['records.identity', '==', identityId]], null, 20)
+                const ladderCreatedAts = ladderDocs
+                    .map((doc: DpnsDocument) => Number(doc.$createdAt || 0))
+                    .filter(t => t > 0)
+                if (ladderCreatedAts.length > 0) {
+                    return Math.min(...ladderCreatedAts)
+                }
+            } catch (ladderError) {
+                console.warn('DPNS: the proxy ladder failed — falling back to the wasm query:', ladderError);
+            }
+
             const sdk = await getWasmSdk()
 
             const response = await get_documents(

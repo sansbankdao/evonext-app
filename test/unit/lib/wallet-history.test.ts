@@ -6,11 +6,12 @@
  * History tab from ever regressing (hardcoded DEFAULT_TX, empty-string
  * renderers, the bogus explorer.dash.org/tx/ link with an empty txid).
  */
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { base58 } from '@scure/base'
 import {
     SYSTEM_WITHDRAWAL_CONTRACT_ID, CREDITS_PER_DASH, DUFFS_PER_DASH,
-    dashOfMax, withdrawalToRow, swapToRow, mergeActivity,
+    WITHDRAWAL_QUERY_DEADLINE_MS,
+    dashOfMax, withdrawalToRow, swapToRow, mergeActivity, queryWithdrawalRows,
     swapStatusLabel, swapStatusFailed, swapIsSettled, readSwapHistory,
     ActivityRow, SwapRecord,
 } from '@/lib/wallet-history'
@@ -163,5 +164,63 @@ describe('wallet-history: the dash truncation', () => {
     it('supports the 8-decimal mode for the swap in/out legs', () => {
         expect(dashOfMax(0.5982, 8)).toBe('0.5982')
         expect(dashOfMax(0.001234567, 8)).toBe('0.00123456')
+    })
+})
+
+describe('wallet-history: the F59 withdrawal query race (queryWithdrawalRows)', () => {
+    it('carries the 30s deadline constant (the F30 pending-forever guard)', () => {
+        expect(WITHDRAWAL_QUERY_DEADLINE_MS).toBe(30_000)
+    })
+
+    it('maps the live F46 docs to rows and reports no error', async () => {
+        const port = {
+            getDocuments: vi.fn().mockResolvedValue([T100M_WITHDRAWAL_DOC, { ...T100M_WITHDRAWAL_DOC, $id: 'HkJHnjwphTtd' }]),
+        }
+        const { rows, error } = await queryWithdrawalRows(port, 'EcbX', 'testnet')
+
+        expect(port.getDocuments).toHaveBeenCalledWith(
+            SYSTEM_WITHDRAWAL_CONTRACT_ID, 'withdrawal',
+            [['$ownerId', '==', 'EcbX']],
+            [['$ownerId', 'asc'], ['$updatedAt', 'desc']],
+            25,
+        )
+        expect(error).toBeNull()
+        expect(rows).toHaveLength(2)
+        expect(rows[0].kind).toBe('withdrawal')
+        expect(rows[0].directionLabel).toBe('withdrawn to Core')
+    })
+
+    it('degrades a HANGING query (the F30 wasm future) to the deadline error — never a fake empty', async () => {
+        const port = { getDocuments: vi.fn().mockReturnValue(new Promise(() => {})) }
+        const { rows, error } = await queryWithdrawalRows(port, 'EcbX', 'testnet', 25)
+
+        expect(rows).toEqual([])
+        expect(error).toBe('query timed out')
+    })
+
+    it('propagates the real error message (the honest error line)', async () => {
+        const port = {
+            getDocuments: vi.fn().mockRejectedValue(
+                new Error('Invalid documents query: fromObject: serde deserialization error')),
+        }
+        const { rows, error } = await queryWithdrawalRows(port, 'EcbX', 'testnet')
+
+        expect(rows).toEqual([])
+        expect(error).toBe('Invalid documents query: fromObject: serde deserialization error')
+    })
+
+    it('falls back to the honest generic when the failure carries no message', async () => {
+        const port = { getDocuments: vi.fn().mockRejectedValue('nope') }
+        const { error } = await queryWithdrawalRows(port, 'EcbX', 'testnet', 25)
+
+        expect(error).toBe('withdrawal history unavailable')
+    })
+
+    it('treats a non-array answer as an empty set with no error', async () => {
+        const port = { getDocuments: vi.fn().mockResolvedValue({ weird: true }) }
+        const { rows, error } = await queryWithdrawalRows(port, 'EcbX', 'testnet', 25)
+
+        expect(rows).toEqual([])
+        expect(error).toBeNull()
     })
 })

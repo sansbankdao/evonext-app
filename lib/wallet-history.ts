@@ -190,3 +190,55 @@ export function mergeActivity(a: ActivityRow[], b: ActivityRow[]): ActivityRow[]
         || (x.key < y.key ? -1 : x.key > y.key ? 1 : 0)
     )
 }
+
+/* F59 — the deadline race lives HERE so it is testable without the DOM:
+ * the wasm transport can leave a query pending forever (F30 gotcha — the
+ * response arrives, the future never resolves) — the withdrawal query is
+ * raced against a deadline and the caller degrades to an honest error
+ * line, never a fake empty state. */
+export const WITHDRAWAL_QUERY_DEADLINE_MS = 30_000
+
+/** The narrow query surface the component wires to compat.get_documents. */
+export interface WithdrawalQueryPort {
+    getDocuments: (
+        contractId: string,
+        type: string,
+        where: unknown[],
+        orderBy: unknown[],
+        limit: number,
+    ) => Promise<any[]>;
+}
+
+/** Query the system contract's withdrawal docs by the WITHDRAWING identity
+ * ($ownerId — the F48 correction) over identityRecent($ownerId,$updatedAt,
+ * status) and map them to history rows. A deadline timeout or any query
+ * failure returns the real message (or the honest generic) as `error` with
+ * rows [] — the caller renders it verbatim. */
+export async function queryWithdrawalRows(
+    port: WithdrawalQueryPort,
+    identityId: string,
+    network: 'mainnet' | 'testnet',
+    deadlineMs: number = WITHDRAWAL_QUERY_DEADLINE_MS,
+): Promise<{ rows: ActivityRow[]; error: string | null }> {
+    try {
+        const docsPromise = port.getDocuments(
+            SYSTEM_WITHDRAWAL_CONTRACT_ID,
+            'withdrawal',
+            [['$ownerId', '==', identityId]],
+            [['$ownerId', 'asc'], ['$updatedAt', 'desc']],
+            25,
+        )
+        const deadline = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('query timed out')), deadlineMs))
+        const docs = await Promise.race([docsPromise, deadline]) as any[]
+        const rows = (Array.isArray(docs) ? docs : [])
+            .map((doc) => withdrawalToRow(doc, network))
+            .filter((r): r is ActivityRow => r !== null)
+        return { rows, error: null }
+    } catch (e: any) {
+        return {
+            rows: [],
+            error: (e && typeof e.message === 'string' && e.message) || 'withdrawal history unavailable',
+        }
+    }
+}
