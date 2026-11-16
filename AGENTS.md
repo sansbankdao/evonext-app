@@ -4150,3 +4150,47 @@ auto-injects missing timestamp `>0` clauses for orderBy timestamp fields.
     (deployed via the direct wrangler path; chunk page-1a572b151fe75d32
     — unchanged wallet-page hash because the ladder lives in the shared
     lib chunks).
+
+## F57 PHASE 3b — THE DPNS USERNAME LOOKUPS ON THE LADDER + THE REGRESSION
+## SUITE EXPANSION (2026-11-17, commit `f2d13d7`, deployed + prod-verified)
+
+(a) **dpns-service.domainsViaLadder** — the `records.identity` reverse
+    queries (getAllUsernames, getUsernameCreatedAt) go PROXY-first with the
+    wasm-native sequence (get_dpns_usernames → the doc query) kept VERBATIM
+    as the fallback; an honest empty (nameless identity) still runs the
+    fallback — parity with the old behavior. The feed's resolveUsername
+    fans out ~2 lookups per author per load (F26s) and now makes ZERO wasm
+    calls for named identities. The proxy REJECTS the normalizedLabel
+    startsWith searches ("where clause on non indexed property",
+    live-probed) — the label searches stay wasm-only. Live-probed the
+    reverse query on BOTH networks (testnet → evonextf39nov13identity.dash,
+    mainnet → the F55 identity); DPNS contract id = 32 bytes (the 43-char
+    gotcha class pinned by a test).
+(b) **queryWithdrawalRows extracted** from the History component into
+    lib/wallet-history.ts — the 30s deadline race is testable without the
+    DOM; behavior identical (the component wires the port closure).
+(c) **THE SUITE: 320 → 341 tests (38 files), +21**:
+    - `wasm-sdk-service-preload.test.mts` (3): the F59 LIVE-HIT —
+      initialize() RESOLVES when getDataContract pends forever (the exact
+      login-killer shape), the late settle is harmless, the fast path.
+    - `dash-platform-client-ladder.test.mts` (6): the F26o languageTimeline
+      + ownerAndTime feed shapes, the F26p parentAndTime replies shape and
+      the `in` batch fields (postId/parentId/quotedPostId), the proxy
+      request shapes, the wasm fallback legs keeping the EXACT prior
+      JSON-string serialization. (Losing any of these = the stale-feed or
+      interaction-count bugs return.)
+    - `dpns-ladder.test.mts` (6): the contract-id byte-length pin, the
+      proxy-first mapping, the nameless fallback parity, the fallback
+      serialization.
+    - `wallet-history.test.ts` +6: queryWithdrawalRows (the deadline
+      constant, the F46 mapping, the hanging-query degradation, the
+      real-message propagation, the no-message generic, non-array
+      tolerance).
+(d) **Gates on evorunner**: tsc 0, eslint clean, 341/341, build 36/36.
+    Browser e2e: the feed renders 20 named cards with the DPNS lookups on
+    the proxy (19/19 and 20/20 OK across two runs); seed getDocuments per
+    feed load 92 → 38-52 (the remainder = the login path, nameless
+    fallbacks, and dpns_resolve_name forward lookups — still wasm); a
+    transient proxy timeout degraded to wasm mid-load and still rendered
+    (the ladder doing its job). Verified on BOTH the local out/ and
+    PRODUCTION.
