@@ -46,6 +46,20 @@ describe('token-id facts (F53 regression guards)', () => {
             .toBe('DYqxCsuDgYsEAJ2ADnimkwNdL7C4xbe4No4so19X9mmd')
     })
 
+    it('derives the tSANS token id from its contract (the DashSwap-ACK-verified pair)', () => {
+        /* The F53-class confusion (an id that LOOKS similar but does not
+         * derive): the testnet tSANS token = (contract 2EUW1Do3…, position 0)
+         * → A36eJF2kyYXwxCtJGsgbR3CTAscUFaNxZN19UqUfM1kw. Live-verified via
+         * get_token_contract_info 2026-11-16 + the DashSwap ACK; the SHORT
+         * A36eJF2kCcZmZSN… id from the early records = Resource not found
+         * (reproduced by BOTH teams) and must NEVER enter the constants. */
+        expect(WasmSdk.calculateTokenIdFromContract(
+            '2EUW1Do3exKMDKaj9uh5jkPPSUcrMgXfWUraiz6ALrwP', 0))
+            .toBe('A36eJF2kyYXwxCtJGsgbR3CTAscUFaNxZN19UqUfM1kw')
+        expect(SANS_CONTRACT_ID_TESTNET)
+            .toBe('A36eJF2kyYXwxCtJGsgbR3CTAscUFaNxZN19UqUfM1kw')
+    })
+
     it('the DUSD constants ARE token ids (they resolve to their contracts)', () => {
         /* The inverse direction: TokenContractInfo carries the (contract,
          * position) pair for a token id. The constants must remain the
