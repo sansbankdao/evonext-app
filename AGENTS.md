@@ -4272,3 +4272,40 @@ GOOD NEWS verified in the same probe: types **9 and 11 ARE indexed**
 8Yj6's live 41-row histogram), so the address-funds identity lanes are
 already consumable; the wallet will map them once we pin whether their
 strings should join PLATFORM_ACTIVITY_TYPES.
+
+## F57c follow-up 2 — the DAPI team REVIEWED the activity-gaps handoff;
+## GAP 1 (tokens) answerable NOW via the token-history system contract
+## (2026-11-18; their review `dev-dapi-proxy/docs/REVIEW-evonext-identity-
+## activity-gaps.md`, our ack commit `905b39a`)
+
+- **Record correction (verified by the indexer source + heights)**: the
+  F53c 15,000,000-base tDUSD send (h 674823) sender is **ADtgYG2MHikwv4U
+  iZeY8faUsEkH1YDjEnJFhGbuXLfFB** (the owner's personal identity), NOT
+  EcbX…. Both F58 settlements confirmed: h 691632 (20,992,963,125 →
+  ADtgYG2…) and h 691633 (37,387,500,000 → EcbXLy…), sender DpLt5xy….
+- **Phase A SHIPPED by DAPI**: token-history system contract
+  `43gujrzZgXqcKBiScLa4T8XTDnRhenR9BLx8GWVHjPxF` (ONE contract for all
+  tokens; id verified 32 bytes); tDUSD/tSANS keepsHistory ALL true;
+  `transfer` docs = {tokenId, amount, toIdentityId, $ownerId=sender,
+  $createdAt in MILLISECONDS}; indices from(tokenId,$ownerId,$createdAt)
+  AND to(tokenId,toIdentityId,$createdAt). LIVE-VERIFIED through the
+  proxy by us: both settlements + the engine's other transfers return
+  with full amounts/counterparties; the incoming-side query works.
+  **NEXT: the web History tab gains the token source** (outgoing =
+  $ownerId, incoming = toIdentityId, our two token ids; assetLabel per
+  token decimals tDUSD 6 / tSANS 8; deep-link = the document route).
+- **Shielded matrix (their code-read, our premise corrected)**: 16
+  ShieldedTransfer exposes NO identity (binding-sig-only — outgoing is
+  CLIENT-SIDE by design; our engine scan already covers it); 15 Shield /
+  17 Unshield are ADDRESS-attributed (get_platform_address_history —
+  the F51b unshield IS indexed there); 18 ShieldFromAssetLock has a
+  zero-row hole (surplus-output-only — bug, Phase B); 20/21/22 need the
+  dpp version bump (the pinned dpp 4.1.0 enum ends at 20 — types 21/22
+  currently fall into decodeError rows, of which there are 30,969 on
+  testnet / 356 mainnet, storm ongoing). Phase B (parked by the proxy
+  owner): batch-V1 decomposition into typed token rows, the 18 fix,
+  decodeError hash recording, the version bump + idempotent re-walk.
+- **Confirmations**: indexedUpTo = hard watermark (rows can never exceed
+  it); cursor = keyset over BIGSERIAL id (id < cursor, ORDER BY id DESC,
+  insert-only, opaque-safe); txid == transitionId (64-hex,
+  deep-linkable) once decodable.
