@@ -4476,3 +4476,46 @@ NEXT SESSION CANDIDATES (owner-visible queue):
   the real funding date); zero page errors.
 - Gates: tsc 0, eslint clean, 351/351 (38 files), build green,
   playwright 2/2.
+
+## F57g — DashPay usernames in the Send destination (both suffix forms) +
+## the token fiat pricing fixed + the DPNS homoglyph bug (2026-11-18,
+## commit `f0978b4`)
+
+1. **FULL username support** — the Send path accepted usernames all
+   along (dpns_resolve_name; LIVE-PROBED: BOTH the bare label AND the
+   '.dash' suffix resolve to the same identity) but the recipient card
+   and two normalization bugs remained:
+   - The submit path now LOWERCASES the input (DPNS labels are stored
+     lowercase; the branch only runs when the input already failed the
+     32-byte id decode, so a real id can never be corrupted).
+   - The recipient card's username branch needs the wasm — on a COLD
+     session it failed silently. NEW trustless-ladder fallback: a direct
+     dapi-proxy get_documents query on the DPNS domain contract
+     (fetchDocumentsProxyFirst) — works with ZERO wasm.
+   - **THE DPNS HOMOGLYPH BUG (repo-wide)**: the contract schema (v2,
+     packages/dpns-contract/schema — the authoritative source) pins
+     normalizedLabel = lowercase + o->0, i->1, l->1 ('evonext…' is
+     stored 'ev0next…', 'pasta' stays 'pasta' — three live data points
+     agreed). Querying the RAW label NEVER matches; dpns-service's own
+     resolveIdentity FALLBACK had the raw label AND label-first clause
+     order (the parentNameAndLabel index leads with the PARENT —
+     label-first was rejected as non-indexed). Both fixed via the
+     exported dpnsNormalizeLabel helper.
+   - records.identity on domain docs is a SCALAR identity-id string
+     (live-probed), not an array.
+   - The username deadline 8s -> 25s + an honest 'lookup timed out'
+     line; the card stores the RESOLVED id (the ID tile shows
+     EcbXLyhW…xXqdVa even when the user typed the username).
+   LIVE-PROVEN in the browser: 'evonextf39nov13identity.dash' ->
+   0.020386 DASH / @evonextf39nov13identity / EcbXLyhW…xXqdVa; the id
+   DpLt5xyRoACYkXjbVa95nzzG7ZtpiEcTGWR5W6es4xmh (32-byte decode
+   verified) -> 0.858318 DASH.
+2. **The token fiat pricing** (the owner's report): the Assets list
+   valued BOTH token rows at the DASH SPOT (2,400.9551 DUSD ->
+   \$90,968.03; 19,662,806.907 SANS -> \$744,989,653.38). Fixed to the
+   tokens' OWN constants: DUSD_USD_VALUE = 1.00 (-> \$2,400.96) and
+   SANS_USD_VALUE = 0.01 (-> \$196,628.07) — the same constants the
+   Send confirm dialog already used. The wallet-assets regression
+   tests now PIN the fiat figures (15 DUSD -> \$15; 10 SANS -> \$0.10).
+Gates: tsc 0, eslint clean, 351/351 (38 files), build green,
+playwright 2/2.
