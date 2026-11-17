@@ -316,7 +316,13 @@ class DpnsService {
                 console.warn('DPNS: Native resolver failed, trying document query:', error);
             }
 
-            // Fallback: Query DPNS documents
+            // Fallback: Query DPNS documents. F57g — TWO fixes: (1) the
+            // normalizedLabel is the HOMOGLYPH-NORMALIZED form (the
+            // contract schema: lowercase + o->0, i->1, l->1 — the raw
+            // label NEVER matches: 'evonextf39nov13identity' is stored as
+            // 'ev0nextf39n0v131dent1ty'); (2) the parentNameAndLabel index
+            // leads with normalizedParentDomainName — the label-first
+            // clause order was not an index prefix and got rejected.
             const parts = normalizedUsername.split('.');
             const label = parts[0];
             const parentDomain = parts.slice(1).join('.') || 'dash';
@@ -326,8 +332,8 @@ class DpnsService {
                 DPNS_CONTRACT_ID,
                 DPNS_DOCUMENT_TYPE,
                 JSON.stringify([
-                    ['normalizedLabel', '==', label.toLowerCase()],
-                    ['normalizedParentDomainName', '==', parentDomain.toLowerCase()]
+                    ['normalizedParentDomainName', '==', dpnsNormalizeLabel(parentDomain)],
+                    ['normalizedLabel', '==', dpnsNormalizeLabel(label)]
                 ]),
                 null,
                 1,
@@ -647,6 +653,16 @@ class DpnsService {
 }
 
 // Singleton instance
+/* F57g — the DPNS label normalization, per the contract schema (v2):
+ * the label is LOWERCASED and the letters o, i, l are replaced by 0, 1,
+ * 1 to mitigate homograph attacks. The normalizedLabel INDEX only
+ * matches this form — a raw-typed label ('evonext…') never will
+ * (live-proven: 'evonextf39nov13identity' is stored as
+ * 'ev0nextf39n0v131dent1ty'). */
+export function dpnsNormalizeLabel(label: string): string {
+    return label.toLowerCase().replace(/[oil]/g, (c) => (c === 'o' ? '0' : '1'))
+}
+
 export const dpnsService = new DpnsService()
 
 // Set up periodic cache cleanup

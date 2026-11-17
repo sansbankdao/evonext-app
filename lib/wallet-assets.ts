@@ -95,7 +95,11 @@ export function buildAvailableAssets(input: AvailableAssetInput): IToken[] {
             loading: dusdBalance === undefined || dusdBalance === null,
             decimal_places: DUSD_DECIMALS,
             fiat: {
-                USD: dashUsdValue * (Number(dusdBalance ?? 0n) / (10 ** DUSD_DECIMALS)),
+                /* F57g — the TOKEN's own USD value (DUSD_USD_VALUE = 1.00,
+                 * the stablecoin peg — NOT the DASH price; valuing DUSD at
+                 * the DASH spot made 2,400 DUSD render as $90,968). The
+                 * Send panel's confirm dialog already used the constant. */
+                USD: DUSD_USD_VALUE * (Number(dusdBalance ?? 0n) / (10 ** DUSD_DECIMALS)),
             },
         })
     }
@@ -112,7 +116,9 @@ export function buildAvailableAssets(input: AvailableAssetInput): IToken[] {
             loading: sansBalance === undefined || sansBalance === null,
             decimal_places: SANS_DECIMALS,
             fiat: {
-                USD: dashUsdValue * (Number(sansBalance ?? 0n) / (10 ** SANS_DECIMALS)),
+                /* F57g — SANS's own USD value (0.01), not the DASH spot —
+                 * the old math made 19.66M SANS render as $744,989,653. */
+                USD: SANS_USD_VALUE * (Number(sansBalance ?? 0n) / (10 ** SANS_DECIMALS)),
             },
         })
     }

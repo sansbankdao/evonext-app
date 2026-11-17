@@ -218,6 +218,7 @@ export function WalletSend({ isFullScreen }: IWalletSendProps) {
     type ReceiverInfo = {
         kind: 'identity' | 'address'
         username?: string
+        identityId?: string
         balanceCredits?: number
         confirmedDuffs?: number
         unconfirmedDuffs?: number
@@ -255,6 +256,7 @@ export function WalletSend({ isFullScreen }: IWalletSendProps) {
                             setReceiverInfo({
                                 kind: 'identity',
                                 username: username || undefined,
+                                identityId: raw,
                                 balanceCredits: identity.balance,
                             })
                         }
@@ -298,21 +300,67 @@ export function WalletSend({ isFullScreen }: IWalletSendProps) {
                         })
                     } else {
                         /* A DPNS username: resolve to the identity id, then
-                         * the identity lookup. */
+                         * the identity lookup. F57g: this is the ONE branch
+                         * that needs the wasm SDK (resolveIdentity ->
+                         * dpns_resolve_name) — on a COLD session the 26.5MB
+                         * module load + trusted-context prefetch can exceed
+                         * 8s, so the deadline must be generous (25s) AND
+                         * honest: a timeout says TIMED OUT, not 'not found'. */
                         const { dpnsService } = await import('@/lib/services/dpns-service')
-                        const deadline = new Promise<null>((resolve) =>
-                            setTimeout(() => resolve(null), 8000))
                         const resolvedId = await Promise.race([
                             dpnsService.resolveIdentity(raw).catch(() => null),
-                            deadline,
+                            new Promise<'timeout'>((resolve) => setTimeout(() => resolve('timeout'), 25_000)),
                         ])
                         if (cancelled) return
-                        if (!resolvedId) {
+                        if (resolvedId === 'timeout') {
+                            setReceiverInfo({ kind: 'identity', error: 'Recipient lookup timed out — try again in a moment' })
+                            return
+                        }
+                        let finalId: string | null = resolvedId
+                        if (!finalId) {
+                            /* F57g — the wasm-INDEPENDENT ladder fallback:
+                             * query the DPNS domain documents through the dapi
+                             * proxy directly. The native dpns_resolve_name
+                             * needs a configured wasm SDK, which may still be
+                             * loading on a cold session; the domain doc's
+                             * records.identity[0] IS the owning identity. */
+                            try {
+                                const label = raw.trim().toLowerCase().replace(/\.dash$/, '')
+                                const { fetchDocumentsProxyFirst } = await import('@/lib/dapi-proxy')
+                                const { DPNS_CONTRACT_ID, DPNS_DOCUMENT_TYPE } = await import('@/lib/constants')
+                                const { dpnsNormalizeLabel } = await import('@/lib/services/dpns-service')
+                                const docs = await fetchDocumentsProxyFirst((network === 'mainnet' ? 'mainnet' : 'testnet'), {
+                                    contractId: DPNS_CONTRACT_ID,
+                                    type: DPNS_DOCUMENT_TYPE,
+                                    /* F57g — homoglyph-normalize the label (the
+                                     * contract schema: o->0, i->1, l->1) and lead
+                                     * with the parent (the parentNameAndLabel
+                                     * index's order) — both live-proven. */
+                                    where: [
+                                        ['normalizedParentDomainName', '==', 'dash'],
+                                        ['normalizedLabel', '==', dpnsNormalizeLabel(label)],
+                                    ],
+                                    limit: 1,
+                                }, async () => [])
+                                const doc = Array.isArray(docs) ? docs[0] : null
+                                /* records.identity is a SCALAR identity-id
+                                 * string on the DPNS domain docs (live-probed
+                                 * — NOT an array). */
+                                const fromRecords = (doc as any)?.records?.identity
+                                    ?? (doc as any)?.data?.records?.identity
+                                if (typeof fromRecords === 'string' && fromRecords.length > 0) {
+                                    finalId = fromRecords
+                                } else if (Array.isArray(fromRecords) && typeof fromRecords[0] === 'string') {
+                                    finalId = fromRecords[0]
+                                }
+                            } catch { /* fall through to the honest not-found line */ }
+                        }
+                        if (!finalId) {
                             setReceiverInfo({ kind: 'identity', error: 'No identity found for this username' })
                             return
                         }
                         const { identityService } = await import('@/lib/services/identity-service')
-                        const identity = await identityService.getIdentity(resolvedId)
+                        const identity = await identityService.getIdentity(finalId)
                         if (cancelled) return
                         if (!identity) {
                             setReceiverInfo({ kind: 'identity', error: 'Identity not found on this network' })
@@ -320,6 +368,7 @@ export function WalletSend({ isFullScreen }: IWalletSendProps) {
                             setReceiverInfo({
                                 kind: 'identity',
                                 username: raw,
+                                identityId: finalId,
                                 balanceCredits: identity.balance,
                             })
                         }
@@ -459,8 +508,14 @@ export function WalletSend({ isFullScreen }: IWalletSendProps) {
                     sdk = await WasmSdkBuilder.testnet().withTrustedContext(context).build()
                 }
 
-                /* Resolve username (w/ onchain query). */
-                safeReceiver = await dpns_resolve_name(sdk, receiver)
+                /* Resolve username (w/ onchain query). F57g: the wasm
+                 * resolver accepts BOTH the bare label and the '.dash'
+                 * suffix (live-probed both forms -> the same identity), but
+                 * DPNS labels are stored LOWERCASE — an uppercase-typed
+                 * username would miss. This branch only runs when the input
+                 * already failed the 32-byte id decode, so lowercasing can
+                 * never corrupt a real identity id. */
+                safeReceiver = await dpns_resolve_name(sdk, receiver.trim().toLowerCase())
             } else {
                 safeReceiver = receiver
             }
@@ -1029,7 +1084,8 @@ export function WalletSend({ isFullScreen }: IWalletSendProps) {
                             <div className="rounded-xl bg-white/80 border border-sky-100 px-3 py-2 text-center">
                                 <p className="text-2xs text-slate-500 uppercase tracking-wide">Identity ID</p>
                                 <p className="text-base font-semibold text-slate-800 break-all" title={receiver}>
-                                    {receiver.length > 18 ? `${receiver.slice(0, 8)}…${receiver.slice(-6)}` : receiver}
+                                    {(() => { const id = receiverInfo?.identityId ?? receiver
+                                        return id.length > 18 ? `${id.slice(0, 8)}…${id.slice(-6)}` : id })()}
                                 </p>
                             </div>
                         </div>

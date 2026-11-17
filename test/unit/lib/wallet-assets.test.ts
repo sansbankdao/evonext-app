@@ -62,8 +62,10 @@ describe('buildAvailableAssets (F53a regression guards)', () => {
         expect(dusd!.id).toBe(DUSD_CONTRACT_ID_TESTNET)
         expect(dusd!.decimal_places).toBe(6)
         expect(dusd!.amount).toBe(15_000_000n)
-        /* The USD figure: 15 DUSD at the constant's USD value. */
-        expect(dusd!.fiat.USD).toBeGreaterThan(0)
+        /* F57g — the fiat figure is the TOKEN's own USD value (the
+         * stablecoin peg, $1.00), NOT the DASH spot price — the old
+         * dashUsdValue math valued 2,400 DUSD at $90,968. */
+        expect(dusd!.fiat.USD).toBe(15)
     })
 
     it('renders the SANS row with a balance, keyed by its TOKEN id', () => {
@@ -75,6 +77,9 @@ describe('buildAvailableAssets (F53a regression guards)', () => {
         expect(sans).toBeDefined()
         expect(sans!.id).toBe(SANS_CONTRACT_ID_TESTNET)
         expect(sans!.decimal_places).toBe(8)
+        /* F57g — 1,000,000,000 base @ 8dp = 10 SANS x $0.01 = $0.10
+         * (NOT 10 x the DASH spot). */
+        expect(sans!.fiat.USD).toBe(0.1)
     })
 
     it('shows LOADING (skeleton) token rows when balances are unread, and real rows once read — even at zero (F56f)', () => {
