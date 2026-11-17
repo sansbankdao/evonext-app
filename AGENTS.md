@@ -4309,3 +4309,37 @@ strings should join PLATFORM_ACTIVITY_TYPES.
   it); cursor = keyset over BIGSERIAL id (id < cursor, ORDER BY id DESC,
   insert-only, opaque-safe); txid == transitionId (64-hex,
   deep-linkable) once decodable.
+
+## F57c.1 — the History tab gains TOKEN transfers: the token-history system
+## contract, shipped same-day after the DAPI review (2026-11-18, commit
+## `91cb2f4`, deployed + prod-verified)
+
+GAP 1 from the activity-gaps handoff is CLOSED with zero indexer
+dependency (the DAPI team's Phase A): one token-history system contract
+for ALL tokens — `43gujrzZgXqcKBiScLa4T8XTDnRhenR9BLx8GWVHjPxF` (32
+bytes, pinned by test) — transfer docs keyed by tokenId, fast from/to
+indices, both our tokens opted in. Live-verified through the proxy: the
+query returns both F58 settlements with full amounts/counterparties.
+
+- `lib/wallet-history.ts`: KNOWN_TOKENS (tDUSD 6dp / tSANS 8dp testnet,
+  DUSD 6dp mainnet — no SANS on mainnet per F53),
+  `TokenTransferDoc` ($createdAt = MILLISECONDS — the activity feed's
+  blocktime is SECONDS), `formatTokenAmount` (integer base units ->
+  trimmed decimals), `tokenToRow` ($ownerId = sender -> 'sent
+  SANS'/out, toIdentityId -> 'received'/in; self-transfers, unknown
+  tokens, bad amounts -> null; deep-link = the /document/ route, F48-
+  verified), `queryTokenRows` (BOTH directions per known token id — 6
+  legs via allSettled; one failed leg still renders the others with the
+  honest 'token history partially unavailable' error; the same deadline
+  race). GOTCHA in tests: a query leg runs per (tokenId, field) — a
+  mock returning the same doc for every tokenId maps it multiple times.
+- The component adds the token leg as the FOURTH source (own error
+  line); merge = withdrawals + activity + tokens + swaps.
+- Gates: tsc 0, eslint clean, **351/351 (38 files)**, build 36/36.
+- Browser e2e (local out/ AND PRODUCTION): the e2e identity's incoming
+  tSANS settlement (37.3875 SANS) renders with the document link —
+  5 doc links (2 withdrawals + 3 token rows), zero page errors.
+- STILL INVISIBLE (honest, owner-approved): the SHIELDED edges —
+  deferred to a future session per the owner; 16 is client-side by
+  protocol design anyway (the engine scan covers outgoing); 18's
+  zero-row fix and 20/21/22 wait on the DAPI Phase B version bump.
