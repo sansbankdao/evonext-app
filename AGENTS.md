@@ -4194,3 +4194,52 @@ auto-injects missing timestamp `>0` clauses for orderBy timestamp fields.
     transient proxy timeout degraded to wasm mid-load and still rendered
     (the ladder doing its job). Verified on BOTH the local out/ and
     PRODUCTION.
+
+## F57c — THE HISTORY TAB GAINS THE CHAIN-SOURCED CREDIT HISTORY: the DAPI
+## team's indexer-backed get_identity_activity (2026-11-17, commit `964c0e4`,
+## deployed + prod-verified)
+
+The owner pointed at the DAPI team's history endpoint — it EXISTS and is
+LIVE: `get_identity_activity` on dapi.sansbank.dev (platform-indexer
+Postgres; `get_platform_address_history` is the address-keyed sibling).
+The CONTRACT is the MOBILE team's
+`evonext-mobile/docs/HANDOFF-platform-indexer.md` §10
+({identityId, types?, cursor?, limit?} → {activities, nextCursor,
+indexedUpTo}); **mobile has it fully wired**
+(`src/helpers/platformActivity.ts`: value-movers only, the 64-hex-txid
+rule, the ±48h txid reconciliation against its local ledger);
+**desktop has NOT wired it** (grep: zero call sites).
+
+(a) The web History tab's THIRD source (lib/wallet-history.ts):
+    `PLATFORM_ACTIVITY_TYPES` = the mobile-parity value-movers only
+    (creditTransfer, identityTopUp, identityCreditWithdrawal); batch/
+    identityUpdate rows are social activity, not wallet history.
+    `activityToRow`: creditTransfer sender/receiver → sent/received
+    credits (the type-7 identity-to-identity transfers are invisible to
+    EVERY document query — this indexer row is the only honest source);
+    identityTopUp → topped up from Core; rows REQUIRE a real 64-hex txid
+    and deep-link `platform-explorer.com/transaction/<txid>` (the route
+    verified HTTP 200 live; `/transition/<txid>` is a 404);
+    `identityCreditWithdrawal` rows are DROPPED ON PURPOSE (the F48 doc
+    source already covers them WITH payout status + document links —
+    rendering both would duplicate every withdrawal); 8-decimal amounts
+    (the 4-decimal row format renders a 1M-credit transfer as '0').
+    `queryActivityRows` = the same deadline race as queryWithdrawalRows.
+(b) The component merges THREE sources (withdrawals + activity + swaps)
+    with PER-SOURCE honest error lines; transfer rows carry `direction`
+    and the icon reads it (ArrowDown = in, ArrowUp = out).
+(c) NOT covered yet (honest): token transfers (tDUSD/tSANS sends — the
+    indexer does NOT return a tokenTransfer row even for the F53c send,
+    verified live) and the address-funds lanes (types 9/11/15 — the
+    indexer's full type vocabulary for those is unpinned). The mobile
+    handoff's `getDocumentHistory` recommendation (§6) is another
+    candidate. The cursor pagination (nextCursor) is unwired — the first
+    50 activities cover the visible window.
+(d) Tests: +6 in wallet-history.test.ts (the type-vocabulary pin, the
+    sender/receiver/topUp mappings, the withdrawal-dedupe rule, the
+    bad-row rejections, the deadline race). **347/347 (38 files)**.
+(e) Gates: tsc 0, eslint clean, build 36/36. Browser e2e on BOTH the
+    local out/ and PRODUCTION: the History tab renders EXACTLY the live
+    chain state for the e2e identity — 1 sent + 2 received credit rows
+    (all /transaction/-linked) + the 2 F46 withdrawals
+    (document-linked), zero page errors.
