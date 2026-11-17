@@ -4407,3 +4407,43 @@ button showed 'Loading wallet engine…' with no way out.
   engine loads -> Sign In enables. The deadlock is fully escapable.
 - Gates: tsc 0, eslint clean, 351/351 (38 files), build green,
   playwright 2/2.
+
+## SESSION END (2026-11-18) — state of the world
+
+All work committed + pushed through `fa12852` (working tree clean; the
+untracked scratch-* files are the probe/driver harnesses, untracked by
+convention). Commits this session, newest last:
+F57c.1 `91cb2f4` (token transfers in the History tab, prod-verified)
+-> F57d `0117438` (audit 21 -> 1; the elliptic advisory has NO upstream
+fix; the playwright :3000 Gitea-squatter bug fixed) -> F57e `e0c074d`
+(the connect-page init deadlock: 60s-bounded init + resetInitForRetry +
+the Retry control, live-proven failure->Retry->recovery) -> docs
+`39e440a`/`074b528`/`fa12852`. The DAPI thread: their REVIEW accepted +
+ack'd (dev-dapi-proxy `905b39a`); Phase A (token-history contract)
+adopted; Phase B (shielded rows + the 18 zero-row fix + the decodeError
+storm) parked at THEIR owner's split.
+
+- Suite: **351/351 (38 files)**, tsc 0, eslint 0 errors/1 known
+  warning, build 36/36, playwright 2/2 (now on dedicated :3999 —
+  a foreign :3000 squatter fails loudly instead of being tested).
+- The History tab = withdrawals (F48 docs) + credit activity
+  (get_identity_activity, types 9/11 included) + token transfers
+  (token-history contract `43gujrz…`) + swaps — all four sources with
+  per-source honest errors. INVISIBLE by design/deferral: outgoing
+  shielded transfers (client-side scan covers them when wired into the
+  tab), the 18/20/21/22 indexer rows (DAPI Phase B), token SENDS on
+  mainnet (no mainnet swap yet).
+- Test identity `EcbX…` history renders 7 rows on production: 2
+  withdrawals, 3 credit rows, 1 received-tSANS settlement (+1 more
+  token row), zero page errors.
+
+NEXT SESSION CANDIDATES (owner-visible queue):
+1. Wire the ENGINE's shielded history (F41 sent/self/received, all
+   local-scan-derived — no DAPI dependency at all) into the History tab
+   as the fifth source (the shielded-deferral notwithstanding, THIS
+   part needs no indexer and no new session approval — it is the same
+   honest-local-data pattern as the swaps).
+2. Idle re-lock timer + "Lock now".
+3. Notifications sidebar entry.
+4. Mainnet swap enablement (awaiting the owner's mainnet top-up).
+5. Watch for the DAPI Phase B session (they own the split).
