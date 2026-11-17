@@ -22,9 +22,9 @@ class WasmSdkService {
 
     private sdk: WasmSdk | null = null
     private initPromise: Promise<void> | null = null
-    private config: WasmSdkConfig | null = null
-    private _isInitialized = false
     private _isInitializing = false
+    private _isInitialized = false
+    private config: WasmSdkConfig | null = null
     private static wasmModuleInitialized = false
     private static wasmInitPromise: Promise<void> | null = null
 
@@ -64,6 +64,20 @@ class WasmSdkService {
         } finally {
             this._isInitializing = false
         }
+    }
+
+    /* F57e — reset a HUNG init so a retry can start fresh: initialize()
+     * awaits the SAME initPromise while _isInitializing is true, and the
+     * wasm-load guard awaits wasmInitPromise — a hung 26.5MB fetch (the F30
+     * gotcha: the future never settles) would keep both pending forever and
+     * make every retry re-hang the connect page. The connect page calls
+     * this before re-running initialize after its 60s deadline fires. */
+    resetInitForRetry(): void {
+        this._isInitializing = false
+        this.initPromise = null
+        this._isInitialized = false
+        WasmSdkService.wasmInitPromise = null
+        WasmSdkService.wasmModuleInitialized = false
     }
 
     /**

@@ -36,6 +36,8 @@ export default function LoginPage() {
      * hadn't finished. Initialize on mount (the single-flight service init,
      * retried internally) and keep the Sign In button honest until ready. */
     const [engineReady, setEngineReady] = useState(false)
+    const [engineError, setEngineError] = useState<string | null>(null)
+    const [engineRetryNonce, setEngineRetryNonce] = useState(0)
     useEffect(() => {
         /* F57 Phase 1 fix: the engine's network comes from the
          * SYNCHRONOUS host switch (lib/network getNetwork) — useNetwork's
@@ -45,24 +47,50 @@ export default function LoginPage() {
          * and the login search would miss every mainnet identity (live
          * hit 2026-11-16). */
         const sdkNetwork = getNetwork() as 'mainnet' | 'testnet'
+        let cancelled = false
         void (async () => {
+            setEngineError(null)
             try {
                 const { wasmSdkService } = await import('@/lib/services/wasm-sdk-service')
                 const { EVONEXT_CONTRACT_ID_MAINNET, EVONEXT_CONTRACT_ID_TESTNET } = await import('@/lib/constants')
-                await wasmSdkService.initialize({
+                /* F57e — bound the WHOLE init: a hung wasm fetch (the F30
+                 * gotcha — the future never settles) would otherwise leave
+                 * the Sign In button disabled FOREVER with no way out. The
+                 * deadline converts the hang into the Retry control. */
+                const deadline = new Promise((_, reject) => setTimeout(
+                    () => reject(new Error('wallet engine load timed out')), 60_000))
+                await Promise.race([wasmSdkService.initialize({
                     network: sdkNetwork,
                     contractId: sdkNetwork === 'mainnet'
                         ? EVONEXT_CONTRACT_ID_MAINNET
                         : EVONEXT_CONTRACT_ID_TESTNET,
-                })
-                setEngineReady(true)
+                }), deadline])
+                if (!cancelled) setEngineReady(true)
             } catch (err: any) {
-                /* The retry lives inside the service; surface but don't
-                 * brick the page — a later submit re-runs initialize. */
                 console.error('connect-page wasm init failed:', err?.message)
+                if (!cancelled) {
+                    setEngineError((err && typeof err.message === 'string' && err.message)
+                        || 'wallet engine failed to load')
+                }
             }
         })()
-    }, [network])
+        return () => { cancelled = true }
+    }, [network, engineRetryNonce])
+
+    /* F57e — the RETRY path: reset the service's hung-init flags (a hung
+     * fetch pins _isInitializing/initPromise/wasmInitPromise forever; every
+     * naive retry would re-await the same hung promise), then re-run the
+     * bounded init via the nonce. */
+    const handleEngineRetry = () => {
+        void (async () => {
+            try {
+                const { wasmSdkService } = await import('@/lib/services/wasm-sdk-service')
+                wasmSdkService.resetInitForRetry()
+            } catch { /* the init effect surfaces errors */ }
+            setEngineRetryNonce((n) => n + 1)
+        })()
+    }
+
 
     /* Hide the passkey buttons when no platform authenticator exists. */
     useEffect(() => {
@@ -500,6 +528,26 @@ storeIdentityIdx(credentials?.identityIdx ?? 0)
                                 )}
                             </Button>
                         </div>
+
+                        {/* F57e — the engine init can FAIL (flaky 26.5MB wasm
+                         * fetch through the Pages Function) or HANG; without
+                         * this control the button stayed on 'Loading wallet
+                         * engine…' forever. Honest failure + a real way out. */}
+                        {engineError && (
+                            <div className="mt-3 text-center">
+                                <p className="text-xs text-red-300 mb-2 break-words">
+                                    Wallet engine failed to load: {engineError}
+                                </p>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={handleEngineRetry}
+                                >
+                                    Retry
+                                </Button>
+                            </div>
+                        )}
                     </form>
 
                     {passkeySupported && (
