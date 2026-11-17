@@ -4447,3 +4447,32 @@ NEXT SESSION CANDIDATES (owner-visible queue):
 3. Notifications sidebar entry.
 4. Mainnet swap enablement (awaiting the owner's mainnet top-up).
 5. Watch for the DAPI Phase B session (they own the split).
+
+## F57f — the Send screen recipient card: REAL live data + modern UI +
+## TBD removed (2026-11-18, commit `298c418`)
+
+1. The broken placeholder section (hardcoded `reciverBalance
+   {confirmed:0}` + `receiverFirstTx {blocktime: 1234567890}` = the
+   Vue-era consts) is REPLACED by a live **Recipient card** (rounded-2xl
+   sky gradient, 3 tiles, skeleton while loading):
+   - **Identity ids**: balance via the proxy-first identityService +
+     the DPNS reverse username + the id short form (8…6 chars).
+   - **Core addresses**: insight balances + FIRST TRANSACTION. Two
+     live-probed gotchas: (a) insight `/addr` reports `balance` as a
+     DASH FLOAT — use `balanceSat`/`unconfirmedBalanceSat` (duffs);
+     (b) the per-address `/addr/<addr>/txs` sub-route 404s on this
+     insight build — the GLOBAL `/txs/?address=<addr>&pageNum=N` route
+     works (newest-first); page `pagesTotal-1` IS the oldest page so
+     its last item = the first use (one fetch).
+   - **DPNS usernames**: dpnsService.resolveIdentity (8s deadline) ->
+     the identity lookup.
+   Honest states: explicit 'Identity not found on this network' /
+   'No identity found for this username' errors, '—' for unknowns —
+   never fake zeros.
+2. 'TBD...' removed from the Advanced Options heading.
+- LIVE-PROVEN (scratch-send-recipient-e2e.mjs): identity card 0.858318
+  DASH + DpLt5xyR…es4xmh; address card CONFIRMED 2.108924 DASH (==
+  the balanceSat probe) + FIRST TRANSACTION Nov 13, 2026 (4 days ago —
+  the real funding date); zero page errors.
+- Gates: tsc 0, eslint clean, 351/351 (38 files), build green,
+  playwright 2/2.
