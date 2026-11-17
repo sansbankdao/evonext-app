@@ -13,6 +13,7 @@ import {
     WITHDRAWAL_QUERY_DEADLINE_MS, PLATFORM_ACTIVITY_TYPES,
     dashOfMax, withdrawalToRow, swapToRow, mergeActivity, queryWithdrawalRows,
     queryActivityRows, activityToRow, PlatformActivityRow,
+    queryTokenRows, tokenToRow, TOKEN_HISTORY_CONTRACT_ID,
     swapStatusLabel, swapStatusFailed, swapIsSettled, readSwapHistory,
     ActivityRow, SwapRecord,
 } from '@/lib/wallet-history'
@@ -299,5 +300,67 @@ describe('wallet-history: the indexer-backed identity activity (F57c, mobile-par
             { fetchActivities: async () => { throw new Error('proxy HTTP 503') } }, 'testnet', 25)
         expect(failed.rows).toEqual([])
         expect(failed.error).toBe('proxy HTTP 503')
+    })
+})
+
+describe('wallet-history: token transfers via the token-history system contract (F57c.1, DAPI Phase A)', () => {
+    const EC = 'EcbXLyhWeMB3BLmpVk1sWgtwQjUzaFASwhL3ShxXqdVa'
+    const DP = 'DpLt5xyRoACYkXjbVa95nzzG7ZtpiEcTGWR5W6es4xmh'
+    const SANS = 'A36eJF2kyYXwxCtJGsgbR3CTAscUFaNxZN19UqUfM1kw'
+    const doc = {
+        $id: '7KhAtu7bJSMWM6qNAYJb5Gn7yGFcUcbUEKGhCBjNX4P',
+        $ownerId: DP,
+        toIdentityId: EC,
+        tokenId: SANS,
+        amount: 37387500000,
+        $createdAt: 1794795838803,
+    }
+
+    it('pins the token-history contract id to 32 bytes', async () => {
+        const { base58 } = await import('@scure/base')
+        expect(base58.decode(TOKEN_HISTORY_CONTRACT_ID)).toHaveLength(32)
+    })
+
+    it('maps an incoming settlement: received SANS, 8 decimals, ms epoch, document link', () => {
+        const row = tokenToRow(doc, EC, 'testnet')
+        expect(row).not.toBeNull()
+        expect(row!.kind).toBe('transfer')
+        expect(row!.direction).toBe('in')
+        expect(row!.directionLabel).toBe('received SANS')
+        expect(row!.amountLabel).toBe('373.875')
+        expect(row!.assetLabel).toBe('SANS')
+        expect(row!.when).toBe(1794795838803) // MILLISECONDS, used directly
+        expect(row!.href).toBe(`https://testnet.platform-explorer.com/document/${doc.$id}`)
+    })
+
+    it('maps an outgoing send; rejects unknown tokens, bad amounts, self-transfers', () => {
+        const out = tokenToRow({ ...doc, $ownerId: EC, toIdentityId: DP }, EC, 'testnet')
+        expect(out!.direction).toBe('out')
+        expect(out!.directionLabel).toBe('sent SANS')
+        // DUSD 6 decimals via the OTHER known token
+        const dusd = tokenToRow({ ...doc, tokenId: '3oTHkj8nqn82QkZRHkmUmNBX696nzE1rg1fwPRpemEdz', amount: 45000000 }, EC, 'testnet')
+        expect(dusd!.amountLabel).toBe('45')
+        expect(dusd!.assetLabel).toBe('DUSD')
+        expect(tokenToRow({ ...doc, tokenId: 'ZZZ' }, EC, 'testnet')).toBeNull()
+        expect(tokenToRow({ ...doc, amount: 0 }, EC, 'testnet')).toBeNull()
+        expect(tokenToRow({ ...doc, amount: 'nan' }, EC, 'testnet')).toBeNull()
+        expect(tokenToRow({ ...doc, $ownerId: EC, toIdentityId: EC }, EC, 'testnet')).toBeNull()
+        expect(tokenToRow(null as unknown as typeof doc, EC, 'testnet')).toBeNull()
+    })
+
+    it('queryTokenRows: allSettled keeps good legs with a partial-failure error; deadline race', async () => {
+        const partial = await queryTokenRows({
+            fetchTokenDocs: async (tokenId, field) => {
+                if (field === '$ownerId') throw new Error('proxy HTTP 503')
+                return tokenId === SANS ? [doc] : [] // the incoming leg, SANS only
+            },
+        }, EC, 'testnet', 25)
+        expect(partial.rows).toHaveLength(1)
+        expect(partial.error).toBe('token history partially unavailable')
+
+        const hung = await queryTokenRows(
+            { fetchTokenDocs: () => new Promise(() => {}) }, EC, 'testnet', 25)
+        expect(hung.rows).toEqual([])
+        expect(hung.error).toBe('query timed out')
     })
 })

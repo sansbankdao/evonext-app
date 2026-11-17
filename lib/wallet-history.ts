@@ -267,6 +267,118 @@ export interface ActivityQueryPort {
     fetchActivities: () => Promise<PlatformActivityRow[]>;
 }
 
+/* F57c.1 — TOKEN TRANSFERS via the token-history SYSTEM contract (the DAPI
+ * team's Phase A answer to the activity-gaps handoff, live-verified through
+ * the proxy: both F58 settlements return with full amounts/counterparties).
+ * ONE contract for all tokens; documents are keyed by tokenId. */
+export const TOKEN_HISTORY_CONTRACT_ID = '43gujrzZgXqcKBiScLa4T8XTDnRhenR9BLx8GWVHjPxF'
+
+/** The token ids the wallet knows, with the display facts pinned. Testnet:
+ * tDUSD (6 dp) + tSANS (8 dp); mainnet: DUSD (6 dp) — there is no SANS
+ * token on mainnet (F53). */
+export const KNOWN_TOKENS: Record<string, { symbol: string; decimals: number }> = {
+    '3oTHkj8nqn82QkZRHkmUmNBX696nzE1rg1fwPRpemEdz': { symbol: 'DUSD', decimals: 6 },
+    'A36eJF2kyYXwxCtJGsgbR3CTAscUFaNxZN19UqUfM1kw': { symbol: 'SANS', decimals: 8 },
+    'DYqxCsuDgYsEAJ2ADnimkwNdL7C4xbe4No4so19X9mmd': { symbol: 'DUSD', decimals: 6 },
+}
+
+/** The transfer document shape (v1 schema; $createdAt is MILLISECONDS —
+ * unlike the activity feed's blocktime, which is seconds). */
+export interface TokenTransferDoc {
+    $id: string
+    $ownerId: string // the SENDER
+    toIdentityId: string
+    tokenId: string
+    amount: number | string // base units
+    $createdAt: number
+}
+
+/** Whole-number base units -> trimmed decimal string (no rounding drift). */
+export function formatTokenAmount(amount: number | string, decimals: number): string {
+    const units = BigInt(Math.round(Number(amount)))
+    const s = units.toString().padStart(decimals + 1, '0')
+    const whole = s.slice(0, s.length - decimals) || '0'
+    const frac = decimals > 0 ? s.slice(s.length - decimals).replace(/0+$/, '') : ''
+    return frac ? `${whole}.${frac}` : whole
+}
+
+/** Map one token-history transfer doc onto a history row — null when it
+ * must not render: unknown token, bad amount, and self-transfers (sender
+ * == receiver — the direction is ambiguous; the wallet never makes them). */
+export function tokenToRow(doc: TokenTransferDoc, identityId: string, network: 'mainnet' | 'testnet'): ActivityRow | null {
+    if (!doc || typeof doc !== 'object') return null
+    if (typeof doc.$id !== 'string' || typeof doc.$ownerId !== 'string'
+        || typeof doc.toIdentityId !== 'string' || typeof doc.tokenId !== 'string') return null
+    const token = KNOWN_TOKENS[doc.tokenId]
+    if (!token) return null
+    const amount = Number(doc.amount)
+    if (!Number.isFinite(amount) || amount <= 0) return null
+    const isSender = doc.$ownerId === identityId
+    const isReceiver = doc.toIdentityId === identityId
+    if (isSender === isReceiver) return null
+    const direction: 'out' | 'in' = isSender ? 'out' : 'in'
+    return {
+        key: `token-${doc.$id}`,
+        kind: 'transfer',
+        amountLabel: formatTokenAmount(amount, token.decimals),
+        assetLabel: token.symbol,
+        directionLabel: direction === 'out' ? `sent ${token.symbol}` : `received ${token.symbol}`,
+        direction,
+        when: Number(doc.$createdAt) > 0 ? Number(doc.$createdAt) : 0,
+        statusLabel: 'On-chain',
+        tone: 'ok',
+        href: `https://${network === 'mainnet' ? 'www' : 'testnet'}.platform-explorer.com/document/${doc.$id}`,
+        hrefLabel: 'view on explorer',
+    }
+}
+
+/** The narrow token surface the component wires to the proxy: one call per
+ * (tokenId, direction-field) pair — the from/to indices are
+ * (tokenId,$ownerId,$createdAt) and (tokenId,toIdentityId,$createdAt), so
+ * every query leads with tokenId. */
+export interface TokenQueryPort {
+    fetchTokenDocs: (tokenId: string, field: '$ownerId' | 'toIdentityId') => Promise<unknown[]>;
+}
+
+/** Query BOTH token directions (outgoing = $ownerId, incoming =
+ * toIdentityId) for every known token id and map to rows. allSettled: a
+ * single failed leg still renders the others, with the honest error line
+ * for the partial failure. Same deadline race as the other queries. */
+export async function queryTokenRows(
+    port: TokenQueryPort,
+    identityId: string,
+    network: 'mainnet' | 'testnet',
+    deadlineMs: number = WITHDRAWAL_QUERY_DEADLINE_MS,
+): Promise<{ rows: ActivityRow[]; error: string | null }> {
+    const ids = Object.keys(KNOWN_TOKENS)
+    const fields: ('$ownerId' | 'toIdentityId')[] = ['$ownerId', 'toIdentityId']
+    try {
+        const deadline = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('query timed out')), deadlineMs))
+        const results = await Promise.race([
+            Promise.allSettled(ids.flatMap((tokenId) => fields.map(async (field) => {
+                const docs = await port.fetchTokenDocs(tokenId, field)
+                if (!Array.isArray(docs)) throw new Error('token result shape unexpected')
+                return docs.map((d) => tokenToRow(d as TokenTransferDoc, identityId, network))
+                    .filter((r): r is ActivityRow => r !== null)
+            }))),
+            deadline,
+        ]) as PromiseSettledResult<ActivityRow[]>[]
+        const rows: ActivityRow[] = []
+        let failed = 0
+        for (const r of results) {
+            if (r.status === 'fulfilled') rows.push(...r.value)
+            else failed++
+        }
+        return { rows, error: failed > 0 ? 'token history partially unavailable' : null }
+    } catch (e: any) {
+        return {
+            rows: [],
+            error: (e && typeof e.message === 'string' && e.message) || 'token history unavailable',
+        }
+    }
+}
+
 /** Query the indexer-backed identity activity (the DAPI team's
  * get_identity_activity — proxy-only, there is NO wasm equivalent) and map
  * the value-movers to rows. The same deadline race as the withdrawal query:

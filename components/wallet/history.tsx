@@ -31,6 +31,7 @@ import {
 import {
     ActivityRow, ActivityTone, ActivityKind, PLATFORM_ACTIVITY_TYPES,
     readSwapHistory, swapToRow, mergeActivity, queryWithdrawalRows, queryActivityRows,
+    queryTokenRows, TOKEN_HISTORY_CONTRACT_ID,
 } from '@/lib/wallet-history'
 import { EVONEXT_CONTRACT_ID_TESTNET, EVONEXT_CONTRACT_ID_MAINNET } from '@/lib/constants'
 
@@ -73,6 +74,7 @@ export function WalletHistory({ isFullScreen }: WalletHistoryProps) {
     const [rows, setRows] = useState<ActivityRow[] | null>(null)
     const [withErr, setWithErr] = useState<string | null>(null)
     const [activityErr, setActivityErr] = useState<string | null>(null)
+    const [tokenErr, setTokenErr] = useState<string | null>(null)
     const mounted = useRef(true)
 
     useEffect(() => {
@@ -151,10 +153,36 @@ export function WalletHistory({ isFullScreen }: WalletHistoryProps) {
             } catch (e: any) {
                 activityError = (e && typeof e.message === 'string' && e.message) || 'activity history unavailable'
             }
+            /* F57c.1 — token transfers via the token-history system contract
+             * (the DAPI team's Phase A: one contract, transfer docs keyed by
+             * tokenId; $createdAt in MILLISECONDS; outgoing = $ownerId,
+             * incoming = toIdentityId). Independent source, own honest error. */
+            let tokenRows: ActivityRow[] = []
+            let tokenError: string | null = null
+            try {
+                const { proxyCall } = await import('@/lib/dapi-proxy')
+                const result = await queryTokenRows({
+                    fetchTokenDocs: async (tokenId, field) => {
+                        const proxyResult = await proxyCall('get_documents', {
+                            dataContractId: TOKEN_HISTORY_CONTRACT_ID,
+                            documentType: 'transfer',
+                            whereClause: [['tokenId', '==', tokenId], [field, '==', identityId]],
+                            orderBy: [['$createdAt', 'desc']],
+                            limit: 25,
+                        }, net)
+                        return Array.isArray(proxyResult) ? proxyResult : []
+                    },
+                }, identityId, net)
+                tokenRows = result.rows
+                tokenError = result.error
+            } catch (e: any) {
+                tokenError = (e && typeof e.message === 'string' && e.message) || 'token history unavailable'
+            }
             if (!cancelled && mounted.current) {
-                setRows(mergeActivity(mergeActivity(withdrawalRows, activityRows), swapRows).slice(0, MAX_ROWS))
+                setRows(mergeActivity(mergeActivity(mergeActivity(withdrawalRows, activityRows), tokenRows), swapRows).slice(0, MAX_ROWS))
                 setWithErr(error)
                 setActivityErr(activityError)
+                setTokenErr(tokenError)
             }
         }
         void run()
@@ -244,6 +272,15 @@ export function WalletHistory({ isFullScreen }: WalletHistoryProps) {
                     <ExclamationTriangleIcon className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                     <p className="text-xs text-amber-800">
                         Could not load credit history: {activityErr}.
+                    </p>
+                </div>
+            )}
+
+            {tokenErr && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 flex items-start gap-2">
+                    <ExclamationTriangleIcon className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                    <p className="text-xs text-amber-800">
+                        Could not load token history: {tokenErr}.
                     </p>
                 </div>
             )}
