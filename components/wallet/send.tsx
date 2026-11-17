@@ -208,14 +208,139 @@ export function WalletSend({ isFullScreen }: IWalletSendProps) {
     const openScanner = () => {
     }
 
-    const reciverBalance = {
-        confirmed: 0,
-        unconfirmed: 0,
+    /* F57f — RECIPIENT DETAILS (replaces the broken hardcoded
+     * 'Identity Balance: 0 / Block Time: 1234567890' placeholders): REAL
+     * live data about the address/identity the user is about to send to.
+     * Identity ids resolve through the proxy-first identity service + the
+     * DPNS reverse lookup; Core addresses resolve through insight
+     * (balances + first transaction). Everything is honest: a miss or a
+     * failure surfaces as an explicit line, never fake zeros. */
+    type ReceiverInfo = {
+        kind: 'identity' | 'address'
+        username?: string
+        balanceCredits?: number
+        confirmedDuffs?: number
+        unconfirmedDuffs?: number
+        firstTxTime?: number
+        error?: string
     }
-
-    const receiverFirstTx = {
-        blocktime: 1234567890,
-    }
+    const [receiverInfo, setReceiverInfo] = useState<ReceiverInfo | null>(null)
+    const [receiverInfoLoading, setReceiverInfoLoading] = useState(false)
+    useEffect(() => {
+        let cancelled = false
+        const raw = receiver.trim()
+        setReceiverInfo(null)
+        if (!raw) {
+            setReceiverInfoLoading(false)
+            return
+        }
+        const timer = setTimeout(() => {
+            void (async () => {
+                setReceiverInfoLoading(true)
+                try {
+                    if (isBase58IdentityId(raw)) {
+                        /* Identity id: balance via the proxy-first service
+                         * + the DPNS reverse username (independent, best-
+                         * effort). */
+                        const { identityService } = await import('@/lib/services/identity-service')
+                        const { dpnsService } = await import('@/lib/services/dpns-service')
+                        const [identity, username] = await Promise.all([
+                            identityService.getIdentity(raw),
+                            dpnsService.resolveUsername(raw).catch(() => null),
+                        ])
+                        if (cancelled) return
+                        if (!identity) {
+                            setReceiverInfo({ kind: 'identity', error: 'Identity not found on this network' })
+                        } else {
+                            setReceiverInfo({
+                                kind: 'identity',
+                                username: username || undefined,
+                                balanceCredits: identity.balance,
+                            })
+                        }
+                    } else if (isCoreAddress(raw)) {
+                        /* Core (L1) address: insight balances + the first
+                         * transaction (best-effort page walk, capped). */
+                        const base = network === 'mainnet'
+                            ? 'https://insight.dash.org/insight-api'
+                            : 'https://insight.testnet.networks.dash.org/insight-api'
+                        const fx = (path: string) => fetch(base + path, { signal: AbortSignal.timeout(10000) })
+                        const info = await fx('/addr/' + encodeURIComponent(raw))
+                            .then(r => r.ok ? r.json() : null)
+                        if (cancelled) return
+                        if (!info) {
+                            setReceiverInfo({ kind: 'address', error: 'Address not found on this network' })
+                            return
+                        }
+                        /* First transaction: insight's global /txs/?address
+                         * is newest-first and paginated — page pagesTotal-1
+                         * IS the oldest page, so its last item is the
+                         * recipient's first use (one fetch). The per-address
+                         * /addr/<addr>/txs sub-route 404s on this insight
+                         * build (probed). */
+                        let firstTxTime: number | undefined
+                        try {
+                            const list = await fx(`/txs/?address=${encodeURIComponent(raw)}&pageNum=${Math.max(0, Number(info.pagesTotal ?? 1) - 1)}`)
+                                .then(r => r.ok ? r.json() : null)
+                            if (cancelled) return
+                            const txs = Array.isArray(list?.txs) ? list.txs : []
+                            if (txs.length > 0) firstTxTime = Number(txs[txs.length - 1]?.time)
+                        } catch { /* first-use is best-effort */ }
+                        if (cancelled) return
+                        setReceiverInfo({
+                            kind: 'address',
+                            /* insight reports balance as a DASH float —
+                             * balanceSat/unconfirmedBalanceSat are the
+                             * duffs we want. */
+                            confirmedDuffs: Number(info.balanceSat) || 0,
+                            unconfirmedDuffs: Number(info.unconfirmedBalanceSat) || 0,
+                            firstTxTime,
+                        })
+                    } else {
+                        /* A DPNS username: resolve to the identity id, then
+                         * the identity lookup. */
+                        const { dpnsService } = await import('@/lib/services/dpns-service')
+                        const deadline = new Promise<null>((resolve) =>
+                            setTimeout(() => resolve(null), 8000))
+                        const resolvedId = await Promise.race([
+                            dpnsService.resolveIdentity(raw).catch(() => null),
+                            deadline,
+                        ])
+                        if (cancelled) return
+                        if (!resolvedId) {
+                            setReceiverInfo({ kind: 'identity', error: 'No identity found for this username' })
+                            return
+                        }
+                        const { identityService } = await import('@/lib/services/identity-service')
+                        const identity = await identityService.getIdentity(resolvedId)
+                        if (cancelled) return
+                        if (!identity) {
+                            setReceiverInfo({ kind: 'identity', error: 'Identity not found on this network' })
+                        } else {
+                            setReceiverInfo({
+                                kind: 'identity',
+                                username: raw,
+                                balanceCredits: identity.balance,
+                            })
+                        }
+                    }
+                } catch (err: any) {
+                    if (!cancelled) {
+                        setReceiverInfo({
+                            kind: 'identity',
+                            error: (err && typeof err.message === 'string' && err.message) || 'Recipient lookup failed',
+                        })
+                    }
+                } finally {
+                    if (!cancelled) setReceiverInfoLoading(false)
+                }
+            })()
+        }, 700)
+        return () => {
+            cancelled = true
+            clearTimeout(timer)
+        }
+    }, [receiver, network])
 
     const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const value = e.target.value
@@ -832,45 +957,84 @@ export function WalletSend({ isFullScreen }: IWalletSendProps) {
                     </div>
                 </section>}
 
-                <div className="flex flex-col gap-6 text-slate-700">
-                    {reciverBalance && <section>
-                        <h2 className="text-xl font-medium tracking-widest">
-                            Identity Balance
-                        </h2>
+                {/* F57f — the RECIPIENT card (replaces the broken hardcoded
+                 * 'Identity Balance / First Transaction' placeholders):
+                 * live data about who is about to receive the funds. */}
+                {(receiverInfoLoading || receiverInfo) && <section className="rounded-2xl border border-sky-200 bg-gradient-to-br from-white via-sky-50/80 to-sky-100 shadow-sm p-4">
+                    <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                            <UserIcon className="h-4 w-4 text-sky-700" />
+                            <h2 className="text-xs tracking-widest text-sky-700 font-medium uppercase">
+                                Recipient
+                            </h2>
+                        </div>
+                        {receiverInfoLoading && (
+                            <Loader2 className="h-4 w-4 animate-spin text-sky-600" />
+                        )}
+                    </div>
 
-                        <h3>
-                            Confirmed: {reciverBalance?.confirmed}
-                        </h3>
-
-                        <h3>
-                            Unconfirmed: {reciverBalance?.unconfirmed}
-                        </h3>
-                    </section>}
-
-                    {/* <!-- <section v-if="identityFirstUse">
-                        <h2 className="text-xl font-medium tracking-widest">
-                            Identity First Use
-                        </h2>
-
-                        <pre>{identityFirstUse}</pre>
-                    </section> --> */}
-
-                    {receiverFirstTx?.blocktime && <section>
-                        <h2 className="text-xl font-medium tracking-widest">
-                            First Transaction
-                        </h2>
-
-                        <h3>
-                            Block Time: {receiverFirstTx.blocktime}
-                            <span className="block text-rose-500 font-bold">
-                                {moment.unix(receiverFirstTx.blocktime).format('llll')}
-                                <span className="italic text-rose-400">{moment.unix(receiverFirstTx.blocktime).fromNow()}</span>
-                            </span>
-                        </h3>
-
-                        {/* <!-- <pre>{receiverFirstTx}</pre> --> */}
-                    </section>}
-                </div>
+                    {receiverInfoLoading && !receiverInfo ? (
+                        <div className="space-y-2 animate-pulse">
+                            <div className="h-4 w-1/2 rounded bg-sky-200/70" />
+                            <div className="h-3 w-1/3 rounded bg-sky-200/70" />
+                        </div>
+                    ) : receiverInfo?.error ? (
+                        <p className="text-sm text-rose-600 break-words">
+                            {receiverInfo.error}
+                        </p>
+                    ) : receiverInfo?.kind === 'address' ? (
+                        <div className="grid grid-cols-3 gap-3">
+                            <div className="rounded-xl bg-white/80 border border-sky-100 px-3 py-2 text-center">
+                                <p className="text-2xs text-slate-500 uppercase tracking-wide">Confirmed</p>
+                                <p className="text-base font-semibold text-slate-800 break-all">
+                                    {numeral((receiverInfo.confirmedDuffs ?? 0) / 1e8).format('0,0.00[0000]')} DASH
+                                </p>
+                            </div>
+                            <div className="rounded-xl bg-white/80 border border-sky-100 px-3 py-2 text-center">
+                                <p className="text-2xs text-slate-500 uppercase tracking-wide">Unconfirmed</p>
+                                <p className="text-base font-semibold text-slate-800 break-all">
+                                    {numeral((receiverInfo.unconfirmedDuffs ?? 0) / 1e8).format('0,0.00[0000]')} DASH
+                                </p>
+                            </div>
+                            <div className="rounded-xl bg-white/80 border border-sky-100 px-3 py-2 text-center">
+                                <p className="text-2xs text-slate-500 uppercase tracking-wide">First transaction</p>
+                                <p className="text-base font-semibold text-slate-800">
+                                    {receiverInfo.firstTxTime
+                                        ? moment.unix(receiverInfo.firstTxTime).format('MMM D, YYYY')
+                                        : '—'}
+                                </p>
+                                {receiverInfo.firstTxTime && (
+                                    <p className="text-2xs italic text-sky-600">
+                                        {moment.unix(receiverInfo.firstTxTime).fromNow()}
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-3 gap-3">
+                            <div className="rounded-xl bg-white/80 border border-sky-100 px-3 py-2 text-center">
+                                <p className="text-2xs text-slate-500 uppercase tracking-wide">Identity balance</p>
+                                <p className="text-base font-semibold text-slate-800">
+                                    {numeral((receiverInfo?.balanceCredits ?? 0) / 1e11).format('0,0.00[0000]')} DASH
+                                </p>
+                            </div>
+                            <div className="rounded-xl bg-white/80 border border-sky-100 px-3 py-2 text-center">
+                                <p className="text-2xs text-slate-500 uppercase tracking-wide">Username</p>
+                                <p className="text-base font-semibold text-sky-700 break-all">
+                                    {receiverInfo?.username
+                                        ? `@${receiverInfo?.username.replace(/\.dash$/, '')}`
+                                        : '—'}
+                                </p>
+                            </div>
+                            <div className="rounded-xl bg-white/80 border border-sky-100 px-3 py-2 text-center">
+                                <p className="text-2xs text-slate-500 uppercase tracking-wide">Identity ID</p>
+                                <p className="text-base font-semibold text-slate-800 break-all" title={receiver}>
+                                    {receiver.length > 18 ? `${receiver.slice(0, 8)}…${receiver.slice(-6)}` : receiver}
+                                </p>
+                            </div>
+                        </div>
+                    )}
+                </section>}
             </div>
 
             <section className="pl-0 lg:pl-5 col-span-3 flex flex-col gap-6">
@@ -878,8 +1042,6 @@ export function WalletSend({ isFullScreen }: IWalletSendProps) {
                     <h1 className="text-2xl font-medium">
                         Advanced Options
                     </h1>
-
-                    TBD...
                 </div>
 
                 {/* BEGIN WITHDRAW TO CORE (L1) */}
