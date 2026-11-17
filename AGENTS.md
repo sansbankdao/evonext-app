@@ -4343,3 +4343,42 @@ query returns both F58 settlements with full amounts/counterparties.
   deferred to a future session per the owner; 16 is client-side by
   protocol design anyway (the engine scan covers outgoing); 18's
   zero-row fix and 20/21/22 wait on the DAPI Phase B version bump.
+
+## F57d — Dependabot/audit remediation: 21 advisories -> 1 (the last one
+## has NO upstream fix) (2026-11-18, commit `0117438`)
+
+`pnpm audit --json` on evorunner reproduced GitHub's alert set as
+**21 advisories across 10 transitive module chains (none direct)**.
+Fixed via selective overrides in pnpm-workspace.yaml (pnpm 11's
+mechanism; the F28a lodash/elliptic block extended):
+
+- **crypto-js <4.2.0 -> 4.2.0 (CRITICAL, PBKDF2 1000x-weak)** — rides
+  @nexajs/crypto -> secure-ls, which IS imported by core-chain /
+  identity-manager / registrar-manager: a real runtime path, NOT the
+  tree-shaken dead code invariant 11 once described (that note is
+  stale for the post-F28a tree).
+- bn.js <5 -> 4.12.5 / >=5 -> 5.2.5 (runtime bignum, dashcore-lib);
+  picomatch <4 -> 2.3.2 / >=4 -> 4.0.7; brace-expansion <2 -> 1.1.22;
+  source-map-js -> 1.2.2 (next/postcss + tailwind); zod -> 4.6.7;
+  @babel/core -> 7.29.13; minimatch -> 11.0.9 (dev tooling);
+  **@dicebear/initials -> 9.4.3** (SVG-injection advisory in the
+  browser-rendered avatars — the core 9.4.3/collection 9.4.2 pins
+  untouched, F28a invariant intact).
+- **elliptic stays 6.6.1**: its advisory (low, 'Risky Implementation')
+  claims patched >=6.6.2 but npm's LATEST elliptic is 6.6.1 — no fixed
+  release exists upstream. The alert remains open until upstream ships;
+  documented in the overrides block.
+- **PLAYWRIGHT CONFIG BUG FIXED (infra)**: webServer served :3000 with
+  reuseExistingServer:true — a Gitea ('Sansbank Forge') appeared on
+  evorunner's :3000 mid-session and the suite was silently asserting
+  against THAT. Now dedicated :3999 + use.baseURL corrected to match +
+  reuseExistingServer:false (a foreign squatter fails loudly).
+- swap.tsx: one pre-existing unescaped-apostrophe eslint ERROR fixed.
+- Gates: install green, audit 1, tsc 0, eslint 0 errors, **351/351
+  (38 files)**, build green, playwright 2/2, full login->wallet->
+  history browser e2e PASS on the remediated tree (the nexajs/crypto-js
+  runtime path renders, zero page errors).
+- NOTE: GitHub's push banner still said "85 vulnerabilities" seconds
+  after the push — that banner is generated from the PRE-scan database;
+  the Dependabot dashboard refreshes asynchronously. pnpm audit is the
+  authoritative reproducible check.
