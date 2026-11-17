@@ -4382,3 +4382,28 @@ mechanism; the F28a lodash/elliptic block extended):
   after the push — that banner is generated from the PRE-scan database;
   the Dependabot dashboard refreshes asynchronously. pnpm audit is the
   authoritative reproducible check.
+
+## F57e — the connect-page init-failure deadlock FIXED: bounded init + a
+## real Retry control (2026-11-18, commit `e0c074d`)
+
+The F56g mount-init left a DEADLOCK: on init failure the catch only
+console.error'd and engineReady stayed false forever — the Sign In
+button showed 'Loading wallet engine…' with no way out.
+
+- `lib/services/wasm-sdk-service.ts` +`resetInitForRetry()`: initialize()
+  awaits the SAME initPromise while `_isInitializing` is true, and the
+  wasm-load guard awaits the STATIC wasmInitPromise — a hung 26.5MB
+  fetch (the F30 gotcha: the future never settles) pinned BOTH forever,
+  so every naive retry re-hung. The reset clears all four flags
+  (_isInitializing/initPromise/_isInitialized/wasmInitPromise +
+  wasmModuleInitialized) so a retry starts FRESH.
+- `app/connect/page.tsx`: the init is raced against a 60s deadline (a
+  hang becomes an honest error); a failure renders 'Wallet engine
+  failed to load: <msg>' + a Retry button (resetInitForRetry -> nonce
+  bump -> the bounded init re-runs). The mount effect gained the
+  missing cancelled guard.
+- LIVE-PROVEN in the browser (scratch-retry-e2e.mjs against out/): wasm
+  fetch ABORTED -> the failure surfaces ('Failed to fetch') -> Retry ->
+  engine loads -> Sign In enables. The deadlock is fully escapable.
+- Gates: tsc 0, eslint clean, 351/351 (38 files), build green,
+  playwright 2/2.
