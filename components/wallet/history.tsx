@@ -25,12 +25,12 @@ import { useNetwork } from '@/contexts/network-context'
 // @ts-ignore
 import numeral from 'numeral'
 import {
-    ArrowUpCircleIcon, ArrowPathIcon, ClockIcon, CheckCircleIcon,
+    ArrowUpCircleIcon, ArrowDownCircleIcon, ArrowPathIcon, ClockIcon, CheckCircleIcon,
     ExclamationTriangleIcon, InboxIcon,
 } from '@heroicons/react/24/outline'
 import {
-    ActivityRow, ActivityTone, ActivityKind,
-    readSwapHistory, swapToRow, mergeActivity, queryWithdrawalRows,
+    ActivityRow, ActivityTone, ActivityKind, PLATFORM_ACTIVITY_TYPES,
+    readSwapHistory, swapToRow, mergeActivity, queryWithdrawalRows, queryActivityRows,
 } from '@/lib/wallet-history'
 import { EVONEXT_CONTRACT_ID_TESTNET, EVONEXT_CONTRACT_ID_MAINNET } from '@/lib/constants'
 
@@ -47,7 +47,12 @@ const TONE_STYLES: Record<ActivityTone, string> = {
     neutral: 'text-gray-500',
 }
 
-const KIND_ICON = (kind: ActivityKind) => (kind === 'withdrawal' ? ArrowUpCircleIcon : ArrowPathIcon)
+/* Withdrawals point up (leaving the identity); transfers read their own
+ * direction; swaps are circular. */
+const KIND_ICON = (kind: ActivityKind, direction?: 'out' | 'in') =>
+    kind === 'withdrawal' ? ArrowUpCircleIcon
+        : kind === 'transfer' ? (direction === 'in' ? ArrowDownCircleIcon : ArrowUpCircleIcon)
+        : ArrowPathIcon
 
 const whenLabel = (ms: number): string => {
     if (!ms) return ''
@@ -67,6 +72,7 @@ export function WalletHistory({ isFullScreen }: WalletHistoryProps) {
     const { network } = useNetwork()
     const [rows, setRows] = useState<ActivityRow[] | null>(null)
     const [withErr, setWithErr] = useState<string | null>(null)
+    const [activityErr, setActivityErr] = useState<string | null>(null)
     const mounted = useRef(true)
 
     useEffect(() => {
@@ -92,7 +98,9 @@ export function WalletHistory({ isFullScreen }: WalletHistoryProps) {
 
         const run = async () => {
             let withdrawalRows: ActivityRow[] = []
+            let activityRows: ActivityRow[] = []
             let error: string | null = null
+            let activityError: string | null = null
             try {
                 const { wasmSdkService, getWasmSdk } = await import('@/lib/services/wasm-sdk-service') as any
                 /* initialize() no-ops when the config matches (the shielded-page
@@ -117,9 +125,36 @@ export function WalletHistory({ isFullScreen }: WalletHistoryProps) {
             } catch (e: any) {
                 error = (e && typeof e.message === 'string' && e.message) || 'withdrawal history unavailable'
             }
+            /* F57c — the indexer-backed credit history (the DAPI team's
+             * get_identity_activity, contract per the MOBILE team's
+             * HANDOFF-platform-indexer.md; the SAME value-mover mapping).
+             * Independent source, own honest error — never a fake empty.
+             * The proxy call is 12s-bounded by proxyCall; the lib race adds
+             * the same deadline guard as the withdrawal query. */
+            try {
+                const { proxyCall } = await import('@/lib/dapi-proxy')
+                const result = await queryActivityRows({
+                    fetchActivities: async () => {
+                        const proxyResult = await proxyCall('get_identity_activity', {
+                            identityId,
+                            types: PLATFORM_ACTIVITY_TYPES,
+                            limit: 50,
+                        }, net)
+                        if (!proxyResult || !Array.isArray(proxyResult.activities)) {
+                            throw new Error('activity result shape unexpected')
+                        }
+                        return proxyResult.activities
+                    },
+                }, net)
+                activityRows = result.rows
+                activityError = result.error
+            } catch (e: any) {
+                activityError = (e && typeof e.message === 'string' && e.message) || 'activity history unavailable'
+            }
             if (!cancelled && mounted.current) {
-                setRows(mergeActivity(withdrawalRows, swapRows).slice(0, MAX_ROWS))
+                setRows(mergeActivity(mergeActivity(withdrawalRows, activityRows), swapRows).slice(0, MAX_ROWS))
                 setWithErr(error)
+                setActivityErr(activityError)
             }
         }
         void run()
@@ -150,7 +185,7 @@ export function WalletHistory({ isFullScreen }: WalletHistoryProps) {
         return (
             <div className="flex flex-col divide-y divide-gray-100 rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
                 {rows.map((row) => {
-                    const Icon = KIND_ICON(row.kind)
+                    const Icon = KIND_ICON(row.kind, row.direction)
                     const IconSolid = row.tone === 'ok' ? CheckCircleIcon : row.tone === 'warn' ? ExclamationTriangleIcon : ClockIcon
                     return (
                         <div key={row.key} className="px-4 py-3 flex items-center gap-3">
@@ -200,6 +235,15 @@ export function WalletHistory({ isFullScreen }: WalletHistoryProps) {
                     <ExclamationTriangleIcon className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                     <p className="text-xs text-amber-800">
                         Could not load withdrawal history: {withErr}. Showing local swap records only.
+                    </p>
+                </div>
+            )}
+
+            {activityErr && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 flex items-start gap-2">
+                    <ExclamationTriangleIcon className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                    <p className="text-xs text-amber-800">
+                        Could not load credit history: {activityErr}.
                     </p>
                 </div>
             )}

@@ -69,7 +69,7 @@ export function dashOfMax(value: number, max: number = 4): string {
     return trimmed || '0'
 }
 
-export type ActivityKind = 'withdrawal' | 'swap'
+export type ActivityKind = 'withdrawal' | 'transfer' | 'swap'
 export type ActivityTone = 'ok' | 'pending' | 'warn' | 'neutral'
 
 export interface ActivityRow {
@@ -81,6 +81,8 @@ export interface ActivityRow {
     assetLabel: string
     /** e.g. "withdrawn to Core" or "swapped to SANS". */
     directionLabel: string
+    /** For transfer rows: which way the value moved (the icon reads it). */
+    direction?: 'out' | 'in'
     /** Secondary leg for swaps (e.g. "373.875 SANS"). */
     outLabel?: string
     /** epoch ms, 0 = unknown. */
@@ -179,10 +181,122 @@ export function swapToRow(
     }
 }
 
+/* F57c — the indexer-backed identity activity (the DAPI team's
+ * get_identity_activity, contract per the MOBILE team's
+ * docs/HANDOFF-platform-indexer.md §10 — the SAME mapping mobile's
+ * helpers/platformActivity.ts uses). Only the VALUE-MOVING transitions
+ * belong in a wallet history: document/identity-maintenance activity
+ * (batch, identityUpdate, …) is social/profile activity, not money. */
+export const PLATFORM_ACTIVITY_TYPES = [
+    'creditTransfer',
+    'identityTopUp',
+    'identityCreditWithdrawal',
+]
+
+/** Row shape of the proxy's get_identity_activity result (camelCase). */
+export interface PlatformActivityRow {
+    id: number
+    txid: string | null
+    transitionId: string
+    identityId: string
+    height: number
+    blocktime: number // unix SECONDS
+    type: string
+    contractId: string | null
+    documentType: string | null
+    documentId: string | null
+    amount: number | null // credits
+    role: string | null
+    network: string
+}
+
+/** A real state-transition id = 32 bytes as 64 hex chars (the mobile rule:
+ * rows without one can neither be verified nor deep-linked). */
+const TXID_RE = /^[0-9a-fA-F]{64}$/
+
+/** Map one activity row onto a history row — null when it must not render.
+ *
+ * - creditTransfer sender/receiver -> sent/received credits (the type-7
+ *   identity-to-identity transfers are invisible to EVERY document query —
+ *   this indexer row is the only honest source for them).
+ * - identityTopUp -> topped up from Core.
+ * - identityCreditWithdrawal -> NULL on purpose: the system-contract doc
+ *   query (F48) already covers the same transitions WITH the payout status
+ *   (Awaiting payout vs Paid) and the document deep-link — rendering the
+ *   indexer row too would duplicate every withdrawal.
+ * - anything else (batch, identityUpdate, …) -> null (not wallet history). */
+export function activityToRow(row: PlatformActivityRow, network: 'mainnet' | 'testnet'): ActivityRow | null {
+    if (!row || typeof row !== 'object' || typeof row.type !== 'string') return null
+    if (row.type === 'identityCreditWithdrawal') return null
+    if (typeof row.amount !== 'number' || !Number.isFinite(row.amount) || row.amount <= 0) return null
+    if (typeof row.txid !== 'string' || !TXID_RE.test(row.txid)) return null
+
+    let directionLabel: string
+    let direction: 'out' | 'in'
+    if (row.type === 'creditTransfer') {
+        if (row.role === 'sender') { directionLabel = 'sent credits'; direction = 'out' }
+        else if (row.role === 'receiver') { directionLabel = 'received credits'; direction = 'in' }
+        else return null
+    } else if (row.type === 'identityTopUp') {
+        directionLabel = 'topped up from Core'; direction = 'in'
+    } else {
+        return null
+    }
+
+    const credits = BigInt(Math.round(row.amount))
+    const when = Number(row.blocktime) > 0 ? Number(row.blocktime) * 1000 : 0
+    return {
+        key: `activity-${row.id}`,
+        kind: 'transfer',
+        /* 8 decimals — the 4-decimal row format would render a 1M-credit
+         * (0.00001 DASH) transfer as '0'. */
+        amountLabel: dashOfMax(Number(credits) / CREDITS_PER_DASH, 8),
+        assetLabel: 'DASH',
+        directionLabel,
+        direction,
+        when,
+        statusLabel: 'On-chain',
+        tone: 'ok',
+        href: `https://${network === 'mainnet' ? 'www' : 'testnet'}.platform-explorer.com/transaction/${row.txid.toLowerCase()}`,
+        hrefLabel: 'view on explorer',
+    }
+}
+
+/** The narrow activity surface the component wires to the proxy. */
+export interface ActivityQueryPort {
+    fetchActivities: () => Promise<PlatformActivityRow[]>;
+}
+
+/** Query the indexer-backed identity activity (the DAPI team's
+ * get_identity_activity — proxy-only, there is NO wasm equivalent) and map
+ * the value-movers to rows. The same deadline race as the withdrawal query:
+ * a hung fetch degrades to the honest error line, never a fake empty. */
+export async function queryActivityRows(
+    port: ActivityQueryPort,
+    network: 'mainnet' | 'testnet',
+    deadlineMs: number = WITHDRAWAL_QUERY_DEADLINE_MS,
+): Promise<{ rows: ActivityRow[]; error: string | null }> {
+    try {
+        const rowsPromise = port.fetchActivities()
+        const deadline = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('query timed out')), deadlineMs))
+        const activities = await Promise.race([rowsPromise, deadline]) as PlatformActivityRow[]
+        const rows = (Array.isArray(activities) ? activities : [])
+            .map((row) => activityToRow(row, network))
+            .filter((r): r is ActivityRow => r !== null)
+        return { rows, error: null }
+    } catch (e: any) {
+        return {
+            rows: [],
+            error: (e && typeof e.message === 'string' && e.message) || 'activity history unavailable',
+        }
+    }
+}
+
 /** Merge + sort (newest first). The withdrawals win over the swaps when the
  * timestamps are identical (on-chain beats local cache); the key comparison
  * keeps the comparator a total order (no stable-sort ambiguity). */
-const KIND_RANK: Record<ActivityKind, number> = { withdrawal: 0, swap: 1 }
+const KIND_RANK: Record<ActivityKind, number> = { withdrawal: 0, transfer: 1, swap: 2 }
 export function mergeActivity(a: ActivityRow[], b: ActivityRow[]): ActivityRow[] {
     return [...a, ...b].sort((x, y) =>
         (y.when - x.when)

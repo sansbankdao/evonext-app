@@ -10,8 +10,9 @@ import { describe, it, expect, vi } from 'vitest'
 import { base58 } from '@scure/base'
 import {
     SYSTEM_WITHDRAWAL_CONTRACT_ID, CREDITS_PER_DASH, DUFFS_PER_DASH,
-    WITHDRAWAL_QUERY_DEADLINE_MS,
+    WITHDRAWAL_QUERY_DEADLINE_MS, PLATFORM_ACTIVITY_TYPES,
     dashOfMax, withdrawalToRow, swapToRow, mergeActivity, queryWithdrawalRows,
+    queryActivityRows, activityToRow, PlatformActivityRow,
     swapStatusLabel, swapStatusFailed, swapIsSettled, readSwapHistory,
     ActivityRow, SwapRecord,
 } from '@/lib/wallet-history'
@@ -222,5 +223,81 @@ describe('wallet-history: the F59 withdrawal query race (queryWithdrawalRows)', 
 
         expect(rows).toEqual([])
         expect(error).toBeNull()
+    })
+})
+
+describe('wallet-history: the indexer-backed identity activity (F57c, mobile-parity mapping)', () => {
+    it('pins the indexer query to the mobile-parity value-mover types', () => {
+        expect(PLATFORM_ACTIVITY_TYPES).toEqual(['creditTransfer', 'identityTopUp', 'identityCreditWithdrawal'])
+    })
+
+    const baseRow = {
+        id: 166261885,
+        txid: '16508EB5F697F8EC',
+        transitionId: '16508eb5f697f8ec',
+        identityId: 'EcbX',
+        height: 687089,
+        blocktime: 1794779969,
+        type: 'creditTransfer',
+        contractId: null,
+        documentType: null,
+        documentId: null,
+        amount: 1000000,
+        role: 'sender',
+        network: 'testnet',
+    }
+    const fullTxid = 'a'.repeat(64)
+
+    it('creditTransfer sender -> sent credits (out) with the /transaction/ deep-link', () => {
+        const row = activityToRow({ ...baseRow, txid: fullTxid }, 'testnet')
+        expect(row).not.toBeNull()
+        expect(row!.kind).toBe('transfer')
+        expect(row!.direction).toBe('out')
+        expect(row!.directionLabel).toBe('sent credits')
+        expect(row!.amountLabel).toBe('0.00001')
+        expect(row!.when).toBe(1794779969 * 1000)
+        expect(row!.href).toBe(`https://testnet.platform-explorer.com/transaction/${fullTxid}`)
+    })
+
+    it('creditTransfer receiver -> received credits (in); identityTopUp -> topped up from Core', () => {
+        const recv = activityToRow({ ...baseRow, role: 'receiver', txid: fullTxid }, 'testnet')
+        expect(recv!.direction).toBe('in')
+        expect(recv!.directionLabel).toBe('received credits')
+        const topUp = activityToRow({ ...baseRow, type: 'identityTopUp', role: null, txid: fullTxid }, 'mainnet')
+        expect(topUp!.directionLabel).toBe('topped up from Core')
+        expect(topUp!.direction).toBe('in')
+        expect(topUp!.href).toContain('https://www.platform-explorer.com/transaction/')
+    })
+
+    it('identityCreditWithdrawal rows are DROPPED (the F48 doc source is authoritative — no duplicates)', () => {
+        expect(activityToRow({ ...baseRow, type: 'identityCreditWithdrawal', role: 'owner', txid: fullTxid }, 'testnet')).toBeNull()
+    })
+
+    it('non-wallet activity is dropped: batch, unknown types, bad txid, no amount, unknown role', () => {
+        expect(activityToRow({ ...baseRow, type: 'batch', amount: null, txid: fullTxid }, 'testnet')).toBeNull()
+        expect(activityToRow({ ...baseRow, type: 'identityUpdate', amount: 5, txid: fullTxid }, 'testnet')).toBeNull()
+        expect(activityToRow({ ...baseRow, txid: null }, 'testnet')).toBeNull()
+        expect(activityToRow({ ...baseRow, txid: 'short' }, 'testnet')).toBeNull()
+        expect(activityToRow({ ...baseRow, amount: null }, 'testnet')).toBeNull()
+        expect(activityToRow({ ...baseRow, amount: 0 }, 'testnet')).toBeNull()
+        expect(activityToRow({ ...baseRow, role: 'observer', txid: fullTxid }, 'testnet')).toBeNull()
+        expect(activityToRow(null as unknown as PlatformActivityRow, 'testnet')).toBeNull()
+    })
+
+    it('queryActivityRows maps rows and degrades a hung fetch to the deadline error', async () => {
+        const ok = await queryActivityRows(
+            { fetchActivities: async () => [{ ...baseRow, txid: fullTxid }] }, 'testnet', 25)
+        expect(ok.rows).toHaveLength(1)
+        expect(ok.error).toBeNull()
+
+        const hung = await queryActivityRows(
+            { fetchActivities: () => new Promise(() => {}) }, 'testnet', 25)
+        expect(hung.rows).toEqual([])
+        expect(hung.error).toBe('query timed out')
+
+        const failed = await queryActivityRows(
+            { fetchActivities: async () => { throw new Error('proxy HTTP 503') } }, 'testnet', 25)
+        expect(failed.rows).toEqual([])
+        expect(failed.error).toBe('proxy HTTP 503')
     })
 })
