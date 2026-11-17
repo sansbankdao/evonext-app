@@ -4243,3 +4243,32 @@ rule, the ±48h txid reconciliation against its local ledger);
     chain state for the e2e identity — 1 sent + 2 received credit rows
     (all /transaction/-linked) + the 2 F46 withdrawals
     (document-linked), zero page errors.
+
+## F57c follow-up — the DAPI HANDOFF for the activity-feed gaps (2026-11-17,
+## dev-dapi-proxy commit `309bd05`)
+
+`dev-dapi-proxy/docs/HANDOFF-identity-activity-gaps-token-shielded.md`
+— two VERIFIED gaps, with copy-paste reproductions and the on-chain proof:
+
+1. **Token transitions missing**: DpLt5xy… (the F58 settlement identity)
+   shows ZERO token rows (9 rows: batch 8 + identityCreate 1) despite two
+   real tSANS settlements on 2026-11-16; the F53c 15-tDUSD send is absent
+   from both sides too. Asks: index TokenTransfer (+Mint/Burn) with the
+   token id / base-unit amount / sender+receiver identity attribution and
+   PINNED type strings — OR the cheaper alternative: if the tokens opt
+   into the platform token-history contract, the contract-id derivation
+   per token so the wallets read transfers via get_documents.
+2. **Shielded-pool edges missing**: ALL FIVE known 8Yj6… transition
+   hashes (18 `50f6daf7…`, 16 `6cac3ee7…`, 21 `dd0da155…`, 17
+   `f77c6d73…`, 22 `f19496ee…`) are ABSENT from its 41-row unfiltered
+   activity. Asks: index the shielded edges with the SUBMITTING identity
+   (outgoing only — incoming shielded notes are encrypted by design and
+   mobile covers them via the local scan), the credited identity for
+   21/22/20, pinned type strings, which method carries type-15 Shield
+   (identity vs address history), and what txid carries for shielded rows.
+
+GOOD NEWS verified in the same probe: types **9 and 11 ARE indexed**
+(`creditTransferToAddresses`, `identityTopUpFromAddresses` — seen in
+8Yj6's live 41-row histogram), so the address-funds identity lanes are
+already consumable; the wallet will map them once we pin whether their
+strings should join PLATFORM_ACTIVITY_TYPES.
