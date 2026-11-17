@@ -599,7 +599,7 @@ export function WalletSwap({ isFullScreen }: WalletSwapProps) {
             )}
 
             <p className="text-2xs text-gray-400 px-1">
-                Estimates come from the DashSwap engine's own quote endpoint (NET
+                Estimates come from the DashSwap engine&apos;s own quote endpoint (NET
                 of the platform fee) and fix at settlement. Powered by DashSwap —
                 dashswap.xyz.
             </p>

@@ -41,3 +41,24 @@ overrides:
   # ships in the client bundle for L1 signing; HIGH/CRITICAL advisories are
   # fixed in >=6.6.1.
   'elliptic@<6.6.1': '6.6.1'
+  # F57d — Dependabot/audit pass (2026-11-18): all advisories are transitive;
+  # selective overrides pin the patched lines without breaking the majors the
+  # consumers declare. crypto-js 3.3.0 (CRITICAL, PBKDF2) rides
+  # @nexajs/crypto -> secure-ls which IS imported by core-chain /
+  # identity-manager / registrar-manager. elliptic 6.6.2 + bn.js patched
+  # lines are runtime crypto (dashcore-lib signing). @dicebear/initials
+  # 9.4.3 fixes the SVG-injection advisory in the browser-rendered avatars.
+  'crypto-js@<4.2.0': '4.2.0'
+  # elliptic: the 'Risky Implementation' advisory (low) says patched >=6.6.2,
+  # but npm's LATEST elliptic is 6.6.1 -- no fixed release exists upstream.
+  # Keep the 6.6.1 pin; the alert stays open until upstream ships a fix.
+  'bn.js@<5': '4.12.5'
+  'bn.js@>=5': '5.2.5'
+  'picomatch@<4': '2.3.2'
+  'picomatch@>=4': '4.0.7'
+  'brace-expansion@<2': '1.1.22'
+  'source-map-js@<1.2.2': '1.2.2'
+  'zod@<4.6.6': '4.6.7'
+  '@babel/core@<7.29.13': '7.29.13'
+  'minimatch@<11.0.1': '11.0.9'
+  '@dicebear/initials@<9.4.3': '9.4.3'
