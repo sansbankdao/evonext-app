@@ -4722,3 +4722,30 @@ DISCOVERY-GOTCHAS (burned real time — remember):
 - evorunner :3000 remains squatted; the SPA nav to /wallet in probes =
   click the VISIBLE a[href="/wallet"] via evaluate findIndex(el =>
   el.offsetParent).
+
+## F57j.4 — the LIVE asset prices from the dashswap /v1 tickers
+## (2026-11-18, commit `9081cf8`)
+
+OWNER DIRECTIVE: 'pull the asset prices from https://dashswap.xyz/v1
+instead of hard-coding SANS price @ $0.01'. The live tickers (CORS *
+on ALL three symbols — verified 2026-11-18): DASH $37.38 (CMC-derived),
+SANS $0.0598 (the ladder-derived price — the $0.01 constant was ~6x
+off), DUSD $1.00 (the peg).
+
+FIX (the F37b/F56e price-cache pattern, extended to the tokens):
+- lib/wallet-assets.ts: readCachedTokenPrice/writeCachedTokenPrice
+  (per-symbol `evonext_tok_usd_<SYM>` 10-min-TTL localStorage cache) +
+  fetchTokenUsdPrice (8s abort, quote.USD.price > 0, writes the cache)
+  + TOKEN_USD_FALLBACK (the pinned peg/ladder constants stay as the
+  FALLBACKS — a zero/negative live price falls back, never 0 x
+  balance).
+- buildAvailableAssets: optional dusdUsdValue/sansUsdValue overrides.
+- assets.tsx: two more fire-and-forget price tasks; the rows rebuild
+  incrementally.
+- send.tsx: the DUSD/SANS confirm-dialog values read the cache first +
+  refresh non-fatally (the F56e never-block rule for the token
+  branches).
+
+Tests: the fallback pins stay; the new overrides guard (15 DUSD @
+$0.98 = $14.70; 10 SANS @ $0.0598 = $0.598) + the zero/negative
+fallback guard. 362/362, tsc 0, eslint clean, build green.
