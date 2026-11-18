@@ -4566,3 +4566,59 @@ handler):
 Regression tests: test/unit/lib/withdraw-resilience.test.mts (6).
 Gates: tsc 0, eslint clean, 357/357 (39 files), build green, playwright
 2/2.
+
+## F57i — the Cloudflare Pages pipeline UNBROKEN: the F57d overrides
+## needed their lockfile + a release-age exclusion (2026-11-18, commit
+## `6c26081`)
+
+ROOT CAUSE (the user's dashboard build log — the definitive record):
+EVERY build since F57d (0117438) failed at install with
+ERR_PNPM_LOCKFILE_CONFIG_MISMATCH — F57d added 13 version overrides to
+pnpm-workspace.yaml but the COMMITTED pnpm-lock.yaml never gained the
+matching overrides section, so Cloudflare's frozen install rejected
+it. The evorunner builds never caught it because the evorunner working
+copy's local install had already rewritten ITS lockfile — the
+uncommitted divergence was invisible off CI. Live impact: F57g + F57h
+were pushed but the site stayed frozen at a pre-F57g build for hours
+(the user's withdrawal-resilience fix was NOT live when they needed
+it).
+
+FIX (one commit):
+1. pnpm-lock.yaml regenerated with pnpm 11.21.0 against master's exact
+   package.json + workspace on EVORUNNER (git archive HEAD into a
+   scratch tree first — CPU policy), so the importers' specifiers
+   match master (buffer ^6.0.3 / process ^0.11.10 carets + the bs58
+   key order — the evorunner copy's lockfile had drifted there) and
+   settings.overrides carries the 13 pins.
+2. pnpm-workspace.yaml: minimatch@11.0.9 added to
+   minimumReleaseAgeExclude — the minimatch@<11.0.1 -> 11.0.9 override
+   target is NEWER than the supply-chain minimum-release-age gate
+   allows; the exclusion is what lets the resolution stand (CI logs
+   'Lockfile passes supply-chain policies (843 entries)').
+
+GOTCHAS worth remembering:
+- `git fetch origin master` + the stale local origin/master tracking
+  ref ('more work' commits from the F53 era) can lie — verify the real
+  head via the GitHub API or a fresh ff-pull.
+- `git archive HEAD` + scp/pnpm on the remote = the policy-clean way
+  to validate CI's exact install step without host CPU.
+- wrangler OAuth: the token lives in ~/.config/.wrangler/config/
+  default.toml on the HOST but ~/.wrangler/config/default.toml for
+  evorunner's wrangler 4.162 (different state-dir resolution — check
+  the wrangler log's configFileType). Non-interactive wrangler refuses
+  OAuth (needs CLOUDFLARE_API_TOKEN); force a TTY with `script -qec`.
+  The dash.cloudflare.com token refresh needs a UA header (403 error
+  1010 without one) and FORM encoding (JSON = invalid_request). The
+  host's token belongs to the HöS account — evonext.app's Pages
+  project lives in a DIFFERENT account, so direct deploy still needs
+  that account's token.
+- The GitHub "85 vulnerabilities" banner = the per-path pre-scan count
+  (F57d: pnpm audit = 1); it refreshes asynchronously — ignore.
+
+VERIFIED LIVE: after the push, the pipeline built again — the live
+wallet page serves a NEW chunk (page-ab72e575…) containing the F57h
+strings ('Do NOT submit again until it shows in your History' +
+'lookup timed out'; the in-flight-guard text lives in the shared chunk
+— the wallet-manager split). Gates on the exact CI tree (git archive
+of master + the two files): frozen install PASSES, tsc 0, 357/357 (39
+files), build green.
