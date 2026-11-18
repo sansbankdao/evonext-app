@@ -4785,3 +4785,37 @@ addresses. GOTCHA: getSessionCredentials = a LIVE chain search (the
 identity-indices walk) — the banner card clears only after SECONDS;
 a fixed 20s probe wait raced it. 363/363 tests (the stale-mark guard
 added), tsc 0, eslint clean, build green.
+
+## F57j.6 — the phrase-mismatch error names BOTH identities (2026-11-18,
+## commit `c24cc9f`)
+
+The owner pasted a phrase belonging to their OTHER identity (ADtgYG2…)
+while in the atlanta-degen session — the guard refused correctly and
+left the session untouched, but the error didn't say WHICH phrase was
+needed. The message now names both: 'This phrase belongs to a different
+identity (ADtgYG2MHi…), not this session's identity (AFaVqRJCWX…).
+Paste the phrase that created THIS identity — or sign in with the other
+one instead.' 363/363, tsc 0, eslint clean, build green.
+
+## SESSION CLOSE (2026-11-18) — F57i → F57j.6 complete; NEXT SESSION:
+## complete the SWAP tab + the UI cleanup
+
+The owner closed the session with 'ALL GOOD' after the full arc: the
+pipeline unbroken (F57i), the locked-session receive UX (F57j/j.2), the
+WIF-only seed bridge (F57j.3), the live dashswap asset prices (F57j.4),
+the paste crash fixed (F57j.5), and the shielded-needs-seed constraint
+understood and accepted (F57j.6). **FULL HANDOFF for the next session
+(the owner's directive: UI cleanup + complete the SWAP tab) =**
+`docs/HANDOFF-F57i-F57j-SESSION-CLOSE-swtab-ui-cleanup.md` — read it
+FIRST: the swap remaining-work list (the settled-state UI verification
+pass, the DUSD direction, the open DashSwap questions), the itemized
+UI-cleanup list (the Lock-now/idle re-lock, the Notifications sidebar
+entry, the deposit.tsx vestigials, the shielded history as the fifth
+History source, the biometric theater retirement), the environment
+cheat-sheet, and the eight session gotchas (the lockfile-committed
+invariant, the probe gotchas, the wasm ensure-init rule).
+
+STATE AT CLOSE: HEAD c24cc9f all pushed; 363/363 (40 files); tsc 0;
+eslint clean; build green; the pipeline FIXED — every push builds and
+deploys; the live site verified current (the wallet chunk carries the
+F57j.5/F57j.6 strings + the price cache keys).
