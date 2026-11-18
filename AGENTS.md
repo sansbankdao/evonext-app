@@ -4819,3 +4819,49 @@ STATE AT CLOSE: HEAD c24cc9f all pushed; 363/363 (40 files); tsc 0;
 eslint clean; build green; the pipeline FIXED — every push builds and
 deploys; the live site verified current (the wallet chunk carries the
 F57j.5/F57j.6 strings + the price cache keys).
+
+## F57k — TRANSPARENT/SHIELDED balances now RE-DERIVE after the unlock
+## password (2026-11-19)
+
+The owner's report: "my TRANSPARENT and SHIELDED balances DON'T ALWAYS
+UPDATE even AFTER i enter my UNLOCK PASSWORD". ROOT CAUSE (verified in
+the code, then proven live): the F57b model wipes the in-memory key
+material on every unload, so after a reload the balance effects run
+WITHOUT the mnemonic — the shielded branch sets an honest `0n`
+(F57b's WIF-only fix) and `fetchPlatformAddressBalance` returns `0n` —
+and when the owner enters the unlock password, `restorePayload` restores
+the material and dispatches `evonext:session-unlocked`… but the effects
+are keyed on `[network, user]`, NEITHER of which changes at unlock, so
+they NEVER re-ran. The rows stayed 0 forever on that tab (the F57j fix
+covered ONLY the deposit receive-address tiles; the balances, the Send
+panel's source chips, the Move card and the full-screen shielded view
+all shared the bug). Balances DID work without a reload (SPA nav keeps
+the memory) — hence "DON'T ALWAYS".
+
+FIX (one pattern, five sites — a `unlockedTick` state bumped by the
+`evonext:session-unlocked` listener, added to the balance effects' deps):
+- `app/wallet/page.tsx` — the dashboard's shielded+transparent effect
+  `[network, user]` → `+ unlockedTick`. ALSO fixed a REAL listener leak
+  exposed by the re-runs: the scan-status subscription was registered
+  INSIDE the async IIFE whose return value was DISCARDED (`off` never
+  called) — one leaked handler per effect run; it now lives in the
+  effect body (subscribed unconditionally — the registry is just
+callbacks; without an engine init nothing emits) and unsubscribes in
+  the effect cleanup.
+- `components/wallet/assets.tsx` — both balance-row effects + the tick
+  (the PRICES effect deliberately NOT keyed — prices are network-level).
+- `components/wallet/send.tsx` — the source-balance refresh effect.
+- `components/wallet/move-card.tsx` — the From-lane balances refresh.
+- `components/wallet/shielded.tsx` — the full-screen view's init effect
+  (opened pre-unlock it parks on needsMnemonic; the unlock re-runs
+  loadEngine → snapshot → scan IN PLACE).
+
+LIVE-PROVEN (headless chromium on evorunner against the local out/ on
+:3999, the F39 mnemonic → identity EcbXLyhWeMB3BLmpVk1sWgtwQjUzaFASwhL3
+ShxXqdVa, which holds ~200M shielded credits from the F40 sends): login
+→ set the unlock password via the banner → RELOAD → locked banner +
+rows honestly 0/0 → enter the password → **t+30s the Shielded row =
+0.002 DASH** (the real scan) and the Transparent read landed, locked
+banner cleared, ZERO page errors. Pre-fix this stayed 0 forever.
+Gates: tsc 0, eslint clean (all five files), 363/363 (40 files), build
+green (wasm stripped), playwright 2/2.

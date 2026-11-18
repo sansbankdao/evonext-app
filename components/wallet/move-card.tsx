@@ -72,10 +72,25 @@ export function WalletMoveCard() {
         } catch { setShieldedBalance(null) }
     }
 
+    /* F57k — the UNLOCK RE-RUN (the same fix as the dashboard + the asset
+     * rows): the From balances read the in-memory key material, which is
+     * empty right after a reload until the unlock password is entered —
+     * and this effect's deps ([sdkNetwork]) do not change at unlock, so
+     * the lanes stayed '…' forever. The unlock event bumps this tick; the
+     * refresh below re-derives (the engine snapshot works once the
+     * deposit tab's persistent loop — or any other start() — has warmed
+     * the engine; until then the catch keeps the honest null). */
+    const [unlockedTick, setUnlockedTick] = useState(0)
+    useEffect(() => {
+        const onUnlocked = () => setUnlockedTick((t) => t + 1)
+        window.addEventListener('evonext:session-unlocked', onUnlocked)
+        return () => window.removeEventListener('evonext:session-unlocked', onUnlocked)
+    }, [])
+
     useEffect(() => {
         void refreshBalances()
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [sdkNetwork])
+    }, [sdkNetwork, unlockedTick])
 
     const move = async () => {
         const dash = parseFloat(amountDash || '0')

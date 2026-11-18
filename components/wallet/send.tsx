@@ -123,6 +123,20 @@ export function WalletSend({ isFullScreen }: IWalletSendProps) {
     const [transparentBalance, setTransparentBalance] = useState<bigint | null>(null)
     const [shieldedBalance, setShieldedBalance] = useState<bigint | null>(null)
 
+    /* F57k — the UNLOCK RE-RUN (the same fix as the dashboard + the asset
+     * rows): the source balances are read from the in-memory key
+     * material, which is empty right after a reload until the unlock
+     * password is entered — and this effect's deps ([source,
+     * user?.identityId]) do not change at unlock, so the transparent and
+     * shielded lanes stayed at their no-mnemonic zeros forever. The
+     * unlock event bumps this tick; the refresh below re-derives. */
+    const [unlockedTick, setUnlockedTick] = useState(0)
+    useEffect(() => {
+        const onUnlocked = () => setUnlockedTick((t) => t + 1)
+        window.addEventListener('evonext:session-unlocked', onUnlocked)
+        return () => window.removeEventListener('evonext:session-unlocked', onUnlocked)
+    }, [])
+
     useEffect(() => {
         /* Request asset. */
         setAsset(getAsset())
@@ -197,7 +211,7 @@ export function WalletSend({ isFullScreen }: IWalletSendProps) {
             setEngineReady(true)
         })()
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [source, user?.identityId])
+    }, [source, user?.identityId, unlockedTick])
 
     const SOURCE_META: Record<'identity' | 'transparent' | 'shielded', { label: string; fee: string }> = {
         identity: { label: 'Identity', fee: 'network fee ≈ 0.00003 DASH paid from the identity' },

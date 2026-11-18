@@ -80,6 +80,22 @@ export function WalletAssets({ isFullScreen, onOpenShielded, selectedAsset, onSe
     const [dusdPrice, setDusdPrice] = useState<number | null>(null)
     const [sansPrice, setSansPrice] = useState<number | null>(null)
 
+    /* F57k — the UNLOCK RE-RUN (the same fix as the dashboard page): the
+     * balance effects below are keyed on [network, user], which does not
+     * change when the session unlocks. After a reload the reads run
+     * without the mnemonic (the memory is wiped) and honestly report 0 —
+     * the owner enters the unlock password, the material returns, and
+     * WITHOUT a re-run the rows stayed at 0 forever. The unlock event
+     * (restorePayload / the seed upgrade) bumps this tick, which is in
+     * both balance effects' dep arrays. The PRICES effect is deliberately
+     * NOT keyed on it — prices are network-level, not mnemonic-level. */
+    const [unlockedTick, setUnlockedTick] = useState(0)
+    useEffect(() => {
+        const onUnlocked = () => setUnlockedTick((t) => t + 1)
+        window.addEventListener('evonext:session-unlocked', onUnlocked)
+        return () => window.removeEventListener('evonext:session-unlocked', onUnlocked)
+    }, [])
+
     useEffect(() => {
         if (typeof user !== 'undefined' && user !== null) {
             let cancelled = false
@@ -119,7 +135,7 @@ export function WalletAssets({ isFullScreen, onOpenShielded, selectedAsset, onSe
             })()
             return () => { cancelled = true }
         }
-    }, [network, user])
+    }, [network, user, unlockedTick])
 
     useEffect(() => {
         if (typeof user !== 'undefined' && user !== null) {
@@ -131,7 +147,12 @@ export function WalletAssets({ isFullScreen, onOpenShielded, selectedAsset, onSe
                         /* F57b — a WIF-only session: the Orchard keys are
                          * ZIP-32 SEED-derived — the shielded balance is 0
                          * BY DEFINITION. Set it so the row leaves the
-                         * loading skeleton (the owner's report, 2026-11-16). */
+                         * loading skeleton (the owner's report, 2026-11-16).
+                         * F57k: pre-unlock this branch also runs at mount
+                         * for PHRASE sessions (the memory is wiped on
+                         * reload) — the zero is momentary there: the unlock
+                         * event bumps unlockedTick and this effect re-runs
+                         * with the restored phrase. */
                         if (!cancelled) setShieldedCredits(0n)
                         return
                     }
@@ -151,7 +172,7 @@ export function WalletAssets({ isFullScreen, onOpenShielded, selectedAsset, onSe
             })()
             return () => { cancelled = true }
         }
-    }, [network, user])
+    }, [network, user, unlockedTick])
 
     const displayIcon = (_token: IToken) => {
         /* Handle token icon URL. */

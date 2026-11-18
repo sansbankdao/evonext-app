@@ -86,6 +86,21 @@ export function WalletShielded({ isFullScreen, onBack }: {
     const [shielding, setShielding] = useState(false)
     const [shieldPhase, setShieldPhase] = useState<string | null>(null)
 
+    /* F57k — the UNLOCK RE-RUN (the same fix as the dashboard + the asset
+     * rows): if this view is opened BEFORE the session is unlocked, the
+     * mount effect below hits loadEngine's no-mnemonic branch and parks on
+     * needsMnemonic — and its deps ([sdkNetwork]) do not change when the
+     * unlock password is entered, so the view stayed empty until Back +
+     * reopen. The unlock event bumps this tick; the init re-runs (an
+     * already-started engine makes start() a no-op, and the snapshot +
+     * scan then fill the view in place). */
+    const [unlockedTick, setUnlockedTick] = useState(0)
+    useEffect(() => {
+        const onUnlocked = () => setUnlockedTick((t) => t + 1)
+        window.addEventListener('evonext:session-unlocked', onUnlocked)
+        return () => window.removeEventListener('evonext:session-unlocked', onUnlocked)
+    }, [])
+
     /* One place to project an ENGINE SNAPSHOT into the UI (balance + notes
      * + history). The engine runs in the Web Worker — the main thread only
      * renders state. */
@@ -152,7 +167,7 @@ export function WalletShielded({ isFullScreen, onBack }: {
         })()
         return () => { cancelled = true }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [sdkNetwork])
+    }, [sdkNetwork, unlockedTick])
 
     /* The receive address is derived IN THE WORKER (the keys live there). */
     useEffect(() => {

@@ -52,6 +52,22 @@ export default function WalletPage() {
     const [platformCredits, setPlatformCredits] = useState<bigint | null>(null)
     const [shieldedCredits, setShieldedCredits] = useState<bigint | null>(null)
 
+    /* F57k — the UNLOCK RE-RUN: the balance effects below are keyed on
+     * [network, user], and NEITHER changes when the session unlocks (the
+     * session record is not the key material). After a reload the memory
+     * is empty, so the reads legitimately return 0 — and then the owner
+     * enters the unlock password, the material comes back… and the rows
+     * NEVER re-derived (the owner's report: "TRANSPARENT and SHIELDED
+     * balances DON'T ALWAYS UPDATE even AFTER i enter my UNLOCK
+     * PASSWORD"). The unlock event (restorePayload / the seed upgrade)
+     * bumps this tick, which is in the effects' dep arrays below. */
+    const [unlockedTick, setUnlockedTick] = useState(0)
+    useEffect(() => {
+        const onUnlocked = () => setUnlockedTick((t) => t + 1)
+        window.addEventListener('evonext:session-unlocked', onUnlocked)
+        return () => window.removeEventListener('evonext:session-unlocked', onUnlocked)
+    }, [])
+
     useEffect(() => {
         if (typeof user !== 'undefined' && user !== null) {
             let cancelled = false
@@ -61,6 +77,16 @@ export default function WalletPage() {
                     new Promise<T>((_, reject) => setTimeout(() => reject(new Error(`${what} timed out after ${ms / 1000}s`)), ms)),
                 ])
             const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+
+            /* The scan-status subscription is owned by the EFFECT body
+             * (not the async IIFE): the IIFE's return value was DISCARDED,
+             * which leaked one listener per run — and F57k's unlock
+             * re-runs would have stacked them. Subscribing
+             * unconditionally is safe: the registry is just callbacks,
+             * and without an engine init nothing emits. */
+            const offScan = shieldedEngine.onScanStatus(({ balance }) => {
+                if (!cancelled) setShieldedCredits(BigInt(balance))
+            })
 
             ;(async () => {
                 try {
@@ -75,10 +101,6 @@ export default function WalletPage() {
                             const snap = await shieldedEngine.snapshot()
                             if (!cancelled) setShieldedCredits(BigInt(snap.balance))
                         } catch { /* the row shows zero until a scan lands */ }
-                        const off = shieldedEngine.onScanStatus(({ balance }) => {
-                            if (!cancelled) setShieldedCredits(BigInt(balance))
-                        })
-                        return () => { off() }
                     } else {
                         /* F57b — a WIF-only session: the Orchard keys are
                          * ZIP-32 SEED-derived and this session has no seed,
@@ -87,7 +109,11 @@ export default function WalletPage() {
                          * seed from another wallet's session) so the row
                          * leaves the loading skeleton — the owner's report:
                          * "even if it's ZERO, the skeleton should go
-                         * away". */
+                         * away". F57k: pre-unlock this branch also runs at
+                         * mount for PHRASE sessions (the memory is wiped on
+                         * reload) — the zero is momentary there: the
+                         * unlock event bumps unlockedTick and this effect
+                         * re-runs with the restored phrase. */
                         if (!cancelled) setShieldedCredits(0n)
                     }
                 } catch (err: any) {
@@ -122,9 +148,9 @@ export default function WalletPage() {
                 }
             })()
 
-            return () => { cancelled = true }
+            return () => { cancelled = true; offScan() }
         }
-    }, [network, user])
+    }, [network, user, unlockedTick])
     const [tokensBalanceUsd, setTokensBalanceUsd] = useState(0)
     const [tokens, setTokens] = useState({})
 
