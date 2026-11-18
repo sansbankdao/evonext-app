@@ -21,6 +21,7 @@ import {
     ITokenPaymentInfo,
 } from './types'
 import { EVONEXT_CONTRACT_ID_MAINNET, EVONEXT_CONTRACT_ID_TESTNET } from './constants'
+import { SYSTEM_WITHDRAWAL_CONTRACT_ID } from './wallet-history'
 import { getIdentityNonce, getTokenContractInfo } from './trustless-reads'
 
 /* Get Private Keys. */
@@ -401,6 +402,28 @@ export const sendCredit = async (
     } as any
 }
 
+/* F57h — the withdrawal-doc reader. GOTCHA (live-probed 2026-11-18): the
+ * withdrawal contract's indexes are identityRecent($ownerId,$updatedAt,
+ * status) + identityStatus($ownerId,status,$createdAt) and a SINGLE
+ * $ownerId where clause silently returns 0 rows — the compound index
+ * prefix (adding status) returns the rows. So the docs are fetched per
+ * status leg. */
+const fetchPendingWithdrawalDocs = async (sdk: any, identityId: string): Promise<any[]> => {
+    const docs: any[] = []
+    for (const status of [1, 2]) {
+        try {
+            const rows = await (sdk as any).getDocuments({
+                dataContractId: SYSTEM_WITHDRAWAL_CONTRACT_ID,
+                documentTypeName: 'withdrawal',
+                where: [['$ownerId', '==', identityId], ['status', '==', status]],
+                limit: 10,
+            })
+            if (Array.isArray(rows)) docs.push(...rows)
+        } catch { /* a failed leg is skipped — the guard stays best-effort */ }
+    }
+    return docs
+}
+
 export const withdrawToCore = async (
     _network: string,
     _identityId: string,
@@ -408,6 +431,9 @@ export const withdrawToCore = async (
     _credits: bigint,
     _toCoreAddress: string,
     _coreFeePerByte: number = 1,
+    /* F57h — injectable for the resilience tests (defaults keep the
+     * production behavior 1:1). */
+    _poll?: { attempts?: number; intervalMs?: number },
 ): Promise<ITxSuccess | ITxError> => {
     /* Initialize locals. */
     let sdk
@@ -439,17 +465,84 @@ export const withdrawToCore = async (
     const signer = new IdentitySigner()
     signer.addKeyFromWif(transferWif)
 
+    /* F57h — IN-FLIGHT GUARD (the F48 idempotency rule): a withdrawal that
+     * is signed but not yet complete (status 1/2) would DOUBLE-PAY if a
+     * second one were submitted. Refuse while one is fresh. */
+    const TWO_HOURS_MS = 2 * 60 * 60 * 1000
+    const inFlight = await fetchPendingWithdrawalDocs(sdk, _identityId)
+    const nowMs = Date.now()
+    const freshInFlight = inFlight.find((doc) => {
+        const updated = Number((doc as any)?.$updatedAt ?? (doc as any)?.updatedAt ?? 0)
+        return updated > 0 && (nowMs - updated) < TWO_HOURS_MS
+    })
+    if (freshInFlight) {
+        const mins = Math.max(1, Math.round((nowMs - Number(freshInFlight.$updatedAt)) / 60000))
+        throw new Error(`You already have a withdrawal in flight (submitted ${mins} min ago). Wait for it to complete — check your History. Submitting another one now could pay out TWICE.`)
+    }
+
     /* Withdraw credits to Core (L1). */
     // NOTE: coreFeePerByte MUST be an integer in wasm SDK 4.1.1 (a float
     // throws "value is not an integer, found float 1.2"). The returned value
     // is the REMAINING identity balance (verified live on testnet).
-    const remaining = await (sdk as any).identityCreditWithdrawal({
-        identity,
-        amount: credits,
-        toAddress: _toCoreAddress,
-        coreFeePerByte: Math.trunc(_coreFeePerByte),
-        signer,
-    })
+    let remaining: any
+    try {
+        remaining = await (sdk as any).identityCreditWithdrawal({
+            identity,
+            amount: credits,
+            toAddress: _toCoreAddress,
+            coreFeePerByte: Math.trunc(_coreFeePerByte),
+            signer,
+        })
+    } catch (err: any) {
+        const msg = String(err?.message ?? err)
+
+        /* F57h — "Object already exists: tx already exists in cache" is the
+         * TENDERDASH mempool cache rejecting a byte-identical RESUBMISSION:
+         * the earlier attempt IS in the queue (this exact incident was
+         * live-reproduced 2026-11-18 after the 8s deadline killed the wait).
+         * Translated to the honest meaning instead of the cryptic error. */
+        if (/already exists in cache/i.test(msg)) {
+            throw new Error('This withdrawal is ALREADY in the network queue — it will process with an upcoming block. Do NOT submit again until it shows in your History (a repeat submission could pay out twice).')
+        }
+
+        /* F57h — a deadline-expired does NOT mean the broadcast failed: the
+         * high-level op broadcasts first, then WAITS for the transition to
+         * be included in a block — the wait is what blew the 8s transport
+         * deadline (the "request timed out after ~8s" error). Verify on
+         * chain for ~2 min; if the withdrawal doc commits, report success.
+         * If it does NOT commit in the window, return an UNCONFIRMED result
+         * (not an error): the tx may still be in the mempool. */
+        if (/timed out|deadline/i.test(msg)) {
+            const pollAttempts = _poll?.attempts ?? 12
+            const pollIntervalMs = _poll?.intervalMs ?? 10000
+            for (let attempt = 0; attempt < pollAttempts; attempt++) {
+                await new Promise((resolve) => setTimeout(resolve, pollIntervalMs))
+                try {
+                    const docs = await fetchPendingWithdrawalDocs(sdk, _identityId)
+                    const freshDoc = docs.find((doc) => {
+                        const created = Number((doc as any)?.$createdAt ?? (doc as any)?.createdAt ?? 0)
+                        return created > 0 && (Date.now() - created) < 30 * 60 * 1000
+                            && BigInt((doc as any)?.amount ?? 0) === credits
+                    })
+                    if (freshDoc) {
+                        const refreshed = await sdk.getIdentity(_identityId)
+                        return {
+                            txid: 'WITHDRAWAL PENDING',
+                            remainingBalance: refreshed?.balance,
+                            unconfirmed: false,
+                        } as any
+                    }
+                } catch { /* keep polling — a slow node must not abort the check */ }
+            }
+            return {
+                txid: 'WITHDRAWAL PENDING',
+                remainingBalance: undefined,
+                unconfirmed: true,
+            } as any
+        }
+
+        throw err
+    }
 
     /* Return result. */
     return {

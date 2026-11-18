@@ -1169,13 +1169,28 @@ export function WalletSend({ isFullScreen }: IWalletSendProps) {
                                         1,
                                     )
 
-                                    /* Set note. */
-                                    setWithdrawNote(
-                                        `Withdrawal submitted! The funds will arrive at your Dash address after the network processes the withdrawal (usually within minutes to about a day).`
-                                    )
+                                    /* Set note. F57h — an UNCONFIRMED result is
+                                     * NOT a failure: the network was slow to
+                                     * include the withdrawal in a block. The
+                                     * note must tell the user NOT to resubmit
+                                     * (a repeat could pay out twice). */
+                                    if ((response as any)?.unconfirmed) {
+                                        setWithdrawNote(
+                                            `Withdrawal submitted — the network is confirming it (it was slow to respond). It should process with an upcoming block. Do NOT submit again until it shows in your History.`
+                                        )
+                                    } else {
+                                        setWithdrawNote(
+                                            `Withdrawal submitted! The funds will arrive at your Dash address after the network processes the withdrawal (usually within minutes to about a day).`
+                                        )
+                                    }
                                 } catch (err: any) {
 console.error('WITHDRAW FAILED', err)
-                                    showErrorToast(`Withdrawal failed: ${err?.message || 'unknown error'}`)
+                                    /* F57h — the SDK's own high-level ops wrap
+                                     * errors with "Withdrawal failed: …"
+                                     * (the string is in the wasm binary) — do
+                                     * not double-prefix. */
+                                    const rawMsg = err?.message || 'unknown error'
+                                    showErrorToast(rawMsg.startsWith('Withdrawal failed') ? rawMsg : `Withdrawal failed: ${rawMsg}`)
                                 } finally {
                                     /* Reset flag. */
                                     setIsWithdrawing(false)
