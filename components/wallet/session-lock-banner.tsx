@@ -150,7 +150,7 @@ export function SessionLockBanner() {
                             Keys not in this session — reconnect to enable sends.
                         </p>
                         <p className="text-xs text-amber-800 dark:text-amber-300 mt-0.5">
-                            No unlock vault is set up on this device yet. Your balances still load; reconnect with your recovery phrase or key to sign. You can then set an unlock password or biometrics below.
+                            No unlock vault is set up on this device yet. Your balances still load; reconnect with your recovery phrase or key to sign — then set an unlock password here so future reloads unlock with one password.
                         </p>
                     </div>
                 </div>

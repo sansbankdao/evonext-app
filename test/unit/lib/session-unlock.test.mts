@@ -131,10 +131,16 @@ describe('session-unlock (F57b Option B)', () => {
         expect(getMnemonic()).toBeNull()
 
         /* The RIGHT password → everything back. */
+        /* F57j — the unlock must ANNOUNCE itself so the open seed-derived
+         * views (the deposit receive tiles) re-run their init. */
+        const unlocked = vi.fn()
+        window.addEventListener('evonext:session-unlocked', unlocked)
         await unlockSessionWithPassword(ID, 'correct horse battery staple')
+        window.removeEventListener('evonext:session-unlocked', unlocked)
         expect(getMnemonic()).toBe('legal winner thank year wave sausage worth useful legal winner thank yellow')
         expect(getIdentityIdx()).toBe(3)
         expect(await getSessionLockState(ID)).toBe('unlocked')
+        expect(unlocked).toHaveBeenCalledTimes(1)
     })
 
     it('the password tier: too-short/blank/whitespace-only passwords are refused; a fresh session cannot wrap nothing', async () => {

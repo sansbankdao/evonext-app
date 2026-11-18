@@ -214,6 +214,10 @@ async function restorePayload(identityId: string, payload: SessionVaultPayload):
         try { JSON.parse(payload.keysJson); secureStorage.set(`${KEYS_STORE_PREFIX}${identityId}`, payload.keysJson) } catch { /* a corrupt blob — skip */ }
     }
     if (payload.legacyWif) storePrivateKey(identityId, payload.legacyWif)
+    /* F57j — tell the seed-derived UI (the deposit receive tiles etc.)
+     * that the material is back, so open views re-run their init without
+     * needing a tab switch. */
+    if (typeof window !== 'undefined') window.dispatchEvent(new Event('evonext:session-unlocked'))
 }
 
 /**

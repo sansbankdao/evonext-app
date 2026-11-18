@@ -5,7 +5,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useAuth } from '@/contexts/auth-context'
 import { useNetwork } from '@/contexts/network-context'
-import { BoltIcon, UserIcon, ClipboardDocumentIcon } from '@heroicons/react/24/outline'
+import { BoltIcon, UserIcon, ClipboardDocumentIcon, LockClosedIcon } from '@heroicons/react/24/outline'
 import { QRCodeSVG } from 'qrcode.react'
 import toast from 'react-hot-toast'
 import { showErrorToast } from '@/lib/toast-error'
@@ -253,19 +253,28 @@ export function WalletDeposit({ isFullScreen }: WalletDepositProps) {
      * identity credit transfers. */
     const [platformAddr, setPlatformAddr] = useState('')
     const [shieldedAddr, setShieldedAddr] = useState('')
+    /* F57j — the locked-session honesty: after a reload the in-memory key
+     * material is GONE (the F57b model — memory-only, wiped on unload)
+     * until the unlock banner above re-materializes it. While it is gone,
+     * the mnemonic-derived tiles say WHY they are empty instead of a
+     * silent '…'. */
+    const [locked, setLocked] = useState(false)
     /* ONE address shown at a time (owner directive — never all three at
      * once): 'transparent' | 'shielded' | 'identity'. */
     const [receiveTarget, setReceiveTarget] = useState<'transparent' | 'shielded' | 'identity'>('transparent')
 
     useEffect(() => {
         let cancelled = false
-        ;(async () => {
+        const init = async (): Promise<boolean> => {
             try {
                 const mnemonic = getMnemonic()
-                if (!mnemonic) return
+                if (!mnemonic) {
+                    if (!cancelled) setLocked(true)
+                    return false
+                }
                 /* Transparent: LOCAL derivation (no network I/O). */
                 const platform = derivePlatformReceiveAddress(sdkNetwork, 0)
-                if (!cancelled) setPlatformAddr(platform)
+                if (!cancelled) { setPlatformAddr(platform); setLocked(false) }
                 /* Shielded: the address derives in the engine worker —
                  * the worker init (trusted-context prefetch) can take a
                  * few seconds on first load, so retry until it is ready. */
@@ -279,12 +288,32 @@ export function WalletDeposit({ isFullScreen }: WalletDepositProps) {
                         await new Promise((resolve) => setTimeout(resolve, 3000))
                     }
                 }
+                return true
             } catch (err: any) {
                 /* The tiles simply show '…' — never block the page. */
                 console.error('receive-address init failed:', err?.message)
+                return false
             }
-        })()
-        return () => { cancelled = true }
+        }
+        void init()
+        /* F57j — re-run when the session unlocks while this tab is open
+         * (restorePayload dispatches the event; a tab switch would also
+         * remount this component — this covers staying on the tab). */
+        const onUnlocked = () => { void init() }
+        window.addEventListener('evonext:session-unlocked', onUnlocked)
+        /* Bounded poll fallback: while the material is missing, re-check
+         * every 2.5s for ~60s (covers any re-materialization path). */
+        let ticks = 0
+        const timer = setInterval(() => {
+            ticks++
+            if (ticks > 24) { clearInterval(timer); return }
+            void init().then((done) => { if (done) clearInterval(timer) })
+        }, 2500)
+        return () => {
+            cancelled = true
+            window.removeEventListener('evonext:session-unlocked', onUnlocked)
+            clearInterval(timer)
+        }
     }, [sdkNetwork])
 
     const copyAddress = async (value: string, what: string) => {
@@ -405,7 +434,12 @@ export function WalletDeposit({ isFullScreen }: WalletDepositProps) {
                             <div className="rounded-xl border border-sky-200 bg-white p-2 shadow-sm shrink-0">
                                 {value
                                     ? <QRCodeSVG value={value} size={148} />
-                                    : <div className="w-[148px] h-[148px] flex items-center justify-center text-sm text-gray-400">…</div>}
+                                    : locked
+                                        ? <div className="w-[148px] h-[148px] flex flex-col items-center justify-center gap-1 text-center px-2">
+                                            <LockClosedIcon className="h-5 w-5 text-amber-500" />
+                                            <span className="text-[11px] leading-tight text-gray-500">Session locked —<br />unlock above or reconnect</span>
+                                          </div>
+                                        : <div className="w-[148px] h-[148px] flex items-center justify-center text-sm text-gray-400">…</div>}
                             </div>
                             <div className="flex-1 w-full space-y-2">
                                 <p className="text-xs text-gray-500">{subtitle}</p>
@@ -415,7 +449,7 @@ export function WalletDeposit({ isFullScreen }: WalletDepositProps) {
                                     className="w-full flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white border border-gray-200 font-mono text-xs text-gray-700 break-all text-left hover:border-sky-400 transition-colors"
                                 >
                                     <ClipboardDocumentIcon className="w-3.5 h-3.5 shrink-0 text-sky-500" />
-                                    <span className="break-all">{value || '…'}</span>
+                                    <span className="break-all">{value || (locked ? 'Locked — unlock above to reveal' : '…')}</span>
                                 </button>
                                 <button
                                     onClick={() => copyAddress(value, what)}
