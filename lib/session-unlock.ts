@@ -258,6 +258,11 @@ export type SessionLockState =
 export interface SessionLockInfo {
     /** The in-memory key material is present (the session works). */
     material: boolean
+    /** The in-memory session holds the RECOVERY PHRASE (the seed-derived
+     * features — the Transparent/Shielded receive addresses, the shielded
+     * engine — need it; a WIF-only session (F55) has material but no
+     * phrase, and NO unlock tier can produce it). */
+    hasMnemonic: boolean
     /** The PRF (passkey) session vault exists — one ceremony unlocks. */
     prfVault: boolean
     /** The password-wrapped vault exists — one password unlocks. */
@@ -269,17 +274,19 @@ export interface SessionLockInfo {
 
 export async function getSessionLockInfo(identityId: string | null | undefined): Promise<SessionLockInfo> {
     if (!identityId) {
-        return { material: false, prfVault: false, pwVault: false, pwStale: false }
+        return { material: false, hasMnemonic: false, prfVault: false, pwVault: false, pwStale: false }
     }
     const secureStorage = (await import('./secure-storage')).default
     const { getMnemonic, getPrivateKey } = await import('./secure-storage')
+    const mnemonic = getMnemonic()
     const material = !!(
-        getMnemonic()
+        mnemonic
         || getPrivateKey(identityId)
         || secureStorage.get(`${KEYS_STORE_PREFIX}${identityId}`)
     )
     return {
         material,
+        hasMnemonic: !!mnemonic,
         prfVault: hasSessionVault(identityId),
         pwVault: hasPasswordVault(identityId),
         pwStale: isPasswordVaultStale(identityId),
@@ -328,3 +335,58 @@ export async function unlockSession(identityId: string): Promise<void> {
 /** Re-exported for the lock-down UI (an explicit vault removal). */
 export { hasSessionVault } from './passkey-vault'
 export { removeSessionVault } from './passkey-vault'
+
+// ---------------------------------------------------------------------------
+// F57j.3 — the IN-PLACE seed upgrade for WIF-only sessions. The owner
+// (and any private-key login, F55) holds a session whose material = the
+// WIF only: NO mnemonic exists in the memory OR in any vault payload, so
+// NEITHER unlock tier can ever produce the seed-derived features (the
+// Transparent/Shielded receive addresses, the shielded engine, the seed
+// sends). The honest fix in place: let the user paste the recovery
+// phrase right where they are — validate (BIP39 + the F57d diagnosis),
+// resolve the credentials EXACTLY the way the connect flow does, verify
+// the phrase actually controls the CURRENT identity, then store it in
+// the session memory (the same in-memory tier) and announce it. The
+// phrase is never logged; on ANY failure the memory is restored to
+// exactly its prior state.
+// ---------------------------------------------------------------------------
+export async function upgradeSessionWithMnemonic(
+    rawPhrase: string,
+    network: 'mainnet' | 'testnet',
+    currentIdentityId: string,
+): Promise<{ identityId: string; identityIdx: number }> {
+    const { normalizePhrase, diagnoseRejectedPhrase } = await import('./mnemonic-diagnostics')
+    const { validate_mnemonic } = await import('./dash-wasm/compat')
+    const phrase = normalizePhrase(rawPhrase)
+    if (!phrase) {
+        throw new PasskeyVaultError('FAILED', 'Paste your recovery phrase first.')
+    }
+    if (!validate_mnemonic(phrase)) {
+        throw new PasskeyVaultError('FAILED', await diagnoseRejectedPhrase(phrase))
+    }
+    /* Place the candidate phrase in the session memory and resolve the
+     * credentials exactly the connect flow resolves them. */
+    const { storeMnemonic, getMnemonic, storeIdentityIdx, clearMnemonic } = await import('./secure-storage')
+    const previous = getMnemonic()
+    storeMnemonic(phrase)
+    try {
+        const { getSessionCredentials } = await import('./session-keys')
+        const credentials = await getSessionCredentials(network)
+        if (!credentials) {
+            throw new PasskeyVaultError('FAILED', 'This phrase does not control a registered identity on this network.')
+        }
+        if (credentials.identityId !== currentIdentityId) {
+            throw new PasskeyVaultError('FAILED', `This phrase belongs to a different identity (${credentials.identityId.slice(0, 10)}…). Sign in with it instead — this session was left untouched.`)
+        }
+        storeIdentityIdx(credentials.identityIdx)
+        /* Announce — the open seed-derived views (the receive tiles etc.)
+         * re-run their init without a reload or a tab switch. */
+        if (typeof window !== 'undefined') window.dispatchEvent(new Event('evonext:session-unlocked'))
+        return { identityId: credentials.identityId, identityIdx: credentials.identityIdx }
+    } catch (error) {
+        /* Roll the memory back to exactly its prior state on ANY failure. */
+        if (previous) storeMnemonic(previous)
+        else clearMnemonic()
+        throw error
+    }
+}

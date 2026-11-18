@@ -53,9 +53,31 @@ import {
     setSessionUnlockPassword,
     unlockSessionWithPassword,
     hasPasswordVault,
+    upgradeSessionWithMnemonic,
 } from '../../../lib/session-unlock'
 
 const ID = 'AFaVqRJCWXFZRUhuq6ZUUcWXVW8fErCN3wpEtgsBnDZm'
+const PHRASE = 'legal winner thank year wave sausage worth useful legal winner thank yellow'
+
+/* F57j.3 — the seed-upgrade mocks: the wasm BIP39 validator (accepts the
+ * fixture phrase only) and the connect-flow credential resolver (its
+ * answer is controlled per-test). */
+let credentialAnswer: { identityId: string; identityIdx: number; wif: string } | null = null
+vi.mock('@/lib/dash-wasm/compat', () => ({
+    validate_mnemonic: (p: string) => p === 'legal winner thank year wave sausage worth useful legal winner thank yellow',
+}))
+vi.mock('@/lib/session-keys', () => ({
+    getSessionCredentials: vi.fn(async () => credentialAnswer),
+}))
+/* ONE module-scope listener — per-test addEventListener would accumulate. */
+const unlockedEvents: string[] = []
+if (typeof window !== 'undefined') {
+    window.addEventListener('evonext:session-unlocked', () => unlockedEvents.push('evonext:session-unlocked'))
+}
+beforeEach(() => {
+    credentialAnswer = null
+    unlockedEvents.length = 0
+})
 
 beforeEach(() => {
     vaultAtRest.clear()
@@ -141,6 +163,51 @@ describe('session-unlock (F57b Option B)', () => {
         expect(getIdentityIdx()).toBe(3)
         expect(await getSessionLockState(ID)).toBe('unlocked')
         expect(unlocked).toHaveBeenCalledTimes(1)
+    })
+
+    it('F57j.3 THE SEED UPGRADE: a WIF-only session gains the phrase in place — validated, matched, announced', async () => {
+        /* The WIF-only session: material = the legacy WIF, NO mnemonic. */
+        storePrivateKey(ID, 'cT9kYwHNV7cBTAGx4r9u1Tsq88y4fWEPqU8gCvmvg6w91xBtJkyo')
+        const info0 = await getSessionLockInfo(ID)
+        expect(info0.material).toBe(true)
+        expect(info0.hasMnemonic).toBe(false)
+
+        /* The phrase controls THIS identity (the mocked resolver says so). */
+        credentialAnswer = { identityId: ID, identityIdx: 2, wif: 'wif' }
+        const res = await upgradeSessionWithMnemonic('  Legal WINNER   thank year\nwave sausage worth useful legal winner thank yellow  ', 'testnet', ID)
+        expect(res.identityId).toBe(ID)
+        expect(res.identityIdx).toBe(2)
+        /* The normalized phrase is now the session's — and the event fired. */
+        expect(getMnemonic()).toBe(PHRASE)
+        expect(getIdentityIdx()).toBe(2)
+        expect(unlockedEvents.filter((t) => t === 'evonext:session-unlocked')).toHaveLength(1)
+        expect((await getSessionLockInfo(ID)).hasMnemonic).toBe(true)
+    })
+
+    it('F57j.3 the seed upgrade refuses a phrase for a DIFFERENT identity and rolls the memory back exactly', async () => {
+        /* A session that already holds a DIFFERENT phrase (the prior state
+         * must survive the failed upgrade untouched). */
+        storeMnemonic('abandon ability able able about above absent absorb abstract absurd abuse access')
+        credentialAnswer = { identityId: 'DifferentIdentity1111111111111111111111111111', identityIdx: 0, wif: 'wif' }
+        await expect(upgradeSessionWithMnemonic(PHRASE, 'testnet', ID))
+            .rejects.toThrow(/different identity/)
+        expect(getMnemonic()).toBe('abandon ability able able about above absent absorb abstract absurd abuse access')
+        expect(unlockedEvents).toHaveLength(0)
+
+        /* And from a WIF-only session (no prior phrase), the memory ends
+         * with NO phrase. */
+        clearMnemonic()
+        await expect(upgradeSessionWithMnemonic(PHRASE, 'testnet', ID))
+            .rejects.toThrow(/different identity/)
+        expect(getMnemonic()).toBeNull()
+    })
+
+    it('F57j.3 the seed upgrade rejects a garbage phrase with the diagnosis, before touching the memory', async () => {
+        storePrivateKey(ID, 'cT9kYwHNV7cBTAGx4r9u1Tsq88y4fWEPqU8gCvmvg6w91xBtJkyo')
+        await expect(upgradeSessionWithMnemonic('not even words here', 'testnet', ID))
+            .rejects.toThrow(/word|phrase|checksum/i)
+        expect(getMnemonic()).toBeNull()
+        expect(unlockedEvents).toHaveLength(0)
     })
 
     it('the password tier: too-short/blank/whitespace-only passwords are refused; a fresh session cannot wrap nothing', async () => {

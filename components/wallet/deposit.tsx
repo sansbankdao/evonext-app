@@ -450,7 +450,7 @@ export function WalletDeposit({ isFullScreen }: WalletDepositProps) {
                                     : locked
                                         ? <div className="w-[148px] h-[148px] flex flex-col items-center justify-center gap-1 text-center px-2">
                                             <LockClosedIcon className="h-5 w-5 text-amber-500" />
-                                            <span className="text-[11px] leading-tight text-gray-500">Session locked —<br />unlock above or reconnect</span>
+                                            <span className="text-[11px] leading-tight text-gray-500">Session locked —<br />restore your keys above</span>
                                           </div>
                                         : <div className="w-[148px] h-[148px] flex items-center justify-center text-sm text-gray-400">…</div>}
                             </div>
@@ -462,7 +462,7 @@ export function WalletDeposit({ isFullScreen }: WalletDepositProps) {
                                     className="w-full flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white border border-gray-200 font-mono text-xs text-gray-700 break-all text-left hover:border-sky-400 transition-colors"
                                 >
                                     <ClipboardDocumentIcon className="w-3.5 h-3.5 shrink-0 text-sky-500" />
-                                    <span className="break-all">{value || (locked ? 'Locked — unlock above to reveal' : '…')}</span>
+                                    <span className="break-all">{value || (locked ? 'Locked — restore your keys above' : '…')}</span>
                                 </button>
                                 <button
                                     onClick={() => copyAddress(value, what)}

@@ -20,6 +20,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { LockClosedIcon, ShieldCheckIcon, ArrowPathIcon, KeyIcon } from '@heroicons/react/24/outline'
+import { useNetwork } from '@/contexts/network-context'
 import toast from 'react-hot-toast'
 import { useAuth } from '@/contexts/auth-context'
 import {
@@ -28,18 +29,22 @@ import {
     unlockSessionWithPassword,
     enrollSessionKeysAfterLogin,
     setSessionUnlockPassword,
+    upgradeSessionWithMnemonic,
     type SessionLockInfo,
 } from '@/lib/session-unlock'
 import { showErrorToast } from '@/lib/toast-error'
 
 export function SessionLockBanner() {
     const { user } = useAuth()
+    const { network } = useNetwork()
     const [info, setInfo] = useState<SessionLockInfo | null>(null)
     const [busy, setBusy] = useState(false)
     const [password, setPassword] = useState('')
     const [settingPassword, setSettingPassword] = useState(false)
     const [newPassword, setNewPassword] = useState('')
     const [confirmPassword, setConfirmPassword] = useState('')
+    /* F57j.3 — the WIF-only seed upgrade: the pasted recovery phrase. */
+    const [phraseInput, setPhraseInput] = useState('')
     /* The PRF enroll offer renders ONLY where a platform authenticator
      * exists (the F27c gate — on Linux/Brave isUVPAA = false, so the
      * offer is hidden instead of failing on every click). */
@@ -109,6 +114,26 @@ export function SessionLockBanner() {
             }
         } catch (e: any) {
             showErrorToast(e?.message || 'Enrollment failed — set an unlock password instead.')
+        } finally {
+            setBusy(false)
+        }
+    }
+
+    /* F57j.3 — the in-place seed upgrade for a WIF-only session: the
+     * memory holds the WIF, NO mnemonic, so neither unlock tier can ever
+     * produce the seed-derived features. The user pastes the phrase; it
+     * is validated against this identity and stored in the session
+     * memory (never logged). */
+    const handleAddPhrase = async () => {
+        if (!user?.identityId || busy || !phraseInput.trim()) return
+        setBusy(true)
+        try {
+            await upgradeSessionWithMnemonic(phraseInput, network === 'mainnet' ? 'mainnet' : 'testnet', user.identityId)
+            toast.success('Recovery phrase added — the seed features are back.')
+            setPhraseInput('')
+            await check()
+        } catch (e: any) {
+            showErrorToast(e?.message || 'Could not verify that phrase.')
         } finally {
             setBusy(false)
         }
@@ -206,12 +231,51 @@ export function SessionLockBanner() {
         )
     }
 
-    /* UNLOCKED — the enroll offers + the stale nudge. */
+    /* UNLOCKED — the WIF-only seed upgrade, the enroll offers + the stale
+     * nudge. F57j.3: material WITHOUT a mnemonic = a private-key session —
+     * the banner used to render NOTHING here (the vault offers were the
+     * only branch), which is exactly the owner's dead end: the receive
+     * tiles said 'unlock above' while there was nothing above to unlock. */
+    const needsSeed = info.material && !info.hasMnemonic
     const prfOffer = !info.prfVault && uvpaa === true
     const pwOffer = !info.pwVault || info.pwStale
-    if (!prfOffer && !pwOffer) return null
+    if (!prfOffer && !pwOffer && !needsSeed) return null
 
-    return (
+    return (<>
+        {needsSeed && (
+            <div className="mb-4 rounded-2xl border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 p-4">
+                <div className="flex items-center gap-3">
+                    <KeyIcon className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0" />
+                    <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-amber-900 dark:text-amber-200">
+                            Private-key session — add your recovery phrase for the seed features
+                        </p>
+                        <p className="text-xs text-amber-800 dark:text-amber-300 mt-0.5">
+                            The Transparent and Shielded receive addresses (and the shielded balance and sends) derive from your recovery phrase. Paste it below — it is validated against this identity first and never leaves this device.
+                        </p>
+                    </div>
+                </div>
+                <div className="mt-3 space-y-2">
+                    <textarea
+                        value={phraseInput}
+                        onChange={(e) => setPhraseInput(e.target.value)}
+                        rows={2}
+                        placeholder="your 12 or 24 recovery words"
+                        autoComplete="off"
+                        spellCheck={false}
+                        className="w-full px-3 py-2 bg-white dark:bg-gray-950 border border-amber-300 dark:border-amber-800 rounded-lg text-sm"
+                    />
+                    <button
+                        onClick={handleAddPhrase}
+                        disabled={busy || !phraseInput.trim()}
+                        className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 disabled:opacity-60 text-white text-sm font-semibold shadow-sm"
+                    >
+                        {busy ? <><ArrowPathIcon className="h-4 w-4 animate-spin" /> Verifying…</> : <><KeyIcon className="h-4 w-4" /> Add recovery phrase</>}
+                    </button>
+                </div>
+            </div>
+        )}
+        {(prfOffer || pwOffer) && (
         <div className="mb-4 rounded-2xl border border-sky-200 dark:border-sky-800 bg-sky-50 dark:bg-sky-950/40 p-4">
             <div className="flex items-center gap-3">
                 <ShieldCheckIcon className="h-5 w-5 text-sky-600 dark:text-sky-400 shrink-0" />
@@ -283,5 +347,7 @@ export function SessionLockBanner() {
                 )}
             </div>
         </div>
+        )}
+        </>
     )
 }
