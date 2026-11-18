@@ -251,7 +251,7 @@ export function SessionLockBanner() {
                             Private-key session — add your recovery phrase for the seed features
                         </p>
                         <p className="text-xs text-amber-800 dark:text-amber-300 mt-0.5">
-                            The Transparent and Shielded receive addresses (and the shielded balance and sends) derive from your recovery phrase. Paste it below — it is validated against this identity first and never leaves this device.
+                            The Transparent and Shielded receive addresses (and the shielded balance and sends) derive from your recovery phrase. Your keys live ONLY in this tab&apos;s memory — a reload discards them, and the current unlock chain holds just the private key. Paste the phrase ONCE below (validated against this identity, never leaves the device), then save it to the unlock vault in the card below — after that, one password brings everything back on every reload and we never ask again.
                         </p>
                     </div>
                 </div>

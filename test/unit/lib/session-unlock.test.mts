@@ -70,6 +70,13 @@ vi.mock('@/lib/session-keys', () => ({
     getSessionCredentials: vi.fn(async () => credentialAnswer),
 }))
 /* ONE module-scope listener — per-test addEventListener would accumulate. */
+/* F57j.5 — the upgrade ensures the wasm service BEFORE the derivation;
+ * the mocked service keeps the jsdom test off the real 26.5MB glue. */
+vi.mock('@/lib/services/wasm-sdk-service', () => ({
+    getWasmSdk: vi.fn(async () => ({})),
+    wasmSdkService: { initialize: vi.fn(async () => undefined) },
+}))
+
 const unlockedEvents: string[] = []
 if (typeof window !== 'undefined') {
     window.addEventListener('evonext:session-unlocked', () => unlockedEvents.push('evonext:session-unlocked'))
@@ -208,6 +215,23 @@ describe('session-unlock (F57b Option B)', () => {
             .rejects.toThrow(/word|phrase|checksum/i)
         expect(getMnemonic()).toBeNull()
         expect(unlockedEvents).toHaveLength(0)
+    })
+
+    it('F57j.5 — a successful upgrade marks an existing password vault STALE (the re-save nudge: one password restores everything)', async () => {
+        /* A password vault saved from a WIF-only era (no phrase inside). */
+        storePrivateKey(ID, 'cT9kYwHNV7cBTAGx4r9u1Tsq88y4fWEPqU8gCvmvg6w91xBtJkyo')
+        await setSessionUnlockPassword(ID, 'correct horse battery staple')
+        expect(hasPasswordVault(ID)).toBe(true)
+        const { isPasswordVaultStale } = await import('../../../lib/session-unlock')
+        expect(isPasswordVaultStale(ID)).toBe(false)
+
+        credentialAnswer = { identityId: ID, identityIdx: 2, wif: 'wif' }
+        await upgradeSessionWithMnemonic(PHRASE, 'testnet', ID)
+        expect(getMnemonic()).toBe(PHRASE)
+        /* The vault payload no longer matches the memory → stale → the
+         * banner offers the re-save; one password and future reloads
+         * restore the phrase too. */
+        expect(isPasswordVaultStale(ID)).toBe(true)
     })
 
     it('the password tier: too-short/blank/whitespace-only passwords are refused; a fresh session cannot wrap nothing', async () => {

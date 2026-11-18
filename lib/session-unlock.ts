@@ -19,6 +19,16 @@
 // etc.) or a declined ceremony leaves the session memory-only — the app
 // never fails login because of the vault.
 
+/* F57j.5 — the PURE-JS BIP39 validation (identical spec semantics; the
+ * same wordlist the diagnosis classifies with): the wallet page never
+ * initializes the wasm up front, and the previous wasm validate_mnemonic
+ * crashed there with the exact "reading '__wbindgen_malloc'"
+ * glue-before-load class the F56d/F56g fixes eradicated elsewhere. The
+ * derivation step below still needs the wasm — it gets the F56g
+ * ensure-init. */
+import { validateMnemonic } from '@scure/bip39'
+import { wordlist as ENGLISH_WORDLIST } from '@scure/bip39/wordlists/english.js'
+
 import {
     enrollSessionVault,
     unlockSessionVault,
@@ -356,13 +366,29 @@ export async function upgradeSessionWithMnemonic(
     currentIdentityId: string,
 ): Promise<{ identityId: string; identityIdx: number }> {
     const { normalizePhrase, diagnoseRejectedPhrase } = await import('./mnemonic-diagnostics')
-    const { validate_mnemonic } = await import('./dash-wasm/compat')
     const phrase = normalizePhrase(rawPhrase)
     if (!phrase) {
         throw new PasskeyVaultError('FAILED', 'Paste your recovery phrase first.')
     }
-    if (!validate_mnemonic(phrase)) {
+    /* F57j.5 — validate with the PURE-JS @scure BIP39 (returns a boolean;
+     * identical spec semantics). NO wasm touch on this path. */
+    if (!validateMnemonic(phrase, ENGLISH_WORDLIST)) {
         throw new PasskeyVaultError('FAILED', await diagnoseRejectedPhrase(phrase))
+    }
+    /* F57j.5 — the wasm MUST be loaded before the credential derivation
+     * (the F56g defense-in-depth; the connect page initializes on mount,
+     * the wallet page does not — the exact crash the owner hit).
+     * getSdk() throws when uninitialized → initialize (idempotent,
+     * single-flight, retried). */
+    const { wasmSdkService, getWasmSdk } = await import('./services/wasm-sdk-service')
+    try {
+        await getWasmSdk()
+    } catch {
+        const { EVONEXT_CONTRACT_ID_MAINNET, EVONEXT_CONTRACT_ID_TESTNET } = await import('./constants')
+        await wasmSdkService.initialize({
+            network,
+            contractId: network === 'mainnet' ? EVONEXT_CONTRACT_ID_MAINNET : EVONEXT_CONTRACT_ID_TESTNET,
+        })
     }
     /* Place the candidate phrase in the session memory and resolve the
      * credentials exactly the connect flow resolves them. */
@@ -379,6 +405,15 @@ export async function upgradeSessionWithMnemonic(
             throw new PasskeyVaultError('FAILED', `This phrase belongs to a different identity (${credentials.identityId.slice(0, 10)}…). Sign in with it instead — this session was left untouched.`)
         }
         storeIdentityIdx(credentials.identityIdx)
+        /* F57j.5 — if a password vault exists, its payload no longer
+         * matches the memory (it now includes the phrase): mark it stale
+         * so the banner's re-save nudge appears. ONE password entry and
+         * every future reload restores EVERYTHING — the phrase included —
+         * so the app never has to ask for the words again (until the
+         * browser data is cleared). */
+        if (hasPasswordVault(currentIdentityId)) {
+            markPasswordVaultStale(currentIdentityId)
+        }
         /* Announce — the open seed-derived views (the receive tiles etc.)
          * re-run their init without a reload or a tab switch. */
         if (typeof window !== 'undefined') window.dispatchEvent(new Event('evonext:session-unlocked'))
