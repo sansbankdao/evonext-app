@@ -4519,3 +4519,50 @@ NEXT SESSION CANDIDATES (owner-visible queue):
    tests now PIN the fiat figures (15 DUSD -> \$15; 10 SANS -> \$0.10).
 Gates: tsc 0, eslint clean, 351/351 (38 files), build green,
 playwright 2/2.
+
+## F57h — Withdraw to Dash (L1) resilience: the stalled-block incident
+## made honest (2026-11-17, commit `d46ec56`)
+
+THE LIVE INCIDENT: the user clicked Withdraw twice on testnet
+(DpLt5xyR…es4xmh); each died with "Dapi client error: transport error:
+grpc error: Deadline expired… request timed out after 7.950s" — the
+singleton SDK's 8s withSettings deadline killed the high-level
+identityCreditWithdrawal WAIT (it broadcasts first, then waits for the
+block; testnet block production is irregular — F27e, here ~4 HOURS).
+The third click hit "Object already exists: tx already exists in
+cache" = the TENDERDASH mempool cache rejecting a byte-identical
+resubmission — PROOF the earlier attempts were queued. Both eventually
+committed (withdrawal docs 8fDvxxWg… amount 2,000,000 credits and
+8JhkGMnt… amount 50,000,000 credits, signHeights 1593156/1593163,
+status 3 = complete) and paid out EXACTLY (1,620 / 49,620 sats =
+amount − 190 duffs × coreFeePerByte(2)) at
+ycQmm2WKW2GDipews8J7MNELhcbpxVscQ7 /
+yWHiVQmJfTViXyPoRB6ko8XC68gJPBzA17. The identity balance was verified
+UNCHANGED at 85,762,450,560 through BOTH the proxy AND a fresh wasm
+SDK — the debits landed pre-baseline; only the blocks were late. A
+naive retry after a commit would have DOUBLE-PAYED.
+
+FIXES (all in wallet-manager.withdrawToCore + the send.tsx withdraw
+handler):
+1. IN-FLIGHT GUARD: pending withdrawal docs (status 1/2, < 2h old via
+   $updatedAt) refuse a second submission — the F48 idempotency rule in
+   the app.
+2. "tx already exists in cache" → the honest translation ('ALREADY in
+   the network queue — do NOT submit again until it shows in your
+   History'), never the cryptic tenderdash error.
+3. Deadline-expired ≠ failure: a ~2-min poll of the withdrawal system
+   contract (injectable {attempts, intervalMs}, defaults 12×10s) — a
+   committed doc returns success (unconfirmed: false) with the
+   refreshed balance; nothing commits → an HONEST unconfirmed:true
+   RESULT (not a throw) → the UI shows the do-not-resubmit note.
+4. The error toast no longer double-prefixes 'Withdrawal failed:' —
+   the SDK's high-level ops wrap errors with that context (the string
+   lives in wasm_sdk_bg.wasm, confirmed via strings).
+5. QUERY GOTCHA pinned: the withdrawal contract's SINGLE $ownerId
+   where clause silently returns 0 rows — the COMPOUND index prefix
+   ($ownerId + status, the identityRecent/identityStatus shape) is
+   required. Cost: my first incident-probe falsely showed 'no docs'
+   for an identity with two known F48 withdrawals.
+Regression tests: test/unit/lib/withdraw-resilience.test.mts (6).
+Gates: tsc 0, eslint clean, 357/357 (39 files), build green, playwright
+2/2.
