@@ -4673,3 +4673,52 @@ segment shows tdash1zrsu528mm... once the engine is ready; after a full
 reload the banner shows the reconnect guidance and the tiles say
 'Session locked'. Gates: tsc 0, eslint clean, 357/357 (39 files),
 build green; live chunk carries the new strings.
+
+## F57j.3 — the IN-PLACE RECOVERY-PHRASE UPGRADE for WIF-only sessions
+## (2026-11-18, commit `85ad9e2`)
+
+OWNER REPORT: 'I ALREADY UNLOCKED THE WALLET, BUT IT STILL DIDN'T ALLOW
+ME TO SEE THE ADDRESS' — the receive tiles kept the locked hints and NO
+banner rendered above them. ROOT CAUSE: the owner's session = a
+PRIVATE-KEY (WIF) login (F55) — the memory holds the WIF and NO
+mnemonic, so NEITHER unlock tier can ever produce the seed features
+(the vault payloads contain no phrase to restore). In that exact state
+the banner rendered NOTHING (material=true; no authenticator / the
+vault offers satisfied) while the tiles pointed 'above' at nothing.
+The Transparent/Shielded addresses are IMPOSSIBLE to derive from a WIF
+— they need the seed.
+
+FIX — the in-place seed upgrade:
+- `upgradeSessionWithMnemonic(rawPhrase, network, currentIdentityId)`
+  (lib/session-unlock.ts): normalize (the F57d paste rules) → wasm BIP39
+  validate + the diagnosis on failure → place the phrase in the memory →
+  resolve the credentials EXACTLY the connect flow does → verify the
+  phrase controls the CURRENT identity (a mismatch refuses AND rolls
+  the memory back exactly) → store + dispatch
+  'evonext:session-unlocked'. The phrase is never logged.
+- The banner gained the hasMnemonic field on SessionLockInfo and the
+  amber 'Private-key session — add your recovery phrase' card
+  (textarea + Add) for material-without-mnemonic sessions, above the
+  now-conditional vault offers.
+- The deposit tile hints reworded to 'restore your keys above'.
+
+E2E (local static server, F57j3 build): WIF-only login (the F39
+transfer WIF — hardened path m/9'/1'/5'/0'/0'/0'/3') → the banner card
+renders → the phrase submitted → the card clears → the Deposit tab
+shows BOTH addresses. 360/360 tests (3 new upgrade guards), tsc 0,
+eslint clean, build green.
+
+DISCOVERY-GOTCHAS (burned real time — remember):
+- `getIdentityByPublicKeyHash` wants a HEX string — a base64 input
+  throws 'Invalid hex string for public key hash'; several probe
+  'FOUND's were TRUTHY ERROR STRINGS from `.catch(() => 'THREW…')`
+  patterns — assert types, not truthiness.
+- The identity keys derive from the HARDENED paths (m/9'/net'/5'/0'/0'/
+  idx'/n' — lib/wallet-manager.ts getPrivateKeys); unhardened
+  derivations produce keys that match no identity.
+- The F39/WIF e2e fixture WIFs live in evorunner /tmp/f39-{auth,
+  transfer}-wif (0600, derived by scratch-derive-hardened.mts from
+  scratch-identity-state.json).
+- evorunner :3000 remains squatted; the SPA nav to /wallet in probes =
+  click the VISIBLE a[href="/wallet"] via evaluate findIndex(el =>
+  el.offsetParent).
