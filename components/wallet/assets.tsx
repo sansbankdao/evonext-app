@@ -18,12 +18,10 @@ import {
     DUSD_CONTRACT_ID_MAINNET,
     DUSD_CONTRACT_ID_TESTNET,
     DUSD_DECIMALS,
-    DUSD_USD_VALUE,
 
     SANS_CONTRACT_ID_MAINNET,
     SANS_CONTRACT_ID_TESTNET,
     SANS_DECIMALS,
-    SANS_USD_VALUE,
 } from '@/lib/constants'
 import {
     getAsset,
@@ -33,7 +31,7 @@ import {
     storeIdentityIdx,
 } from '@/lib/secure-storage'
 import { shieldedEngine, persistedShieldedBalance } from '@/lib/shielded/engine-client'
-import { readCachedDashPrice, writeCachedDashPrice } from '@/lib/wallet-assets'
+import { readCachedDashPrice, writeCachedDashPrice, readCachedTokenPrice, fetchTokenUsdPrice } from '@/lib/wallet-assets'
 import { fetchPlatformAddressBalance } from '@/lib/platform-address'
 
 interface WalletAssetProps {
@@ -78,6 +76,9 @@ export function WalletAssets({ isFullScreen, onOpenShielded, selectedAsset, onSe
     /* F56e — the price state (the token balances = the existing display
      * states above, now bigint|null so null = not-yet-read). */
     const [dashPrice, setDashPrice] = useState<number>(0)
+    /* F57j.4 — the LIVE token prices (null = the pinned fallbacks). */
+    const [dusdPrice, setDusdPrice] = useState<number | null>(null)
+    const [sansPrice, setSansPrice] = useState<number | null>(null)
 
     useEffect(() => {
         if (typeof user !== 'undefined' && user !== null) {
@@ -308,6 +309,15 @@ export function WalletAssets({ isFullScreen, onOpenShielded, selectedAsset, onSe
                 }
             } catch { /* keep the cached price — never fatal */ }
         })()
+
+        /* F57j.4 — the TOKEN prices: the SAME dashswap ticker source (the
+         * owner's directive — the hardcoded SANS $0.01 was ~6x off the
+         * live ladder price). Cache first, then a non-fatal refresh; the
+         * rows rebuild incrementally when each lands. */
+        setDusdPrice(readCachedTokenPrice('DUSD'))
+        setSansPrice(readCachedTokenPrice('SANS'))
+        void fetchTokenUsdPrice('DUSD').then((price) => { if (!cancelled && price) setDusdPrice(price) })
+        void fetchTokenUsdPrice('SANS').then((price) => { if (!cancelled && price) setSansPrice(price) })
     }, [network, user])
 
     /* The rows REBUILD incrementally as each independent balance lands. */
@@ -323,6 +333,8 @@ export function WalletAssets({ isFullScreen, onOpenShielded, selectedAsset, onSe
             shieldedCredits,
             dusdBalance: dusdBalance === null ? undefined : dusdBalance,
             sansBalance: sansBalance === null ? undefined : sansBalance,
+            dusdUsdValue: dusdPrice,
+            sansUsdValue: sansPrice,
         })
 
         setAssets(assets)
@@ -333,6 +345,8 @@ export function WalletAssets({ isFullScreen, onOpenShielded, selectedAsset, onSe
         displayDusdBalance,
         displaySansBalance,
         dashPrice,
+        dusdPrice,
+        sansPrice,
     ])
 
     return (

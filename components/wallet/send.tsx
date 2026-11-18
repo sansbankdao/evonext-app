@@ -442,21 +442,40 @@ export function WalletSend({ isFullScreen }: IWalletSendProps) {
 
         switch(asset.id) {
         case DUSD_CONTRACT_ID_MAINNET:
-        case DUSD_CONTRACT_ID_TESTNET:
+        case DUSD_CONTRACT_ID_TESTNET: {
             /* Calculate DASH value. */
             assetValue = BigInt(Math.trunc(numericAmount * (10 ** DUSD_DECIMALS)))
 
+            /* F57j.4 — the USD value: the LIVE dashswap ticker price
+             * (cache first, a non-fatal 8s refresh — the same pattern as
+             * the DASH branch below; the send NEVER blocks on a cosmetic
+             * figure), falling back to the pinned $1.00 peg. */
+            const { readCachedTokenPrice, fetchTokenUsdPrice } = await import('@/lib/wallet-assets')
+            let dusdUsdValue = readCachedTokenPrice('DUSD') ?? DUSD_USD_VALUE
+            const dusdLive = await fetchTokenUsdPrice('DUSD')
+            if (dusdLive) dusdUsdValue = dusdLive
+
             /* Calculate USD value. */
-            assetUsdValue = numericAmount * DUSD_USD_VALUE
+            assetUsdValue = numericAmount * dusdUsdValue
             break
+        }
         case SANS_CONTRACT_ID_MAINNET:
-        case SANS_CONTRACT_ID_TESTNET:
+        case SANS_CONTRACT_ID_TESTNET: {
             /* Calculate DASH value. */
             assetValue = BigInt(Math.trunc(numericAmount * (10 ** SANS_DECIMALS)))
 
+            /* F57j.4 — the LIVE SANS price (the hardcoded $0.01 was ~6x
+             * off the live ladder price), cache first + a non-fatal
+             * refresh, falling back to the pinned 0.01. */
+            const { readCachedTokenPrice, fetchTokenUsdPrice } = await import('@/lib/wallet-assets')
+            let sansUsdValue = readCachedTokenPrice('SANS') ?? SANS_USD_VALUE
+            const sansLive = await fetchTokenUsdPrice('SANS')
+            if (sansLive) sansUsdValue = sansLive
+
             /* Calculate USD value. */
-            assetUsdValue = numericAmount * SANS_USD_VALUE
+            assetUsdValue = numericAmount * sansUsdValue
             break
+        }
         default:
             /* Calculate DASH value. */
             assetValue = BigInt(Math.trunc(numericAmount * (10 ** DASH_DECIMALS)))

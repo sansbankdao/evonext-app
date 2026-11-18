@@ -82,6 +82,34 @@ describe('buildAvailableAssets (F53a regression guards)', () => {
         expect(sans!.fiat.USD).toBe(0.1)
     })
 
+    it('F57j.4 — the LIVE token prices override the pinned fallbacks (the dashswap tickers)', () => {
+        const rows = buildAvailableAssets({
+            ...BASE,
+            dusdBalance: 15_000_000n,
+            sansBalance: 1_000_000_000n,
+            dusdUsdValue: 0.98,
+            sansUsdValue: 0.0598, /* the live ladder price seen 2026-11-18 */
+        })
+        const dusd = rows.find((r) => r.ticker === 'DUSD')
+        const sans = rows.find((r) => r.ticker === 'SANS')
+        expect(dusd!.fiat.USD).toBeCloseTo(14.7, 10) /* 15 x 0.98 */
+        expect(sans!.fiat.USD).toBeCloseTo(0.598, 10) /* 10 x 0.0598 */
+    })
+
+    it('F57j.4 — a zero/negative live price falls back to the pinned values (never 0 x balance)', () => {
+        const rows = buildAvailableAssets({
+            ...BASE,
+            dusdBalance: 15_000_000n,
+            sansBalance: 1_000_000_000n,
+            dusdUsdValue: 0,
+            sansUsdValue: -1,
+        })
+        const dusd = rows.find((r) => r.ticker === 'DUSD')
+        const sans = rows.find((r) => r.ticker === 'SANS')
+        expect(dusd!.fiat.USD).toBe(15)
+        expect(sans!.fiat.USD).toBe(0.1)
+    })
+
     it('shows LOADING (skeleton) token rows when balances are unread, and real rows once read — even at zero (F56f)', () => {
         const unread = buildAvailableAssets({
             ...BASE,
