@@ -4622,3 +4622,54 @@ strings ('Do NOT submit again until it shows in your History' +
 — the wallet-manager split). Gates on the exact CI tree (git archive
 of master + the two files): frozen install PASSES, tsc 0, 357/357 (39
 files), build green.
+
+## F57j — the receive tiles explain the LOCKED session; the shielded
+## address retries until the engine is ready (2026-11-18, commits
+## `d85c9bc` + `5b0eeef`)
+
+OWNER REPORT: "trying to RECEIVE SHIELDED, not seeing the shielded or
+transparent address — only the identity id". ROOT CAUSE (live-probed on
+testnet.evonext.app): the F57b model keeps the key material MEMORY-ONLY
+(wiped on every unload) and restores it via the unlock banner; the
+deposit's Transparent/Shielded tiles derive from the mnemonic, so after
+a reload they sat at '…' forever with zero explanation (the identity id
+comes from the session, not the mnemonic — hence 'only the identity id
+shows'). The banner offered the unlock/reconnect, but the tiles never
+said why they were empty and nothing re-ran their init when the unlock
+landed while the tab stayed open.
+
+FIX:
+1. deposit.tsx — the tiles show 'Session locked — unlock above or
+   reconnect' (QR slot) / 'Locked — unlock above to reveal' (address
+   line) while the material is gone; the transparent derivation re-runs
+   on the new 'evonext:session-unlocked' event.
+2. session-unlock.ts — restorePayload (BOTH unlock paths funnel through
+   it) dispatches 'evonext:session-unlocked'.
+3. session-lock-banner.tsx — the locked-novault copy now points at
+   reconnect-then-set-password ("You can then set ... below" was wrong —
+   nothing renders below in that state).
+4. F57j.2 — the deposit's fixed 10x3s receiveAddress retry gave up at
+   ~33s while the cold engine-worker init (26.5MB wasm + trusted-context
+   prefetch) lands at ~45s (the Assets Shielded row landed 0.002 DASH at
+   that time — the engine was fine, the retry was not). The shielded
+   fetch is now a persistent loop: wait for the mnemonic, start the
+   engine, retry every 3s while the tab is mounted until it answers.
+
+PROBE GOTCHAS (cost real time — remember):
+- The F50 receive card shows ONE address at a time (default
+  Transparent) — a body.innerText grep for dash1z finds NOTHING until
+  the Shielded SEGMENT is selected. The segment click needs
+  getByRole('button', {name:'Shielded'}).first() — a naive
+  getByText('Shielded').last() hits the MOVE CARD's option instead.
+- evorunner :3000 is SQUATTED by a foreign app that 303s to
+  /user/login?redirect_to=%2Fconnect (the static server fails to bind
+  with EADDRINUSE) — use the dedicated :3999 (the F57d convention).
+- evorunner's chrome channel vanished ('/opt/google/chrome/chrome not
+  found') — use playwright's bundled chromium (drop channel:'chrome').
+
+VERIFIED (local static server :3999 + the F57j2 build, and live):
+transparent tdash1kp0vk... renders on the default segment; the Shielded
+segment shows tdash1zrsu528mm... once the engine is ready; after a full
+reload the banner shows the reconnect guidance and the tiles say
+'Session locked'. Gates: tsc 0, eslint clean, 357/357 (39 files),
+build green; live chunk carries the new strings.
