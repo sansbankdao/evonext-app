@@ -4749,3 +4749,39 @@ FIX (the F37b/F56e price-cache pattern, extended to the tokens):
 Tests: the fallback pins stay; the new overrides guard (15 DUSD @
 $0.98 = $14.70; 10 SANS @ $0.0598 = $0.598) + the zero/negative
 fallback guard. 362/362, tsc 0, eslint clean, build green.
+
+## F57j.5 — the seed-upgrade paste crashed with '__wbindgen_malloc' —
+## fixed with a wasm-free validation + the F56g ensure-init (2026-11-18,
+## commit `4a6628f`)
+
+OWNER REPORT: pasting the seed into the upgrade card threw 'Cannot
+read properties of undefined (reading '__wbindgen_malloc')' AND asked
+the fair product question: 'I CREATED MY ACCOUNT WITH A SEED PHRASE —
+WHY ARE YOU ASKING FOR IT AGAIN??' — the answer (now IN the card's
+copy): the keys live ONLY in the tab's memory (the F57b model — a
+reload discards them), and the owner's current unlock chain holds just
+the private key (a WIF-only era vault payload), so unlocking restores
+only that. The paste is ONCE; then the vault re-save makes every future
+reload a one-password full restore.
+
+FIX:
+1. validateMnemonic from @scure/bip39 (PURE JS, returns a BOOLEAN in
+   v2 — the same wordlist the diagnosis uses) — the validation path
+   touches NO wasm. The previous F57j.3 code called the wasm
+   validate_mnemonic directly and the WALLET page (unlike the connect
+   page, F56g) never initializes the wasm up front — the exact
+   glue-before-load class.
+2. The F56g ensure-init before the credential derivation: getSdk()
+   throws when uninitialized → wasmSdkService.initialize (idempotent,
+   single-flight, retried).
+3. On success with an existing password vault: markPasswordVaultStale
+   → the banner's re-save nudge — one password entry and future
+   reloads restore the phrase too.
+4. The card copy explains the why + the once-only promise.
+
+E2E (local static server, the F57j5 build): WIF login → the card →
+the paste → NO crash → the card clears → the Deposit tab shows the
+addresses. GOTCHA: getSessionCredentials = a LIVE chain search (the
+identity-indices walk) — the banner card clears only after SECONDS;
+a fixed 20s probe wait raced it. 363/363 tests (the stale-mark guard
+added), tsc 0, eslint clean, build green.
