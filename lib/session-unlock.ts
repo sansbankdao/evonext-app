@@ -402,7 +402,7 @@ export async function upgradeSessionWithMnemonic(
             throw new PasskeyVaultError('FAILED', 'This phrase does not control a registered identity on this network.')
         }
         if (credentials.identityId !== currentIdentityId) {
-            throw new PasskeyVaultError('FAILED', `This phrase belongs to a different identity (${credentials.identityId.slice(0, 10)}…). Sign in with it instead — this session was left untouched.`)
+            throw new PasskeyVaultError('FAILED', `This phrase belongs to a different identity (${credentials.identityId.slice(0, 10)}…), not this session's identity (${currentIdentityId.slice(0, 10)}…). Paste the phrase that created THIS identity — or sign in with the other one instead. This session was left untouched.`)
         }
         storeIdentityIdx(credentials.identityIdx)
         /* F57j.5 — if a password vault exists, its payload no longer
