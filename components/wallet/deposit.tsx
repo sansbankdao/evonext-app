@@ -265,29 +265,17 @@ export function WalletDeposit({ isFullScreen }: WalletDepositProps) {
 
     useEffect(() => {
         let cancelled = false
-        const init = async (): Promise<boolean> => {
+        const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+        /* Transparent: LOCAL derivation (no network I/O). */
+        const initTransparent = (): boolean => {
             try {
                 const mnemonic = getMnemonic()
                 if (!mnemonic) {
                     if (!cancelled) setLocked(true)
                     return false
                 }
-                /* Transparent: LOCAL derivation (no network I/O). */
                 const platform = derivePlatformReceiveAddress(sdkNetwork, 0)
                 if (!cancelled) { setPlatformAddr(platform); setLocked(false) }
-                /* Shielded: the address derives in the engine worker —
-                 * the worker init (trusted-context prefetch) can take a
-                 * few seconds on first load, so retry until it is ready. */
-                await shieldedEngine.start({ network: sdkNetwork, mnemonic })
-                for (let attempt = 0; attempt < 10 && !cancelled; attempt++) {
-                    try {
-                        const shielded = await shieldedEngine.receiveAddress(0)
-                        if (!cancelled) setShieldedAddr(shielded)
-                        break
-                    } catch {
-                        await new Promise((resolve) => setTimeout(resolve, 3000))
-                    }
-                }
                 return true
             } catch (err: any) {
                 /* The tiles simply show '…' — never block the page. */
@@ -295,24 +283,49 @@ export function WalletDeposit({ isFullScreen }: WalletDepositProps) {
                 return false
             }
         }
-        void init()
-        /* F57j — re-run when the session unlocks while this tab is open
-         * (restorePayload dispatches the event; a tab switch would also
-         * remount this component — this covers staying on the tab). */
-        const onUnlocked = () => { void init() }
+        /* Shielded: the address derives in the engine worker — the worker
+         * init (the wasm fetch + the trusted-context prefetch) can take
+         * tens of seconds on a cold session (live-verified 2026-11-18: the
+         * Assets Shielded row lands at ~45s while the old fixed 10×3s retry
+         * had already given up at ~33s and the tile stayed '…' even though
+         * the engine was fine). So: wait for the material (covers the
+         * post-reload unlock), start the engine, and keep retrying every
+         * 3s while this tab is mounted until it answers. */
+        const shieldedLoop = async (): Promise<void> => {
+            while (!cancelled) {
+                const mnemonic = getMnemonic()
+                if (!mnemonic) {
+                    if (!cancelled) setLocked(true)
+                    await sleep(2500)
+                    continue
+                }
+                if (!cancelled) setLocked(false)
+                try {
+                    await shieldedEngine.start({ network: sdkNetwork, mnemonic })
+                } catch {
+                    await sleep(3000)
+                    continue
+                }
+                try {
+                    const shielded = await shieldedEngine.receiveAddress(0)
+                    if (!cancelled) setShieldedAddr(shielded)
+                    return
+                } catch {
+                    await sleep(3000)
+                }
+            }
+        }
+        void initTransparent()
+        void shieldedLoop()
+        /* F57j — re-run the local derivation when the session unlocks while
+         * this tab is open (restorePayload dispatches the event; a tab
+         * switch would also remount this component). The shielded loop
+         * picks the material up on its own next tick. */
+        const onUnlocked = () => { void initTransparent() }
         window.addEventListener('evonext:session-unlocked', onUnlocked)
-        /* Bounded poll fallback: while the material is missing, re-check
-         * every 2.5s for ~60s (covers any re-materialization path). */
-        let ticks = 0
-        const timer = setInterval(() => {
-            ticks++
-            if (ticks > 24) { clearInterval(timer); return }
-            void init().then((done) => { if (done) clearInterval(timer) })
-        }, 2500)
         return () => {
             cancelled = true
             window.removeEventListener('evonext:session-unlocked', onUnlocked)
-            clearInterval(timer)
         }
     }, [sdkNetwork])
 
