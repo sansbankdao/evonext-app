@@ -4864,4 +4864,13 @@ rows honestly 0/0 → enter the password → **t+30s the Shielded row =
 0.002 DASH** (the real scan) and the Transparent read landed, locked
 banner cleared, ZERO page errors. Pre-fix this stayed 0 forever.
 Gates: tsc 0, eslint clean (all five files), 363/363 (40 files), build
-green (wasm stripped), playwright 2/2.
+green (wasm stripped), playwright 2/2. Deployed (commit `9d7c270`) and
+verified LIVE: the served wallet page chunk
+(`/_next/static/chunks/app/wallet/page-17d65049a1f54df0.js`) carries
+SIX `addEventListener("evonext:session-unlocked")` sites (pre-fix:
+exactly ONE — deposit only) + the F57k marker set. GOTCHA for the
+deploy check: the per-page component code lives at
+`/_next/static/chunks/app/wallet/page-*.js` — a bare
+`/chunks/page-*.js` fetch gets an 18KB wrapper with NONE of the page
+strings (the F59-era 'unchanged wallet-page hash' note resolved: grep
+the app/-prefixed path).
