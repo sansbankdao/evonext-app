@@ -5158,3 +5158,67 @@ chunk `page-ad3421d2cd3003a3.js` carries the cache key + the abort
 timers; the APP LAYOUT chunk `layout-3d545acecf2c53c2.js` now carries
 the `session-locked`/`session-unlocked` listeners (previously
 wallet-page-only — the watcher is app-wide).
+
+## F62 — MAINNET WALLET VERIFICATION PASS: every surface verified live
+## against production with the F55 identity (2026-11-19, probe + e2e;
+## NO repo code changed — everything passed)
+
+The F36-era "app-level mainnet enablement is a SEPARATE task" loose end,
+closed with evidence. The F55 identity
+`CZUa7rTxZZUL3vF5MrtFj1fT2TX5C1YtqnTxT2gFmG3P` (the F36 24-word
+mnemonic, state file on evorunner) driven through the FULL production
+wallet (https://evonext.app, headless chromium on evorunner).
+
+**(0) THE ON-CHAIN TRUTHS pre-verified via the DAPI proxy (curl,
+mainnet)** — the expected values the UI had to match:
+- identity balance **866,202,820 credits** (unchanged since F57 §0);
+- DUSD balance **1,000,000 units** (the owner's 1.0 test send, still
+  held);
+- **THE TOKEN-HISTORY SYSTEM CONTRACT (`43gujrz…`) WORKS ON MAINNET**
+  (first-ever verification): 1 INCOMING DUSD row (amount 1,000,000,
+  from `v24uWwdXJ1fJx7YccBmVB48zXPVT5uRYv7vKr5LS5B5`, doc
+  `3Pokh9GgaWpH5K7WZ5tXsk55uXsZoY7AZufu1UB6Qxwk`), 0 outgoing;
+- `get_identity_activity`: **2 creditTransfer rows, BOTH role=receiver,
+  13,370,000 credits each** — the F57-era "+26,740,000" delta was TWO
+  transfers (h 471713 `f6c46517…` + h 471803 `ea40e30e…`).
+
+**(1) LOGIN (production)**: the 24-word flow works (the F57
+NetworkProvider race fix holds on the current build); landed on
+**/profile/create** — a mainnet identity with NO profile routes there
+(the F39 flow), and that page has NO sidebar, so the driver bridged
+/header Profile link → /profile (the full shell) → the sidebar /wallet
+SPA-nav (a full goto() would wipe the session — the F57d model).
+
+**(2) THE DASHBOARD**: identity balance line = the on-chain truth
+(numeric compare within numeral's optional-decimals ROUNDING — the F42
+gotcha renders 0.0086620282 as 0.00866203); **Shielded 0.0025 DASH**
+(the engine's fresh mainnet scan, stable across samples — the honest
+current unspent total, not the stale F56-era ~455M figure); **Transparent
+0.0003** (the DIP-17 pool, 4-decimal truncation); **TOTAL 0.01158038
+DASH = $0.4376** — identity + transparent + shielded, arithmetic exact.
+
+**(3) THE DEPOSIT TILES (mainnet addresses)**: Transparent segment =
+`dash1kplq428dxhfc5…` (the F56-era DIP-17 address); Shielded segment =
+`dash1zpp8sjdr54vrg…` (the F36-era Orchard d0); the identity tile links
+to `www.platform-explorer.com/identity/CZUa…`.
+
+**(4) THE HISTORY TAB — FIRST-EVER MAINNET VERIFICATION, EXACTLY THE
+CHAIN STATE**: 2 × 'received credits' rows of 0.0001337 DASH, BOTH
+deep-linked to `www.platform-explorer.com/transaction/<txid>`; 1 ×
+'received DUSD' row (1.0 DUSD) deep-linked to the token-history
+DOCUMENT — the mainnet token-history contract renders in the product;
+**10 shielded history rows** (the F61 fifth source — the local scan's
+F36/F41/F56-era shielded history on mainnet); NO source error lines;
+no 'Load more' (2 activities < 50, the cursor honestly null).
+
+**(5) THE SEND CHIPS + THE SWAP TAB**: the Identity/Transparent/Shielded
+source chips render with live balances; the Swap tab renders (read-only
+— no create, the mainnet engine awaits the owner's top-up). ZERO page
+errors across the whole pass.
+
+**OBSERVATIONS (recorded, not defects)**: (a) the /profile/create
+landing offers "Create Profile" which CANNOT work on mainnet (no Yappr
+contract — the F26n mainnet constant is '') — a future task should
+honestly disable/explain it there; (b) the identity-balance line's
+numeral rounding is cosmetic (the F42 gotcha). The driver harness was
+deleted after the run (untracked-scratch convention).
