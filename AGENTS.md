@@ -5104,7 +5104,57 @@ lib/wallet-history lives in shared chunks, the F57-Phase-3 rule).
 
 **NOT DONE (out of scope, unchanged):** the handoff item 9 (the two
 tiny L1 UTXOs on the settlement wallet) needs the owner's say-so and is
-theirs; item 10 (the Dependabot banner) = nothing to do. The idle
-re-lock arms from the BANNER (the wallet page) per the handoff's
-wiring — sessions on other pages keep their material until the tab
-closes (the B4 model's accepted boundary).
+theirs; item 10 (the Dependabot banner) = nothing to do.
+
+## F61b — the IDLE RE-LOCK is APP-WIDE + the LAST unguarded fetch fixed
+## (2026-11-19)
+
+Follow-ups to F61, the owner-approved pair:
+
+**(1) THE RE-LOCK FOLLOWS THE SESSION EVERYWHERE.** F61's idle timer
+armed from the session-lock banner — mounted ONLY on /wallet — so on
+/posts, /profile or any other page the unlocked keys stayed hot in
+memory INDEFINITELY (until the tab closed), silently defeating the
+re-lock, AND the banner's on-unmount disarm killed the timer on every
+navigation away from /wallet. Fix: `components/layout/session-relock-
+watcher.tsx` (NEW) — mounted ONCE in Providers inside AuthProvider; it
+reevaluates on mount, on the identity changing, and on BOTH material
+events (`getSessionLockInfo().material` → arm, else disarm), and owns
+the timer app-wide. The banner keeps the visible Lock-now control and
+lock-state UI but no longer touches the timer (the timer-arm import
+gone; the copy's `IDLE_RELOCK_MS` interpolation stays). The fire path
+is UNCHANGED: lockSession dispatches `evonext:session-locked`, which
+the F61 balance surfaces already listen to.
+
+**(2) THE WALLET PAGE'S PRICE HANG FIXED.** `app/wallet/page.tsx`
+fetchData held the LAST unguarded dashswap ticker fetch (the F56e fix
+covered assets.tsx/send.tsx; this one was deliberately left in F57
+Phase 1 as a noted wart) — a slow connection could hang the dashboard's
+USD figure forever (no timeout, no catch). Now cache-first via the
+SHARED `readCachedDashPrice`/`writeCachedDashPrice` (lib/wallet-assets,
+the `evonext_dash_usd` 10-min-TTL cache — one cache for the dashboard,
+Assets and Send) + the 8s-abort non-fatal refresh (the exact F56e
+assets.tsx pattern). The user-balance/displayBalance state writes are
+1:1; the refresh recomputes the balance USD when a fresh price lands.
+
+**VERIFIED LIVE in the browser** (headless chromium on evorunner, :3999,
+the F39 session, ONE context): (A) with **dashswap.xyz fully BLOCKED**
+(context.route abort) and the cache pre-seeded at $42.42, the wallet
+dashboard rendered `TOTAL BALANCE 0.0203855 → $0.8648` (= the cached
+price's figure) with ZERO page errors — the old unguarded fetch would
+have surfaced an unhandled rejection; (B) with a page-side toggleable
+`setTimeout(fn, 900000) → 3000` wrapper (nothing shipped changes — the
+timer lib's arm AND reset paths both call setTimeout(…, IDLE_RELOCK_MS)):
+login → password set → navigate to **/notifications (no banner
+mounted)** → activity → **the re-lock FIRED there** (`__lockedCount`
+incremented) → /wallet shows the locked banner with the password field
+(locked-vault) → unlock → the Shielded row restored (0.002 DASH) → the
+second fire re-locked (count=2). The exact gap the fix closes,
+reproduced and proven closed.
+
+**GATES:** tsc 0 · eslint clean (4 files) · unit suite unchanged green
+· build green · playwright 2/2 · deployed and verified LIVE: the wallet
+chunk `page-ad3421d2cd3003a3.js` carries the cache key + the abort
+timers; the APP LAYOUT chunk `layout-3d545acecf2c53c2.js` now carries
+the `session-locked`/`session-unlocked` listeners (previously
+wallet-page-only — the watcher is app-wide).
