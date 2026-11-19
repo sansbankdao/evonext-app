@@ -4983,3 +4983,128 @@ items 3-6 need no wallet work: (3) the flip/reverse lane = the DashSwap
 team's (their repo's recent commits are the rpsls integration — no
 movement on our F47 open questions); (5) mainnet swap enablement = the
 owner's top-up; (6) swap-to-another-identity = their engine change.
+
+## F61 — MISSION B (the UI cleanup batch), items 1-8 (2026-11-19)
+
+The handoff §4 list, executed in order after the owner's go. ONE commit
+(` Mission B` commit) — the batch pattern (F26j/F27/F39 precedent).
+
+**(1) 'LOCK NOW' + the 15-MINUTE IDLE RE-LOCK (the B4 backlog).**
+- `lib/session-unlock.ts` +`lockSession(identityId)` — the reverse of
+  restorePayload: clears the mnemonic, the legacy WIF and the Key-Manager
+  blob from the in-memory store, dispatches `evonext:session-locked`;
+  the non-sensitive session record is KEPT (the F57b model — a locked
+  session still renders balances + the unlock ladder).
+- `lib/session-lock-timer.ts` (NEW) — the activity-based idle timer:
+  pointerdown/keydown/wheel/touchstart push the deadline (mousemove
+  deliberately NOT — it fires per pixel; a 10s throttle caps the reset
+  work); the deadline expiring runs lockSession. IDLE_RELOCK_MS = 15
+  min. 6 unit tests (fake timers): the fire path, the activity reset,
+  keydown+wheel, disarm, same-id re-arm keeps the deadline, the custom
+  window.
+- The banner: a SLIM UNLOCKED BAR now renders whenever the material is
+  hot (even fully enrolled — previously `return null` left NO visible
+  re-lock control): 'Session unlocked · your keys live in this tab's
+  memory only — auto-locks after 15 minutes idle' + the **Lock now**
+  button. The banner also arms/disarms the idle timer with the material
+  (the handoff's wiring) and revalidates on BOTH material events (the
+  timer fires from outside the component).
+- **THE F61 LOCKED-EVENT REWIRE (the F57k mirror):** all six balance
+  surfaces (app/wallet/page.tsx, assets, send, move-card, shielded,
+  deposit) now listen to BOTH `evonext:session-unlocked` AND
+  `evonext:session-locked` — a lock re-derives the rows to their honest
+  locked states (0n / the locked hints) with no reload. deposit.tsx's
+  no-mnemonic branches also CLEAR the previously derived addresses (a
+  lock would otherwise keep rendering a REAL address while locked).
+
+**(2) THE NOTIFICATIONS SIDEBAR ENTRY** — the long-standing queue item
+(the page existed since F26z, reachable only by URL). Added to the
+LOGGED-IN nav list with the Bell icon. Deviation from the handoff's
+'both lists' wording, deliberate: /notifications is `withAuth`-gated (a
+logged-out click would bounce to /connect), unlike the public Shielded
+Pool the F37b pattern came from.
+
+**(3) THE VESTIGIALS SWEEP:**
+- `components/wallet/deposit.tsx`: the ~230-line commented-out Vue-era
+  block, the dead 'Choose a deposit currency:' section (a mock offering
+  USDT/Bitcoin on a Dash wallet!), the amount input, the Copy/Share
+  stubs and their state (depositAmount/handleChangeAsNumber/
+  isShowingCurrencyOptions/clipboardHandler) all REMOVED; the unused
+  Image/Link/CurrencyTypeSelector/BoltIcon/UserIcon imports pruned.
+- The identity card is NO LONGER `<Link href={identityId}>` (an identity
+  id is NOT a route — the click 404'd): it now links to the identity's
+  platform-explorer page (`/identity/<id>` — the F48-verified route),
+  and the stale 'Scan the QR code… open your preferred wallet' copy is
+  honest ('direct Platform credit transfers land here. Click to view it
+  on the explorer.').
+- `components/wallet/assets.tsx`: the dead `displayDusdBalanceUsd`/
+  `displaySansBalanceUsd` states removed.
+- `components/wallet/move-card.tsx`: the From balance shows the honest
+  **'locked'** hint on a WIF-only session (the F57b 'needs a
+  recovery-phrase session' message detected) instead of the ambiguous
+  '…' (the owner's screenshot item).
+
+**(4) THE ENGINE'S SHIELDED HISTORY as the FIFTH History source** (the
+queue item — needs NO indexer and was pre-approved): the History tab
+queries `shieldedEngine.history()` (the local note scan's sent/received/
+self entries) and merges via the new `shieldedToRow` (lib/wallet-
+history.ts + 4 regression tests). HONEST LIMITS surfaced in the rows:
+NO timestamp (when=0 — the scan has none; the tree index rides in the
+status label as the order proxy), NO explorer deep-link (the scan does
+not surface the transition hash), amounts at 8 decimals (the F57c
+8-decimal rule), the spent badge in the status label, a WIF-only
+session skips quietly (no shielded history by definition — no error
+line). The KIND_ICON gained the ShieldCheck mark.
+
+**(5) THE BIOMETRIC THEATER RETIRED — and it was WORSE than theater.**
+`lib/biometric-storage.ts` persisted the WIF as AES-GCM ciphertext in
+localStorage (`evonext_bio_*`, NO TTL — at rest forever) with **its raw
+AES key in the SAME browser's sessionStorage** (any same-origin script
+reads both), and the EncryptedData's iv/salt fields were literally
+ZEROED (`new ArrayBuffer(0)`) with the real ones commented out — the
+theater signature. REMOVED: the lib, the never-rendered settings UI
+(components/settings/biometric-settings.tsx — zero importers, F27b),
+the app-wide BiometricPrompt mount (providers.tsx) + the prompt
+component + its hook, and all four call sites (auth-context's login-time
+WRITE block, state-transition-service's and dash-platform-client's
+fallback READ legs — the F27c chain is now memory → the passkey vault →
+the honest error; the session vault on the unlock banner is THE
+persistence tier). Users' stale `evonext_bio_*` localStorage rows are
+harmless remnants (nothing reads them).
+
+**(6) THE ACTIVITY CURSOR PAGINATION** (the queue item — nextCursor was
+unwired, silently truncating history at 50): `queryActivityRows` gained
+the `cursor` param and the PAGINATED port contract
+(`fetchActivities(cursor?) → {activities, nextCursor}` — the mobile
+team's §10 shape; +1 test pins the pass-through + the undefined→null
+normalization); the History component's data flow restructured so every
+remote source is STATE and `rows` is a derived merge — the **'Load more
+activity'** button fetches the next page with the stored keyset cursor
+and re-merges (the other sources persist, no refetch); the button
+renders only when the indexer's nextCursor is non-null (≤50 activities
+= no button — the honest state, live-verified).
+
+**VERIFIED LIVE in the browser** (headless chromium on evorunner, :3999,
+the F39 session): the slim bar + the idle note render → **Lock now**
+flips the banner to locked AND the Shielded row re-derives to the
+honest 0 → the password unlock restores (0.004 DASH — the identity's
+pool grew since F40; the honest scan) → the Notifications entry renders
++ navigates → the dead currency section GONE + the identity card
+links to the explorer → the History tab renders the shielded rows
+('shielded (private)', 2 entries) with no Load more (nextCursor null,
+≤50 activities) → zero page errors.
+
+**GATES:** tsc 0 · eslint clean (all 18 touched files) · **374/374
+(40 files** — +6 timer tests, +4 shielded-row tests, +1 pagination
+test) · build green · playwright 2/2 · deployed and verified LIVE
+(page chunk `page-fc722bc2e9b43766.js` carries 'Lock now' / 'Load more
+activity' / 'Session unlocked' / 'minutes idle'; the SHARED chunk
+`3540-4eddf68042173f82.js` carries the shielded-row strings —
+lib/wallet-history lives in shared chunks, the F57-Phase-3 rule).
+
+**NOT DONE (out of scope, unchanged):** the handoff item 9 (the two
+tiny L1 UTXOs on the settlement wallet) needs the owner's say-so and is
+theirs; item 10 (the Dependabot banner) = nothing to do. The idle
+re-lock arms from the BANNER (the wallet page) per the handoff's
+wiring — sessions on other pages keep their material until the tab
+closes (the B4 model's accepted boundary).
