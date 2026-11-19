@@ -214,6 +214,27 @@ async function collectPayload(identityId: string): Promise<SessionVaultPayload> 
     }
 }
 
+/**
+ * F61 — the EXPLICIT LOCK (the banner's 'Lock now' + the idle re-lock):
+ * the reverse of restorePayload — wipe EVERY piece of key material from
+ * the in-memory store and announce it, so an unattended tab re-locks to
+ * the unlock ladder with NO key material in memory. The non-sensitive
+ * session record (the login state) is deliberately KEPT — the F57b
+ * model: a locked session still renders its balances and the unlock
+ * ladder; only signing and the seed-derived reads need the material
+ * back. Announcing 'evonext:session-locked' lets the open surfaces
+ * re-derive to their honest locked states (the same re-run the unlock
+ * event triggers, in reverse).
+ */
+export async function lockSession(identityId: string): Promise<void> {
+    const secureStorage = (await import('./secure-storage')).default
+    const { clearMnemonic, clearPrivateKey } = await import('./secure-storage')
+    clearMnemonic()
+    clearPrivateKey(identityId)
+    secureStorage.delete(`${KEYS_STORE_PREFIX}${identityId}`)
+    if (typeof window !== 'undefined') window.dispatchEvent(new Event('evonext:session-locked'))
+}
+
 /** Restore a payload INTO the in-memory store (the unlock path). */
 async function restorePayload(identityId: string, payload: SessionVaultPayload): Promise<void> {
     const secureStorage = (await import('./secure-storage')).default

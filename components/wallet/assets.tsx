@@ -56,9 +56,7 @@ export function WalletAssets({ isFullScreen, onOpenShielded, selectedAsset, onSe
     const [collections, setCollections] = useState<IToken[]>()
 
     const [displayDusdBalance, setDisplayDusdBalance] = useState<bigint | null>(null)
-    const [displayDusdBalanceUsd, setDisplayDusdBalanceUsd] = useState(BigInt(0))
     const [displaySansBalance, setDisplaySansBalance] = useState<bigint | null>(null)
-    const [displaySansBalanceUsd, setDisplaySansBalanceUsd] = useState(BigInt(0))
 
     /* The Shielded row's balance — the note scan runs in the SHIELDED
      * ENGINE WEB WORKER (lib/shielded/engine-worker.ts), so the main thread
@@ -91,9 +89,16 @@ export function WalletAssets({ isFullScreen, onOpenShielded, selectedAsset, onSe
      * NOT keyed on it — prices are network-level, not mnemonic-level. */
     const [unlockedTick, setUnlockedTick] = useState(0)
     useEffect(() => {
-        const onUnlocked = () => setUnlockedTick((t) => t + 1)
-        window.addEventListener('evonext:session-unlocked', onUnlocked)
-        return () => window.removeEventListener('evonext:session-unlocked', onUnlocked)
+        /* F61 — BOTH directions re-derive: the unlock event (the material
+         * returns → the real reads) and the lock event ('Lock now' / the
+         * idle re-lock → the honest locked states). */
+        const bump = () => setUnlockedTick((t) => t + 1)
+        window.addEventListener('evonext:session-unlocked', bump)
+        window.addEventListener('evonext:session-locked', bump)
+        return () => {
+            window.removeEventListener('evonext:session-unlocked', bump)
+            window.removeEventListener('evonext:session-locked', bump)
+        }
     }, [])
 
     useEffect(() => {

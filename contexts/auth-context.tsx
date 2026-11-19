@@ -271,15 +271,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             storePrivateKey(identityId, privateKey, 3600000) // 1 hour TTL
 
-            // Also try to store with biometric protection for longer-term access
-            try {
-                const { storePrivateKeyWithBiometric } = await import('@/lib/biometric-storage')
-                const stored = await storePrivateKeyWithBiometric(identityId, privateKey)
-
-                if (stored) {
-                }
-            } catch (e) {
-            }
+            /* F61 — the biometric WRITE block is REMOVED with
+             * lib/biometric-storage (it persisted a WIF ciphertext in
+             * localStorage with its raw AES key in the same browser's
+             * sessionStorage — retired with the F57b/F57d model; the
+             * session vault on the unlock banner is the persistence). */
 
             setUser(authUser)
 

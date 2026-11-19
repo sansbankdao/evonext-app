@@ -96,9 +96,16 @@ export function WalletShielded({ isFullScreen, onBack }: {
      * scan then fill the view in place). */
     const [unlockedTick, setUnlockedTick] = useState(0)
     useEffect(() => {
-        const onUnlocked = () => setUnlockedTick((t) => t + 1)
-        window.addEventListener('evonext:session-unlocked', onUnlocked)
-        return () => window.removeEventListener('evonext:session-unlocked', onUnlocked)
+        /* F61 — BOTH directions re-derive: the unlock event (the material
+         * returns → the real reads) and the lock event ('Lock now' / the
+         * idle re-lock → the honest locked states). */
+        const bump = () => setUnlockedTick((t) => t + 1)
+        window.addEventListener('evonext:session-unlocked', bump)
+        window.addEventListener('evonext:session-locked', bump)
+        return () => {
+            window.removeEventListener('evonext:session-unlocked', bump)
+            window.removeEventListener('evonext:session-locked', bump)
+        }
     }, [])
 
     /* One place to project an ENGINE SNAPSHOT into the UI (balance + notes

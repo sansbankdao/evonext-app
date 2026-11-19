@@ -44,28 +44,13 @@ class StateTransitionService {
         const { getPrivateKey } = await import('../secure-storage');
         let privateKey = getPrivateKey(identityId);
 
-        // If not in memory, try biometric storage
-        if (!privateKey) {
-
-            try {
-                const { biometricStorage, getPrivateKeyWithBiometric } = await import('../biometric-storage')
-
-                // Check if biometric is available
-                const isAvailable = await biometricStorage.isAvailable();
-
-                // Try to get the key
-                privateKey = await getPrivateKeyWithBiometric(identityId);
-
-                if (privateKey) {
-                    // Also store in memory for this session to avoid repeated biometric prompts
-                    const { storePrivateKey } = await import('../secure-storage');
-                    storePrivateKey(identityId, privateKey, 3600000); // 1 hour TTL
-                } else {
-                }
-            } catch (e) {
-                console.error('Biometric retrieval error:', e);
-            }
-        }
+        /* F61 — the biometric fallback block is REMOVED: lib/biometric-storage
+         * was the F27b 'auth theater' (a WIF ciphertext at rest in
+         * localStorage with its raw AES key in the SAME browser's
+         * sessionStorage, iv/salt fields zeroed) — retired together with
+         * the F57b/F57d memory-only + vault model. A memory miss now falls
+         * through to the honest error below; the Session vault (the unlock
+         * banner) is the persistence tier. */
 
         if (!privateKey) {
             throw new Error('No private key found. Please log in again.');

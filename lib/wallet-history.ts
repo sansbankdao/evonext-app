@@ -69,7 +69,7 @@ export function dashOfMax(value: number, max: number = 4): string {
     return trimmed || '0'
 }
 
-export type ActivityKind = 'withdrawal' | 'transfer' | 'swap'
+export type ActivityKind = 'withdrawal' | 'transfer' | 'swap' | 'shielded'
 export type ActivityTone = 'ok' | 'pending' | 'warn' | 'neutral'
 
 export interface ActivityRow {
@@ -262,9 +262,15 @@ export function activityToRow(row: PlatformActivityRow, network: 'mainnet' | 'te
     }
 }
 
-/** The narrow activity surface the component wires to the proxy. */
+/** The narrow activity surface the component wires to the proxy. F61: the
+ * port is PAGE-AWARE — the proxy returns {activities, nextCursor} (the
+ * mobile team's \u00a710 contract) and the cursor unlocks the 'Load more'
+ * affordance instead of silently capping the visible history at 50 rows. */
 export interface ActivityQueryPort {
-    fetchActivities: () => Promise<PlatformActivityRow[]>;
+    fetchActivities: (cursor?: string | null) => Promise<{
+        activities: PlatformActivityRow[]
+        nextCursor?: string | null
+    }>;
 }
 
 /* F57c.1 — TOKEN TRANSFERS via the token-history SYSTEM contract (the DAPI
@@ -387,34 +393,92 @@ export async function queryActivityRows(
     port: ActivityQueryPort,
     network: 'mainnet' | 'testnet',
     deadlineMs: number = WITHDRAWAL_QUERY_DEADLINE_MS,
-): Promise<{ rows: ActivityRow[]; error: string | null }> {
+    /* F61 — the keyset cursor from the previous page (the proxy's
+     * nextCursor). Omit/null = the first page. */
+    cursor?: string | null,
+): Promise<{ rows: ActivityRow[]; error: string | null; nextCursor: string | null }> {
     try {
-        const rowsPromise = port.fetchActivities()
+        const rowsPromise = port.fetchActivities(cursor ?? undefined)
         const deadline = new Promise((_, reject) =>
             setTimeout(() => reject(new Error('query timed out')), deadlineMs))
-        const activities = await Promise.race([rowsPromise, deadline]) as PlatformActivityRow[]
-        const rows = (Array.isArray(activities) ? activities : [])
+        const page = await Promise.race([rowsPromise, deadline]) as {
+            activities?: PlatformActivityRow[]
+            nextCursor?: string | null
+        }
+        const activities = Array.isArray(page?.activities) ? page.activities : []
+        const rows = activities
             .map((row) => activityToRow(row, network))
             .filter((r): r is ActivityRow => r !== null)
-        return { rows, error: null }
+        const nextCursor = typeof page?.nextCursor === 'string' && page.nextCursor ? page.nextCursor : null
+        return { rows, error: null, nextCursor }
     } catch (e: any) {
         return {
             rows: [],
             error: (e && typeof e.message === 'string' && e.message) || 'activity history unavailable',
+            nextCursor: null,
         }
     }
 }
 
 /** Merge + sort (newest first). The withdrawals win over the swaps when the
  * timestamps are identical (on-chain beats local cache); the key comparison
- * keeps the comparator a total order (no stable-sort ambiguity). */
-const KIND_RANK: Record<ActivityKind, number> = { withdrawal: 0, transfer: 1, swap: 2 }
+ * keeps the comparator a total order (no stable-sort ambiguity). The
+ * shielded rows carry when=0 (no honest timestamp — see shieldedToRow) so
+ * they sort last, grouped at the tail. */
+const KIND_RANK: Record<ActivityKind, number> = { withdrawal: 0, transfer: 1, swap: 2, shielded: 3 }
 export function mergeActivity(a: ActivityRow[], b: ActivityRow[]): ActivityRow[] {
     return [...a, ...b].sort((x, y) =>
         (y.when - x.when)
         || (KIND_RANK[x.kind] - KIND_RANK[y.kind])
         || (x.key < y.key ? -1 : x.key > y.key ? 1 : 0)
     )
+}
+
+/* F61 — the ENGINE's shielded history as the FIFTH History source
+ * (lib/shielded/engine-client history(): the local note-scan's sent /
+ * received / self entries — NO DAPI dependency at all). Outgoing shielded
+ * transfers are INVISIBLE to every indexer source by protocol design
+ * (ShieldedTransfer is binding-sig-only — the DAPI team's own F57c
+ * review) — this local scan is the ONLY honest source for them.
+ *
+ * HONEST LIMITS, surfaced: the engine rows carry NO timestamp (the note
+ * scan has none) — `when` = 0 and the tree index rides in the status
+ * label as the order proxy; there is NO explorer deep-link (the scan
+ * does not surface the transition hash). */
+export interface ShieldedEngineHistoryRow {
+    kind: 'sent' | 'received' | 'self'
+    credits: string
+    address?: string
+    memo: string
+    treeIndex: number
+    spent: boolean
+}
+
+export function shieldedToRow(row: ShieldedEngineHistoryRow): ActivityRow | null {
+    if (!row || typeof row.credits !== 'string' || typeof row.treeIndex !== 'number') return null
+    let credits: bigint
+    try { credits = BigInt(row.credits) } catch { return null }
+    if (credits <= 0n) return null
+    const direction: 'out' | 'in' | undefined =
+        row.kind === 'sent' ? 'out' : row.kind === 'received' ? 'in' : undefined
+    const directionLabel = row.kind === 'sent'
+        ? 'sent — shielded (private)'
+        : row.kind === 'received'
+            ? 'received — shielded (private)'
+            : 'shielded note (own)'
+    const memo = typeof row.memo === 'string' ? row.memo.trim() : ''
+    return {
+        key: `shielded-${row.kind}-${row.treeIndex}`,
+        kind: 'shielded',
+        amountLabel: dashOfMax(Number(credits) / CREDITS_PER_DASH, 8),
+        assetLabel: 'DASH',
+        directionLabel,
+        direction,
+        when: 0,
+        statusLabel: `tree #${row.treeIndex}${row.spent ? ' · spent' : ''}${memo ? ` · ${memo}` : ''}`,
+        tone: row.kind === 'self' ? 'neutral' : 'ok',
+        /* No href — the honest limit above. */
+    }
 }
 
 /* F59 — the deadline race lives HERE so it is testable without the DOM:

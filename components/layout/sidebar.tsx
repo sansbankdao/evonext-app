@@ -66,6 +66,12 @@ const getNavigation = (isLoggedIn: boolean) => {
         { name: 'Explore', href: '/explore', icon: MagnifyingGlassIcon, activeIcon: SearchIconSolid },
         { name: 'Mini Apps', href: '/apps', icon: Squares2X2Icon, activeIcon: Squares2X2IconSolid },
         { name: 'Wallet', href: '/wallet', icon: WalletIcon, activeIcon: WalletIconSolid },
+        /* F61 — the long-standing queue item: the notifications PAGE has
+         * existed since F26z but was reachable only by URL. The entry is
+         * LOGGED-IN ONLY — the page is withAuth-gated (a logged-out click
+         * would bounce to /connect), unlike the public Shielded Pool the
+         * F37b pattern was taken from. */
+        { name: 'Notifications', href: '/notifications', icon: BellIcon, activeIcon: BellIconSolid },
         { name: 'Favorites', href: '/bookmarks', icon: BookmarkSquareIcon, activeIcon: BookmarkSquareIconSolid },
     ]
 }

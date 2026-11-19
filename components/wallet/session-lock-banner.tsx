@@ -16,15 +16,20 @@
 //       sessions on EVERY desktop, safely)
 //     - the password vault stale (the keys changed since the last save)
 //       → the re-save nudge
-// It NEVER renders while logged out, or when fully enrolled and unlocked.
+//   UNLOCKED (always, F61): a slim lock bar — 'Lock now' + the idle
+//     re-lock note (the keys auto-lock after 15 idle minutes; the timer
+//     lives in lib/session-lock-timer.ts, armed while this banner
+//     renders with hot material).
+// It NEVER renders while logged out.
 
 import { useCallback, useEffect, useState } from 'react'
-import { LockClosedIcon, ShieldCheckIcon, ArrowPathIcon, KeyIcon } from '@heroicons/react/24/outline'
+import { LockClosedIcon, LockOpenIcon, ShieldCheckIcon, ArrowPathIcon, KeyIcon } from '@heroicons/react/24/outline'
 import { useNetwork } from '@/contexts/network-context'
 import toast from 'react-hot-toast'
 import { useAuth } from '@/contexts/auth-context'
 import {
     getSessionLockInfo,
+    lockSession,
     unlockSession,
     unlockSessionWithPassword,
     enrollSessionKeysAfterLogin,
@@ -32,6 +37,7 @@ import {
     upgradeSessionWithMnemonic,
     type SessionLockInfo,
 } from '@/lib/session-unlock'
+import { armIdleRelock, disarmIdleRelock, IDLE_RELOCK_MS } from '@/lib/session-lock-timer'
 import { showErrorToast } from '@/lib/toast-error'
 
 export function SessionLockBanner() {
@@ -57,6 +63,49 @@ export function SessionLockBanner() {
             setInfo(null)
         }
     }, [user?.identityId])
+
+    /* F61 — revalidate on ANY material change, not just the ones this
+     * banner itself performs: the idle re-lock fires from the timer
+     * module (which dispatches 'evonext:session-locked') and the unlock
+     * paths dispatch 'evonext:session-unlocked' — the banner must reflect
+     * reality without waiting for its next action. */
+    useEffect(() => {
+        const revalidate = () => { void check() }
+        window.addEventListener('evonext:session-locked', revalidate)
+        window.addEventListener('evonext:session-unlocked', revalidate)
+        return () => {
+            window.removeEventListener('evonext:session-locked', revalidate)
+            window.removeEventListener('evonext:session-unlocked', revalidate)
+        }
+    }, [check])
+
+    /* F61 — the IDLE RE-LOCK: while the material is hot, arm the
+     * activity-based timer (any pointer/key/wheel/touch pushes the
+     * deadline; IDLE_RELOCK_MS of quiet runs lockSession). Locked or
+     * logged out → disarm. Unmounting the banner disarms too (the timer
+     * lives with the lock-state UI). */
+    useEffect(() => {
+        if (user?.identityId && info?.material) armIdleRelock(user.identityId)
+        else disarmIdleRelock()
+        return () => { disarmIdleRelock() }
+    }, [user?.identityId, info?.material])
+
+    /* F61 — the explicit lock (the visible re-lock control). Wipes the
+     * in-memory material (lockSession) — the banner then renders the
+     * locked ladder (the revalidate listener above re-checks). */
+    const handleLockNow = async () => {
+        if (!user?.identityId || busy) return
+        setBusy(true)
+        try {
+            await lockSession(user.identityId)
+            toast.success('Session locked — unlock above to sign again.')
+            await check()
+        } catch (e: any) {
+            showErrorToast(e?.message || 'Could not lock the session.')
+        } finally {
+            setBusy(false)
+        }
+    }
 
     useEffect(() => {
         void check()
@@ -231,17 +280,36 @@ export function SessionLockBanner() {
         )
     }
 
-    /* UNLOCKED — the WIF-only seed upgrade, the enroll offers + the stale
-     * nudge. F57j.3: material WITHOUT a mnemonic = a private-key session —
-     * the banner used to render NOTHING here (the vault offers were the
-     * only branch), which is exactly the owner's dead end: the receive
-     * tiles said 'unlock above' while there was nothing above to unlock. */
+    /* UNLOCKED — the slim lock bar ('Lock now' + the idle re-lock note,
+     * F61 — renders whenever the material is hot, even with no offers
+     * pending: the banner used to return null when fully enrolled and
+     * unlocked, which left NO visible re-lock control), the WIF-only seed
+     * upgrade + the enroll/stale offers. F57j.3: material WITHOUT a
+     * mnemonic = a private-key session — the receive tiles said 'unlock
+     * above' while there was nothing above to unlock. */
     const needsSeed = info.material && !info.hasMnemonic
     const prfOffer = !info.prfVault && uvpaa === true
     const pwOffer = !info.pwVault || info.pwStale
-    if (!prfOffer && !pwOffer && !needsSeed) return null
 
     return (<>
+        <div className="mb-4 rounded-2xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 px-4 py-3 flex items-center gap-3">
+            <LockOpenIcon className="h-5 w-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+            <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-emerald-900 dark:text-emerald-200">
+                    Session unlocked
+                </p>
+                <p className="text-xs text-emerald-800 dark:text-emerald-300 mt-0.5">
+                    Your keys live in this tab&apos;s memory only — auto-locks after {Math.round(IDLE_RELOCK_MS / 60000)} minutes idle.
+                </p>
+            </div>
+            <button
+                onClick={handleLockNow}
+                disabled={busy}
+                className="inline-flex shrink-0 items-center gap-1.5 px-3 py-1.5 rounded-lg border border-emerald-300 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-950 disabled:opacity-60 text-emerald-800 dark:text-emerald-300 text-sm font-semibold"
+            >
+                {busy ? <><ArrowPathIcon className="h-4 w-4 animate-spin" /> Locking…</> : <><LockClosedIcon className="h-4 w-4" /> Lock now</>}
+            </button>
+        </div>
         {needsSeed && (
             <div className="mb-4 rounded-2xl border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 p-4">
                 <div className="flex items-center gap-3">

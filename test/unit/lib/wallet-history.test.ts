@@ -11,7 +11,7 @@ import { base58 } from '@scure/base'
 import {
     SYSTEM_WITHDRAWAL_CONTRACT_ID, CREDITS_PER_DASH, DUFFS_PER_DASH,
     WITHDRAWAL_QUERY_DEADLINE_MS, PLATFORM_ACTIVITY_TYPES,
-    dashOfMax, withdrawalToRow, swapToRow, mergeActivity, queryWithdrawalRows,
+    dashOfMax, withdrawalToRow, swapToRow, mergeActivity, queryWithdrawalRows, shieldedToRow,
     queryActivityRows, activityToRow, PlatformActivityRow,
     queryTokenRows, tokenToRow, TOKEN_HISTORY_CONTRACT_ID,
     swapStatusLabel, swapStatusFailed, swapIsSettled, readSwapHistory,
@@ -285,21 +285,44 @@ describe('wallet-history: the indexer-backed identity activity (F57c, mobile-par
         expect(activityToRow(null as unknown as PlatformActivityRow, 'testnet')).toBeNull()
     })
 
-    it('queryActivityRows maps rows and degrades a hung fetch to the deadline error', async () => {
+    it('queryActivityRows maps rows and degrades a hung fetch to the deadline error (F61: paginated port)', async () => {
         const ok = await queryActivityRows(
-            { fetchActivities: async () => [{ ...baseRow, txid: fullTxid }] }, 'testnet', 25)
+            { fetchActivities: async () => ({ activities: [{ ...baseRow, txid: fullTxid }], nextCursor: '42' }) },
+            'testnet', 25)
         expect(ok.rows).toHaveLength(1)
         expect(ok.error).toBeNull()
+        expect(ok.nextCursor).toBe('42')
 
         const hung = await queryActivityRows(
             { fetchActivities: () => new Promise(() => {}) }, 'testnet', 25)
         expect(hung.rows).toEqual([])
         expect(hung.error).toBe('query timed out')
+        expect(hung.nextCursor).toBeNull()
 
         const failed = await queryActivityRows(
             { fetchActivities: async () => { throw new Error('proxy HTTP 503') } }, 'testnet', 25)
         expect(failed.rows).toEqual([])
         expect(failed.error).toBe('proxy HTTP 503')
+        expect(failed.nextCursor).toBeNull()
+    })
+
+    it('queryActivityRows: the F61 cursor page passes the cursor through and normalizes shapes', async () => {
+        const seen: (string | undefined)[] = []
+        const port = {
+            fetchActivities: async (cursor?: string | null) => {
+                seen.push(cursor ?? undefined)
+                if (!cursor) return { activities: [{ ...baseRow, txid: fullTxid }], nextCursor: '42' }
+                return { activities: [], nextCursor: undefined } /* absent cursor key */
+            },
+        }
+        const page1 = await queryActivityRows(port, 'testnet', 25)
+        expect(seen).toEqual([undefined])
+        expect(page1.nextCursor).toBe('42')
+        const page2 = await queryActivityRows(port, 'testnet', 25, page1.nextCursor)
+        expect(seen).toEqual([undefined, '42'])
+        expect(page2.rows).toEqual([])
+        expect(page2.error).toBeNull()
+        expect(page2.nextCursor).toBeNull() /* undefined normalized to null */
     })
 })
 
@@ -362,5 +385,62 @@ describe('wallet-history: token transfers via the token-history system contract 
             { fetchTokenDocs: () => new Promise(() => {}) }, EC, 'testnet', 25)
         expect(hung.rows).toEqual([])
         expect(hung.error).toBe('query timed out')
+    })
+})
+
+describe('wallet-history: the engine-derived shielded rows (F61, the fifth source)', () => {
+    const SENT = {
+        kind: 'sent' as const,
+        credits: '100000000',
+        address: 'tdash1zrsu528mm',
+        memo: 'wallet e2e f40',
+        treeIndex: 6751,
+        spent: false,
+    }
+    const RECEIVED = { ...SENT, kind: 'received' as const, credits: '371673', treeIndex: 6801, memo: '' }
+    const SELF = { ...SENT, kind: 'self' as const, credits: '245240000', treeIndex: 6752 }
+
+    it('maps sent/received/self with the right direction, tone and status label', () => {
+        const sent = shieldedToRow(SENT)
+        expect(sent).not.toBeNull()
+        expect(sent!.kind).toBe('shielded')
+        expect(sent!.direction).toBe('out')
+        expect(sent!.amountLabel).toBe('0.001')
+        expect(sent!.directionLabel).toContain('shielded')
+        expect(sent!.statusLabel).toContain('tree #6751')
+        expect(sent!.statusLabel).toContain('wallet e2e f40')
+        expect(sent!.tone).toBe('ok')
+        expect(sent!.when).toBe(0)
+        expect(sent!.href).toBeUndefined()
+
+        const received = shieldedToRow(RECEIVED)
+        expect(received!.direction).toBe('in')
+        expect(received!.amountLabel).toBe('0.00000371')
+        expect(received!.tone).toBe('ok')
+
+        const self = shieldedToRow(SELF)
+        expect(self!.direction).toBeUndefined()
+        expect(self!.tone).toBe('neutral')
+    })
+
+    it('marks the spent backing note in the status label', () => {
+        const row = shieldedToRow({ ...SENT, spent: true })
+        expect(row!.statusLabel).toContain('spent')
+    })
+
+    it('rejects bad rows (null, non-numeric credits, zero/negative, garbage shape)', () => {
+        expect(shieldedToRow(null as unknown as typeof SENT)).toBeNull()
+        expect(shieldedToRow({ ...SENT, credits: 'abc' })).toBeNull()
+        expect(shieldedToRow({ ...SENT, credits: '0' })).toBeNull()
+        expect(shieldedToRow({ ...SENT, credits: '-5' })).toBeNull()
+        expect(shieldedToRow({ ...SENT, treeIndex: 'x' as unknown as number })).toBeNull()
+    })
+
+    it('mergeActivity sorts the timestamp-less shielded rows last, KIND_RANK total order intact', () => {
+        const recent = { ...swapToRow({ swapid: 's1', direction: 'DASH->SANS', amount_in: 60000000, amount_out: 37387500000, status: 'settled', created_at: 2000 }, 8, 'SANS')! }
+        const oldWithdrawal = withdrawalToRow({ $id: 'w1', amount: 100000000, status: 3, $createdAt: 1000 }, 'testnet')!
+        const merged = mergeActivity([shieldedToRow(SENT)!], [recent, oldWithdrawal])
+        expect(merged[merged.length - 1].kind).toBe('shielded')
+        expect(merged[0].when).toBeGreaterThanOrEqual(merged[merged.length - 1].when)
     })
 })

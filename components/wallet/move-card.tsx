@@ -57,6 +57,10 @@ export function WalletMoveCard() {
     const [phase, setPhase] = useState('')
     const [transparentBalance, setTransparentBalance] = useState<bigint | null>(null)
     const [shieldedBalance, setShieldedBalance] = useState<bigint | null>(null)
+    /* F61 — the honest locked hint for the From balance: the transparent
+     * read on a WIF-only session throws the F57b 'needs a recovery-phrase
+     * session' message — show 'locked' instead of the ambiguous '…'. */
+    const [transparentLocked, setTransparentLocked] = useState(false)
 
     const toOptions = TO_OPTIONS[from]
     const effectiveTo = toOptions.some((o) => o.key === to) ? to : toOptions[0].key
@@ -65,7 +69,11 @@ export function WalletMoveCard() {
         try {
             const addr = await readTransparentAddress(sdkNetwork as 'mainnet' | 'testnet', 0)
             setTransparentBalance(addr.balance)
-        } catch { setTransparentBalance(null) }
+            setTransparentLocked(false)
+        } catch (e: any) {
+            setTransparentBalance(null)
+            setTransparentLocked(/recovery-phrase/i.test(e?.message ?? ''))
+        }
         try {
             const snap = await shieldedEngine.snapshot()
             setShieldedBalance(BigInt(snap.balance))
@@ -82,9 +90,16 @@ export function WalletMoveCard() {
      * the engine; until then the catch keeps the honest null). */
     const [unlockedTick, setUnlockedTick] = useState(0)
     useEffect(() => {
-        const onUnlocked = () => setUnlockedTick((t) => t + 1)
-        window.addEventListener('evonext:session-unlocked', onUnlocked)
-        return () => window.removeEventListener('evonext:session-unlocked', onUnlocked)
+        /* F61 — BOTH directions re-derive: the unlock event (the material
+         * returns → the real reads) and the lock event ('Lock now' / the
+         * idle re-lock → the honest locked states). */
+        const bump = () => setUnlockedTick((t) => t + 1)
+        window.addEventListener('evonext:session-unlocked', bump)
+        window.addEventListener('evonext:session-locked', bump)
+        return () => {
+            window.removeEventListener('evonext:session-unlocked', bump)
+            window.removeEventListener('evonext:session-locked', bump)
+        }
     }, [])
 
     useEffect(() => {
@@ -161,8 +176,8 @@ export function WalletMoveCard() {
         }
     }
 
-    const balDisplay = (credits: bigint | null): string =>
-        credits === null ? '…' : `${Number(credits) / 1e11} DASH`
+    const balDisplay = (credits: bigint | null, isLocked = false): string =>
+        credits === null ? (isLocked ? 'locked' : '…') : `${Number(credits) / 1e11} DASH`
 
     return (
         <section className="my-5 rounded-2xl border border-violet-200 bg-gradient-to-br from-white via-violet-50/80 to-violet-100 shadow-sm p-4">
@@ -188,7 +203,7 @@ export function WalletMoveCard() {
                     ))}
                 </div>
                 <span className="text-xs text-gray-500 tabular-nums shrink-0">
-                    {balDisplay(from === 'transparent' ? transparentBalance : shieldedBalance)}
+                    {balDisplay(from === 'transparent' ? transparentBalance : shieldedBalance, from === 'transparent' && transparentLocked)}
                 </span>
             </div>
 

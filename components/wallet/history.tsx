@@ -26,14 +26,16 @@ import { useNetwork } from '@/contexts/network-context'
 import numeral from 'numeral'
 import {
     ArrowUpCircleIcon, ArrowDownCircleIcon, ArrowPathIcon, ClockIcon, CheckCircleIcon,
-    ExclamationTriangleIcon, InboxIcon,
+    ExclamationTriangleIcon, InboxIcon, ShieldCheckIcon,
 } from '@heroicons/react/24/outline'
 import {
     ActivityRow, ActivityTone, ActivityKind, PLATFORM_ACTIVITY_TYPES,
     readSwapHistory, swapToRow, mergeActivity, queryWithdrawalRows, queryActivityRows,
-    queryTokenRows, TOKEN_HISTORY_CONTRACT_ID,
+    queryTokenRows, shieldedToRow, TOKEN_HISTORY_CONTRACT_ID,
 } from '@/lib/wallet-history'
 import { EVONEXT_CONTRACT_ID_TESTNET, EVONEXT_CONTRACT_ID_MAINNET } from '@/lib/constants'
+import { getMnemonic } from '@/lib/secure-storage'
+import { shieldedEngine } from '@/lib/shielded/engine-client'
 
 const MAX_ROWS = 50
 
@@ -49,10 +51,12 @@ const TONE_STYLES: Record<ActivityTone, string> = {
 }
 
 /* Withdrawals point up (leaving the identity); transfers read their own
- * direction; swaps are circular. */
+ * direction; swaps are circular; shielded rows carry the shield mark (the
+ * private pool — F61's fifth source). */
 const KIND_ICON = (kind: ActivityKind, direction?: 'out' | 'in') =>
     kind === 'withdrawal' ? ArrowUpCircleIcon
         : kind === 'transfer' ? (direction === 'in' ? ArrowDownCircleIcon : ArrowUpCircleIcon)
+        : kind === 'shielded' ? ShieldCheckIcon
         : ArrowPathIcon
 
 const whenLabel = (ms: number): string => {
@@ -71,10 +75,25 @@ const whenLabel = (ms: number): string => {
 export function WalletHistory({ isFullScreen }: WalletHistoryProps) {
     const { user } = useAuth()
     const { network } = useNetwork()
-    const [rows, setRows] = useState<ActivityRow[] | null>(null)
     const [withErr, setWithErr] = useState<string | null>(null)
     const [activityErr, setActivityErr] = useState<string | null>(null)
     const [tokenErr, setTokenErr] = useState<string | null>(null)
+    const [shieldedErr, setShieldedErr] = useState<string | null>(null)
+    /* F61 — EVERY remote source lives in its own state; `rows` is a
+     * derived merge (the 'Load more' handler extends ONE source and the
+     * merge re-derives — no stale-state re-merge tricks). The per-source
+     * honest error lines are unchanged. */
+    const [withRows, setWithRows] = useState<ActivityRow[]>([])
+    const [tokenRows, setTokenRows] = useState<ActivityRow[]>([])
+    const [shieldedRows, setShieldedRows] = useState<ActivityRow[]>([])
+    const [loaded, setLoaded] = useState(false)
+    /* F61 — the activity source's PAGE state: the accumulated rows + the
+     * proxy's keyset cursor. Non-null cursor ⇒ the 'Load more' affordance
+     * renders (the indexer caps the first page at 50 — the queue item:
+     * the cursor was previously unwired, silently truncating history). */
+    const [activityRows, setActivityRows] = useState<ActivityRow[]>([])
+    const [activityCursor, setActivityCursor] = useState<string | null>(null)
+    const [activityLoading, setActivityLoading] = useState(false)
     const mounted = useRef(true)
 
     useEffect(() => {
@@ -87,20 +106,12 @@ export function WalletHistory({ isFullScreen }: WalletHistoryProps) {
         const identityId = user?.identityId
         if (!identityId) return
 
-        /* Swaps are a synchronous local read — never block on them. The
-         * out-leg decimals are per-direction: SANS 8, DUSD 6 (F58). */
+        /* Swaps are a synchronous local read — they live in the derived
+         * merge below (the out-leg decimals are per-direction: SANS 8,
+         * DUSD 6, F58). */
         const net = network === 'mainnet' ? 'mainnet' : 'testnet'
-        const swapRows = readSwapHistory(net)
-            .map((s) => swapToRow(
-                s,
-                s.direction.includes('DUSD') ? 6 : 8,
-                s.direction.includes('DUSD') ? 'DUSD' : 'SANS'
-            ))
-            .filter((r): r is ActivityRow => r !== null)
 
         const run = async () => {
-            let withdrawalRows: ActivityRow[] = []
-            let activityRows: ActivityRow[] = []
             let error: string | null = null
             let activityError: string | null = null
             try {
@@ -122,33 +133,40 @@ export function WalletHistory({ isFullScreen }: WalletHistoryProps) {
                     getDocuments: (contractId, type, where, orderBy, limit) =>
                         compat.get_documents(sdk, contractId, type, where, orderBy, limit),
                 }, identityId, net)
-                withdrawalRows = result.rows
+                if (!cancelled && mounted.current) { setWithRows(result.rows); setLoaded(true) }
                 error = result.error
             } catch (e: any) {
                 error = (e && typeof e.message === 'string' && e.message) || 'withdrawal history unavailable'
+                if (!cancelled && mounted.current) setLoaded(true)
             }
             /* F57c — the indexer-backed credit history (the DAPI team's
              * get_identity_activity, contract per the MOBILE team's
              * HANDOFF-platform-indexer.md; the SAME value-mover mapping).
              * Independent source, own honest error — never a fake empty.
              * The proxy call is 12s-bounded by proxyCall; the lib race adds
-             * the same deadline guard as the withdrawal query. */
+             * the same deadline guard as the withdrawal query. F61 — the
+             * fetched page lands in the activityRows/cursor STATE so the
+             * 'Load more' affordance can extend it. */
             try {
                 const { proxyCall } = await import('@/lib/dapi-proxy')
                 const result = await queryActivityRows({
-                    fetchActivities: async () => {
+                    fetchActivities: async (cursor) => {
                         const proxyResult = await proxyCall('get_identity_activity', {
                             identityId,
                             types: PLATFORM_ACTIVITY_TYPES,
                             limit: 50,
+                            ...(cursor ? { cursor } : {}),
                         }, net)
                         if (!proxyResult || !Array.isArray(proxyResult.activities)) {
                             throw new Error('activity result shape unexpected')
                         }
-                        return proxyResult.activities
+                        return { activities: proxyResult.activities, nextCursor: proxyResult.nextCursor }
                     },
                 }, net)
-                activityRows = result.rows
+                if (!cancelled && mounted.current) {
+                    setActivityRows(result.rows)
+                    setActivityCursor(result.nextCursor)
+                }
                 activityError = result.error
             } catch (e: any) {
                 activityError = (e && typeof e.message === 'string' && e.message) || 'activity history unavailable'
@@ -157,7 +175,6 @@ export function WalletHistory({ isFullScreen }: WalletHistoryProps) {
              * (the DAPI team's Phase A: one contract, transfer docs keyed by
              * tokenId; $createdAt in MILLISECONDS; outgoing = $ownerId,
              * incoming = toIdentityId). Independent source, own honest error. */
-            let tokenRows: ActivityRow[] = []
             let tokenError: string | null = null
             try {
                 const { proxyCall } = await import('@/lib/dapi-proxy')
@@ -173,21 +190,100 @@ export function WalletHistory({ isFullScreen }: WalletHistoryProps) {
                         return Array.isArray(proxyResult) ? proxyResult : []
                     },
                 }, identityId, net)
-                tokenRows = result.rows
+                if (!cancelled && mounted.current) setTokenRows(result.rows)
                 tokenError = result.error
             } catch (e: any) {
                 tokenError = (e && typeof e.message === 'string' && e.message) || 'token history unavailable'
             }
+            /* F61 — the FIFTH source: the engine's shielded history (the
+             * local note scan — sent/received/self). Needs the material +
+             * the engine; a WIF-only session has NO shielded history by
+             * definition (the ZIP-32 tree is seed-derived) — skip quietly,
+             * never an error line. The start() is idempotent per
+             * (network, mnemonic) and single-flights with the dashboard's
+             * own start. */
+            let shieldedError: string | null = null
+            try {
+                const mnemonic = getMnemonic()
+                if (mnemonic) {
+                    await shieldedEngine.start({ network: net, mnemonic })
+                    const entries = await shieldedEngine.history()
+                    const mapped = (Array.isArray(entries) ? entries : [])
+                        .map((e) => shieldedToRow(e as any))
+                        .filter((r): r is ActivityRow => r !== null)
+                    if (!cancelled && mounted.current) setShieldedRows(mapped)
+                }
+            } catch (e: any) {
+                shieldedError = (e && typeof e.message === 'string' && e.message) || 'shielded history unavailable'
+            }
             if (!cancelled && mounted.current) {
-                setRows(mergeActivity(mergeActivity(mergeActivity(withdrawalRows, activityRows), tokenRows), swapRows).slice(0, MAX_ROWS))
                 setWithErr(error)
                 setActivityErr(activityError)
                 setTokenErr(tokenError)
+                setShieldedErr(shieldedError)
             }
         }
         void run()
         return () => { cancelled = true }
     }, [user?.identityId, network])
+
+    /* The DERIVED merge (F61): every source is state; the swaps are a
+     * synchronous local read. The total order + per-source semantics are
+     * unchanged from the F59 design. */
+    const rows = useMemo(() => {
+        if (!loaded) return null
+        const net = network === 'mainnet' ? 'mainnet' : 'testnet'
+        const swaps = readSwapHistory(net)
+            .map((s) => swapToRow(
+                s,
+                s.direction.includes('DUSD') ? 6 : 8,
+                s.direction.includes('DUSD') ? 'DUSD' : 'SANS'
+            ))
+            .filter((r): r is ActivityRow => r !== null)
+        return mergeActivity(mergeActivity(mergeActivity(mergeActivity(withRows, activityRows), tokenRows), shieldedRows), swaps).slice(0, MAX_ROWS)
+    }, [loaded, network, withRows, activityRows, tokenRows, shieldedRows])
+
+    /* F61 — 'Load more': fetch the NEXT activity page with the stored
+     * keyset cursor and re-merge. The other sources' states persist (no
+     * refetch); the merge is the same total order. */
+    const loadMoreActivity = async () => {
+        const identityId = user?.identityId
+        if (!identityId || !activityCursor || activityLoading) return
+        setActivityLoading(true)
+        try {
+            const { proxyCall } = await import('@/lib/dapi-proxy')
+            const net = network === 'mainnet' ? 'mainnet' : 'testnet'
+            const result = await queryActivityRows({
+                fetchActivities: async (cursor) => {
+                    const proxyResult = await proxyCall('get_identity_activity', {
+                        identityId,
+                        types: PLATFORM_ACTIVITY_TYPES,
+                        limit: 50,
+                        ...(cursor ? { cursor } : {}),
+                    }, net)
+                    if (!proxyResult || !Array.isArray(proxyResult.activities)) {
+                        throw new Error('activity result shape unexpected')
+                    }
+                    return { activities: proxyResult.activities, nextCursor: proxyResult.nextCursor }
+                },
+            }, net, undefined, activityCursor)
+            if (!mounted.current) return
+            if (result.error) {
+                setActivityErr(result.error)
+                return
+            }
+            /* Accumulate (the same key order the indexer pages in — id
+             * DESC — so plain concatenation preserves per-source order and
+             * the derived merge re-sorts globally). */
+            setActivityRows([...activityRows, ...result.rows])
+            setActivityCursor(result.nextCursor)
+            setActivityErr(null)
+        } catch (e: any) {
+            setActivityErr((e && typeof e.message === 'string' && e.message) || 'activity history unavailable')
+        } finally {
+            setActivityLoading(false)
+        }
+    }
 
     const content = useMemo(() => {
         if (rows === null) {
@@ -205,7 +301,7 @@ export function WalletHistory({ isFullScreen }: WalletHistoryProps) {
                     <InboxIcon className="w-8 h-8 text-gray-300" />
                     <p className="text-sm text-gray-500">No activity yet</p>
                     <p className="text-2xs text-gray-400">
-                        Withdrawals to Core and DASH swaps will appear here
+                        Withdrawals to Core, DASH swaps and shielded activity will appear here
                     </p>
                 </div>
             )
@@ -285,7 +381,29 @@ export function WalletHistory({ isFullScreen }: WalletHistoryProps) {
                 </div>
             )}
 
+            {shieldedErr && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 flex items-start gap-2">
+                    <ExclamationTriangleIcon className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                    <p className="text-xs text-amber-800">
+                        Could not load shielded history: {shieldedErr}.
+                    </p>
+                </div>
+            )}
+
             {content}
+
+            {/* F61 — the activity source's cursor pagination (the queue
+                item): the indexer caps each page at 50 rows; the cursor was
+                previously unwired, silently truncating the visible history. */}
+            {rows !== null && rows.length > 0 && activityCursor && (
+                <button
+                    onClick={() => { void loadMoreActivity() }}
+                    disabled={activityLoading}
+                    className="self-center rounded-lg border border-gray-200 bg-white px-4 py-2 text-xs font-medium text-sky-700 hover:border-sky-300 disabled:opacity-60 transition-colors"
+                >
+                    {activityLoading ? 'Loading more…' : 'Load more activity'}
+                </button>
+            )}
         </main>
     )
 }

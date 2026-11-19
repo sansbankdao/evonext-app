@@ -232,23 +232,10 @@ export class DashPlatformClient {
                 }
             }
 
-            // If not in memory, try biometric storage
-            if (!privateKeyWIF) {
-                try {
-
-                    const { getPrivateKeyWithBiometric } = await import('./biometric-storage')
-
-                    privateKeyWIF = await getPrivateKeyWithBiometric(identityId)
-
-                    if (privateKeyWIF) {
-                        // Also store in memory for this session to avoid repeated biometric prompts
-                        const { storePrivateKey } = await import('./secure-storage')
-
-                        storePrivateKey(identityId, privateKeyWIF, 3600000) // 1 hour TTL
-                    }
-                } catch (e) {
-                }
-            }
+            /* F61 — the legacy biometric leg is REMOVED with lib/biometric-storage
+             * (the F27b theater: a WIF ciphertext at rest in localStorage with
+             * its raw AES key in the SAME browser's sessionStorage). The chain
+             * is now: memory → the passkey vault → the honest error. */
 
             if (!privateKeyWIF) {
                 throw new Error('Private key not found. Please log in again.')
