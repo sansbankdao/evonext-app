@@ -4874,3 +4874,112 @@ deploy check: the per-page component code lives at
 `/chunks/page-*.js` fetch gets an 18KB wrapper with NONE of the page
 strings (the F59-era 'unchanged wallet-page hash' note resolved: grep
 the app/-prefixed path).
+
+## F60 — MISSION A: the SWAP track's last two items DONE (2026-11-19,
+## commits `1f1d67e`-era swap fixes) — the settled-state UI pass + the
+## DUSD direction, both live-proven with real funds
+
+The owner's go after the F57k fix. Read the handoff
+(`docs/HANDOFF-F57i-F57j-SESSION-CLOSE-swtab-ui-cleanup.md` §3) and
+executed items 1 + 2 in order.
+
+**(a) ITEM 1 — the settled-state UI verification pass (the F58.1
+leftover), VERIFIED + ONE GAP FIXED.** The live API confirms swap
+`70cb1414-d2ed-4ec3-9bf4-d6c94666cbd8` (the F58 DASH→SANS round-trip)
+= **settled**, amount_in 60,000,000 duffs (0.6 — the 0.1 + the swept
+0.5), amount_out 37,387,500,000 base units EXACT, rate 625,
+dest_txid `6c19bea5c5bcc5eb87472304dfda61306345bcce679ed72f545d55bc5718
+03d5`, inventory_state ok. Browser pass (headless chromium on evorunner,
+:3999, the F39 mnemonic → EcbX…, the swap id seeded into
+`evonext_swaps_testnet`): the Sansnote Assets row = **373.875 EXACT**
+(37,387,500,000 @ 8 decimals); the history row = `DASH → SANS · 0.60
+DASH in → 373.875 SANS · SETTLED` (emerald badge); zero page errors.
+**FINDING → FIXED:** the settlement proof (dest_txid + copy + the
+explorer link) was UNREACHABLE for a settled HISTORICAL swap — it
+rendered only in the active-swap card, which is null after any reload.
+FIX (swap.tsx): the same chip now renders on every HISTORY row that
+carries a dest_txid (hash + copy + `platform-explorer.com/token/<id>`
+link — the exact active-card pattern). Re-verified: the chip renders
+with `6c19bea5c5bcc5eb87472304…571803d5` + the link.
+
+**(b) ITEM 2 — the DUSD direction (DASH→DUSD), the quote → create →
+deploy → settle display path LIVE-PROVEN with a real 0.01-tDASH swap.**
+Prep: the owner's tDASH LANDED at the F39 funding address (2.1089243
+tDASH — the swap form's 'Balance available to swap' line reads it); the
+DUSD quote works (season 3, fee 30 bps, inventory `low` ≈ 9.13 DUSD).
+The driver created the swap THROUGH THE REAL UI (the DUSD chip is the
+form default; the quote display showed the engine's drifting rate
+0.370488 DUSD + the fee line `incl. 0.00003 DASH platform fee (season
+3)`; the deposit card rendered QR + address + 'Waiting for your deposit
+(checking every 10s)'; the id was remembered). Swap
+`211f754d-4714-43c9-8321-8755f87500ad`, deposit `yPqMJDSbAzManNvNsGSFES
+bGdz4xc2vYeR`. FUNDED 1,000,000 duffs from the F39 funding wallet (tx
+`24608559c98982c1dde30ea22e1110a9c0ae7daadf2eee459116dd13b436a361`,
+block 1594271) → their engine: pending → detected (00:36) → settling
+(00:38, dest_txid `e84ab03aee976c34b98089681933bbf0ae01331cd4193b1acc65
+c113bf5d8e1a`) → **settled (00:44 — ~17 min end-to-end; F58 took ~68).**
+INDEPENDENT ON-CHAIN PROOF: the token-history system contract
+`43gujrzZgXqcKBiScLa4T8XTDnRhenR9BLx8GWVHjPxF` returns the transfer
+**371,673 tDUSD base units (0.371673 DUSD) credited to EcbX… from the
+settlement identity DpLt5xy…** (probed via the wasm compat path AND the
+proxy — both work; my first proxy probe returned 0 rows because I put
+`network` INSIDE params — the proxy expects it at the TOP level, as the
+app's proxyCall sends it). Browser pass 2b: the USD Assets row shows
+45.3716 (= the owner's 45 tDUSD + 0.371673, at the row's 4-decimal
+BigInt-truncation precision — the displayDecimalAmount shared math,
+NOT a bug); the history row = `DASH → DUSD · 0.01 DASH in → 0.371673
+DUSD · Settlement tx e84ab03a… · view on the explorer · SETTLED`; zero
+page errors.
+
+**(c) ITEM 2's live-hit BUG — the active card's RATE LINE was WRONG for
+BOTH tokens; FIXED.** Symptom: `Rate: 1 DASH ≈ NaN DUSD`. Root cause
+two-fold: (1) numeral() renders NaN for values below ~1e-6 with the
+`0,0.00[000000]` format (the DUSD rate/1e6 ≈ 3.7e-7 fell under it); (2)
+the UNITS were wrong anyway — the engine's `rate` is BASE UNITS PER
+DUFF (= amount_out/amount_in, verified on the settled F58 record:
+37,387,500,000/59,820,000 = 625), so "1 DASH ≈ X" = rate × 1e8 duffs
+÷ 10^decimals. The old code DIVIDED by 10^decimals only — wrong by
+1e8 for both tokens (SANS showed 0.00000625 instead of 625). FIX:
+`rate * DUFFS_PER_DASH / 10^decimals` → DUSD '37.16036795' (≈ $37 DASH
+vs the $1 peg ✓), SANS '625.00' ✓. Verified in the browser post-fix.
+
+**(d) ENVIRONMENT:** the DashSwap TESTNET dev key is staged at sansbank
+`~/.cloudflare/dashswap-frontend-testnet-devkey.txt` (the owner's) and
+now copied to evorunner `~/.cloudflare/dashswap-frontend-testnet-devkey
+.txt` (0600) — the static-server Function parity needs
+`DASHSWAP_API_KEY_TESTNET=$(cat …)` or every `/api/dashswap/*` call 401s
+and the 'Your swaps' history silently renders EMPTY (fetchSwap returns
+null on failure). The LIVE production Function path
+(https://testnet.evonext.app/api/dashswap/…) has the secret server-side
+and works.
+
+**(e) GOTCHAS (cost real time — carry forward):** (1) the F30/F43
+innerText-uppercase gotcha BIT AGAIN: the active swap card's heading
+renders 'FUND YOUR SWAP' (CSS uppercase) — a driver must match the
+case-shifted text; the 'Your swaps' header has no uppercase class.
+(2) The UI truncates the swap id in the DOM (slice(0,18)+'…') — read
+the FULL id from `evonext_swaps_<network>` instead. (3) The vendored
+rc.8 glue's `WasmTrustedContext.prefetchTestnet()` returns a PROMISE —
+await it in Node probes. (4) The raw `sdk.getDocuments` positional form
+is dead (the F39 gotcha) — use the compat `get_documents` wrapper; and
+plain-node CANNOT import lib/dash-wasm/compat.ts directly — esbuild-
+bundle probes (`--platform=node --format=esm` + the createRequire
+banner). (5) A driver regex too strict on formatted numerals ('0.6' vs
+'0.60') wastes a run — match the FORMATTED display.
+
+**(f) Engine-side leftovers (harmless, noted for the DashSwap team):**
+the driver runs created FOUR unfunded pending DUSD swaps (4323abb0…,
+7e1e513e…, 14e537d8…, 4318ea2f… — each allocated a deposit address
+from their bip44 keyspace) before the capture logic was right; only
+`211f754d…` was funded and settled. Their engine tolerates unfunded
+pendings.
+
+**(g) GATES:** tsc 0 · eslint clean (swap.tsx) · 363/363 (39 files) ·
+build green · playwright 2/2 · deployed (commit `bda70c6`) and verified
+LIVE: the served wallet chunk (`page-b9aeea6939f00510.js`) carries BOTH
+`Settlement tx:` JSX sites (the active card `f.dest_txid` + the history
+row `e.dest_txid`) and the rate fix (`1e8*R/Math.pow(10,…)`). MISSION A
+items 3-6 need no wallet work: (3) the flip/reverse lane = the DashSwap
+team's (their repo's recent commits are the rpsls integration — no
+movement on our F47 open questions); (5) mainnet swap enablement = the
+owner's top-up; (6) swap-to-another-identity = their engine change.
