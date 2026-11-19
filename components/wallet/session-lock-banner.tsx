@@ -37,7 +37,7 @@ import {
     upgradeSessionWithMnemonic,
     type SessionLockInfo,
 } from '@/lib/session-unlock'
-import { armIdleRelock, disarmIdleRelock, IDLE_RELOCK_MS } from '@/lib/session-lock-timer'
+import { IDLE_RELOCK_MS } from '@/lib/session-lock-timer'
 import { showErrorToast } from '@/lib/toast-error'
 
 export function SessionLockBanner() {
@@ -79,16 +79,13 @@ export function SessionLockBanner() {
         }
     }, [check])
 
-    /* F61 — the IDLE RE-LOCK: while the material is hot, arm the
-     * activity-based timer (any pointer/key/wheel/touch pushes the
-     * deadline; IDLE_RELOCK_MS of quiet runs lockSession). Locked or
-     * logged out → disarm. Unmounting the banner disarms too (the timer
-     * lives with the lock-state UI). */
-    useEffect(() => {
-        if (user?.identityId && info?.material) armIdleRelock(user.identityId)
-        else disarmIdleRelock()
-        return () => { disarmIdleRelock() }
-    }, [user?.identityId, info?.material])
+    /* F61b — the IDLE RE-LOCK no longer lives here: it is APP-WIDE via
+     * components/layout/session-relock-watcher.tsx (mounted in
+     * Providers), because the banner mounts ONLY on /wallet — arming
+     * here left the unlocked keys hot indefinitely on every other page,
+     * and the old on-unmount disarm killed the timer on navigation.
+     * This component keeps the visible "Lock now" control and the
+     * lock-state UI; the timer follows the session everywhere. */
 
     /* F61 — the explicit lock (the visible re-lock control). Wipes the
      * in-memory material (lockSession) — the banner then renders the

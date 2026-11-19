@@ -21,6 +21,7 @@ import { getMnemonic, storeAsset, clearAsset } from '../../lib/secure-storage'
 import { DEFAULT_ASSET } from '../../lib/constants'
 import type { IToken } from '../../lib/types'
 import { shieldedEngine, persistedShieldedBalance } from '../../lib/shielded/engine-client'
+import { readCachedDashPrice, writeCachedDashPrice } from '@/lib/wallet-assets'
 
 import { useAuth } from '@/contexts/auth-context'
 import { useNetwork } from '@/contexts/network-context'
@@ -211,13 +212,15 @@ export default function WalletPage() {
             /* F57 Phase 1: the dead wasm-SDK initialization is GONE — the
              * compat token-balance readers it was scaffolding for are never
              * called here (the token rows live in WalletAssets), and the
-             * main-thread WASM SDK must not be constructed for reads. */
-
-// FIXME FOR DEV PURPOSES ONLY
-            const ENDPOINT = 'https://dashswap.xyz/v1/ticker/DASH'
-            const response = await fetch(ENDPOINT)
-            const ticker = await response.json()
-            const dashUsdValue = ticker.quote.USD.price
+             * main-thread WASM SDK must not be constructed for reads.
+             *
+             * F61b — the DASH price no longer hangs the dashboard: this
+             * was the LAST unguarded dashswap fetch (the F56e fix covered
+             * assets.tsx/send.tsx; this page was deliberately left in F57
+             * Phase 1 as a noted wart). Cache first, then a bounded 8s
+             * refresh that is never fatal — a cosmetic USD figure must
+             * not block or crash the balance render. */
+            const dashUsdValue = readCachedDashPrice() ?? 0
             setDashPrice(dashUsdValue)
 
             /* Validate user. */
@@ -241,6 +244,24 @@ export default function WalletPage() {
                     id: 'SANS',
                 },
             ])
+
+            /* The refresh: 8s abort (the F56e assets.tsx pattern), the
+             * cached value stands on any failure. */
+            try {
+                const ctrl = new AbortController()
+                const timer = setTimeout(() => ctrl.abort(), 8000)
+                const response = await fetch('https://dashswap.xyz/v1/ticker/DASH', { signal: ctrl.signal })
+                clearTimeout(timer)
+                const ticker = await response.json()
+                const price = Number(ticker?.quote?.USD?.price ?? 0)
+                if (price > 0) {
+                    writeCachedDashPrice(price)
+                    setDashPrice(price)
+                    if (typeof user !== 'undefined' && user !== null) {
+                        setDisplayBalanceUsd(numeral((user?.balance / 10 ** 11) * price).format('$0,0.00[00]'))
+                    }
+                }
+            } catch { /* keep the cached price — never fatal */ }
         }
 
         /* Fetch (async) data. */
