@@ -505,7 +505,16 @@ export function WalletSwap({ isFullScreen }: WalletSwapProps) {
                                 </button>
                                 {(swapRate !== null) && (
                                     <span className="text-2xs text-gray-400">
-                                        Rate: 1 DASH ≈ {numeral(swapRate / Math.pow(10, TOKEN_META[destination].decimals)).format('0,0.00[000000]')} {TOKEN_META[destination].symbol}
+                                        {/* F60 — the engine's `rate` is BASE units per DUFF
+                                         * (amount_out/amount_in, verified on the settled F58
+                                         * record: 37387500000/59820000 = 625). "1 DASH ≈ X"
+                                         * therefore needs rate × 1e8 duffs/DASH ÷ 10^decimals
+                                         * — the old code DIVIDED by 10^decimals only, which
+                                         * (a) was wrong by 1e8 for both tokens (SANS showed
+                                         * 0.00000625 instead of 625) and (b) fell below
+                                         * numeral's display floor for DUSD (≈3.7e-7) and
+                                         * rendered NaN. */}
+                                        Rate: 1 DASH ≈ {numeral(swapRate * DUFFS_PER_DASH / Math.pow(10, TOKEN_META[destination].decimals)).format('0,0.00[000000]')} {TOKEN_META[destination].symbol}
                                     </span>
                                 )}
                             </div>
@@ -587,6 +596,33 @@ export function WalletSwap({ isFullScreen }: WalletSwapProps) {
                                                 {swap.amount_in != null ? `${numeral(swap.amount_in / DUFFS_PER_DASH).format('0,0.00[000000]')} DASH in` : 'open amount'}
                                                 {swap.amount_out != null && ` → ${numeral(swap.amount_out / Math.pow(10, TOKEN_META[to as SwapDestination].decimals)).format('0,0.00[000000]')} ${to}`}
                                             </p>
+                                            {/* F60 — the settlement proof is reachable from the
+                                             * HISTORY row too: the active card (which carries
+                                             * dest_txid + copy + the explorer link) renders only
+                                             * for activeSwap — null after a reload — so a settled
+                                             * swap previously had NO way to show/copy its
+                                             * state-transition hash. Same chip pattern as the
+                                             * active card's. */}
+                                            {swap.dest_txid && (
+                                                <div className="mt-1 flex items-center gap-2 flex-wrap">
+                                                    <span className="text-2xs text-gray-500">Settlement tx:</span>
+                                                    <button
+                                                        onClick={() => { navigator.clipboard.writeText(swap.dest_txid as string).then(() => toast.success('Settlement hash copied')).catch(() => showErrorToast('Failed to copy')) }}
+                                                        title="Click to copy the state-transition hash"
+                                                        className="rounded-lg border border-gray-200 bg-white px-2 py-1 font-mono text-2xs text-gray-600 break-all hover:border-sky-300 transition-colors"
+                                                    >
+                                                        {swap.dest_txid.slice(0, 24)}…{swap.dest_txid.slice(-8)}
+                                                    </button>
+                                                    <a
+                                                        href={`https://${sdkNetwork === 'mainnet' ? 'www' : 'testnet'}.platform-explorer.com/token/${TOKEN_META[to as SwapDestination].tokenId[sdkNetwork]}`}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="text-2xs text-sky-600 hover:underline"
+                                                    >
+                                                        view on the explorer ↗
+                                                    </a>
+                                                </div>
+                                            )}
                                         </div>
                                         <span className={`text-2xs uppercase shrink-0 ${isSettled(swap.status) ? 'text-emerald-600' : statusFailed(swap.status) ? 'text-rose-600' : 'text-sky-600'}`}>
                                             {swap.status}
