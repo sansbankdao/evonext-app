@@ -7,7 +7,16 @@ import { Button } from '@/components/ui/button'
 import { RegistrarModal } from '@/components/id/registrar-modal'
 import { useRouter } from 'next/navigation'
 import { showErrorToast } from '@/lib/toast-error'
-import { validate_mnemonic } from '@/lib/dash-wasm/compat'
+/* F63b — the PURE-JS BIP39 validation (the F57j.5 precedent): the
+ * previous wasm `validate_mnemonic` crashed with the exact
+ * "reading '__wbindgen_malloc'" glue-before-load class — the F56g guard
+ * gates the SUBMIT button but NOT the paste handler (and the paste
+ * path predates the engine finishing its up-to-60s init). @scure/bip39
+ * validates in pure JS against the SAME wordlist the diagnostics use;
+ * acceptance is identical (the same BIP39 spec the wasm binding
+ * implements). */
+import { validateMnemonic as scureValidateMnemonic } from '@scure/bip39'
+import { wordlist as ENGLISH_WORDLIST } from '@scure/bip39/wordlists/english.js'
 import { getNetwork } from '@/lib/network'
 
 export default function LoginPage() {
@@ -29,12 +38,15 @@ export default function LoginPage() {
 
     /* F56g — THE WASM ENGINE INIT ON MOUNT. The connect page is the ONE page
      * that never initialized the wasm up front, so EVERY first-glue consumer
-     * on it (the private-key fromWIF decode, validate_mnemonic, the
-     * mnemonic-flow key derivation) could crash with the
-     * "reading '__wbindgen_malloc'" / "reading
-     * 'wasmsdk_deriveKeyFromSeedWithPath'" class of errors when the load
-     * hadn't finished. Initialize on mount (the single-flight service init,
-     * retried internally) and keep the Sign In button honest until ready. */
+     * on it (the private-key fromWIF decode, the mnemonic-flow key
+     * derivation) could crash with the "reading '__wbindgen_malloc'" /
+     * "reading 'wasmsdk_deriveKeyFromSeedWithPath'" class of errors when the
+     * load hadn't finished. Initialize on mount (the single-flight service
+     * init, retried internally) and keep the Sign In button honest until
+     * ready. F63b: the mnemonic VALIDATION itself is now pure JS (@scure)
+     * and EVERY handleMnemonic entry point guards on engineReady — the
+     * F56g button gate alone missed the paste handler (the owner's live
+     * crash). */
     const [engineReady, setEngineReady] = useState(false)
     const [engineError, setEngineError] = useState<string | null>(null)
     const [engineRetryNonce, setEngineRetryNonce] = useState(0)
@@ -122,8 +134,22 @@ export default function LoginPage() {
     }
 
     const handleMnemonic = async (_mnemonic: any, _skipCreateConfirm = false) => {
-        /* Set the mnemonic (store). */
+        /* Set the mnemonic (store) FIRST — an early paste keeps its words
+         * in the fields (the user clicks Sign In once the engine is
+         * ready) instead of being silently discarded. */
         setMnemonic(_mnemonic)
+
+        /* F63b — the ENGINE GUARD FOR EVERY ENTRY POINT: the F56g mount
+         * init can take up to 60s (the 26.5MB wasm + the trusted-context
+         * prefetch); the SUBMIT button waits for it, but the PASTE
+         * handler and the passkey confirm/recover paths call this
+         * directly. Everything below the validation (the identity search,
+         * the registrar) needs the engine — refuse honestly instead of
+         * crashing on the unloaded glue. */
+        if (!engineReady) {
+            showErrorToast('The wallet engine is still loading — try again in a moment.')
+            return
+        }
 
         /* Join an array of seed words — NORMALIZED (trim, lowercase, any
          * whitespace collapsed; F57b): the BIP39 seed is derived from the
@@ -137,8 +163,10 @@ export default function LoginPage() {
         /* Set current network. */
         const currentNetwork = (network === 'mainnet' ? 'mainnet' : 'testnet') as 'mainnet' | 'testnet'
 
-        /* Validate mnemonic. */
-        const isValid = validate_mnemonic(mnemonic)
+        /* Validate mnemonic — PURE JS (F63b; see the import note).
+         * normalizePhrase already lowercases, which is what @scure's
+         * wordlist check expects. */
+        const isValid = scureValidateMnemonic(mnemonic, ENGLISH_WORDLIST)
 
         /* Validate mnemonic. */
         if (!isValid) {
@@ -198,24 +226,33 @@ storeIdentityIdx(credentials?.identityIdx ?? 0)
 
         /* Wait a tick. */
         setTimeout(async () => {
-            /* Split seed words — on ANY whitespace run and normalized (trim,
-         * lowercase): the old split(' ') produced contaminated words for
-         * phrases pasted with newlines / double spaces / tabs (typical of
-         * password managers and notes apps) and rejected VALID phrases —
-         * the live 'seed words are INVALID' reports, 2026-11-16. */
-            const { wordsOf } = await import('@/lib/mnemonic-diagnostics')
-            const splitWords = wordsOf(clipboard)
+            try {
+                /* Split seed words — on ANY whitespace run and normalized (trim,
+             * lowercase): the old split(' ') produced contaminated words for
+             * phrases pasted with newlines / double spaces / tabs (typical of
+             * password managers and notes apps) and rejected VALID phrases —
+             * the live 'seed words are INVALID' reports, 2026-11-16. */
+                const { wordsOf } = await import('@/lib/mnemonic-diagnostics')
+                const splitWords = wordsOf(clipboard)
 
-            /* Fill the array with the pasted words. */
-            const emptyValuesNeeded = ((splitWords.length > 12) ? 24 : 12) - splitWords.length
-            const emptyValues = Array(emptyValuesNeeded).fill('')
-            const pastedWords = [ ...splitWords, ...emptyValues ]
+                /* Fill the array with the pasted words. */
+                const emptyValuesNeeded = ((splitWords.length > 12) ? 24 : 12) - splitWords.length
+                const emptyValues = Array(emptyValuesNeeded).fill('')
+                const pastedWords = [ ...splitWords, ...emptyValues ]
 
-            /* Handle mnemonic. */
-            await handleMnemonic(pastedWords)
-
-            /* Set loading flag. */
-            setIsLoading(false)
+                /* Handle mnemonic. */
+                await handleMnemonic(pastedWords)
+            } catch (err: any) {
+                /* F63b — the paste path ran UNGUARDED in a detached
+                 * setTimeout: any failure surfaced as an "Uncaught (in
+                 * promise)" with no UI feedback (the owner's
+                 * __wbindgen_malloc report). Surface it honestly. */
+                showErrorToast((err && typeof err.message === 'string' && err.message)
+                    || 'Could not process the pasted phrase.')
+            } finally {
+                /* Set loading flag. */
+                setIsLoading(false)
+            }
         }, 0)
     }
 

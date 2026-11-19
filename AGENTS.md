@@ -5280,3 +5280,48 @@ holds zero tDUSD/tSANS on testnet — after the fix the rows honestly
 show 0 DUSD / 0 SANS (+ $0.00). Their OTHER identities (AFaVqR…,
 ADtgYG2…) hold the 2,405 tDUSD / 19,662 SANS — those sessions show
 the real balances (proven repeatedly, F57g).
+
+## F63b — the RECONNECT CRASH ("reading '__wbindgen_malloc'" in
+## validateMnemonic): the PASTE path bypassed the F56g engine gate;
+## the validation is now pure JS and every entry point guards (the
+## owner's report, 2026-11-19, commit follows)
+
+**THE CRASH (the owner's stack):** `Uncaught (in promise) TypeError:
+Cannot read properties of undefined (reading '__wbindgen_malloc') at
+_y.validateMnemonic (5619-…)` while re-connecting. Root cause: the
+connect page's paste handler (F57d) calls `handleMnemonic` DIRECTLY
+from the paste event, UNGATED — the F56g guard only disables the SUBMIT
+button until the engine init completes (up to 60s: the 26.5MB wasm +
+the trusted-context prefetch). A paste in that window ran the WASM
+`validate_mnemonic` against the unloaded glue → the exact
+glue-before-load class the F56d/F56g/F57j.5 fixes eradicated
+elsewhere. The detached `setTimeout(async …)` surfaced it as an
+"Uncaught (in promise)" with no UI feedback.
+
+**THE FIX (app/connect/page.tsx):**
+1. **The validation is WASM-FREE** (the F57j.5 precedent):
+   `scureValidateMnemonic(mnemonic, ENGLISH_WORDLIST)` from
+   @scure/bip39 (pure JS, the same BIP39 wordlist the diagnostics use;
+   normalizePhrase already lowercases) replaces the compat
+   `validate_mnemonic` — the crash trigger is GONE regardless of
+   engine state.
+2. **Every handleMnemonic entry point guards on engineReady** — the
+   paste path, the passkey backup-confirm, and the passkey recover all
+   call it directly; the top-of-function guard now refuses honestly
+   ('The wallet engine is still loading — try again in a moment.')
+   before anything wasm-dependent (the identity search, the
+   registrar). The mnemonic fields are set BEFORE the guard so an
+   early paste is NOT discarded — the user clicks Sign In once the
+   engine is ready.
+3. **The paste handler's detached setTimeout is try/caught** → the
+   honest error toast (the F26l lesson) — no more silent unhandled
+   rejections from that path.
+
+**VERIFIED:** the driver reproduced the owner's EXACT condition on the
+fixed build — paste at +1.9s (engine NOT ready) → the guard toast at
++2.4s, ZERO page errors (no __wbindgen_malloc); the fields kept the
+phrase; engine ready at +5.4s; the second paste logged in (+13.5s).
+Gates: tsc 0 · eslint clean · 374/374 (40 files) · build green ·
+playwright 2/2 · deployed and verified live (the served connect chunk
+`page-9546a1c85c067b48.js` is SHA-256-IDENTICAL to the fixed local
+build; the earlier grep races were propagation timing).
