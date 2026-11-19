@@ -85,8 +85,10 @@ export function WalletAssets({ isFullScreen, onOpenShielded, selectedAsset, onSe
      * the owner enters the unlock password, the material returns, and
      * WITHOUT a re-run the rows stayed at 0 forever. The unlock event
      * (restorePayload / the seed upgrade) bumps this tick, which is in
-     * both balance effects' dep arrays. The PRICES effect is deliberately
-     * NOT keyed on it — prices are network-level, not mnemonic-level. */
+     * both balance effects' dep arrays — and since F63 also in the TOKEN
+     * balance effect (a failed read gets another chance when the
+     * material returns; the prices re-run harmlessly — cache-first and
+     * idempotent). */
     const [unlockedTick, setUnlockedTick] = useState(0)
     useEffect(() => {
         /* F61 — BOTH directions re-derive: the unlock event (the material
@@ -275,6 +277,7 @@ export function WalletAssets({ isFullScreen, onOpenShielded, selectedAsset, onSe
      * refreshes non-fatally with an 8s timeout. */
     useEffect(() => {
         let cancelled = false
+        const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
         ;(async () => {
             /* F57 Phase 1: the token reads are TRUSTLESS (the same ladder
              * as the platform-address read) — no WASM SDK construction.
@@ -288,31 +291,49 @@ export function WalletAssets({ isFullScreen, onOpenShielded, selectedAsset, onSe
                 const dusdContractId = network === 'mainnet' ? DUSD_CONTRACT_ID_MAINNET : DUSD_CONTRACT_ID_TESTNET
                 const sansContractId = network === 'mainnet' ? SANS_CONTRACT_ID_MAINNET : SANS_CONTRACT_ID_TESTNET
 
+                /* F63 — A COMPLETED READ IS DEFINITIVE. The ladder maps
+                 * HOLDERS only (every tier omits a non-holder: the proxy
+                 * returns balance:null rows, the pshenmic/wasm paths omit
+                 * the entry), so an identity with no entry holds ZERO and
+                 * the row must show the real 0 — the former
+                 * `balance !== undefined` gate left non-holder sessions
+                 * (the owner's 'sansbank' identity holds neither token)
+                 * with ETERNAL skeletons AFTER the read had succeeded,
+                 * violating the F56e contract: "a read (even zero) = the
+                 * real row". The skeleton now means ONLY: the read is
+                 * still in flight (or every attempt failed — never faked
+                 * into a zero). Bounded retry like the Transparent read
+                 * (3×, 5s backoff). */
+                const readTokenBalances = async (
+                    tokenId: string,
+                    what: string,
+                ): Promise<Map<string, bigint> | null> => {
+                    for (let attempt = 1; attempt <= 3; attempt++) {
+                        try {
+                            return await getIdentitiesTokenBalances(
+                                sdkNetwork, identityIds, tokenId)
+                        } catch (err: any) {
+                            if (cancelled) return null
+                            console.error(`${what} balance read attempt ${attempt}/3 failed:`, err?.message)
+                            if (attempt < 3) await sleep(5000)
+                        }
+                    }
+                    return null
+                }
+
                 /* DUSD task. */
                 void (async () => {
-                    try {
-                        const balances = await getIdentitiesTokenBalances(
-                            sdkNetwork, identityIds, dusdContractId)
-                        const balance = balances.get(user.identityId)
-                        if (!cancelled && balance !== undefined) {
-                            setDisplayDusdBalance(balance)
-                        }
-                    } catch (err: any) {
-                        console.error('DUSD balance read failed:', err?.message)
+                    const balances = await readTokenBalances(dusdContractId, 'DUSD')
+                    if (!cancelled && balances) {
+                        setDisplayDusdBalance(balances.get(user.identityId) ?? 0n)
                     }
                 })()
 
                 /* SANS task (independent). */
                 void (async () => {
-                    try {
-                        const balances = await getIdentitiesTokenBalances(
-                            sdkNetwork, identityIds, sansContractId)
-                        const balance = balances.get(user.identityId)
-                        if (!cancelled && balance !== undefined) {
-                            setDisplaySansBalance(balance)
-                        }
-                    } catch (err: any) {
-                        console.error('SANS balance read failed:', err?.message)
+                    const balances = await readTokenBalances(sansContractId, 'SANS')
+                    if (!cancelled && balances) {
+                        setDisplaySansBalance(balances.get(user.identityId) ?? 0n)
                     }
                 })()
             }
@@ -344,7 +365,11 @@ export function WalletAssets({ isFullScreen, onOpenShielded, selectedAsset, onSe
         setSansPrice(readCachedTokenPrice('SANS'))
         void fetchTokenUsdPrice('DUSD').then((price) => { if (!cancelled && price) setDusdPrice(price) })
         void fetchTokenUsdPrice('SANS').then((price) => { if (!cancelled && price) setSansPrice(price) })
-    }, [network, user])
+        /* F63 — the TOKEN BALANCES join the F57k unlock re-run: a read
+         * that failed while the session was still restoring gets another
+         * chance when the material returns (the prices re-run too —
+         * harmless, they are cache-first and idempotent). */
+    }, [network, user, unlockedTick])
 
     /* The rows REBUILD incrementally as each independent balance lands. */
     useEffect(() => {

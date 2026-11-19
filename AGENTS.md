@@ -5222,3 +5222,61 @@ contract — the F26n mainnet constant is '') — a future task should
 honestly disable/explain it there; (b) the identity-balance line's
 numeral rounding is cosmetic (the F42 gotcha). The driver harness was
 deleted after the run (untracked-scratch convention).
+
+## F63 — THE TOKEN-ROW ETERNAL SKELETONS: the non-holder reads never
+## resolved — a completed read is now DEFINITIVE (the owner's
+## 'sansbank' session, 2026-11-19, commit follows)
+
+The owner's report: "SHIELDED seems to still be blocking the loading of
+my other assets — TRANSPARENT loads quickly, DUSD/SANS only ever update
+after SHIELDED", then with the Shielded value visible: "I still see
+SKELETONS for my 2 assets" (their paste shows Transparent + Shielded
+loaded, USD + Sansnote as bare skeletons).
+
+**(a) ROOT CAUSE — LIVE-PROVEN.** The session identity
+`7FPDMHJEKN6LAZdkkNdAnYBTidysojvxG6kMwakCXmAF` ('sansbank') holds NO
+tokens: the proxy's `get_identities_token_balances` returns
+`{identityId, balance: null}` for BOTH tDUSD and tSANS (curl,
+testnet). The ladder maps HOLDERS only (every tier omits a non-holder
+— the F57 Phase 1 1:1-with-wasm rule), the adapter skips the null
+rows, and the component's task only set the state
+`if (balance !== undefined)` — so a COMPLETED read for a non-holder
+never set anything: `loading` stayed true → the SKELETON FOREVER,
+independent of the shielded scan. The F56e contract ("a read — even
+zero — = the real row") was broken by that gate; the shielded
+correlation in the first report was a perception effect (the scan is
+the last thing to visibly finish).
+
+**(b) THE FIX (components/wallet/assets.tsx, both token tasks):** a
+completed read is DEFINITIVE — `balances.get(id) ?? 0n` (a non-holder
+holds ZERO; the row shows the real 0 + $0.00, never an eternal
+skeleton). The skeleton now means ONLY "the read is still in flight
+(or every attempt failed — never faked into a zero)". Plus: a bounded
+retry (3×, 5s backoff — the same shape as the Transparent read;
+a transient tier failure no longer strands the row) and the F57k
+unlock re-run key (`unlockedTick` added to the token effect's deps —
+a read that failed while the session was still restoring gets another
+chance when the material returns; the prices re-run harmlessly).
+
+**(c) VERIFICATION.** curl: the owner's identity = balance:null on
+both token ids (the live shape); the adapter's non-holder omission is
+unit-pinned (trustless-reads tests); buildAvailableAssets's "a READ
+balance — even ZERO — is no longer loading: the real row" is
+unit-pinned (wallet-assets tests L124-133); the browser e2e on the
+fixed build (local server, the EcbX holder session): ALL FOUR rows
+landed by +14.7s (Transparent +10.4s, tokens by +14.7s — well before
+the scan's final refinement), zero page errors. Cold-session
+instrumented probes (fetch + console instrumentation on production)
+confirmed the tier-1 token calls FIRE at mount together with the
+Transparent read and land in seconds when tier-1 succeeds — no
+shielded serialization exists on the read path. Gates: tsc 0 · eslint
+clean · 374/374 (40 files) · build green · playwright 2/2 · deployed
+via the direct path and verified LIVE (the served wallet chunk
+`page-cb316efb751eca45.js` carries the retry string twice — both
+token tasks).
+
+**(d) NOTE for the owner:** the 'sansbank' session identity genuinely
+holds zero tDUSD/tSANS on testnet — after the fix the rows honestly
+show 0 DUSD / 0 SANS (+ $0.00). Their OTHER identities (AFaVqR…,
+ADtgYG2…) hold the 2,405 tDUSD / 19,662 SANS — those sessions show
+the real balances (proven repeatedly, F57g).
