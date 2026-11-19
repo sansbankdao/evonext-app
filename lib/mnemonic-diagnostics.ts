@@ -13,12 +13,24 @@
 // words that are not in the BIP39 wordlist (with their positions), or the
 // all-words-valid-but-checksum case.
 
+import { validateMnemonic } from '@scure/bip39'
 import { wordlist as ENGLISH } from '@scure/bip39/wordlists/english.js'
 
 /** Normalize a pasted/typed phrase: trim, lowercase, collapse ALL
  * whitespace runs (spaces, tabs, newlines) to single spaces. */
 export function normalizePhrase(input: string): string {
     return input.trim().toLowerCase().replace(/\s+/g, ' ')
+}
+
+/** F63b — the PURE-JS BIP39 validation — the EXACT chain the connect
+ * page's login uses (normalizePhrase → @scure validateMnemonic): the
+ * previous wasm `validate_mnemonic` crashed with the glue-before-load
+ * "reading '__wbindgen_malloc'" class when a phrase was pasted before
+ * the engine loaded. This check has NO wasm dependency and @scure does
+ * NOT normalize itself (raw mixed case / whitespace → false), so the
+ * normalization runs here — acceptance is the same BIP39 spec. */
+export function isValidPhrase(input: string): boolean {
+    return validateMnemonic(normalizePhrase(input), ENGLISH)
 }
 
 /** The normalized non-empty words of a phrase. */

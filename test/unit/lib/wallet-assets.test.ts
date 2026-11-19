@@ -18,7 +18,7 @@
  *  - the SANS row likewise (8-decimal, Sansnote);
  *  - no phantom rows when balances are missing. */
 import { describe, it, expect } from 'vitest'
-import { buildAvailableAssets } from '@/lib/wallet-assets'
+import { buildAvailableAssets, resolveTokenBalance } from '@/lib/wallet-assets'
 import {
     DUSD_CONTRACT_ID_TESTNET,
     SANS_CONTRACT_ID_TESTNET,
@@ -145,5 +145,36 @@ describe('buildAvailableAssets (F53a regression guards)', () => {
         expect(rows[0].amount).toBe(17_624_082_724n)
         expect(rows[1].amount).toBe(131_100_000n)
         expect(rows[0].fiat.USD).toBeCloseTo(40 * 0.17624082724, 6)
+    })
+})
+
+describe('resolveTokenBalance (F63 — a COMPLETED token read is definitive)', () => {
+    /* The F63 incident: the owner's 'sansbank' session identity holds no
+     * tokens — the proxy's get_identities_token_balances answers
+     * {balance: null} (live-proven), the ladder maps HOLDERS only, and
+     * the former `balance !== undefined` gate in the assets component
+     * never set the state → ETERNAL skeletons for the USD/Sansnote rows
+     * even after the read had succeeded (and independent of the shielded
+     * scan, which the owner first blamed). The component now wires this
+     * helper 1:1; these tests pin its semantics. */
+
+    it('a holder returns the mapped balance', () => {
+        const map = new Map([
+            ['EcbXLyhWeMB3BLmpVk1sWgtwQjUzaFASwhL3ShxXqdVa', 45_371_673n],
+        ])
+        expect(resolveTokenBalance(map, 'EcbXLyhWeMB3BLmpVk1sWgtwQjUzaFASwhL3ShxXqdVa'))
+            .toBe(45_371_673n)
+    })
+
+    it('a COMPLETED read with no entry = the identity holds ZERO — a real row, never a skeleton', () => {
+        /* The owner's session shape: the proxy returns balance:null rows,
+         * the adapter skips them, the map comes back EMPTY — the answer
+         * is still definitive. */
+        expect(resolveTokenBalance(new Map(), '7FPDMHJEKN6LAZdkkNdAnYBTidysojvxG6kMwakCXmAF'))
+            .toBe(0n)
+    })
+
+    it('a FAILED read (null) stays loading — never faked into a zero', () => {
+        expect(resolveTokenBalance(null, 'any-id')).toBe(null)
     })
 })

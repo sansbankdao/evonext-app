@@ -5325,3 +5325,38 @@ Gates: tsc 0 · eslint clean · 374/374 (40 files) · build green ·
 playwright 2/2 · deployed and verified live (the served connect chunk
 `page-9546a1c85c067b48.js` is SHA-256-IDENTICAL to the fixed local
 build; the earlier grep races were propagation timing).
+
+## F63c — THE REGRESSION SUITE for both fixes (the owner's directive:
+## "update the TEST SUITE accordingly", 2026-11-19, commit follows)
+
+The F63/F63b logic was extracted into lib helpers so the EXACT chains
+the components run are unit-pinned (374 → **383/383, 40 files**):
+
+1. **lib/wallet-assets.ts +`resolveTokenBalance(balances, identityId)`**
+   — the F63 "a COMPLETED read is DEFINITIVE" semantics as a pure
+   function: a holder → the mapped balance; a COMPLETED read with no
+   entry (the proxy's balance:null rows skipped — the owner's
+   'sansbank' identity shape, live-proven) → **0n** (a real row, never
+   a skeleton); a FAILED/absent read (null) → **null** (stays loading —
+   never faked into a zero). components/wallet/assets.tsx wires both
+   token tasks through it 1:1 (behavior identical to the inline `??
+   0n` version). 3 tests in test/unit/lib/wallet-assets.test.ts.
+2. **lib/mnemonic-diagnostics.ts +`isValidPhrase(input)`** — the F63b
+   pure-JS login validation as the EXACT chain the connect page runs:
+   `validateMnemonic(normalizePhrase(input), ENGLISH_WORDLIST)`. The
+   composition matters: @scure does NOT normalize itself (live-probed:
+   raw mixed case / stray whitespace → FALSE even for a valid phrase),
+   so the normalization must compose in. The page imports this helper
+   (the direct @scure imports removed). 6 tests in
+   test/unit/lib/mnemonic-diagnostics.test.mts: the mixed-case +
+   newline/tab valid phrase → true (the F57d behavior, now wasm-free);
+   the normalized phrase → true; a bad word → false; a checksum
+   failure → false; a 13-word count → false; empty/whitespace-only →
+   false. The handleMnemonic ENGINE-READY guard is component logic —
+   e2e-verified with the live driver (recorded in the test header).
+
+Gates: tsc 0 · eslint clean · **383/383 (40 files)** · build green ·
+playwright 2/2 · deployed + the live connect chunk verified
+byte-identical to the local build via cmp (the `curl | sha256sum`
+mismatch earlier was a stale edge copy mid-propagation — use cmp or a
+two-step download for the deploy check).

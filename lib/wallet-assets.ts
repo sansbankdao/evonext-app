@@ -134,6 +134,23 @@ export function buildAvailableAssets(input: AvailableAssetInput): IToken[] {
     return assets
 }
 
+/** F63 — A COMPLETED token read is DEFINITIVE. The ladder maps HOLDERS
+ * only (every tier omits a non-holder: the proxy returns balance:null
+ * rows — live-proven with the owner's 'sansbank' identity; the pshenmic
+ * and wasm paths omit the entry), so an identity with no entry in a
+ * COMPLETED read holds ZERO and the row must show the real 0 — the
+ * former `balance !== undefined` gate in components/wallet/assets.tsx
+ * left non-holder sessions with ETERNAL skeletons after the read had
+ * succeeded. Returns null ONLY for a failed/absent read (the row stays
+ * a skeleton — never faked into a zero). The token tasks wire this 1:1. */
+export function resolveTokenBalance(
+    balances: Map<string, bigint> | null,
+    identityId: string,
+): bigint | null {
+    if (!balances) return null
+    return balances.get(identityId) ?? 0n
+}
+
 /* ---------------------------------------------------------------------------
  * F56e — the shared DASH/USD price cache (the F37b pattern): the ticker
  * fetch on a SLOW connection hung the Send panel FOREVER (no timeout, no

@@ -31,7 +31,7 @@ import {
     storeIdentityIdx,
 } from '@/lib/secure-storage'
 import { shieldedEngine, persistedShieldedBalance } from '@/lib/shielded/engine-client'
-import { readCachedDashPrice, writeCachedDashPrice, readCachedTokenPrice, fetchTokenUsdPrice } from '@/lib/wallet-assets'
+import { readCachedDashPrice, writeCachedDashPrice, readCachedTokenPrice, fetchTokenUsdPrice, resolveTokenBalance } from '@/lib/wallet-assets'
 import { fetchPlatformAddressBalance } from '@/lib/platform-address'
 
 interface WalletAssetProps {
@@ -324,16 +324,18 @@ export function WalletAssets({ isFullScreen, onOpenShielded, selectedAsset, onSe
                 /* DUSD task. */
                 void (async () => {
                     const balances = await readTokenBalances(dusdContractId, 'DUSD')
-                    if (!cancelled && balances) {
-                        setDisplayDusdBalance(balances.get(user.identityId) ?? 0n)
+                    const resolved = resolveTokenBalance(balances, user.identityId)
+                    if (!cancelled && resolved !== null) {
+                        setDisplayDusdBalance(resolved)
                     }
                 })()
 
                 /* SANS task (independent). */
                 void (async () => {
                     const balances = await readTokenBalances(sansContractId, 'SANS')
-                    if (!cancelled && balances) {
-                        setDisplaySansBalance(balances.get(user.identityId) ?? 0n)
+                    const resolved = resolveTokenBalance(balances, user.identityId)
+                    if (!cancelled && resolved !== null) {
+                        setDisplaySansBalance(resolved)
                     }
                 })()
             }

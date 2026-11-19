@@ -11,12 +11,11 @@ import { showErrorToast } from '@/lib/toast-error'
  * previous wasm `validate_mnemonic` crashed with the exact
  * "reading '__wbindgen_malloc'" glue-before-load class — the F56g guard
  * gates the SUBMIT button but NOT the paste handler (and the paste
- * path predates the engine finishing its up-to-60s init). @scure/bip39
- * validates in pure JS against the SAME wordlist the diagnostics use;
- * acceptance is identical (the same BIP39 spec the wasm binding
- * implements). */
-import { validateMnemonic as scureValidateMnemonic } from '@scure/bip39'
-import { wordlist as ENGLISH_WORDLIST } from '@scure/bip39/wordlists/english.js'
+ * path predates the engine finishing its up-to-60s init). isValidPhrase
+ * (lib/mnemonic-diagnostics) composes normalizePhrase + the @scure
+ * validate — pure JS, the SAME wordlist the diagnostics classify with,
+ * and the EXACT chain the regression suite pins. */
+import { isValidPhrase } from '@/lib/mnemonic-diagnostics'
 import { getNetwork } from '@/lib/network'
 
 export default function LoginPage() {
@@ -163,10 +162,9 @@ export default function LoginPage() {
         /* Set current network. */
         const currentNetwork = (network === 'mainnet' ? 'mainnet' : 'testnet') as 'mainnet' | 'testnet'
 
-        /* Validate mnemonic — PURE JS (F63b; see the import note).
-         * normalizePhrase already lowercases, which is what @scure's
-         * wordlist check expects. */
-        const isValid = scureValidateMnemonic(mnemonic, ENGLISH_WORDLIST)
+        /* Validate mnemonic — PURE JS (F63b; see the import note). The
+         * chain is pinned by test/unit/lib/mnemonic-diagnostics.test.mts. */
+        const isValid = isValidPhrase(mnemonic)
 
         /* Validate mnemonic. */
         if (!isValid) {
